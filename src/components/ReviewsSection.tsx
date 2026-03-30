@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useTheme } from '../App';
@@ -33,8 +33,9 @@ function StarRating({ rating, size = 14 }: { rating: number; size?: number }) {
   );
 }
 
-// Use ALL reviews, shuffled for variety in the carousel
-const ALL_REVIEWS = [...REVIEWS].sort(() => Math.random() - 0.5);
+// Cap to 50 reviews for performance (100 DOM nodes with duplication)
+// This is more than enough cards to fill any viewport before the seamless loop resets
+const CAROUSEL_CAP = 50;
 
 export default function ReviewsSection() {
   const { theme } = useTheme();
@@ -88,14 +89,20 @@ export default function ReviewsSection() {
     if (sliderRef.current) sliderRef.current.scrollBy({ left: 400, behavior: 'smooth' });
   }, []);
 
+  // Shuffle and cap reviews, memoized to prevent re-shuffle on re-render
+  const carouselReviews = useMemo(() => {
+    const shuffled = [...REVIEWS].sort(() => Math.random() - 0.5).slice(0, CAROUSEL_CAP);
+    return [...shuffled, ...shuffled]; // duplicate for seamless loop
+  }, []);
+
   // Duplicate reviews for seamless infinite scrolling
-  const displayReviews = [...ALL_REVIEWS, ...ALL_REVIEWS];
+  const displayReviews = carouselReviews;
 
   return (
-    <section className="py-24 px-6 overflow-hidden" id="reviews">
+    <section className="py-16 sm:py-24 px-4 sm:px-6 overflow-hidden" id="reviews">
       <div className="max-w-5xl mx-auto">
         {/* Section Header */}
-        <div className="mb-14 text-center">
+        <div className="mb-10 sm:mb-14 text-center">
           <motion.span
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
@@ -110,7 +117,7 @@ export default function ReviewsSection() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ ease: EASE.standard }}
-            className="text-3xl md:text-5xl font-light tracking-tight mb-4"
+            className="text-3xl sm:text-4xl md:text-5xl font-light tracking-tight mb-4"
           >
             Ratings <span className="italic font-serif">&</span> Reviews
           </motion.h2>
@@ -122,17 +129,17 @@ export default function ReviewsSection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ ease: EASE.standard }}
-          className="rounded-3xl border p-8 md:p-10 mb-10"
+          className="rounded-2xl sm:rounded-3xl border p-5 sm:p-8 md:p-10 mb-8 sm:mb-10"
           style={{
             backgroundColor: 'var(--bg-card)',
             borderColor: 'var(--border-subtle)',
           }}
         >
-          <div className="grid md:grid-cols-[280px_1fr] gap-10 items-start">
+          <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6 sm:gap-10 items-start">
             {/* Left: Overall score */}
             <div className="text-center md:text-left">
               <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
-                <span className="text-5xl md:text-6xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+                <span className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
                   {OVERALL_RATING}
                 </span>
                 <Star size={28} fill="var(--accent-color)" stroke="var(--accent-color)" />

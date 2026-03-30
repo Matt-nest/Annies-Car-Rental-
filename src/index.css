@@ -10,16 +10,23 @@
 @layer base {
   * {
     -webkit-tap-highlight-color: transparent;
+    box-sizing: border-box;
   }
 
   ::selection {
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(212, 175, 55, 0.25);
     color: #fff;
   }
 
   .light ::selection {
-    background: rgba(0, 0, 0, 0.15);
+    background: rgba(212, 175, 55, 0.25);
     color: #000;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   body {
@@ -27,80 +34,97 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: 'cv11', 'ss01';  /* Inter stylistic alternates */
   }
 
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* GPU-accelerated image rendering */
+  img {
+    content-visibility: auto;
+    image-rendering: -webkit-optimize-contrast;
+  }
+
+  /* Crisp font rendering on Retina */
+  @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    body { -webkit-font-smoothing: subpixel-antialiased; }
+  }
 }
 
-/* === Easing System === */
+/* === Easing System (Cinema-grade curves from UI Pro Max) === */
 :root {
-  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
-  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);      /* Heavy exit — hero reveals */
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);      /* Confident — cards, sections */
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);        /* Smooth — hovers, toggles */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);     /* Bounce — modals, popovers */
 }
 
-/* === Dark / Light theme tokens === */
+/* === Dark Mode — Cinema Mobile inspired (UI Pro Max Modern Dark) === */
 .dark {
   --bg-primary: #0A0A0A;
-  --bg-secondary: #111111;
-  --bg-card: rgba(255,255,255,0.04);
-  --bg-card-hover: rgba(255,255,255,0.08);
-  --bg-glass: rgba(255,255,255,0.06);
-  --bg-elevated: #141414;
-  --border-subtle: rgba(255,255,255,0.08);
-  --border-medium: rgba(255,255,255,0.12);
-  --border-strong: rgba(255,255,255,0.20);
-  --text-primary: #ffffff;
-  --text-secondary: rgba(255,255,255,0.55);
-  --text-tertiary: rgba(255,255,255,0.35);
+  --bg-secondary: #0f0f0f;
+  --bg-card: rgba(255,255,255,0.035);
+  --bg-card-hover: rgba(255,255,255,0.07);
+  --bg-glass: rgba(255,255,255,0.05);
+  --bg-elevated: #131313;
+  --border-subtle: rgba(255,255,255,0.07);
+  --border-medium: rgba(255,255,255,0.11);
+  --border-strong: rgba(255,255,255,0.18);
+  --text-primary: #EDEDEF;
+  --text-secondary: rgba(255,255,255,0.52);
+  --text-tertiary: rgba(255,255,255,0.30);
   --accent: #ffffff;
-  --accent-fg: #000000;
+  --accent-fg: #0A0A0A;
   --accent-color: #D4AF37;
-  --overlay: rgba(0,0,0,0.85);
+  --accent-glow: rgba(212, 175, 55, 0.15);
+  --overlay: rgba(0,0,0,0.88);
 }
 
+/* === Light Mode — warm editorial === */
 .light {
-  --bg-primary: #FAFAF9;
-  --bg-secondary: #EEECEA;
-  --bg-card: rgba(0,0,0,0.04);
-  --bg-card-hover: rgba(0,0,0,0.07);
-  --bg-glass: rgba(255,255,255,0.8);
+  --bg-primary: #FAFAF8;
+  --bg-secondary: #F0EFEC;
+  --bg-card: rgba(0,0,0,0.035);
+  --bg-card-hover: rgba(0,0,0,0.065);
+  --bg-glass: rgba(255,255,255,0.85);
   --bg-elevated: #ffffff;
-  --border-subtle: rgba(0,0,0,0.10);
-  --border-medium: rgba(0,0,0,0.16);
-  --border-strong: rgba(0,0,0,0.25);
+  --border-subtle: rgba(0,0,0,0.08);
+  --border-medium: rgba(0,0,0,0.14);
+  --border-strong: rgba(0,0,0,0.22);
   --text-primary: #1A1A1A;
-  --text-secondary: rgba(0,0,0,0.64);
-  --text-tertiary: rgba(0,0,0,0.46);
+  --text-secondary: rgba(0,0,0,0.58);
+  --text-tertiary: rgba(0,0,0,0.40);
   --accent: #1A1A1A;
   --accent-fg: #ffffff;
-  --accent-color: #D4AF37;
-  --overlay: rgba(0,0,0,0.60);
+  --accent-color: #B8941E;
+  --accent-glow: rgba(184, 148, 30, 0.1);
+  --overlay: rgba(0,0,0,0.55);
 }
 
-/* === Inverted section (Insurance, dark bg in any mode) === */
+/* === Inverted section (Insurance, always dark) === */
 .section-inverted {
-  background-color: #111111;
-  color: #ffffff;
-  --bg-primary: #111111;
-  --bg-card: rgba(255,255,255,0.04);
-  --bg-card-hover: rgba(255,255,255,0.08);
-  --border-subtle: rgba(255,255,255,0.08);
-  --border-medium: rgba(255,255,255,0.12);
-  --text-primary: #ffffff;
-  --text-secondary: rgba(255,255,255,0.55);
-  --text-tertiary: rgba(255,255,255,0.35);
+  background-color: #0f0f0f;
+  color: #EDEDEF;
+  --bg-primary: #0f0f0f;
+  --bg-card: rgba(255,255,255,0.035);
+  --bg-card-hover: rgba(255,255,255,0.07);
+  --border-subtle: rgba(255,255,255,0.07);
+  --border-medium: rgba(255,255,255,0.11);
+  --text-primary: #EDEDEF;
+  --text-secondary: rgba(255,255,255,0.52);
+  --text-tertiary: rgba(255,255,255,0.30);
 }
 
-/* === Animations === */
+/* === Keyframes === */
 @keyframes slow-zoom {
-  from { transform: scale(1.04); }
+  from { transform: scale(1.06); }
   to { transform: scale(1); }
 }
 
 @keyframes fade-up {
-  from { opacity: 0; transform: translateY(24px); }
+  from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
@@ -109,55 +133,54 @@
   100% { background-position: 200% 0; }
 }
 
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+@keyframes subtle-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
 }
 
-@keyframes line-pulse {
-  0%, 100% { transform: scaleY(0); opacity: 0.3; }
-  50% { transform: scaleY(1); opacity: 0.6; }
+.animate-slow-zoom {
+  animation: slow-zoom 18s var(--ease-out-expo) forwards;
+  will-change: transform;
 }
 
-.animate-slow-zoom { animation: slow-zoom 20s ease-out forwards; }
-.animate-fade-up { animation: fade-up 0.8s var(--ease-out-quart) forwards; }
-.animate-float { animation: float 6s var(--ease-in-out) infinite; }
+.animate-fade-up {
+  animation: fade-up 0.7s var(--ease-out-quart) forwards;
+}
 
 /* === Glass card === */
 .glass-card {
   background: var(--bg-glass);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
   border: 1px solid var(--border-subtle);
   border-radius: 1.25rem;
 }
 
-/* === Smooth theme transition === */
-/* Duration synced with App.tsx THEME_TRANSITION_MS (500ms) */
+/* === Theme transition — scoped, performant === */
 .theme-transition,
-.theme-transition *,
-.theme-transition *::before,
-.theme-transition *::after {
-  transition: background-color 0.5s ease, border-color 0.5s ease, color 0.3s ease, box-shadow 0.4s ease !important;
+.theme-transition > * {
+  transition: background-color 0.6s ease, border-color 0.5s ease, color 0.4s ease, box-shadow 0.5s ease !important;
 }
 
-/* === Vehicle card hover (replaces JS onMouseEnter/Leave) === */
+/* === Vehicle card === */
 .vehicle-card {
-  transition: border-color 0.5s var(--ease-in-out), box-shadow 0.5s var(--ease-in-out);
+  transition: border-color 0.5s var(--ease-in-out), box-shadow 0.5s var(--ease-in-out), transform 0.4s var(--ease-out-expo);
+  will-change: transform, box-shadow;
 }
 .dark .vehicle-card:hover {
   border-color: var(--border-strong);
-  box-shadow: 0 20px 60px -15px rgba(0,0,0,0.5);
+  box-shadow: 0 24px 64px -16px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06);
 }
 .light .vehicle-card:hover {
   border-color: var(--border-strong);
-  box-shadow: 0 20px 60px -15px rgba(0,0,0,0.12);
+  box-shadow: 0 24px 64px -16px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.04);
 }
 
-/* === Nav & footer link hover (replaces JS handlers) === */
+/* === Navigation link === */
 .nav-link {
   color: var(--text-secondary);
   transition: color 0.3s var(--ease-in-out);
+  cursor: pointer;
 }
 .nav-link:hover {
   color: var(--text-primary);
@@ -167,19 +190,18 @@
 .img-shimmer {
   background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%);
   background-size: 200% 100%;
-  animation: shimmer 1.5s ease-in-out infinite;
+  animation: shimmer 1.8s ease-in-out infinite;
 }
 
-/* === Focus Styles === */
+/* === Focus Styles (WCAG 2.1 compliant) === */
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent-color);
   outline-offset: 2px;
 }
 
-/* Suppress focus outline on elements that already handle it */
 button:focus-visible,
 a:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent-color);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -187,18 +209,39 @@ a:focus-visible {
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent-color);
   outline-offset: 0;
 }
 
-/* === Reduced Motion === */
+/* === Mobile sticky CTA fade === */
+@media (max-width: 767px) {
+  footer { padding-bottom: 5rem !important; }
+}
+
+/* === FAQ accordion smooth animation === */
+details > summary {
+  list-style: none;
+}
+details > summary::-webkit-details-marker {
+  display: none;
+}
+details[open] > div {
+  animation: fade-up 0.3s var(--ease-out-quart) forwards;
+}
+
+/* === Reduced Motion — accessibility first === */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+  .animate-slow-zoom { animation: none !important; }
+}
+
+/* === Print styles === */
+@media print {
+  .no-print { display: none !important; }
+  body { background: white; color: black; }
 }

@@ -19,6 +19,7 @@ export default function Hero({ onBrowseFleet }: HeroProps) {
           alt="Nissan Sentra — Annie's Car Rental, Port St. Lucie"
           className="w-full h-full object-cover animate-slow-zoom"
           style={{ objectPosition: 'center 70%' }}
+          fetchPriority="high"
         />
         {/* Primary gradient — text contrast */}
         <div
@@ -29,7 +30,7 @@ export default function Hero({ onBrowseFleet }: HeroProps) {
               : 'linear-gradient(to bottom, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.5) 30%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0.6) 80%, rgba(255,255,255,0.9) 100%)',
           }}
         />
-        {/* Vignette — subtle edge darkening for depth */}
+        {/* Vignette */}
         <div
           className="absolute inset-0"
           style={{
@@ -41,10 +42,10 @@ export default function Hero({ onBrowseFleet }: HeroProps) {
       </div>
 
       <div className="relative z-10 max-w-4xl mx-auto px-6 text-center">
-        {/* Badge */}
+        {/* Badge — no filter blur animation (GPU-expensive) */}
         <motion.div
-          initial={{ opacity: 0, y: 20, filter: 'blur(10px)' }}
-          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: EASE.standard, delay: 0.5 }}
         >
           <span
@@ -60,12 +61,12 @@ export default function Hero({ onBrowseFleet }: HeroProps) {
           </span>
         </motion.div>
 
-        {/* Headline — extralight (200) for dramatic separation */}
+        {/* Headline — responsive sizing: mobile-first */}
         <motion.h1
-          initial={{ opacity: 0, y: 40, filter: 'blur(12px)' }}
-          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ duration: DURATION.cinematic, ease: EASE.dramatic, delay: 0.7 }}
-          className="text-5xl md:text-8xl lg:text-9xl font-extralight tracking-tight leading-[0.95] mb-8"
+          className="text-4xl sm:text-5xl md:text-7xl lg:text-9xl font-extralight tracking-tight leading-[0.95] mb-6 md:mb-8"
           style={{
             color: theme === 'dark' ? '#ffffff' : '#1a1a1a',
             textShadow: theme === 'dark'
@@ -82,7 +83,7 @@ export default function Hero({ onBrowseFleet }: HeroProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: DURATION.slow, ease: EASE.standard, delay: 1 }}
-          className="text-base md:text-xl max-w-xl mx-auto mb-12 leading-relaxed"
+          className="text-sm sm:text-base md:text-xl max-w-xl mx-auto mb-10 md:mb-12 leading-relaxed px-2"
           style={{
             color: theme === 'dark' ? 'rgba(255,255,255,0.7)' : '#111111',
             textShadow: theme === 'dark'
@@ -99,11 +100,11 @@ export default function Hero({ onBrowseFleet }: HeroProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: DURATION.slow, ease: EASE.standard, delay: 1.2 }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-4"
+          className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4"
         >
           <button
             onClick={onBrowseFleet}
-            className="group w-full sm:w-auto px-10 py-5 rounded-full font-medium transition-all duration-500 hover:scale-[1.03] hover:shadow-2xl active:scale-95 text-lg"
+            className="group w-full sm:w-auto px-8 sm:px-10 py-4 sm:py-5 rounded-full font-medium transition-all duration-500 hover:scale-[1.03] hover:shadow-2xl active:scale-95 text-base sm:text-lg"
             style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
           >
             <span className="flex items-center justify-center gap-2">
@@ -113,7 +114,7 @@ export default function Hero({ onBrowseFleet }: HeroProps) {
           </button>
           <a
             href="tel:+1234567890"
-            className="w-full sm:w-auto px-10 py-5 rounded-full font-medium transition-all duration-500 hover:scale-[1.03] active:scale-95 text-lg backdrop-blur-xl border"
+            className="w-full sm:w-auto px-8 sm:px-10 py-4 sm:py-5 rounded-full font-medium transition-all duration-500 hover:scale-[1.03] active:scale-95 text-base sm:text-lg backdrop-blur-xl border text-center"
             style={{
               backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
               borderColor: 'var(--border-medium)',
@@ -124,13 +125,13 @@ export default function Hero({ onBrowseFleet }: HeroProps) {
           </a>
         </motion.div>
 
-        {/* Social Proof Card — triggers on viewport entry, not page load */}
+        {/* Social Proof Card */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: DURATION.slow, ease: EASE.standard }}
-          className="mt-14 inline-flex items-center gap-4 px-6 py-3.5 rounded-2xl backdrop-blur-2xl border shadow-xl"
+          className="mt-10 md:mt-14 inline-flex items-center gap-3 sm:gap-4 px-5 sm:px-6 py-3 sm:py-3.5 rounded-2xl backdrop-blur-2xl border shadow-xl"
           style={{
             backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.85)',
             borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
@@ -150,32 +151,34 @@ export default function Hero({ onBrowseFleet }: HeroProps) {
               <img
                 key={`avatar-hero-${i}`}
                 src={url}
-                alt={'Reviewer'}
-                className="w-8 h-8 rounded-full border-2 ring-0 object-cover"
+                alt="Reviewer"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 ring-0 object-cover"
                 style={{
                   borderColor: theme === 'dark' ? 'rgba(10,10,10,0.8)' : '#ffffff',
                   zIndex: 4 - i,
                 }}
+                loading="lazy"
+                referrerPolicy="no-referrer"
               />
             ))}
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>4.9</span>
-            <Star size={16} fill="var(--accent-color)" stroke="var(--accent-color)" />
+          <div className="flex items-center gap-1.5">
+            <span className="text-lg sm:text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>4.9</span>
+            <Star size={14} fill="var(--accent-color)" stroke="var(--accent-color)" />
           </div>
-          <div className="h-5 w-px" style={{ backgroundColor: 'var(--border-subtle)' }} />
-          <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+          <div className="h-5 w-px hidden sm:block" style={{ backgroundColor: 'var(--border-subtle)' }} />
+          <span className="text-xs sm:text-sm hidden sm:inline" style={{ color: 'var(--text-secondary)' }}>
             Trusted by 500+ local renters
           </span>
         </motion.div>
       </div>
 
-      {/* Scroll indicator — animated line, not a rotated chevron */}
+      {/* Scroll indicator */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 2, duration: 1 }}
-        className="absolute bottom-10 left-1/2 -translate-x-1/2"
+        className="absolute bottom-8 sm:bottom-10 left-1/2 -translate-x-1/2"
       >
         <motion.div
           className="w-px h-8 origin-top"

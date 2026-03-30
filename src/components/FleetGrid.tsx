@@ -39,7 +39,7 @@ export default function FleetGrid({ onSelectVehicle }: FleetGridProps) {
   const displayedVehicles = showAll ? filteredAndSorted : filteredAndSorted.slice(0, 9);
 
   return (
-    <section id="fleet" className="pt-16 pb-32 px-6 max-w-7xl mx-auto">
+    <section id="fleet" className="pt-16 pb-24 sm:pb-32 px-4 sm:px-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-14">
         <div className="max-w-2xl">
@@ -96,12 +96,12 @@ export default function FleetGrid({ onSelectVehicle }: FleetGridProps) {
       </div>
 
       {/* Category Filter Pills */}
-      <div className="flex flex-wrap gap-3 mb-14 no-scrollbar overflow-x-auto pb-2">
+      <div className="flex gap-2.5 sm:gap-3 mb-10 sm:mb-14 no-scrollbar overflow-x-auto pb-2 -mx-1 px-1 snap-x">
         {categories.map((cat) => (
           <button
             key={cat.value}
             onClick={() => { setFilterCategory(cat.value); setShowAll(false); }}
-            className="px-6 py-2.5 rounded-full text-sm font-medium border transition-all duration-500 hover:scale-[1.03] active:scale-95 whitespace-nowrap"
+            className="snap-start px-5 sm:px-6 py-2.5 rounded-full text-sm font-medium border transition-all duration-500 hover:scale-[1.03] active:scale-95 whitespace-nowrap shrink-0"
             style={{
               backgroundColor: filterCategory === cat.value ? 'var(--accent)' : 'var(--bg-card)',
               color: filterCategory === cat.value ? 'var(--accent-fg)' : 'var(--text-secondary)',
@@ -126,9 +126,9 @@ export default function FleetGrid({ onSelectVehicle }: FleetGridProps) {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-8">
           {displayedVehicles.map((v, i) => (
-            <VehicleCard key={v.id} vehicle={v} onClick={() => onSelectVehicle(v)} index={i} />
+            <VehicleCard vehicle={v} onClick={() => onSelectVehicle(v)} index={i} key={v.id} />
           ))}
         </div>
       )}

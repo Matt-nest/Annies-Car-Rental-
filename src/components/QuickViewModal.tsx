@@ -1,3 +1,4 @@
+import React from 'react';
 import { X, Users, Fuel, Gauge, Settings2, ArrowRight, Phone, ChevronLeft, ChevronRight, Star, MapPin } from 'lucide-react';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -54,7 +55,7 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
         transition={{ duration: 0.6, ease: EASE.dramatic }}
-        className="fixed inset-3 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 z-[310] md:w-[780px] rounded-3xl overflow-hidden flex flex-col border"
+        className="fixed inset-2 sm:inset-3 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 z-[310] md:w-[780px] rounded-2xl sm:rounded-3xl overflow-hidden flex flex-col border"
         style={{
           backgroundColor: 'var(--bg-elevated)',
           borderColor: 'var(--border-subtle)',
@@ -66,7 +67,7 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-20 w-10 h-10 rounded-full backdrop-blur-xl flex items-center justify-center transition-all duration-300 hover:scale-110"
+          className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 w-9 h-9 sm:w-10 sm:h-10 rounded-full backdrop-blur-xl flex items-center justify-center transition-all duration-300 hover:scale-110"
           style={{
             backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.9)',
             border: '1px solid var(--border-subtle)',
@@ -76,7 +77,7 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
         </button>
 
         {/* Image — compact landscape hero */}
-        <div className="relative w-full shrink-0 overflow-hidden bg-black" style={{ aspectRatio: '16 / 7' }}>
+        <div className="relative w-full shrink-0 overflow-hidden bg-black" style={{ aspectRatio: '16 / 8' }}>
           <AnimatePresence mode="wait">
             <motion.img
               key={imgIndex}
@@ -140,11 +141,11 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
         </div>
 
         {/* Content — compact, no scroll */}
-        <div className="p-5 md:px-7 md:py-5 space-y-4 flex-1">
+        <div className="p-4 sm:p-5 md:px-7 md:py-5 space-y-3 sm:space-y-4 flex-1 overflow-y-auto">
           {/* Row 1: Title + stars on left, Price on right */}
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <h2 className="text-xl md:text-2xl font-light tracking-tight leading-tight">{displayName}</h2>
+              <h2 className="text-lg sm:text-xl md:text-2xl font-light tracking-tight leading-tight">{displayName}</h2>
               {reviews.length > 0 && (
                 <div className="flex items-center gap-2 mt-1.5">
                   <div className="flex gap-0.5">
@@ -170,11 +171,11 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
           </div>
 
           {/* Row 2: Specs inline — compact horizontal strip */}
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
             {specs.map((spec, i) => (
               <div
                 key={i}
-                className="rounded-xl py-2.5 px-2 text-center border transition-all duration-300 hover:scale-[1.03]"
+                className="rounded-xl py-2 sm:py-2.5 px-1.5 sm:px-2 text-center border transition-all duration-300 hover:scale-[1.03]"
                 style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}
               >
                 <spec.icon size={14} className="mx-auto mb-1" style={{ color: 'var(--text-tertiary)' }} />
@@ -209,7 +210,7 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
 
         {/* Footer bar — CTAs + location, always visible, no scroll */}
         <div
-          className="shrink-0 px-5 md:px-7 py-4 flex items-center gap-3 border-t"
+          className="shrink-0 px-4 sm:px-5 md:px-7 py-3 sm:py-4 flex items-center gap-2 sm:gap-3 border-t"
           style={{ borderColor: 'var(--border-subtle)' }}
         >
           <button

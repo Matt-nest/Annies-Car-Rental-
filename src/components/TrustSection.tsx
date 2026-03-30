@@ -16,8 +16,8 @@ export default function TrustSection() {
   ];
 
   return (
-    <section id="trust" className="py-28 px-6 max-w-7xl mx-auto">
-      <div className="grid md:grid-cols-2 gap-16 items-center">
+    <section id="trust" className="py-16 sm:py-28 px-4 sm:px-6 max-w-7xl mx-auto">
+      <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center">
         <div>
           <motion.span
             initial={{ opacity: 0 }}
@@ -33,7 +33,7 @@ export default function TrustSection() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ ease: EASE.standard }}
-            className="text-4xl md:text-5xl font-light mb-10 leading-tight"
+            className="text-3xl sm:text-4xl md:text-5xl font-light mb-8 sm:mb-10 leading-tight"
           >
             Port St. Lucie's trusted <br />
             <span className="italic font-serif">private rental</span>
@@ -68,7 +68,7 @@ export default function TrustSection() {
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ delay: 0.4, ease: EASE.standard }}
-            className="flex gap-10 mt-12 pt-8"
+            className="flex gap-6 sm:gap-10 mt-10 sm:mt-12 pt-6 sm:pt-8"
             style={{ borderTop: '1px solid var(--border-subtle)' }}
           >
             {[
@@ -93,7 +93,7 @@ export default function TrustSection() {
           className="relative"
         >
           <div
-            className="aspect-[4/5] rounded-[2rem] overflow-hidden border shadow-xl"
+            className="aspect-[3/4] sm:aspect-[4/5] rounded-2xl sm:rounded-[2rem] overflow-hidden border shadow-xl"
             style={{ borderColor: 'var(--border-subtle)' }}
           >
             <img

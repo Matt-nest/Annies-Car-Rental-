@@ -1,11 +1,8 @@
 import { ChevronRight } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useTheme } from '../App';
 import { EASE, STAGGER } from '../utils/motion';
 
 export default function FAQ() {
-  const { theme } = useTheme();
-
   const faqs = [
     { q: 'How does the booking process work?', a: "Browse our fleet, select a vehicle, and submit a request with your preferred dates. We'll review availability and get back to you quickly. No charge is made until your request is confirmed." },
     { q: 'What are the driver requirements?', a: "Drivers must be at least 25 years old, hold a valid driver's license, and provide proof of active personal auto insurance." },
@@ -17,8 +14,8 @@ export default function FAQ() {
   ];
 
   return (
-    <section id="faq" className="py-28 px-6 max-w-3xl mx-auto">
-      <div className="mb-14 text-center">
+    <section id="faq" className="py-20 sm:py-28 px-4 sm:px-6 max-w-3xl mx-auto">
+      <div className="mb-10 sm:mb-14 text-center">
         <motion.span
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
@@ -33,12 +30,12 @@ export default function FAQ() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ ease: EASE.standard }}
-          className="text-3xl md:text-5xl font-light tracking-tight"
+          className="text-3xl sm:text-4xl md:text-5xl font-light tracking-tight"
         >
           Common Questions
         </motion.h2>
       </div>
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         {faqs.map((faq, i) => (
           <motion.details
             key={i}
@@ -46,14 +43,14 @@ export default function FAQ() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: i * STAGGER.fast, ease: EASE.standard }}
-            className="group rounded-2xl border overflow-hidden transition-all duration-300"
+            className="group rounded-2xl border overflow-hidden transition-all duration-300 hover:border-[var(--border-medium)]"
             style={{
               backgroundColor: 'var(--bg-card)',
               borderColor: 'var(--border-subtle)',
             }}
           >
             <summary
-              className="p-6 cursor-pointer flex justify-between items-center list-none font-medium text-[15px] transition-colors duration-300"
+              className="p-5 sm:p-6 cursor-pointer flex justify-between items-center list-none font-medium text-[14px] sm:text-[15px] transition-colors duration-300"
             >
               {faq.q}
               <ChevronRight
@@ -63,7 +60,7 @@ export default function FAQ() {
               />
             </summary>
             <div
-              className="px-6 pb-6 leading-relaxed text-[15px]"
+              className="px-5 sm:px-6 pb-5 sm:pb-6 leading-relaxed text-[14px] sm:text-[15px]"
               style={{ color: 'var(--text-secondary)' }}
             >
               {faq.a}
