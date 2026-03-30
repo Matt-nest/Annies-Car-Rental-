@@ -58,12 +58,12 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
   };
 
   const inputStyle: React.CSSProperties = {
-    backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+    backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.04)',
     color: 'var(--text-primary)',
   };
 
   const inputClass = (field: string) =>
-    `w-full px-4 py-3.5 rounded-xl border text-sm focus:outline-none transition-all placeholder:opacity-55 ${
+    `w-full px-4 min-h-[52px] flex items-center rounded-xl border text-[15px] focus:outline-none transition-all placeholder:opacity-55 appearance-none ${
       errors[field] ? 'border-red-500/60 focus:border-red-400' : ''
     }`;
 
@@ -133,7 +133,7 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="p-6 space-y-5">
+      <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4 sm:space-y-5">
         {/* Name row */}
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -156,7 +156,7 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
         </div>
 
         {/* Dates */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="text-[10px] uppercase tracking-widest mb-1 block ml-1" style={{ color: 'var(--text-tertiary)' }}>Start Date</label>
             <input type="date" name="startDate" value={formData.startDate} onChange={handleChange} className={inputClass('startDate')} style={{ ...inputStyle, ...inputBorder('startDate') }} />
