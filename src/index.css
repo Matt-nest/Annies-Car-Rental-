@@ -1,0 +1,204 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;1,400;1,500&display=swap');
+
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-serif: 'Playfair Display', Georgia, serif;
+}
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  ::selection {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+  }
+
+  .light ::selection {
+    background: rgba(0, 0, 0, 0.15);
+    color: #000;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}
+
+/* === Easing System === */
+:root {
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+/* === Dark / Light theme tokens === */
+.dark {
+  --bg-primary: #0A0A0A;
+  --bg-secondary: #111111;
+  --bg-card: rgba(255,255,255,0.04);
+  --bg-card-hover: rgba(255,255,255,0.08);
+  --bg-glass: rgba(255,255,255,0.06);
+  --bg-elevated: #141414;
+  --border-subtle: rgba(255,255,255,0.08);
+  --border-medium: rgba(255,255,255,0.12);
+  --border-strong: rgba(255,255,255,0.20);
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255,255,255,0.55);
+  --text-tertiary: rgba(255,255,255,0.35);
+  --accent: #ffffff;
+  --accent-fg: #000000;
+  --accent-color: #D4AF37;
+  --overlay: rgba(0,0,0,0.85);
+}
+
+.light {
+  --bg-primary: #FAFAF9;
+  --bg-secondary: #EEECEA;
+  --bg-card: rgba(0,0,0,0.04);
+  --bg-card-hover: rgba(0,0,0,0.07);
+  --bg-glass: rgba(255,255,255,0.8);
+  --bg-elevated: #ffffff;
+  --border-subtle: rgba(0,0,0,0.10);
+  --border-medium: rgba(0,0,0,0.16);
+  --border-strong: rgba(0,0,0,0.25);
+  --text-primary: #1A1A1A;
+  --text-secondary: rgba(0,0,0,0.64);
+  --text-tertiary: rgba(0,0,0,0.46);
+  --accent: #1A1A1A;
+  --accent-fg: #ffffff;
+  --accent-color: #D4AF37;
+  --overlay: rgba(0,0,0,0.60);
+}
+
+/* === Inverted section (Insurance, dark bg in any mode) === */
+.section-inverted {
+  background-color: #111111;
+  color: #ffffff;
+  --bg-primary: #111111;
+  --bg-card: rgba(255,255,255,0.04);
+  --bg-card-hover: rgba(255,255,255,0.08);
+  --border-subtle: rgba(255,255,255,0.08);
+  --border-medium: rgba(255,255,255,0.12);
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255,255,255,0.55);
+  --text-tertiary: rgba(255,255,255,0.35);
+}
+
+/* === Animations === */
+@keyframes slow-zoom {
+  from { transform: scale(1.04); }
+  to { transform: scale(1); }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes line-pulse {
+  0%, 100% { transform: scaleY(0); opacity: 0.3; }
+  50% { transform: scaleY(1); opacity: 0.6; }
+}
+
+.animate-slow-zoom { animation: slow-zoom 20s ease-out forwards; }
+.animate-fade-up { animation: fade-up 0.8s var(--ease-out-quart) forwards; }
+.animate-float { animation: float 6s var(--ease-in-out) infinite; }
+
+/* === Glass card === */
+.glass-card {
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-subtle);
+  border-radius: 1.25rem;
+}
+
+/* === Smooth theme transition === */
+/* Duration synced with App.tsx THEME_TRANSITION_MS (500ms) */
+.theme-transition,
+.theme-transition *,
+.theme-transition *::before,
+.theme-transition *::after {
+  transition: background-color 0.5s ease, border-color 0.5s ease, color 0.3s ease, box-shadow 0.4s ease !important;
+}
+
+/* === Vehicle card hover (replaces JS onMouseEnter/Leave) === */
+.vehicle-card {
+  transition: border-color 0.5s var(--ease-in-out), box-shadow 0.5s var(--ease-in-out);
+}
+.dark .vehicle-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: 0 20px 60px -15px rgba(0,0,0,0.5);
+}
+.light .vehicle-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: 0 20px 60px -15px rgba(0,0,0,0.12);
+}
+
+/* === Nav & footer link hover (replaces JS handlers) === */
+.nav-link {
+  color: var(--text-secondary);
+  transition: color 0.3s var(--ease-in-out);
+}
+.nav-link:hover {
+  color: var(--text-primary);
+}
+
+/* === Image shimmer placeholder === */
+.img-shimmer {
+  background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* === Focus Styles === */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Suppress focus outline on elements that already handle it */
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 0;
+}
+
+/* === Reduced Motion === */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
