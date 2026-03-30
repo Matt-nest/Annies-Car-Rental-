@@ -34,6 +34,8 @@ export default function Gallery({ images, alt }: GalleryProps) {
               alt={alt}
               className="relative w-full h-full object-contain transition-transform duration-700 group-hover:scale-105"
               referrerPolicy="no-referrer"
+              fetchPriority="high"
+              decoding="async"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-40 pointer-events-none" />
             {/* Hover overlay */}
@@ -53,6 +55,8 @@ export default function Gallery({ images, alt }: GalleryProps) {
                 alt={`${alt} view ${i + 2}`}
                 className="relative w-full h-full object-contain transition-transform duration-500 group-hover:scale-110"
                 referrerPolicy="no-referrer"
+                loading="lazy"
+                decoding="async"
               />
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-500" />
               {i === 1 && images.length > 3 && (
@@ -133,7 +137,7 @@ export default function Gallery({ images, alt }: GalleryProps) {
                     i === currentIndex ? 'ring-2 ring-white scale-110' : 'opacity-40 hover:opacity-80'
                   }`}
                 >
-                  <img src={img} alt="" className="w-full h-full object-contain" style={{ backgroundColor: '#111' }} referrerPolicy="no-referrer" />
+                  <img src={img} alt="" className="w-full h-full object-contain" style={{ backgroundColor: '#111' }} referrerPolicy="no-referrer" loading="lazy" decoding="async" />
                 </button>
               ))}
             </div>

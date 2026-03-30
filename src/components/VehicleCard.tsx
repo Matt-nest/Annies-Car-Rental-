@@ -18,8 +18,8 @@ export default function VehicleCard({ vehicle, onClick, index = 0 }: VehicleCard
     <motion.div
       initial={{ opacity: 0, y: 30 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-50px' }}
-      transition={{ delay: (index % 3) * STAGGER.normal, duration: 0.6, ease: EASE.standard }}
+      viewport={{ once: true, margin: '50px' }}
+      transition={{ delay: index < 3 ? index * STAGGER.normal : 0, duration: 0.6, ease: EASE.standard }}
       whileHover={window.matchMedia('(hover: hover)').matches ? { y: -6, transition: { duration: 0.4, ease: EASE.smooth } } : undefined}
       onClick={onClick}
       className="vehicle-card group cursor-pointer rounded-3xl overflow-hidden border"
@@ -39,6 +39,7 @@ export default function VehicleCard({ vehicle, onClick, index = 0 }: VehicleCard
           className="w-full h-full object-contain transition-transform duration-700 group-hover:scale-105"
           referrerPolicy="no-referrer"
           loading="lazy"
+          decoding="async"
         />
         {/* Gradient overlay on hover */}
         <div

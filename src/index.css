@@ -209,6 +209,7 @@ details[open] > div {
   .animate-slow-zoom {
     animation: none !important;
     transform: scale(1);
+    will-change: auto;
   }
 
   /* Solid backgrounds instead of backdrop-blur on mobile */
@@ -224,10 +225,7 @@ details[open] > div {
   .vehicle-card { will-change: auto; }
 }
 
-/* === DESKTOP: allow will-change on hover === */
-@media (hover: hover) and (pointer: fine) {
-  .vehicle-card { will-change: transform, box-shadow; }
-}
+/* === reduced motion & print === */
 
 /* === Reduced Motion === */
 @media (prefers-reduced-motion: reduce) {

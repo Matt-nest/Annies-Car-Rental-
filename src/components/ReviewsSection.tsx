@@ -239,7 +239,7 @@ export default function ReviewsSection() {
               <div className="space-y-3">
                 <div className="flex items-center gap-3 mb-1">
                   {review.avatar ? (
-                    <img src={review.avatar} alt={review.reviewerName} className="w-10 h-10 rounded-full object-cover" referrerPolicy="no-referrer" />
+                    <img src={review.avatar} alt={review.reviewerName} className="w-10 h-10 rounded-full object-cover" referrerPolicy="no-referrer" loading="lazy" decoding="async" />
                   ) : (
                     <div
                       className="w-10 h-10 rounded-full flex items-center justify-center text-[13px] font-semibold"

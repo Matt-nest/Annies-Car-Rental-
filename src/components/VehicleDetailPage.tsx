@@ -270,7 +270,7 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-4">
                           {review.avatar ? (
-                            <img src={review.avatar} alt={review.reviewerName} className="w-12 h-12 rounded-full object-cover" />
+                            <img src={review.avatar} alt={review.reviewerName} className="w-12 h-12 rounded-full object-cover" referrerPolicy="no-referrer" loading="lazy" decoding="async" />
                           ) : (
                             <div
                               className="w-12 h-12 rounded-full flex items-center justify-center text-[15px] font-semibold"

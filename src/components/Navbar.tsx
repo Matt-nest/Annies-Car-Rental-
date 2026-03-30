@@ -85,7 +85,7 @@ export default function Navbar({ onNavigate }: NavbarProps) {
             <button
               onClick={toggleTheme}
               className="w-9 h-9 rounded-full flex items-center justify-center transition-all duration-500 hover:scale-110"
-              style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
+              style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
               aria-label="Toggle theme"
             >
               <AnimatePresence mode="wait">
@@ -112,7 +112,7 @@ export default function Navbar({ onNavigate }: NavbarProps) {
               <Phone size={13} /> Call Now
             </a>
             <button
-              className="p-2 md:hidden"
+              className="w-11 h-11 flex items-center justify-center -mr-2 md:hidden transition-opacity hover:opacity-70"
               style={{ color: 'var(--text-secondary)' }}
               onClick={() => setMobileOpen(true)}
             >
@@ -134,7 +134,7 @@ export default function Navbar({ onNavigate }: NavbarProps) {
             style={{ backgroundColor: theme === 'dark' ? 'rgba(10,10,10,0.98)' : 'rgba(250,250,249,0.98)' }}
           >
             <div className="flex justify-end">
-              <button onClick={() => setMobileOpen(false)} className="p-2" style={{ color: 'var(--text-secondary)' }}>
+              <button onClick={() => setMobileOpen(false)} className="w-12 h-12 flex items-center justify-center -mr-4 transition-opacity hover:opacity-70" style={{ color: 'var(--text-secondary)' }}>
                 <X size={28} />
               </button>
             </div>
