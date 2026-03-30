@@ -71,9 +71,9 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
     >
       {/* Sticky Header */}
       <header
-        className="fixed top-0 left-0 right-0 z-[90] h-16 md:h-20 flex items-center justify-between px-4 md:px-8 backdrop-blur-2xl border-b"
+        className="fixed top-0 left-0 right-0 z-[90] h-16 md:h-20 flex items-center justify-between px-4 md:px-8 md:backdrop-blur-2xl border-b"
         style={{
-          backgroundColor: theme === 'dark' ? 'rgba(10,10,10,0.85)' : 'rgba(250,250,249,0.88)',
+          backgroundColor: theme === 'dark' ? 'rgba(10,10,10,0.97)' : 'rgba(250,250,249,0.97)',
           borderColor: 'var(--border-subtle)',
         }}
       >
@@ -196,6 +196,12 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
                 ))}
               </div>
             </section>
+
+            {/* Mobile-only: Price, Form, Insurance — appears between Included and Reviews */}
+            <div className="lg:hidden space-y-6">
+              <RequestToBookForm vehicle={vehicle} />
+              <InsuranceExplainer />
+            </div>
 
             {/* Reviews — unified star visualization */}
             <section className="space-y-8 pt-8" style={{ borderTop: '1px solid var(--border-subtle)' }}>
@@ -347,7 +353,7 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     onClick={() => setShowAddReviewModal(false)}
-                    className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                    className="absolute inset-0 bg-black/60"
                   />
                   <motion.div
                     initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -448,8 +454,8 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
             </section>
           </div>
 
-          {/* Right Column: Sticky Request Card */}
-          <div className="lg:col-span-1">
+          {/* Right Column: Sticky Request Card — desktop only */}
+          <div className="hidden lg:block lg:col-span-1">
             <div className="sticky top-24 space-y-6">
               <RequestToBookForm vehicle={vehicle} />
               <InsuranceExplainer />
