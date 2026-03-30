@@ -42,10 +42,14 @@ export default function App() {
     setTimeout(() => setIsTransitioning(false), THEME_TRANSITION_MS);
   };
 
-  // Quick-view: fleet card click opens modal
+  // Quick-view: fleet card click opens modal (desktop only, bypasses to detail on mobile)
   const handleQuickView = (vehicle: Vehicle) => {
-    setQuickViewVehicle(vehicle);
-    document.body.style.overflow = 'hidden';
+    if (window.innerWidth < 768) {
+      handleOpenDetail(vehicle);
+    } else {
+      setQuickViewVehicle(vehicle);
+      document.body.style.overflow = 'hidden';
+    }
   };
 
   const closeQuickView = () => {
