@@ -25,31 +25,33 @@ export default function Gallery({ images, alt }: GalleryProps) {
           {/* Main image */}
           <div
             className="col-span-4 md:col-span-3 row-span-2 relative rounded-2xl md:rounded-3xl overflow-hidden group cursor-pointer"
+            style={{ backgroundColor: theme === 'dark' ? '#0a0a0a' : '#f0f0f0' }}
             onClick={() => { setCurrentIndex(0); setIsOpen(true); }}
           >
             <div className="absolute inset-0 img-shimmer" />
             <img
               src={images[0]}
               alt={alt}
-              className="relative w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+              className="relative w-full h-full object-contain transition-transform duration-700 group-hover:scale-105"
               referrerPolicy="no-referrer"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-60" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-40 pointer-events-none" />
             {/* Hover overlay */}
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-500" />
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-500 pointer-events-none" />
           </div>
           {/* Side images */}
           {images.slice(1, 3).map((img, i) => (
             <div
               key={i}
               className="hidden md:block rounded-3xl overflow-hidden relative cursor-pointer group"
+              style={{ backgroundColor: theme === 'dark' ? '#0a0a0a' : '#f0f0f0' }}
               onClick={() => { setCurrentIndex(i + 1); setIsOpen(true); }}
             >
               <div className="absolute inset-0 img-shimmer" />
               <img
                 src={img}
                 alt={`${alt} view ${i + 2}`}
-                className="relative w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                className="relative w-full h-full object-contain transition-transform duration-500 group-hover:scale-110"
                 referrerPolicy="no-referrer"
               />
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-500" />
@@ -131,7 +133,7 @@ export default function Gallery({ images, alt }: GalleryProps) {
                     i === currentIndex ? 'ring-2 ring-white scale-110' : 'opacity-40 hover:opacity-80'
                   }`}
                 >
-                  <img src={img} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  <img src={img} alt="" className="w-full h-full object-contain" style={{ backgroundColor: '#111' }} referrerPolicy="no-referrer" />
                 </button>
               ))}
             </div>
