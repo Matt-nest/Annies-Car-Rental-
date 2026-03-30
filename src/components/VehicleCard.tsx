@@ -20,7 +20,7 @@ export default function VehicleCard({ vehicle, onClick, index = 0 }: VehicleCard
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-50px' }}
       transition={{ delay: (index % 3) * STAGGER.normal, duration: 0.6, ease: EASE.standard }}
-      whileHover={{ y: -6, transition: { duration: 0.4, ease: EASE.smooth } }}
+      whileHover={window.matchMedia('(hover: hover)').matches ? { y: -6, transition: { duration: 0.4, ease: EASE.smooth } } : undefined}
       onClick={onClick}
       className="vehicle-card group cursor-pointer rounded-3xl overflow-hidden border"
       style={{
@@ -48,9 +48,9 @@ export default function VehicleCard({ vehicle, onClick, index = 0 }: VehicleCard
         {/* Category badge */}
         <div className="absolute top-3 sm:top-4 left-3 sm:left-4">
           <span
-            className="px-2.5 sm:px-3 py-1 backdrop-blur-xl text-[10px] rounded-full border font-semibold uppercase tracking-widest"
+            className="px-2.5 sm:px-3 py-1 md:backdrop-blur-xl text-[10px] rounded-full border font-semibold uppercase tracking-widest"
             style={{
-              backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.85)',
+              backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.75)' : 'rgba(255,255,255,0.92)',
               borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
               color: theme === 'dark' ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.7)',
             }}
@@ -60,7 +60,7 @@ export default function VehicleCard({ vehicle, onClick, index = 0 }: VehicleCard
         </div>
         {/* Arrow indicator on hover */}
         <div className="absolute bottom-3 sm:bottom-4 right-3 sm:right-4 opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-2 group-hover:translate-y-0">
-          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/90 text-black flex items-center justify-center backdrop-blur-sm">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/90 text-black flex items-center justify-center">
             <ArrowUpRight size={16} />
           </div>
         </div>

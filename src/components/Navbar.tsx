@@ -32,14 +32,14 @@ export default function Navbar({ onNavigate }: NavbarProps) {
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.8, ease: EASE.dramatic, delay: 0.3 }}
-        className={`fixed top-0 inset-x-0 z-[100] transition-all duration-700 ${
+        className={`fixed top-0 inset-x-0 z-[100] transition-[padding,background-color,border-color] duration-500 ${
           isScrolled
-            ? 'py-3 backdrop-blur-2xl shadow-lg'
+            ? 'py-3 md:backdrop-blur-2xl shadow-lg'
             : 'py-5 md:py-6'
         }`}
         style={{
           backgroundColor: isScrolled
-            ? theme === 'dark' ? 'rgba(10,10,10,0.85)' : 'rgba(250,250,249,0.88)'
+            ? theme === 'dark' ? 'rgba(10,10,10,0.97)' : 'rgba(250,250,249,0.97)'
             : 'transparent',
           borderBottom: isScrolled ? `1px solid var(--border-subtle)` : 'none',
         }}
@@ -130,8 +130,8 @@ export default function Navbar({ onNavigate }: NavbarProps) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.4, ease: EASE.smooth }}
-            className="fixed inset-0 z-[200] backdrop-blur-2xl flex flex-col p-8"
-            style={{ backgroundColor: 'var(--overlay)' }}
+            className="fixed inset-0 z-[200] flex flex-col p-8"
+            style={{ backgroundColor: theme === 'dark' ? 'rgba(10,10,10,0.98)' : 'rgba(250,250,249,0.98)' }}
           >
             <div className="flex justify-end">
               <button onClick={() => setMobileOpen(false)} className="p-2" style={{ color: 'var(--text-secondary)' }}>

@@ -56,7 +56,7 @@ export default function Gallery({ images, alt }: GalleryProps) {
               />
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-500" />
               {i === 1 && images.length > 3 && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm hover:bg-black/20 transition-all duration-500">
+                <div className="absolute inset-0 flex items-center justify-center bg-black/50 hover:bg-black/30 transition-colors duration-500">
                   <span className="text-white font-medium text-sm">+{images.length - 3} Photos</span>
                 </div>
               )}
@@ -66,7 +66,7 @@ export default function Gallery({ images, alt }: GalleryProps) {
         {/* Mobile view all button */}
         <button
           onClick={() => { setCurrentIndex(0); setIsOpen(true); }}
-          className="md:hidden absolute bottom-6 right-6 px-4 py-2 rounded-full bg-black/60 backdrop-blur-xl border border-white/10 text-white text-sm font-medium"
+          className="md:hidden absolute bottom-6 right-6 px-4 py-2 rounded-full bg-black/80 border border-white/10 text-white text-sm font-medium"
         >
           View All Photos
         </button>

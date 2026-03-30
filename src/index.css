@@ -35,33 +35,27 @@
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
     text-rendering: optimizeLegibility;
-    font-feature-settings: 'cv11', 'ss01';  /* Inter stylistic alternates */
+    font-feature-settings: 'cv11', 'ss01';
   }
 
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-  /* GPU-accelerated image rendering */
+  /* Lazy image rendering */
   img {
     content-visibility: auto;
-    image-rendering: -webkit-optimize-contrast;
-  }
-
-  /* Crisp font rendering on Retina */
-  @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
-    body { -webkit-font-smoothing: subpixel-antialiased; }
   }
 }
 
-/* === Easing System (Cinema-grade curves from UI Pro Max) === */
+/* === Easing System === */
 :root {
-  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);      /* Heavy exit — hero reveals */
-  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);      /* Confident — cards, sections */
-  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);        /* Smooth — hovers, toggles */
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);     /* Bounce — modals, popovers */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* === Dark Mode — Cinema Mobile inspired (UI Pro Max Modern Dark) === */
+/* === Dark Mode === */
 .dark {
   --bg-primary: #0A0A0A;
   --bg-secondary: #0f0f0f;
@@ -82,7 +76,7 @@
   --overlay: rgba(0,0,0,0.88);
 }
 
-/* === Light Mode — warm editorial === */
+/* === Light Mode === */
 .light {
   --bg-primary: #FAFAF8;
   --bg-secondary: #F0EFEC;
@@ -103,7 +97,7 @@
   --overlay: rgba(0,0,0,0.55);
 }
 
-/* === Inverted section (Insurance, always dark) === */
+/* === Inverted section === */
 .section-inverted {
   background-color: #0f0f0f;
   color: #EDEDEF;
@@ -124,7 +118,7 @@
 }
 
 @keyframes fade-up {
-  from { opacity: 0; transform: translateY(20px); }
+  from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
@@ -133,103 +127,109 @@
   100% { background-position: 200% 0; }
 }
 
-@keyframes subtle-pulse {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
-}
-
 .animate-slow-zoom {
   animation: slow-zoom 18s var(--ease-out-expo) forwards;
   will-change: transform;
 }
 
 .animate-fade-up {
-  animation: fade-up 0.7s var(--ease-out-quart) forwards;
+  animation: fade-up 0.5s var(--ease-out-quart) forwards;
 }
 
-/* === Glass card === */
-.glass-card {
-  background: var(--bg-glass);
-  backdrop-filter: blur(24px) saturate(1.4);
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
-  border: 1px solid var(--border-subtle);
-  border-radius: 1.25rem;
-}
-
-/* === Theme transition — scoped, performant === */
-.theme-transition,
-.theme-transition > * {
-  transition: background-color 0.6s ease, border-color 0.5s ease, color 0.4s ease, box-shadow 0.5s ease !important;
-}
-
-/* === Vehicle card === */
+/* === Vehicle card — only transform+shadow, not "all" === */
 .vehicle-card {
-  transition: border-color 0.5s var(--ease-in-out), box-shadow 0.5s var(--ease-in-out), transform 0.4s var(--ease-out-expo);
-  will-change: transform, box-shadow;
-}
-.dark .vehicle-card:hover {
-  border-color: var(--border-strong);
-  box-shadow: 0 24px 64px -16px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06);
-}
-.light .vehicle-card:hover {
-  border-color: var(--border-strong);
-  box-shadow: 0 24px 64px -16px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.04);
+  transition: border-color 0.4s ease, box-shadow 0.4s ease, transform 0.4s var(--ease-out-expo);
 }
 
-/* === Navigation link === */
+/* === Desktop-only hover effects (touch devices get none) === */
+@media (hover: hover) and (pointer: fine) {
+  .vehicle-card:hover {
+    transform: translateY(-4px);
+  }
+  .dark .vehicle-card:hover {
+    border-color: var(--border-strong);
+    box-shadow: 0 20px 50px -12px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06);
+  }
+  .light .vehicle-card:hover {
+    border-color: var(--border-strong);
+    box-shadow: 0 20px 50px -12px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04);
+  }
+}
+
+/* === Nav link === */
 .nav-link {
   color: var(--text-secondary);
-  transition: color 0.3s var(--ease-in-out);
+  transition: color 0.3s ease;
   cursor: pointer;
 }
 .nav-link:hover {
   color: var(--text-primary);
 }
 
-/* === Image shimmer placeholder === */
+/* === Image shimmer === */
 .img-shimmer {
   background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.8s ease-in-out infinite;
 }
 
-/* === Focus Styles (WCAG 2.1 compliant) === */
+/* === Focus Styles === */
 :focus-visible {
   outline: 2px solid var(--accent-color);
   outline-offset: 2px;
 }
 
-button:focus-visible,
-a:focus-visible {
+button:focus-visible, a:focus-visible {
   outline: 2px solid var(--accent-color);
   outline-offset: 2px;
   border-radius: 4px;
 }
 
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible {
+input:focus-visible, select:focus-visible, textarea:focus-visible {
   outline: 2px solid var(--accent-color);
   outline-offset: 0;
 }
 
-/* === Mobile sticky CTA fade === */
-@media (max-width: 767px) {
-  footer { padding-bottom: 5rem !important; }
+/* === Theme transition — scoped, only bg/border/color === */
+.theme-transition,
+.theme-transition > * {
+  transition: background-color 0.5s ease, border-color 0.4s ease, color 0.3s ease !important;
 }
 
-/* === FAQ accordion smooth animation === */
-details > summary {
-  list-style: none;
-}
-details > summary::-webkit-details-marker {
-  display: none;
-}
+/* === FAQ accordion === */
+details > summary { list-style: none; }
+details > summary::-webkit-details-marker { display: none; }
 details[open] > div {
-  animation: fade-up 0.3s var(--ease-out-quart) forwards;
+  animation: fade-up 0.25s var(--ease-out-quart) forwards;
 }
 
-/* === Reduced Motion — accessibility first === */
+/* === MOBILE PERFORMANCE === */
+@media (max-width: 767px) {
+  /* Kill slow-zoom animation on mobile — saves GPU compositing layer */
+  .animate-slow-zoom {
+    animation: none !important;
+    transform: scale(1);
+  }
+
+  /* Solid backgrounds instead of backdrop-blur on mobile */
+  .mobile-solid-bg {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /* Footer safe area for sticky CTA */
+  footer { padding-bottom: 5rem !important; }
+
+  /* Disable hover:scale on touch — it fires on tap and causes jank */
+  .vehicle-card { will-change: auto; }
+}
+
+/* === DESKTOP: allow will-change on hover === */
+@media (hover: hover) and (pointer: fine) {
+  .vehicle-card { will-change: transform, box-shadow; }
+}
+
+/* === Reduced Motion === */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -240,7 +240,7 @@ details[open] > div {
   .animate-slow-zoom { animation: none !important; }
 }
 
-/* === Print styles === */
+/* === Print === */
 @media print {
   .no-print { display: none !important; }
   body { background: white; color: black; }

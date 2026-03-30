@@ -117,7 +117,7 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
 
   return (
     <div
-      className="rounded-2xl border backdrop-blur-sm overflow-hidden"
+      className="rounded-2xl border overflow-hidden"
       style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}
     >
       {/* Price header */}

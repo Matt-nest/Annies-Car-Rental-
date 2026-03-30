@@ -45,6 +45,21 @@ export default function ReviewsSection() {
   const scrollSpeedRef = useRef(0.6);
   const rafRef = useRef<number>();
 
+  // Pause carousel when section is offscreen (saves mobile CPU)
+  const sectionRef = useRef<HTMLElement>(null);
+  const isVisibleRef = useRef(true);
+
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { isVisibleRef.current = entry.isIntersecting; },
+      { threshold: 0 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
   // Smooth continuous auto-scroll using requestAnimationFrame
   useEffect(() => {
     const slider = sliderRef.current;
@@ -55,16 +70,13 @@ export default function ReviewsSection() {
     const tick = (time: number) => {
       if (!slider) return;
       
-      if (lastTime) {
+      if (lastTime && isVisibleRef.current) {
         const delta = time - lastTime;
-        // Normalize to ~60fps for consistent speed across refresh rates
         const normalizedSpeed = scrollSpeedRef.current * (delta / 16.67);
         
         if (!isPaused) {
           slider.scrollLeft += normalizedSpeed;
 
-          // Seamless loop: when we've scrolled through the first set,
-          // jump back to the start of the duplicate set for infinite feel
           const halfWidth = slider.scrollWidth / 2;
           if (slider.scrollLeft >= halfWidth) {
             slider.scrollLeft -= halfWidth;
@@ -99,7 +111,7 @@ export default function ReviewsSection() {
   const displayReviews = carouselReviews;
 
   return (
-    <section className="py-16 sm:py-24 px-4 sm:px-6 overflow-hidden" id="reviews">
+    <section ref={sectionRef} className="py-16 sm:py-24 px-4 sm:px-6 overflow-hidden" id="reviews">
       <div className="max-w-5xl mx-auto">
         {/* Section Header */}
         <div className="mb-10 sm:mb-14 text-center">
@@ -221,7 +233,7 @@ export default function ReviewsSection() {
           {displayReviews.map((review, idx) => (
             <div 
               key={`${review.id}-${idx}`}
-              className="snap-start shrink-0 w-[280px] md:w-[340px] rounded-2xl p-5 md:p-6 border flex flex-col justify-between transition-all duration-300 hover:scale-[1.02]"
+              className="snap-start shrink-0 w-[280px] md:w-[340px] rounded-2xl p-5 md:p-6 border flex flex-col justify-between"
               style={{ backgroundColor: 'var(--bg-elevated)', borderColor: 'var(--border-subtle)' }}
             >
               <div className="space-y-3">

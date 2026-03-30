@@ -49,9 +49,9 @@ export default function Hero({ onBrowseFleet }: HeroProps) {
           transition={{ duration: 0.8, ease: EASE.standard, delay: 0.5 }}
         >
           <span
-            className="inline-flex items-center gap-2 px-5 py-2 rounded-full backdrop-blur-xl text-xs font-medium uppercase tracking-[0.2em] mb-8 border"
+            className="inline-flex items-center gap-2 px-5 py-2 rounded-full md:backdrop-blur-xl text-xs font-medium uppercase tracking-[0.2em] mb-8 border"
             style={{
-              backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+              backgroundColor: theme === 'dark' ? 'rgba(20,20,20,0.85)' : 'rgba(0,0,0,0.08)',
               borderColor: theme === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)',
               color: theme === 'dark' ? 'rgba(255,255,255,0.7)' : '#111111',
             }}
@@ -104,7 +104,7 @@ export default function Hero({ onBrowseFleet }: HeroProps) {
         >
           <button
             onClick={onBrowseFleet}
-            className="group w-full sm:w-auto px-8 sm:px-10 py-4 sm:py-5 rounded-full font-medium transition-all duration-500 hover:scale-[1.03] hover:shadow-2xl active:scale-95 text-base sm:text-lg"
+            className="group w-full sm:w-auto px-8 sm:px-10 py-4 sm:py-5 rounded-full font-medium transition-[transform,box-shadow] duration-500 hover:scale-[1.03] hover:shadow-2xl active:scale-95 text-base sm:text-lg"
             style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
           >
             <span className="flex items-center justify-center gap-2">
@@ -114,9 +114,9 @@ export default function Hero({ onBrowseFleet }: HeroProps) {
           </button>
           <a
             href="tel:+1234567890"
-            className="w-full sm:w-auto px-8 sm:px-10 py-4 sm:py-5 rounded-full font-medium transition-all duration-500 hover:scale-[1.03] active:scale-95 text-base sm:text-lg backdrop-blur-xl border text-center"
+            className="w-full sm:w-auto px-8 sm:px-10 py-4 sm:py-5 rounded-full font-medium transition-[transform] duration-500 hover:scale-[1.03] active:scale-95 text-base sm:text-lg md:backdrop-blur-xl border text-center"
             style={{
-              backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+              backgroundColor: theme === 'dark' ? 'rgba(20,20,20,0.85)' : 'rgba(240,240,240,0.85)',
               borderColor: 'var(--border-medium)',
               color: 'var(--text-primary)',
             }}
@@ -131,9 +131,9 @@ export default function Hero({ onBrowseFleet }: HeroProps) {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: DURATION.slow, ease: EASE.standard }}
-          className="mt-10 md:mt-14 inline-flex items-center gap-3 sm:gap-4 px-5 sm:px-6 py-3 sm:py-3.5 rounded-2xl backdrop-blur-2xl border shadow-xl"
+          className="mt-10 md:mt-14 inline-flex items-center gap-3 sm:gap-4 px-5 sm:px-6 py-3 sm:py-3.5 rounded-2xl md:backdrop-blur-2xl border shadow-xl"
           style={{
-            backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.85)',
+            backgroundColor: theme === 'dark' ? 'rgba(20,20,20,0.92)' : 'rgba(255,255,255,0.92)',
             borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
             boxShadow: theme === 'dark'
               ? '0 8px 32px rgba(0,0,0,0.4)'

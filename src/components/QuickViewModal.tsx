@@ -67,9 +67,9 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 w-9 h-9 sm:w-10 sm:h-10 rounded-full backdrop-blur-xl flex items-center justify-center transition-all duration-300 hover:scale-110"
+          className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-[transform] duration-300 hover:scale-110"
           style={{
-            backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.9)',
+            backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.95)',
             border: '1px solid var(--border-subtle)',
           }}
         >
@@ -100,10 +100,10 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
 
           {/* Category + Year pill */}
           <div className="absolute top-4 left-4 flex gap-2 z-10">
-            <span className="px-3 py-1.5 bg-black/50 backdrop-blur-xl text-[10px] text-white/80 rounded-full border border-white/10 font-semibold uppercase tracking-widest">
+            <span className="px-3 py-1.5 bg-black/70 text-[10px] text-white/80 rounded-full border border-white/10 font-semibold uppercase tracking-widest">
               {vehicle.category}
             </span>
-            <span className="px-3 py-1.5 bg-black/50 backdrop-blur-xl text-[10px] text-white/80 rounded-full border border-white/10 font-medium">
+            <span className="px-3 py-1.5 bg-black/70 text-[10px] text-white/80 rounded-full border border-white/10 font-medium">
               {vehicle.year}
             </span>
           </div>
@@ -113,13 +113,13 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
             <>
               <button
                 onClick={prevImg}
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm text-white flex items-center justify-center hover:bg-black/60 transition-all duration-300 hover:scale-110 z-10"
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80 transition-[background-color,transform] duration-300 hover:scale-110 z-10"
               >
                 <ChevronLeft size={18} />
               </button>
               <button
                 onClick={nextImg}
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm text-white flex items-center justify-center hover:bg-black/60 transition-all duration-300 hover:scale-110 z-10"
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80 transition-[background-color,transform] duration-300 hover:scale-110 z-10"
               >
                 <ChevronRight size={18} />
               </button>
