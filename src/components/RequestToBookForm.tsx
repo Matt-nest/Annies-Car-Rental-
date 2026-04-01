@@ -1,9 +1,32 @@
 import React, { useState } from 'react';
-import { ArrowRight, CheckCircle2, Loader2 } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Vehicle, BookingRequest } from '../types';
 import { getVehicleDisplayName } from '../data/vehicles';
 import { useTheme } from '../App';
+
+const WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/kP7owzBOHxXk0Ch6wiZT/webhook-trigger/ivjo1qPItO8lTrMJ5icB';
+
+function generateRefCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+function calculateRentalTotal(startDate: string, endDate: string, dailyRate: number, weeklyRate?: number): number {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const diffTime = Math.abs(end.getTime() - start.getTime());
+  const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  if (days <= 0) return dailyRate;
+  if (days >= 7 && weeklyRate) {
+    const fullWeeks = Math.floor(days / 7);
+    const remainingDays = days % 7;
+    return (fullWeeks * weeklyRate) + (remainingDays * dailyRate);
+  }
+  return days * dailyRate;
+}
 
 interface RequestToBookFormProps {
   vehicle: Vehicle;
@@ -21,6 +44,8 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [refCode, setRefCode] = useState('');
+  const [submitError, setSubmitError] = useState('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -46,9 +71,40 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
     e.preventDefault();
     if (!validate()) return;
     setIsSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setIsSubmitting(false);
-    setIsSuccess(true);
+    setSubmitError('');
+
+    const code = generateRefCode();
+    const rentalTotal = calculateRentalTotal(
+      formData.startDate,
+      formData.endDate,
+      vehicle.dailyRate,
+      vehicle.weeklyRate,
+    );
+
+    try {
+      const response = await fetch(WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          phone: formData.phone,
+          email: formData.email,
+          vehicle_requested: formData.vehicleName,
+          pickup_date: formData.startDate,
+          return_date: formData.endDate,
+          rental_total: rentalTotal.toString(),
+          booking_reference_code: code,
+        }),
+      });
+      if (!response.ok) throw new Error('Request failed');
+      setRefCode(code);
+      setIsSuccess(true);
+    } catch {
+      setSubmitError('Something went wrong submitting your request. Please try again or call us at (123) 456-7890.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const formatTime = (t: string) => {
@@ -87,13 +143,20 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
         </div>
         <h3 className="text-2xl font-medium">Request Received</h3>
         <p className="leading-relaxed max-w-sm mx-auto" style={{ color: 'var(--text-secondary)' }}>
-          We'll confirm availability for the <strong>{getVehicleDisplayName(vehicle)}</strong> shortly.
-          No charge has been made yet.
+          Your booking reference is <strong className="font-mono tracking-wider">{refCode}</strong>. You'll need this to complete your booking. We'll review your request and get back to you shortly.
         </p>
         <div
           className="rounded-xl border p-4 space-y-2 text-sm"
           style={{ backgroundColor: 'var(--bg-card-hover)', borderColor: 'var(--border-subtle)' }}
         >
+          <div className="flex justify-between">
+            <span style={{ color: 'var(--text-tertiary)' }}>Reference</span>
+            <span className="font-mono font-bold tracking-wider">{refCode}</span>
+          </div>
+          <div className="flex justify-between">
+            <span style={{ color: 'var(--text-tertiary)' }}>Vehicle</span>
+            <span className="font-medium">{getVehicleDisplayName(vehicle)}</span>
+          </div>
           <div className="flex justify-between">
             <span style={{ color: 'var(--text-tertiary)' }}>Dates</span>
             <span className="font-medium">{formData.startDate} — {formData.endDate}</span>
@@ -240,6 +303,20 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
             <>Request Availability <ArrowRight size={18} className="transition-transform duration-300 group-hover:translate-x-1" /></>
           )}
         </button>
+
+        {submitError && (
+          <div
+            className="flex items-start gap-3 p-4 rounded-xl border text-sm"
+            style={{
+              backgroundColor: 'rgba(239,68,68,0.08)',
+              borderColor: 'rgba(239,68,68,0.25)',
+              color: '#ef4444',
+            }}
+          >
+            <AlertCircle size={18} className="mt-0.5 shrink-0" />
+            <span>{submitError}</span>
+          </div>
+        )}
 
         <p className="text-center text-xs" style={{ color: 'var(--text-tertiary)' }}>
           No charge until your request is approved
