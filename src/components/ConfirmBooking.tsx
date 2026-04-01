@@ -367,13 +367,16 @@ export default function ConfirmBooking() {
     setSubmitError('');
 
     try {
-      const urlEmail = new URLSearchParams(window.location.search).get('email') || '';
+      const searchParams = new URLSearchParams(window.location.search);
+      const urlEmail = searchParams.get('email') || '';
+      const urlPhone = searchParams.get('phone') || '';
       
       const params = new URLSearchParams({
         booking_reference_code: refCode!,
         bonzah_policy_number: policyNumber.trim(),
         bonzah_email: bonzahEmail.trim(),
         email: urlEmail.trim(),
+        phone: urlPhone.trim(),
       });
       const res = await fetch(WEBHOOK_URL + '?' + params.toString());
       if (!res.ok) throw new Error('Request failed');
