@@ -1,0 +1,245 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;1,400;1,500&display=swap');
+
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-serif: 'Playfair Display', Georgia, serif;
+}
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+    box-sizing: border-box;
+  }
+
+  ::selection {
+    background: rgba(212, 175, 55, 0.25);
+    color: #fff;
+  }
+
+  .light ::selection {
+    background: rgba(212, 175, 55, 0.25);
+    color: #000;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* Lazy image rendering */
+  img {
+    content-visibility: auto;
+  }
+}
+
+/* === Easing System === */
+:root {
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* === Dark Mode === */
+.dark {
+  --bg-primary: #0A0A0A;
+  --bg-secondary: #0f0f0f;
+  --bg-card: rgba(255,255,255,0.035);
+  --bg-card-hover: rgba(255,255,255,0.07);
+  --bg-glass: rgba(255,255,255,0.05);
+  --bg-elevated: #131313;
+  --border-subtle: rgba(255,255,255,0.07);
+  --border-medium: rgba(255,255,255,0.11);
+  --border-strong: rgba(255,255,255,0.18);
+  --text-primary: #EDEDEF;
+  --text-secondary: rgba(255,255,255,0.52);
+  --text-tertiary: rgba(255,255,255,0.30);
+  --accent: #ffffff;
+  --accent-fg: #0A0A0A;
+  --accent-color: #D4AF37;
+  --accent-glow: rgba(212, 175, 55, 0.15);
+  --overlay: rgba(0,0,0,0.88);
+}
+
+/* === Light Mode === */
+.light {
+  --bg-primary: #FAFAF8;
+  --bg-secondary: #F0EFEC;
+  --bg-card: rgba(0,0,0,0.035);
+  --bg-card-hover: rgba(0,0,0,0.065);
+  --bg-glass: rgba(255,255,255,0.85);
+  --bg-elevated: #ffffff;
+  --border-subtle: rgba(0,0,0,0.08);
+  --border-medium: rgba(0,0,0,0.14);
+  --border-strong: rgba(0,0,0,0.22);
+  --text-primary: #1A1A1A;
+  --text-secondary: rgba(0,0,0,0.58);
+  --text-tertiary: rgba(0,0,0,0.40);
+  --accent: #1A1A1A;
+  --accent-fg: #ffffff;
+  --accent-color: #B8941E;
+  --accent-glow: rgba(184, 148, 30, 0.1);
+  --overlay: rgba(0,0,0,0.55);
+}
+
+/* === Inverted section === */
+.section-inverted {
+  background-color: #0f0f0f;
+  color: #EDEDEF;
+  --bg-primary: #0f0f0f;
+  --bg-card: rgba(255,255,255,0.035);
+  --bg-card-hover: rgba(255,255,255,0.07);
+  --border-subtle: rgba(255,255,255,0.07);
+  --border-medium: rgba(255,255,255,0.11);
+  --text-primary: #EDEDEF;
+  --text-secondary: rgba(255,255,255,0.52);
+  --text-tertiary: rgba(255,255,255,0.30);
+}
+
+/* === Keyframes === */
+@keyframes slow-zoom {
+  from { transform: scale(1.06); }
+  to { transform: scale(1); }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-slow-zoom {
+  animation: slow-zoom 18s var(--ease-out-expo) forwards;
+  will-change: transform;
+}
+
+.animate-fade-up {
+  animation: fade-up 0.5s var(--ease-out-quart) forwards;
+}
+
+/* === Vehicle card — only transform+shadow, not "all" === */
+.vehicle-card {
+  transition: border-color 0.4s ease, box-shadow 0.4s ease, transform 0.4s var(--ease-out-expo);
+}
+
+/* === Desktop-only hover effects (touch devices get none) === */
+@media (hover: hover) and (pointer: fine) {
+  .vehicle-card:hover {
+    transform: translateY(-4px);
+  }
+  .dark .vehicle-card:hover {
+    border-color: var(--border-strong);
+    box-shadow: 0 20px 50px -12px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06);
+  }
+  .light .vehicle-card:hover {
+    border-color: var(--border-strong);
+    box-shadow: 0 20px 50px -12px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04);
+  }
+}
+
+/* === Nav link === */
+.nav-link {
+  color: var(--text-secondary);
+  transition: color 0.3s ease;
+  cursor: pointer;
+}
+.nav-link:hover {
+  color: var(--text-primary);
+}
+
+/* === Image shimmer === */
+.img-shimmer {
+  background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+}
+
+/* === Focus Styles === */
+:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
+button:focus-visible, a:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 0;
+}
+
+/* === Theme transition — scoped, only bg/border/color === */
+.theme-transition,
+.theme-transition > * {
+  transition: background-color 0.5s ease, border-color 0.4s ease, color 0.3s ease !important;
+}
+
+/* === FAQ accordion === */
+details > summary { list-style: none; }
+details > summary::-webkit-details-marker { display: none; }
+details[open] > div {
+  animation: fade-up 0.25s var(--ease-out-quart) forwards;
+}
+
+/* === MOBILE PERFORMANCE === */
+@media (max-width: 767px) {
+  /* Kill slow-zoom animation on mobile — saves GPU compositing layer */
+  .animate-slow-zoom {
+    animation: none !important;
+    transform: scale(1);
+    will-change: auto;
+  }
+
+  /* Solid backgrounds instead of backdrop-blur on mobile */
+  .mobile-solid-bg {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /* Footer safe area for sticky CTA */
+  footer { padding-bottom: 5rem !important; }
+
+  /* Disable hover:scale on touch — it fires on tap and causes jank */
+  .vehicle-card { will-change: auto; }
+}
+
+/* === reduced motion & print === */
+
+/* === Reduced Motion === */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .animate-slow-zoom { animation: none !important; }
+}
+
+/* === Print === */
+@media print {
+  .no-print { display: none !important; }
+  body { background: white; color: black; }
+}
