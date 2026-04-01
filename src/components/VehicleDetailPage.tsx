@@ -99,7 +99,7 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
             </AnimatePresence>
           </button>
           <a
-            href="tel:+1234567890"
+            href="tel:+17729856667"
             className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all hover:scale-[1.03] active:scale-95"
             style={{ border: '1px solid var(--border-medium)', color: 'var(--text-secondary)' }}
           >

@@ -36,16 +36,16 @@ export default function ContactSection({ onBrowseFleet }: ContactSectionProps) {
               Serving Port St. Lucie and the Treasure Coast — we respond quickly during business hours.
             </p>
             <div className="space-y-4 sm:space-y-5">
-              <a href="tel:+1234567890" className="flex items-center gap-3 sm:gap-4 text-base sm:text-lg font-medium transition-opacity hover:opacity-70 group">
+              <a href="tel:+17729856667" className="flex items-center gap-3 sm:gap-4 text-base sm:text-lg font-medium transition-opacity hover:opacity-70 group">
                 <div
                   className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-transform duration-500 group-hover:scale-110"
                   style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
                 >
                   <Phone size={18} />
                 </div>
-                (123) 456-7890
+                (772) 985-6667
               </a>
-              <a href="sms:+1234567890" className="flex items-center gap-3 sm:gap-4 text-base sm:text-lg font-medium transition-opacity hover:opacity-70 group">
+              <a href="sms:+17729856667" className="flex items-center gap-3 sm:gap-4 text-base sm:text-lg font-medium transition-opacity hover:opacity-70 group">
                 <div
                   className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center border transition-transform duration-500 group-hover:scale-110"
                   style={{ backgroundColor: 'var(--bg-card-hover)', borderColor: 'var(--border-subtle)' }}
@@ -61,7 +61,7 @@ export default function ContactSection({ onBrowseFleet }: ContactSectionProps) {
                 >
                   <MapPin size={18} />
                 </div>
-                Port St. Lucie, FL
+                586 NW Mercantile Pl, Port St. Lucie, FL 34986
               </div>
             </div>
           </div>

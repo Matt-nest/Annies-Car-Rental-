@@ -102,7 +102,7 @@ export default function Navbar({ onNavigate }: NavbarProps) {
             </button>
 
             <a
-              href="tel:+1234567890"
+              href="tel:+17729856667"
               className="hidden sm:flex items-center gap-2 px-5 py-2.5 rounded-full text-[13px] font-medium transition-all duration-300 hover:scale-[1.03] active:scale-95"
               style={{
                 backgroundColor: 'var(--accent)',
@@ -156,7 +156,7 @@ export default function Navbar({ onNavigate }: NavbarProps) {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6, ease: EASE.standard }}
-                href="tel:+1234567890"
+                href="tel:+17729856667"
                 className="mt-6 px-10 py-4 rounded-full font-medium text-lg"
                 style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
               >

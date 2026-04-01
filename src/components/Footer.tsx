@@ -40,17 +40,17 @@ export default function Footer() {
               Contact
             </h4>
             <div className="space-y-3">
-              <a href="tel:+1234567890" className="flex items-center gap-3 text-sm transition-opacity hover:opacity-70 group">
+              <a href="tel:+17729856667" className="flex items-center gap-3 text-sm transition-opacity hover:opacity-70 group">
                 <Phone size={14} style={{ color: 'var(--text-tertiary)' }} />
-                <span style={{ color: 'var(--text-secondary)' }}>(123) 456-7890</span>
+                <span style={{ color: 'var(--text-secondary)' }}>(772) 985-6667</span>
               </a>
-              <a href="sms:+1234567890" className="flex items-center gap-3 text-sm transition-opacity hover:opacity-70">
+              <a href="sms:+17729856667" className="flex items-center gap-3 text-sm transition-opacity hover:opacity-70">
                 <MessageSquare size={14} style={{ color: 'var(--text-tertiary)' }} />
                 <span style={{ color: 'var(--text-secondary)' }}>Text Us</span>
               </a>
               <div className="flex items-center gap-3 text-sm">
                 <MapPin size={14} style={{ color: 'var(--text-tertiary)' }} />
-                <span style={{ color: 'var(--text-secondary)' }}>Port St. Lucie, FL</span>
+                <span style={{ color: 'var(--text-secondary)' }}>586 NW Mercantile Pl, Port St. Lucie, FL 34986</span>
               </div>
             </div>
           </div>
