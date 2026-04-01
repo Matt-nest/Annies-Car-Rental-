@@ -62,6 +62,28 @@ export default function Footer() {
                   {link}
                 </a>
               ))}
+              <a
+                href="/confirm"
+                className="nav-link text-sm"
+              >
+                Complete Your Booking
+              </a>
+              <a
+                href="https://www.bonzah.com/faq"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="nav-link text-sm"
+              >
+                Bonzah FAQs
+              </a>
+              <a
+                href="https://www.bonzah.com/about"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="nav-link text-sm"
+              >
+                Bonzah: How It Works
+              </a>
             </div>
           </div>
         </div>
