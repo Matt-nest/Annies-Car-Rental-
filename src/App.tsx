@@ -16,6 +16,7 @@ import MobileStickyCTA from './components/MobileStickyCTA';
 import Footer from './components/Footer';
 import VehicleDetailPage from './components/VehicleDetailPage';
 import ConfirmBooking from './components/ConfirmBooking';
+import CustomCursor from './components/CustomCursor';
 
 // Theme context
 type Theme = 'dark' | 'light';
@@ -144,6 +145,9 @@ export default function App() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Custom cursor — outside page transitions, desktop-only */}
+        <CustomCursor />
 
         {/* Quick-view modal — outside page transitions so it works on both pages */}
         <AnimatePresence>

@@ -1,8 +1,9 @@
 import { Phone, Menu, X, Sun, Moon } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence, useMotionValueEvent, useScroll } from 'motion/react';
 import { useTheme } from '../App';
 import { EASE, DURATION } from '../utils/motion';
+import blackLogoSrc from '../assets/Black-ACR-logo svg.svg';
 
 interface NavbarProps {
   onNavigate: (section: string) => void;
@@ -55,19 +56,34 @@ export default function Navbar({ onNavigate, isHomePage = false }: NavbarProps) 
         }}
       >
         <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
-          {/* Logo — fades in/out based on hero logo visibility */}
+          {/* Logo — fades in/out based on hero logo visibility; crossfades between themes */}
           <button onClick={() => onNavigate('home')} className="flex items-center group cursor-pointer">
-            <img
-              src="/logo.png"
-              alt="Annie's Car Rental"
-              className="w-auto object-contain group-hover:brightness-110 h-[32px] md:h-[40px]"
-              style={{
-                filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.4))',
-                opacity: showNavLogo ? 1 : 0,
-                transition: 'opacity 0.5s ease',
-                pointerEvents: showNavLogo ? 'auto' : 'none',
-              }}
-            />
+            <div className="relative inline-flex h-[32px] md:h-[40px]">
+              {/* White logo (dark mode) — also acts as layout spacer */}
+              <img
+                src="/logo.png"
+                alt="Annie's Car Rental"
+                className="h-full w-auto object-contain group-hover:brightness-110"
+                style={{
+                  filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.4))',
+                  opacity: showNavLogo ? (theme !== 'light' ? 1 : 0) : 0,
+                  transition: 'opacity 0.3s ease',
+                  pointerEvents: showNavLogo ? 'auto' : 'none',
+                }}
+              />
+              {/* Black logo (light mode) — absolutely overlaid */}
+              <img
+                src={blackLogoSrc}
+                alt=""
+                aria-hidden="true"
+                className="absolute inset-0 h-full w-auto object-contain"
+                style={{
+                  opacity: showNavLogo ? (theme === 'light' ? 1 : 0) : 0,
+                  transition: 'opacity 0.3s ease',
+                  pointerEvents: 'none',
+                }}
+              />
+            </div>
           </button>
 
           {/* Desktop Nav — CSS hover via .nav-link class replaces JS handlers */}
@@ -111,7 +127,7 @@ export default function Navbar({ onNavigate, isHomePage = false }: NavbarProps) 
 
             <a
               href="tel:+17729856667"
-              className="hidden sm:flex items-center gap-2 px-5 py-2.5 rounded-full text-[13px] font-medium transition-all duration-300 hover:scale-[1.03] active:scale-95"
+              className="cta-glow hidden sm:flex items-center gap-2 px-5 py-2.5 rounded-full text-[13px] font-medium transition-all duration-300 hover:scale-[1.03] active:scale-95"
               style={{
                 backgroundColor: 'var(--accent)',
                 color: 'var(--accent-fg)',
@@ -166,7 +182,7 @@ export default function Navbar({ onNavigate, isHomePage = false }: NavbarProps) 
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6, ease: EASE.standard }}
                 href="tel:+17729856667"
-                className="mt-6 px-10 py-4 rounded-full font-medium text-lg"
+                className="cta-glow mt-6 px-10 py-4 rounded-full font-medium text-lg"
                 style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
               >
                 Call Now

@@ -252,3 +252,16 @@ details[open] > div {
   .no-print { display: none !important; }
   body { background: white; color: black; }
 }
+
+/* === Custom cursor — desktop (non-touch) only === */
+body.has-custom-cursor,
+body.has-custom-cursor * {
+  cursor: none !important;
+}
+
+/* === CTA button glow — accent color shadow on hover === */
+@media (hover: hover) and (pointer: fine) {
+  .cta-glow:hover {
+    box-shadow: 0 0 24px var(--accent-glow), 0 4px 16px rgba(0, 0, 0, 0.15);
+  }
+}
