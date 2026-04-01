@@ -71,12 +71,12 @@ export default function Navbar({ onNavigate, isHomePage = false }: NavbarProps) 
                   pointerEvents: showNavLogo ? 'auto' : 'none',
                 }}
               />
-              {/* Black logo (light mode) — absolutely overlaid */}
+              {/* Black logo (light mode) — absolutely overlaid, same dimensions as white logo */}
               <img
                 src={blackLogoSrc}
                 alt=""
                 aria-hidden="true"
-                className="absolute inset-0 h-full w-auto object-contain"
+                className="absolute top-0 left-0 h-full w-auto object-contain"
                 style={{
                   opacity: showNavLogo ? (theme === 'light' ? 1 : 0) : 0,
                   transition: 'opacity 0.3s ease',

@@ -1,5 +1,6 @@
 import { Phone, MapPin, MessageSquare } from 'lucide-react';
 import { useTheme } from '../App';
+import blackLogoSrc from '../assets/Black-ACR-logo svg.svg';
 
 export default function Footer() {
   const { theme } = useTheme();
@@ -14,13 +15,32 @@ export default function Footer() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 sm:gap-10 mb-10 sm:mb-12">
           {/* Brand */}
           <div>
-            <div className="mb-4">
+            <div className="relative inline-flex h-[44px] sm:h-[56px] mb-4">
+              {/* White logo (dark mode) */}
               <img
                 src="/logo.png"
                 alt="Annie's Car Rental"
-                className="h-[44px] sm:h-[56px] w-auto object-contain"
+                className="h-full w-auto object-contain"
                 loading="lazy"
                 decoding="async"
+                style={{
+                  opacity: theme !== 'light' ? 1 : 0,
+                  transition: 'opacity 0.3s ease',
+                  pointerEvents: theme !== 'light' ? 'auto' : 'none',
+                }}
+              />
+              {/* Black logo (light mode) */}
+              <img
+                src={blackLogoSrc}
+                alt="Annie's Car Rental"
+                className="absolute top-0 left-0 h-full w-auto object-contain"
+                loading="lazy"
+                decoding="async"
+                style={{
+                  opacity: theme === 'light' ? 1 : 0,
+                  transition: 'opacity 0.3s ease',
+                  pointerEvents: 'none',
+                }}
               />
             </div>
             <p className="text-sm leading-relaxed max-w-[260px]" style={{ color: 'var(--text-secondary)' }}>

@@ -18,8 +18,6 @@ export default function CustomCursor() {
   useEffect(() => {
     if (!isActive) return;
 
-    document.body.classList.add('has-custom-cursor');
-
     const onMove = (e: MouseEvent) => {
       cursorX.set(e.clientX);
       cursorY.set(e.clientY);
@@ -27,7 +25,7 @@ export default function CustomCursor() {
 
     const onOver = (e: MouseEvent) => {
       if ((e.target as Element)?.closest?.('a, button, [role="button"], select')) {
-        cursorScale.set(1.8);
+        cursorScale.set(1.5);
       }
     };
 
@@ -42,7 +40,6 @@ export default function CustomCursor() {
     document.addEventListener('mouseout', onOut);
 
     return () => {
-      document.body.classList.remove('has-custom-cursor');
       window.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseover', onOver);
       document.removeEventListener('mouseout', onOut);
@@ -62,10 +59,11 @@ export default function CustomCursor() {
         y: springY,
         translateX: '-50%',
         translateY: '-50%',
-        width: 26,
-        height: 26,
+        width: 56,
+        height: 56,
         borderRadius: '50%',
-        border: '1.5px solid white',
+        // box-shadow renders smoother/anti-aliased vs CSS border at any DPR
+        boxShadow: 'inset 0 0 0 1.5px rgba(255,255,255,0.45)',
         mixBlendMode: 'difference',
         pointerEvents: 'none',
         zIndex: 99999,
