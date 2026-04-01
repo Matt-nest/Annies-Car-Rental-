@@ -83,17 +83,21 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
 
     try {
       const params = new URLSearchParams({
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          phone: formData.phone,
-          email: formData.email,
+          first_name: formData.firstName.trim(),
+          last_name: formData.lastName.trim(),
+          phone: formData.phone.trim(),
+          email: formData.email.trim(),
           vehicle_requested: formData.vehicleName,
           pickup_date: formData.startDate,
           return_date: formData.endDate,
           rental_total: rentalTotal.toString(),
           booking_reference_code: code,
         });
-      const response = await fetch(WEBHOOK_URL + '?' + params.toString());
+      
+      const fullUrl = WEBHOOK_URL + '?' + params.toString();
+      console.log('Submitting Webhook URL:', fullUrl);
+
+      const response = await fetch(fullUrl);
       if (!response.ok) throw new Error('Request failed');
       setRefCode(code);
       setIsSuccess(true);

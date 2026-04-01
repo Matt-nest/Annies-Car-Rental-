@@ -290,6 +290,7 @@ export default function ConfirmBooking() {
   // Step 2 state
   const [policyNumber, setPolicyNumber] = useState('');
   const [bonzahEmail, setBonzahEmail] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -325,6 +326,10 @@ export default function ConfirmBooking() {
       if (!value.trim()) return 'Email address is required';
       if (!isValidEmail(value)) return 'Please enter a valid email address';
     }
+    if (field === 'customerEmail') {
+      if (!value.trim()) return 'Your original email is required';
+      if (!isValidEmail(value)) return 'Please enter a valid email address';
+    }
     return '';
   }, []);
 
@@ -337,6 +342,7 @@ export default function ConfirmBooking() {
   const handleFieldChange = (field: string, value: string) => {
     if (field === 'policyNumber') setPolicyNumber(value);
     if (field === 'bonzahEmail') setBonzahEmail(value);
+    if (field === 'customerEmail') setCustomerEmail(value);
     // Re-validate live once the field has been touched
     if (touched[field]) {
       const err = validateField(field, value);
@@ -347,14 +353,16 @@ export default function ConfirmBooking() {
   /* ── Submit ── */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const allTouched = { policyNumber: true, bonzahEmail: true };
+    const allTouched = { policyNumber: true, bonzahEmail: true, customerEmail: true };
     setTouched(allTouched);
 
     const nextErrors: Record<string, string> = {};
     const pnErr = validateField('policyNumber', policyNumber);
     const emErr = validateField('bonzahEmail', bonzahEmail);
+    const cusErr = validateField('customerEmail', customerEmail);
     if (pnErr) nextErrors.policyNumber = pnErr;
     if (emErr) nextErrors.bonzahEmail = emErr;
+    if (cusErr) nextErrors.customerEmail = cusErr;
     setErrors(nextErrors);
 
     if (Object.keys(nextErrors).length > 0) {
@@ -371,6 +379,7 @@ export default function ConfirmBooking() {
         booking_reference_code: refCode!,
         bonzah_policy_number: policyNumber.trim(),
         bonzah_email: bonzahEmail.trim(),
+        email: customerEmail.trim(),
       });
       const res = await fetch(WEBHOOK_URL + '?' + params.toString());
       if (!res.ok) throw new Error('Request failed');
@@ -867,6 +876,21 @@ export default function ConfirmBooking() {
                         autoComplete="email"
                         onChange={(v) => handleFieldChange('bonzahEmail', v)}
                         onBlur={() => handleBlur('bonzahEmail', bonzahEmail)}
+                        theme={theme}
+                      />
+
+                      <Field
+                        id="customerEmail"
+                        label="Your Email Address"
+                        helper="The email you used on your original booking request"
+                        error={errors.customerEmail}
+                        isTouched={touched.customerEmail}
+                        value={customerEmail}
+                        type="email"
+                        placeholder="you@example.com"
+                        autoComplete="email"
+                        onChange={(v) => handleFieldChange('customerEmail', v)}
+                        onBlur={() => handleBlur('customerEmail', customerEmail)}
                         theme={theme}
                       />
                     </div>
