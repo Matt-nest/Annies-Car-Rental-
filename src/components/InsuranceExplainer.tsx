@@ -1,5 +1,5 @@
 import { Info } from 'lucide-react';
-import bonzahLogo from '../assets/bonzah-logo.png';
+import bonzahLogo from '../assets/bonzah-logo.svg';
 
 export default function InsuranceExplainer() {
   return (
@@ -36,7 +36,6 @@ export default function InsuranceExplainer() {
                 width: '36px',
                 height: '36px',
                 objectFit: 'contain',
-                mixBlendMode: 'screen',
               }}
             />
           </div>
