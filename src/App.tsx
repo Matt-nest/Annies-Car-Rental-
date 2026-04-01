@@ -15,6 +15,7 @@ import ContactSection from './components/ContactSection';
 import MobileStickyCTA from './components/MobileStickyCTA';
 import Footer from './components/Footer';
 import VehicleDetailPage from './components/VehicleDetailPage';
+import ConfirmBooking from './components/ConfirmBooking';
 
 // Theme context
 type Theme = 'dark' | 'light';
@@ -24,14 +25,16 @@ export const ThemeContext = createContext<{ theme: Theme; toggleTheme: () => voi
 });
 export const useTheme = () => useContext(ThemeContext);
 
-type Page = 'home' | 'detail';
+type Page = 'home' | 'detail' | 'confirm';
 
 /** Must stay in sync with .theme-transition CSS duration (index.css) */
 const THEME_TRANSITION_MS = 600;
 
 export default function App() {
   const [theme, setTheme] = useState<Theme>('dark');
-  const [currentPage, setCurrentPage] = useState<Page>('home');
+  const [currentPage, setCurrentPage] = useState<Page>(() => {
+    return window.location.pathname === '/confirm' ? 'confirm' : 'home';
+  });
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [quickViewVehicle, setQuickViewVehicle] = useState<Vehicle | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -99,7 +102,17 @@ export default function App() {
         style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
       >
         <AnimatePresence mode="wait">
-          {currentPage === 'detail' && selectedVehicle ? (
+          {currentPage === 'confirm' ? (
+            <motion.div
+              key="confirm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4, ease: EASE.dramatic }}
+            >
+              <ConfirmBooking />
+            </motion.div>
+          ) : currentPage === 'detail' && selectedVehicle ? (
             <motion.div
               key="detail"
               initial={{ opacity: 0 }}
