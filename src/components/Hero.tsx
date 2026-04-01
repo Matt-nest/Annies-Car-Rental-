@@ -63,6 +63,21 @@ export default function Hero({ onBrowseFleet }: HeroProps) {
       <div className="relative z-10 w-full max-w-7xl mx-auto px-6 sm:px-8">
         <div className="max-w-2xl">
           
+          {/* Brand Logo */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: EASE.standard, delay: 0.3 }}
+            className="mb-6"
+          >
+            <img
+              src="/logo.png"
+              alt="Annie's & Co — Your Trusted Vehicle Rental"
+              className="h-[72px] sm:h-[84px] md:h-[100px] w-auto object-contain"
+              style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.3))' }}
+            />
+          </motion.div>
+
           {/* Status Indicator (Trust & Availability) */}
           <motion.div
             initial={{ opacity: 0, y: 15 }}

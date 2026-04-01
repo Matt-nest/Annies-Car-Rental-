@@ -14,20 +14,12 @@ export default function Footer() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 sm:gap-10 mb-10 sm:mb-12">
           {/* Brand */}
           <div>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="relative w-9 h-9 flex items-center justify-center">
-                <div
-                  className="absolute inset-0 border rounded-lg rotate-45"
-                  style={{ borderColor: 'var(--border-strong)' }}
-                />
-                <span className="relative text-base font-serif italic" style={{ color: 'var(--text-primary)' }}>A</span>
-              </div>
-              <div className="flex flex-col -space-y-0.5">
-                <span className="text-base font-light tracking-wider" style={{ color: 'var(--text-primary)' }}>Annie's</span>
-                <span className="text-[9px] font-medium tracking-[0.3em] uppercase" style={{ color: 'var(--text-tertiary)' }}>
-                  Car Rental
-                </span>
-              </div>
+            <div className="mb-4">
+              <img
+                src="/logo.png"
+                alt="Annie's Car Rental"
+                className="h-[44px] sm:h-[56px] w-auto object-contain"
+              />
             </div>
             <p className="text-sm leading-relaxed max-w-[260px]" style={{ color: 'var(--text-secondary)' }}>
               Port St. Lucie's trusted private car rental. Quality vehicles, direct service, flexible terms.

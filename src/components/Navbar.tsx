@@ -1,23 +1,33 @@
 import { Phone, Menu, X, Sun, Moon } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence, useMotionValueEvent, useScroll } from 'motion/react';
 import { useTheme } from '../App';
 import { EASE, DURATION } from '../utils/motion';
 
 interface NavbarProps {
   onNavigate: (section: string) => void;
+  isHomePage?: boolean;
 }
 
-export default function Navbar({ onNavigate }: NavbarProps) {
+export default function Navbar({ onNavigate, isHomePage = false }: NavbarProps) {
   const { theme, toggleTheme } = useTheme();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [heroLogoGone, setHeroLogoGone] = useState(false);
 
-  useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 50);
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  const { scrollY } = useScroll();
+
+  useMotionValueEvent(scrollY, 'change', (latest) => {
+    setIsScrolled(latest > 50);
+    // The hero logo sits at roughly 200-350px from top.
+    // By ~350px of scroll it's fully off-screen.
+    if (isHomePage) {
+      setHeroLogoGone(latest > 350);
+    }
+  });
+
+  // On non-home pages, the navbar logo should always be visible
+  const showNavLogo = isHomePage ? heroLogoGone : true;
 
   const navLinks = [
     { label: 'Fleet', section: 'fleet' },
@@ -45,25 +55,23 @@ export default function Navbar({ onNavigate }: NavbarProps) {
         }}
       >
         <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
-          {/* Logo */}
-          <button onClick={() => onNavigate('home')} className="flex items-center gap-3 group cursor-pointer">
-            <div className="relative w-10 h-10 flex items-center justify-center">
-              <div
-                className="absolute inset-0 border rounded-lg rotate-45 group-hover:rotate-[135deg] transition-transform duration-700"
-                style={{ borderColor: 'var(--border-strong)' }}
-              />
-              <span className="relative text-xl font-serif italic" style={{ color: 'var(--text-primary)' }}>A</span>
-            </div>
-            <div className="flex flex-col -space-y-1">
-              <span className="text-lg font-light tracking-wider" style={{ color: 'var(--text-primary)' }}>Annie's</span>
-              <span className="text-[10px] font-medium tracking-[0.3em] uppercase" style={{ color: 'var(--text-tertiary)' }}>
-                Car Rental
-              </span>
-            </div>
+          {/* Logo — fades in/out based on hero logo visibility */}
+          <button onClick={() => onNavigate('home')} className="flex items-center group cursor-pointer">
+            <img
+              src="/logo.png"
+              alt="Annie's Car Rental"
+              className="w-auto object-contain group-hover:brightness-110 h-[32px] md:h-[40px]"
+              style={{
+                filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.4))',
+                opacity: showNavLogo ? 1 : 0,
+                transition: 'opacity 0.5s ease',
+                pointerEvents: showNavLogo ? 'auto' : 'none',
+              }}
+            />
           </button>
 
           {/* Desktop Nav — CSS hover via .nav-link class replaces JS handlers */}
-          <div className="hidden md:flex items-center gap-8 text-[13px] font-medium">
+          <div className="hidden md:flex items-center gap-8 text-sm font-medium">
             {navLinks.map((link) => (
               <button
                 key={link.section}

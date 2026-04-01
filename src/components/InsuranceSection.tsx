@@ -1,4 +1,3 @@
-import { Shield } from 'lucide-react';
 import { motion } from 'motion/react';
 import { EASE, STAGGER } from '../utils/motion';
 
@@ -20,13 +19,13 @@ export default function InsuranceSection() {
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
           transition={{ ease: EASE.standard }}
-          className="w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mx-auto mb-6 sm:mb-8 border"
-          style={{
-            backgroundColor: 'rgba(255,255,255,0.04)',
-            borderColor: 'rgba(255,255,255,0.08)',
-          }}
+          className="flex items-center justify-center mx-auto mb-6 sm:mb-8"
         >
-          <Shield size={26} style={{ color: 'var(--text-secondary)' }} />
+          <img
+            src="/logo-icon.png"
+            alt="Annie's Car Rental"
+            className="w-[64px] h-[64px] sm:w-[80px] sm:h-[80px] object-contain"
+          />
         </motion.div>
 
         <motion.h2

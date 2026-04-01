@@ -82,10 +82,7 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
     );
 
     try {
-      const response = await fetch(WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const params = new URLSearchParams({
           first_name: formData.firstName,
           last_name: formData.lastName,
           phone: formData.phone,
@@ -95,8 +92,8 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
           return_date: formData.endDate,
           rental_total: rentalTotal.toString(),
           booking_reference_code: code,
-        }),
-      });
+        });
+      const response = await fetch(WEBHOOK_URL + '?' + params.toString());
       if (!response.ok) throw new Error('Request failed');
       setRefCode(code);
       setIsSuccess(true);
