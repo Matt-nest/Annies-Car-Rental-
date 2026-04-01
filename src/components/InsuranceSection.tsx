@@ -25,6 +25,8 @@ export default function InsuranceSection() {
             src="/logo-icon.png"
             alt="Annie's Car Rental"
             className="w-[64px] h-[64px] sm:w-[80px] sm:h-[80px] object-contain"
+            loading="lazy"
+            decoding="async"
           />
         </motion.div>
 

@@ -61,19 +61,23 @@ export default function ReviewsSection() {
   }, []);
 
   // Smooth continuous auto-scroll using requestAnimationFrame
+  // Disabled entirely when user prefers reduced motion
+  const reducedMotion = typeof window !== 'undefined'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
   useEffect(() => {
     const slider = sliderRef.current;
-    if (!slider) return;
+    if (!slider || reducedMotion) return;
 
     let lastTime = 0;
 
     const tick = (time: number) => {
       if (!slider) return;
-      
+
       if (lastTime && isVisibleRef.current) {
         const delta = time - lastTime;
         const normalizedSpeed = scrollSpeedRef.current * (delta / 16.67);
-        
+
         if (!isPaused) {
           slider.scrollLeft += normalizedSpeed;
 
@@ -91,7 +95,7 @@ export default function ReviewsSection() {
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [isPaused]);
+  }, [isPaused, reducedMotion]);
 
   const scrollLeftManual = useCallback(() => {
     if (sliderRef.current) sliderRef.current.scrollBy({ left: -400, behavior: 'smooth' });
@@ -200,19 +204,21 @@ export default function ReviewsSection() {
             {REVIEWS.length} Reviews
           </h3>
           <div className="flex items-center gap-3">
-            <button 
+            <button
               onClick={scrollLeftManual}
               onMouseEnter={() => setIsPaused(true)}
               onMouseLeave={() => setIsPaused(false)}
+              aria-label="Scroll reviews left"
               className="w-10 h-10 rounded-full flex items-center justify-center border transition-all hover:scale-105 active:scale-95"
               style={{ borderColor: 'var(--border-subtle)', backgroundColor: 'var(--bg-card)' }}
             >
               <ChevronLeft size={18} style={{ color: 'var(--text-primary)' }} />
             </button>
-            <button 
+            <button
               onClick={scrollRightManual}
               onMouseEnter={() => setIsPaused(true)}
               onMouseLeave={() => setIsPaused(false)}
+              aria-label="Scroll reviews right"
               className="w-10 h-10 rounded-full flex items-center justify-center border transition-all hover:scale-105 active:scale-95"
               style={{ borderColor: 'var(--border-subtle)', backgroundColor: 'var(--bg-card)' }}
             >

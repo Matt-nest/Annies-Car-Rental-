@@ -19,6 +19,8 @@ export default function Footer() {
                 src="/logo.png"
                 alt="Annie's Car Rental"
                 className="h-[44px] sm:h-[56px] w-auto object-contain"
+                loading="lazy"
+                decoding="async"
               />
             </div>
             <p className="text-sm leading-relaxed max-w-[260px]" style={{ color: 'var(--text-secondary)' }}>

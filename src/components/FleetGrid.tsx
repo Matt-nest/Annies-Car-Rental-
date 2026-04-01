@@ -78,6 +78,7 @@ export default function FleetGrid({ onSelectVehicle }: FleetGridProps) {
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortOption)}
+            aria-label="Sort vehicles"
             className="appearance-none pl-10 pr-14 py-3 rounded-full border text-sm font-medium transition-all duration-300 focus:outline-none cursor-pointer"
             style={{
               backgroundColor: 'var(--bg-card)',

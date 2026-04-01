@@ -100,6 +100,8 @@ export default function TrustSection() {
               src={happyDriverImg}
               alt="Happy customer in a rental car"
               className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
+              loading="lazy"
+              decoding="async"
               referrerPolicy="no-referrer"
             />
           </div>

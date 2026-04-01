@@ -197,21 +197,25 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
         {/* Name row */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <input type="text" name="firstName" value={formData.firstName} onChange={handleChange} placeholder="First Name" className={inputClass('firstName')} style={{ ...inputStyle, ...inputBorder('firstName') }} />
+            <label htmlFor="firstName" className="text-[10px] uppercase tracking-widest mb-1 block ml-1" style={{ color: 'var(--text-tertiary)' }}>First Name</label>
+            <input id="firstName" type="text" name="firstName" value={formData.firstName} onChange={handleChange} placeholder="John" className={inputClass('firstName')} style={{ ...inputStyle, ...inputBorder('firstName') }} />
             {errors.firstName && <p className="text-red-400 text-xs mt-1 ml-1">{errors.firstName}</p>}
           </div>
           <div>
-            <input type="text" name="lastName" value={formData.lastName} onChange={handleChange} placeholder="Last Name" className={inputClass('lastName')} style={{ ...inputStyle, ...inputBorder('lastName') }} />
+            <label htmlFor="lastName" className="text-[10px] uppercase tracking-widest mb-1 block ml-1" style={{ color: 'var(--text-tertiary)' }}>Last Name</label>
+            <input id="lastName" type="text" name="lastName" value={formData.lastName} onChange={handleChange} placeholder="Smith" className={inputClass('lastName')} style={{ ...inputStyle, ...inputBorder('lastName') }} />
             {errors.lastName && <p className="text-red-400 text-xs mt-1 ml-1">{errors.lastName}</p>}
           </div>
         </div>
 
         <div>
-          <input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="Mobile Phone" className={inputClass('phone')} style={{ ...inputStyle, ...inputBorder('phone') }} />
+          <label htmlFor="phone" className="text-[10px] uppercase tracking-widest mb-1 block ml-1" style={{ color: 'var(--text-tertiary)' }}>Mobile Phone</label>
+          <input id="phone" type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="(772) 555-0100" className={inputClass('phone')} style={{ ...inputStyle, ...inputBorder('phone') }} />
           {errors.phone && <p className="text-red-400 text-xs mt-1 ml-1">{errors.phone}</p>}
         </div>
         <div>
-          <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="Email Address" className={inputClass('email')} style={{ ...inputStyle, ...inputBorder('email') }} />
+          <label htmlFor="email" className="text-[10px] uppercase tracking-widest mb-1 block ml-1" style={{ color: 'var(--text-tertiary)' }}>Email Address</label>
+          <input id="email" type="email" name="email" value={formData.email} onChange={handleChange} placeholder="you@example.com" className={inputClass('email')} style={{ ...inputStyle, ...inputBorder('email') }} />
           {errors.email && <p className="text-red-400 text-xs mt-1 ml-1">{errors.email}</p>}
         </div>
 
@@ -250,7 +254,8 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
         </div>
 
         <div>
-          <input type="text" name="pickupLocation" value={formData.pickupLocation} onChange={handleChange} placeholder="Preferred Pickup Location" className={inputClass('pickupLocation')} style={{ ...inputStyle, ...inputBorder('pickupLocation') }} />
+          <label htmlFor="pickupLocation" className="text-[10px] uppercase tracking-widest mb-1 block ml-1" style={{ color: 'var(--text-tertiary)' }}>Preferred Pickup Location</label>
+          <input id="pickupLocation" type="text" name="pickupLocation" value={formData.pickupLocation} onChange={handleChange} placeholder="Address or area" className={inputClass('pickupLocation')} style={{ ...inputStyle, ...inputBorder('pickupLocation') }} />
         </div>
 
         {/* Insurance */}
@@ -262,7 +267,7 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
                 key={val}
                 type="button"
                 onClick={() => setFormData((prev) => ({ ...prev, insuranceNeeded: val }))}
-                className="py-2.5 rounded-xl text-sm font-medium border transition-all duration-300"
+                className="py-2.5 rounded-xl text-sm font-medium border transition-all duration-300 cursor-pointer"
                 style={{
                   backgroundColor: formData.insuranceNeeded === val ? 'var(--accent)' : 'var(--bg-card-hover)',
                   color: formData.insuranceNeeded === val ? 'var(--accent-fg)' : 'var(--text-secondary)',
@@ -275,12 +280,16 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
           </div>
         </div>
 
-        <textarea
-          name="notes" value={formData.notes} onChange={handleChange}
-          placeholder="Notes or special requests (optional)" rows={3}
-          className={`${inputClass('notes')} resize-none`}
-          style={{ ...inputStyle, ...inputBorder('notes') }}
-        />
+        <div>
+          <label htmlFor="notes" className="text-[10px] uppercase tracking-widest mb-1 block ml-1" style={{ color: 'var(--text-tertiary)' }}>Notes (optional)</label>
+          <textarea
+            id="notes"
+            name="notes" value={formData.notes} onChange={handleChange}
+            placeholder="Special requests, questions, etc." rows={3}
+            className={`${inputClass('notes')} resize-none`}
+            style={{ ...inputStyle, ...inputBorder('notes') }}
+          />
+        </div>
 
         <input type="hidden" name="vehicle_id" value={vehicle.id} />
         <input type="hidden" name="vehicle_name" value={getVehicleDisplayName(vehicle)} />
@@ -290,7 +299,7 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
           type="submit"
           disabled={isSubmitting}
           className={`group w-full py-4 rounded-full font-medium transition-all duration-300 active:scale-95 hover:scale-[1.02] hover:shadow-lg flex items-center justify-center gap-2 ${
-            isSubmitting ? 'opacity-70 cursor-not-allowed' : ''
+            isSubmitting ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'
           }`}
           style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
         >

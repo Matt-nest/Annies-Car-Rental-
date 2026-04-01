@@ -123,6 +123,7 @@ export default function Navbar({ onNavigate, isHomePage = false }: NavbarProps) 
               className="w-11 h-11 flex items-center justify-center -mr-2 md:hidden transition-opacity hover:opacity-70"
               style={{ color: 'var(--text-secondary)' }}
               onClick={() => setMobileOpen(true)}
+              aria-label="Open menu"
             >
               <Menu size={24} />
             </button>
@@ -142,7 +143,7 @@ export default function Navbar({ onNavigate, isHomePage = false }: NavbarProps) 
             style={{ backgroundColor: theme === 'dark' ? 'rgba(10,10,10,0.98)' : 'rgba(250,250,249,0.98)' }}
           >
             <div className="flex justify-end">
-              <button onClick={() => setMobileOpen(false)} className="w-12 h-12 flex items-center justify-center -mr-4 transition-opacity hover:opacity-70" style={{ color: 'var(--text-secondary)' }}>
+              <button onClick={() => setMobileOpen(false)} aria-label="Close menu" className="w-12 h-12 flex items-center justify-center -mr-4 transition-opacity hover:opacity-70" style={{ color: 'var(--text-secondary)' }}>
                 <X size={28} />
               </button>
             </div>

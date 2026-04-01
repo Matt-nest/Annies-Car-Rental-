@@ -45,6 +45,15 @@
   img {
     content-visibility: auto;
   }
+
+  /* Global cursor for interactive elements */
+  button, [role="button"], select, summary {
+    cursor: pointer;
+  }
+
+  body {
+    overscroll-behavior: contain;
+  }
 }
 
 /* === Easing System === */

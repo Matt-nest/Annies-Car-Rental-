@@ -89,6 +89,7 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
         <div className="flex items-center gap-3">
           <button
             onClick={toggleTheme}
+            aria-label="Toggle theme"
             className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:scale-110"
             style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
           >
