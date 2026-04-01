@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { motion, AnimatePresence, useMotionValueEvent, useScroll } from 'motion/react';
 import { useTheme } from '../App';
 import { EASE, DURATION } from '../utils/motion';
-import blackLogoSrc from '../assets/Black-ACR-logo svg.svg';
 
 interface NavbarProps {
   onNavigate: (section: string) => void;
@@ -56,10 +55,10 @@ export default function Navbar({ onNavigate, isHomePage = false }: NavbarProps) 
         }}
       >
         <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
-          {/* Logo — fades in/out based on hero logo visibility; crossfades between themes */}
+          {/* Logo — fades in/out based on hero logo visibility; crossfades color between themes */}
           <button onClick={() => onNavigate('home')} className="flex items-center group cursor-pointer">
             <div className="relative inline-flex h-[32px] md:h-[40px]">
-              {/* White logo (dark mode) — also acts as layout spacer */}
+              {/* Dark mode: white logo with drop shadow */}
               <img
                 src="/logo.png"
                 alt="Annie's Car Rental"
@@ -71,13 +70,14 @@ export default function Navbar({ onNavigate, isHomePage = false }: NavbarProps) 
                   pointerEvents: showNavLogo ? 'auto' : 'none',
                 }}
               />
-              {/* Black logo (light mode) — absolutely overlaid, same dimensions as white logo */}
+              {/* Light mode: same PNG, brightness(0) turns white→black, identical dimensions */}
               <img
-                src={blackLogoSrc}
+                src="/logo.png"
                 alt=""
                 aria-hidden="true"
                 className="absolute top-0 left-0 h-full w-auto object-contain"
                 style={{
+                  filter: 'brightness(0)',
                   opacity: showNavLogo ? (theme === 'light' ? 1 : 0) : 0,
                   transition: 'opacity 0.3s ease',
                   pointerEvents: 'none',
