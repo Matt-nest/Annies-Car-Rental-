@@ -11,6 +11,7 @@ import {
   ArrowLeft,
   Home,
   Check,
+  Search,
 } from 'lucide-react';
 import { useTheme } from '../App';
 import { EASE, DURATION } from '../utils/motion';
@@ -296,6 +297,11 @@ export default function ConfirmBooking() {
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [shake, setShake] = useState(false);
 
+  // Missing Ref state
+  const [manualRef, setManualRef] = useState('');
+  const [manualTouched, setManualTouched] = useState(false);
+  const [manualError, setManualError] = useState('');
+
   const scrollToSection = (section: string) => {
     if (section === 'home') window.location.href = '/';
     else window.location.href = `/#${section}`;
@@ -396,32 +402,79 @@ export default function ConfirmBooking() {
             initial={{ opacity: 0, y: 28 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: DURATION.normal, ease: EASE.standard }}
-            className="max-w-md w-full rounded-2xl border p-8 text-center space-y-6"
+            className="max-w-md w-full rounded-2xl border overflow-hidden"
             style={{
               backgroundColor: 'var(--bg-card)',
               borderColor: 'var(--border-subtle)',
+              borderLeftWidth: '3px',
+              borderLeftColor: 'var(--accent-color)',
             }}
           >
-            <div
-              className="w-16 h-16 rounded-full flex items-center justify-center mx-auto"
-              style={{ backgroundColor: 'rgba(239,68,68,0.12)' }}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!manualRef.trim()) {
+                  setManualError('Please enter a reference code');
+                  setManualTouched(true);
+                  return;
+                }
+                window.location.href = `/confirm?ref=${encodeURIComponent(manualRef.trim())}`;
+              }}
+              className="p-6 sm:p-8 text-left"
+              noValidate
             >
-              <AlertCircle size={32} style={{ color: '#ef4444' }} />
-            </div>
-            <h2 className="text-2xl font-medium" style={{ color: 'var(--text-primary)' }}>
-              Invalid Booking Link
-            </h2>
-            <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-              Please use the link from your approval email or text message. If you're having
-              trouble, call us for help.
-            </p>
-            <a
-              href={`tel:${PHONE_NUMBER.replace(/\D/g, '')}`}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-sm font-medium transition-all duration-300 hover:scale-[1.03] hover:-translate-y-px active:scale-95 cursor-pointer"
-              style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
-            >
-              Call {PHONE_NUMBER}
-            </a>
+              <h2
+                className="text-xl sm:text-2xl font-medium mb-2 flex items-center gap-2.5"
+                style={{ color: 'var(--text-primary)' }}
+              >
+                <Search size={22} style={{ color: 'var(--accent-color)' }} />
+                Find Your Booking
+              </h2>
+              <p
+                className="text-sm sm:text-[15px] leading-relaxed mb-6"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                Please enter the booking reference code from your approval email or text message to continue.
+              </p>
+
+              <div
+                className="space-y-5 pt-6 mb-6"
+                style={{ borderTop: '1px solid var(--border-subtle)' }}
+              >
+                <Field
+                  id="manualRef"
+                  label="Reference Code"
+                  placeholder="e.g. WL43"
+                  value={manualRef}
+                  error={manualError}
+                  isTouched={manualTouched}
+                  onChange={(v) => {
+                    setManualRef(v);
+                    if (manualTouched) {
+                      setManualError(v.trim() ? '' : 'Please enter a reference code');
+                    }
+                  }}
+                  onBlur={() => {
+                    setManualTouched(true);
+                    setManualError(manualRef.trim() ? '' : 'Please enter a reference code');
+                  }}
+                  theme={theme}
+                  autoComplete="off"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="group w-full py-4 rounded-full font-medium transition-all duration-300 flex items-center justify-center gap-2 hover:scale-[1.02] hover:-translate-y-px active:scale-95 hover:shadow-lg cursor-pointer"
+                style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
+              >
+                Open Booking
+                <ArrowRight
+                  size={18}
+                  className="transition-transform duration-300 group-hover:translate-x-1"
+                />
+              </button>
+            </form>
           </motion.div>
         </div>
         <Footer />

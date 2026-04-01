@@ -7,3 +7,4 @@ coverage/
 .env*
 !.env.example
 .agent/skills/ui-ux-pro-max-skill/
+Claude.dmg
