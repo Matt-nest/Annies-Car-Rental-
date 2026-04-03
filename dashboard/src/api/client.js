@@ -70,4 +70,18 @@ export const api = {
   getVehicleStats: () => request('/stats/vehicles'),
   getUpcoming: () => request('/stats/upcoming'),
   getActivity: (limit = 20) => request(`/stats/activity?limit=${limit}`),
+
+  // File uploads (multipart — no JSON content-type)
+  uploadVehicleImage: async (file) => {
+    const authHeader = await getAuthHeader();
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch(`${BASE}/uploads/vehicle-image`, {
+      method: 'POST',
+      headers: { ...authHeader },
+      body: form,
+    });
+    if (!res.ok) throw new Error('Upload failed');
+    return res.json();
+  },
 };

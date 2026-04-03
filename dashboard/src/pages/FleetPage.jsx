@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Car, Plus, Search, ChevronDown } from 'lucide-react';
+import { Car, Plus, Search, ChevronDown, Upload, Link, X } from 'lucide-react';
 import { api } from '../api/client';
 import LoadingSpinner from '../components/shared/LoadingSpinner';
 import Modal from '../components/shared/Modal';
@@ -30,6 +30,13 @@ export default function FleetPage() {
   const [statusDropdown, setStatusDropdown] = useState(null);
   const navigate = useNavigate();
 
+  // Image upload state
+  const [imageMode, setImageMode] = useState('upload'); // 'upload' or 'url'
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
+
   async function loadVehicles() {
     setLoading(true);
     try { setVehicles(await api.getVehicles()); }
@@ -39,16 +46,44 @@ export default function FleetPage() {
 
   useEffect(() => { loadVehicles(); }, []);
 
+  const handleImageFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { alert('File too large. Max 10MB.'); return; }
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+    setAddForm(f => ({ ...f, thumbnail_url: '' })); // clear URL if switching to file
+  };
+
+  const clearImageFile = () => {
+    setImageFile(null);
+    setImagePreview('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   async function handleAdd() {
     setAdding(true);
     try {
+      let thumbnailUrl = addForm.thumbnail_url;
+
+      // If file was selected, upload it first
+      if (imageFile) {
+        setUploading(true);
+        const result = await api.uploadVehicleImage(imageFile);
+        thumbnailUrl = result.url;
+        setUploading(false);
+      }
+
       const code = addForm.vehicle_code || `v-${addForm.make.toLowerCase()}-${addForm.model.toLowerCase().replace(/\s+/g, '')}`;
-      await api.createVehicle({ ...addForm, vehicle_code: code });
+      await api.createVehicle({ ...addForm, vehicle_code: code, thumbnail_url: thumbnailUrl });
       setAddModal(false);
       setAddForm({ ...EMPTY_VEHICLE });
+      clearImageFile();
+      setImageMode('upload');
       await loadVehicles();
     } catch (e) { console.error(e); }
     setAdding(false);
+    setUploading(false);
   }
 
   async function handleQuickStatus(vehicleId, newStatus, e) {
@@ -235,18 +270,62 @@ export default function FleetPage() {
               </select>
             </div>
           </div>
+
+          {/* Vehicle Image — Upload or URL */}
           <div>
-            <label className="label">Thumbnail Image URL</label>
-            <input className="input text-xs" value={addForm.thumbnail_url} onChange={e => setAddForm(f => ({...f, thumbnail_url: e.target.value}))} placeholder="https://…" />
+            <label className="label">Vehicle Image</label>
+            <div className="flex gap-1 mb-2">
+              <button type="button" onClick={() => { setImageMode('upload'); clearImageFile(); }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${imageMode === 'upload' ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'}`}>
+                <Upload size={12} /> Upload
+              </button>
+              <button type="button" onClick={() => { setImageMode('url'); clearImageFile(); }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${imageMode === 'url' ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'}`}>
+                <Link size={12} /> URL
+              </button>
+            </div>
+
+            {imageMode === 'upload' ? (
+              <>
+                <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleImageFileChange} className="hidden" id="vehicleImageInput" />
+                {!imageFile ? (
+                  <label htmlFor="vehicleImageInput"
+                    className="flex flex-col items-center justify-center gap-1.5 py-5 rounded-lg border-2 border-dashed border-stone-200 cursor-pointer hover:border-amber-300 transition-colors bg-stone-50">
+                    <Upload size={20} className="text-stone-400" />
+                    <span className="text-xs text-stone-500">Click to upload · JPEG, PNG, WebP · Max 10MB</span>
+                  </label>
+                ) : (
+                  <div className="flex items-center gap-3 p-2.5 rounded-lg border border-stone-200 bg-stone-50">
+                    <img src={imagePreview} alt="Preview" className="w-16 h-12 object-cover rounded" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-stone-700 truncate">{imageFile.name}</p>
+                      <p className="text-xs text-stone-400">{(imageFile.size / 1024 / 1024).toFixed(1)} MB</p>
+                    </div>
+                    <button type="button" onClick={clearImageFile} className="p-1 rounded-full hover:bg-stone-200 text-stone-400"><X size={14} /></button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div>
+                <input className="input text-xs" value={addForm.thumbnail_url} onChange={e => setAddForm(f => ({...f, thumbnail_url: e.target.value}))} placeholder="https://…" />
+                {addForm.thumbnail_url && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <img src={addForm.thumbnail_url} alt="Preview" className="w-16 h-12 object-cover rounded border border-stone-200" onError={e => e.currentTarget.style.display = 'none'} />
+                    <span className="text-xs text-stone-400">Preview</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
+
           <div className="flex gap-3 pt-2">
             <button onClick={() => setAddModal(false)} className="btn-secondary flex-1 justify-center">Cancel</button>
             <button
               onClick={handleAdd}
-              disabled={adding || !addForm.make || !addForm.model || !addForm.daily_rate}
+              disabled={adding || uploading || !addForm.make || !addForm.model || !addForm.daily_rate}
               className="btn-primary flex-1 justify-center"
             >
-              {adding ? 'Adding…' : 'Add Vehicle'}
+              {uploading ? 'Uploading…' : adding ? 'Adding…' : 'Add Vehicle'}
             </button>
           </div>
         </div>

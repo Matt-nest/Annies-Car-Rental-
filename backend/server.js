@@ -10,6 +10,7 @@ import customerRoutes from './routes/customers.js';
 import paymentRoutes from './routes/payments.js';
 import damageRoutes from './routes/damageReports.js';
 import stripeRoutes from './routes/stripe.js';
+import uploadRoutes from './routes/uploads.js';
 import statsRoutes from './routes/stats.js';
 import { startCronJobs } from './services/cronJobs.js';
 
@@ -51,6 +52,9 @@ app.delete('/api/v1/blocked-dates/:id', damageRoutes);
 // Stripe — webhook needs raw body for signature verification
 app.use('/api/v1/stripe/webhook', express.raw({ type: 'application/json' }));
 app.use('/api/v1/stripe', stripeRoutes);
+
+// File uploads (ID photos + vehicle images)
+app.use('/api/v1/uploads', uploadRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ error: `${req.method} ${req.path} not found` }));

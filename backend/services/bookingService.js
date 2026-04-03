@@ -48,6 +48,7 @@ export async function createBooking(payload) {
     return_location, delivery_requested = false, delivery_address,
     insurance_provider, insurance_status, bonzah_policy_id,
     special_requests, source = 'website',
+    id_photo_url,
   } = payload;
 
   // 1. Look up vehicle
@@ -78,13 +79,13 @@ export async function createBooking(payload) {
     throw err;
   }
 
-  // 3. Upsert customer
+  // 3. Upsert customer (include ID photo if provided)
+  const customerData = { first_name, last_name, email, phone };
+  if (id_photo_url) customerData.id_photo_url = id_photo_url;
+
   const { data: customer, error: cErr } = await supabase
     .from('customers')
-    .upsert(
-      { first_name, last_name, email, phone },
-      { onConflict: 'email', ignoreDuplicates: false }
-    )
+    .upsert(customerData, { onConflict: 'email', ignoreDuplicates: false })
     .select()
     .single();
 

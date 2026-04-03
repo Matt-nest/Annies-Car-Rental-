@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ArrowRight, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { ArrowRight, CheckCircle2, Loader2, AlertCircle, Camera, X } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Vehicle, BookingRequest } from '../types';
 import { getVehicleDisplayName } from '../data/vehicles';
@@ -38,6 +38,34 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
   const [refCode, setRefCode] = useState('');
   const [submitError, setSubmitError] = useState('');
 
+  // ID Photo upload state
+  const [idPhoto, setIdPhoto] = useState<File | null>(null);
+  const [idPhotoPreview, setIdPhotoPreview] = useState('');
+  const idPhotoRef = useRef<HTMLInputElement>(null);
+
+  const handleIdPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      setErrors(prev => ({ ...prev, idPhoto: 'File too large. Max 10MB.' }));
+      return;
+    }
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'].includes(file.type)) {
+      setErrors(prev => ({ ...prev, idPhoto: 'Only JPEG, PNG, WebP, or HEIC images accepted.' }));
+      return;
+    }
+    setIdPhoto(file);
+    setIdPhotoPreview(URL.createObjectURL(file));
+    setErrors(prev => { const n = { ...prev }; delete n.idPhoto; return n; });
+  };
+
+  const removeIdPhoto = () => {
+    setIdPhoto(null);
+    setIdPhotoPreview('');
+    if (idPhotoRef.current) idPhotoRef.current.value = '';
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -54,6 +82,7 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
     if (!formData.startDate) errs.startDate = 'Required';
     if (!formData.endDate) errs.endDate = 'Required';
     if (formData.startDate && formData.endDate && formData.endDate < formData.startDate) errs.endDate = 'Must be after start';
+    if (!idPhoto) errs.idPhoto = 'Photo ID is required';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -64,7 +93,27 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
     setIsSubmitting(true);
     setSubmitError('');
 
-    // Map frontend fields to backend API format
+    // 1. Upload ID photo first
+    let id_photo_url = '';
+    if (idPhoto) {
+      try {
+        const photoForm = new FormData();
+        photoForm.append('file', idPhoto);
+        const uploadRes = await fetch(`${API_URL}/uploads/id-photo`, {
+          method: 'POST',
+          body: photoForm,
+        });
+        if (!uploadRes.ok) throw new Error('Photo upload failed');
+        const uploadData = await uploadRes.json();
+        id_photo_url = uploadData.url;
+      } catch {
+        setSubmitError('Failed to upload your photo ID. Please try again.');
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
+    // 2. Map frontend fields to backend API format
     const bookingPayload = {
       first_name: formData.firstName.trim(),
       last_name: formData.lastName.trim(),
@@ -78,6 +127,7 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
       pickup_location: formData.pickupLocation.trim() || 'Port St. Lucie',
       insurance_provider: formData.insuranceNeeded === 'yes' ? 'bonzah' : formData.insuranceNeeded === 'no' ? 'none' : undefined,
       special_requests: formData.notes.trim() || undefined,
+      id_photo_url: id_photo_url || undefined,
       source: 'website',
     };
 
@@ -310,6 +360,55 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Photo ID Upload */}
+        <div>
+          <label className="text-[10px] uppercase tracking-widest mb-1 block ml-1" style={{ color: 'var(--text-tertiary)' }}>Photo ID *</label>
+          <input
+            ref={idPhotoRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+            onChange={handleIdPhotoChange}
+            className="hidden"
+            id="idPhotoInput"
+          />
+          {!idPhoto ? (
+            <label
+              htmlFor="idPhotoInput"
+              className={`flex flex-col items-center justify-center gap-2 py-6 rounded-xl border-2 border-dashed cursor-pointer transition-all duration-300 hover:border-[var(--accent)] ${
+                errors.idPhoto ? 'border-red-500/60' : ''
+              }`}
+              style={{
+                backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                borderColor: errors.idPhoto ? 'rgba(239,68,68,0.5)' : 'var(--border-subtle)',
+              }}
+            >
+              <Camera size={28} style={{ color: 'var(--text-tertiary)' }} />
+              <span className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Upload Driver's License or ID</span>
+              <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>JPEG, PNG, or WebP · Max 10MB</span>
+            </label>
+          ) : (
+            <div
+              className="relative flex items-center gap-3 p-3 rounded-xl border"
+              style={{ backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderColor: 'var(--border-subtle)' }}
+            >
+              <img src={idPhotoPreview} alt="ID Preview" className="w-16 h-12 object-cover rounded-lg" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{idPhoto.name}</p>
+                <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{(idPhoto.size / 1024 / 1024).toFixed(1)} MB</p>
+              </div>
+              <button
+                type="button"
+                onClick={removeIdPhoto}
+                className="p-1.5 rounded-full transition-colors hover:bg-red-500/20"
+                style={{ color: 'var(--text-tertiary)' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
+          {errors.idPhoto && <p className="text-red-400 text-xs mt-1 ml-1">{errors.idPhoto}</p>}
         </div>
 
         <div>
