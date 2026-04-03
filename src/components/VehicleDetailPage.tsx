@@ -22,10 +22,15 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewName, setReviewName] = useState('');
   const [reviewComment, setReviewComment] = useState('');
-  const [localReviews, setLocalReviews] = useState(() => getReviewsForVehicle(vehicle.id));
+  const resolveReviews = (v: Vehicle) => {
+    const byId = getReviewsForVehicle(v.id);
+    return byId.length > 0 ? byId : getReviewsForVehicle(v.vin ?? '');
+  };
+
+  const [localReviews, setLocalReviews] = useState(() => resolveReviews(vehicle));
 
   useEffect(() => {
-    setLocalReviews(getReviewsForVehicle(vehicle.id));
+    setLocalReviews(resolveReviews(vehicle));
     setShowAllReviews(false);
   }, [vehicle.id]);
 

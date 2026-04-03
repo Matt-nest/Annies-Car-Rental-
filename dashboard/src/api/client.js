@@ -71,6 +71,14 @@ export const api = {
   getUpcoming: () => request('/stats/upcoming'),
   getActivity: (limit = 20) => request(`/stats/activity?limit=${limit}`),
 
+  // Agreements
+  getAgreementDetail: (bookingId) => request(`/agreements/${bookingId}/detail`),
+  counterSignAgreement: (bookingId, signatureData) =>
+    request(`/agreements/${bookingId}/counter-sign`, {
+      method: 'POST',
+      body: JSON.stringify({ signature_data: signatureData, signature_type: 'drawn' }),
+    }),
+
   // File uploads (multipart — no JSON content-type)
   uploadVehicleImage: async (file) => {
     const authHeader = await getAuthHeader();

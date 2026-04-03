@@ -124,6 +124,19 @@ export default function CustomerDetailPage() {
               <Field label="DL Expiry" value={customer.driver_license_expiry} />
             </div>
           )}
+          {customer.id_photo_url && (
+            <div className="pt-3 border-t border-stone-100">
+              <p className="text-xs text-stone-400 mb-2">Photo ID</p>
+              <a href={customer.id_photo_url} target="_blank" rel="noopener noreferrer">
+                <img
+                  src={customer.id_photo_url}
+                  alt="Customer photo ID"
+                  className="h-28 w-auto rounded-lg border border-stone-200 object-cover hover:opacity-90 transition-opacity cursor-pointer"
+                />
+              </a>
+              <p className="text-xs text-stone-400 mt-1">Click to open full size</p>
+            </div>
+          )}
           {customer.tags?.length > 0 && (
             <div className="flex flex-wrap gap-1.5 pt-2">
               {customer.tags.map(t => (

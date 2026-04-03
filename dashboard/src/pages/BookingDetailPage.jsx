@@ -5,6 +5,7 @@ import { api } from '../api/client';
 import StatusBadge from '../components/shared/StatusBadge';
 import LoadingSpinner from '../components/shared/LoadingSpinner';
 import Modal from '../components/shared/Modal';
+import AgreementSection from '../components/shared/AgreementSection';
 import { format, formatDistanceToNow } from 'date-fns';
 
 function Section({ title, children }) {
@@ -291,6 +292,9 @@ export default function BookingDetailPage() {
           </div>
         </Section>
       </div>
+
+      {/* Rental Agreement */}
+      <AgreementSection bookingId={id} />
 
       {/* Timeline */}
       <Section title="Status Timeline">

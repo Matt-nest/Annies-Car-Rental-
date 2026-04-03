@@ -96,6 +96,26 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
     setErrors(prev => { const n = { ...prev }; delete n.idPhoto; return n; });
   };
 
+  // Programmatic click on file input (most reliable cross-browser/mobile method)
+  const triggerFileInput = () => {
+    idPhotoRef.current?.click();
+  };
+
+  // Drag-and-drop handlers
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      handleIdPhotoChange({ target: { files: e.dataTransfer.files } } as unknown as React.ChangeEvent<HTMLInputElement>);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
   const removeIdPhoto = () => {
     setIdPhoto(null);
     setIdPhotoPreview('');
@@ -188,9 +208,10 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
         setIsSuccess(true);
       } else {
         const errData = await response.json().catch(() => ({}));
-        // If it's a vehicle-not-found error, fall back to GHL
-        if (response.status === 404 || response.status === 409) {
-          await submitToGHLFallback();
+        if (response.status === 409) {
+          setSubmitError('Those dates are no longer available for this vehicle. Please choose different dates.');
+        } else if (response.status === 404) {
+          setSubmitError('This vehicle isn\'t available for online booking right now. Please call us at (772) 985-6667.');
         } else {
           throw new Error(errData.error || 'Booking submission failed');
         }
@@ -409,13 +430,20 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
             ref={idPhotoRef}
             type="file"
             accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+            capture="environment"
             onChange={handleIdPhotoChange}
-            className="hidden"
+            style={{ position: 'absolute', width: 0, height: 0, opacity: 0, overflow: 'hidden' }}
             id="idPhotoInput"
+            aria-label="Upload photo ID"
           />
           {!idPhoto ? (
-            <label
-              htmlFor="idPhotoInput"
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={triggerFileInput}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') triggerFileInput(); }}
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
               className={`flex flex-col items-center justify-center gap-2 py-6 rounded-xl border-2 border-dashed cursor-pointer transition-all duration-300 hover:border-[var(--accent)] ${
                 errors.idPhoto ? 'border-red-500/60' : ''
               }`}
@@ -426,8 +454,9 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
             >
               <Camera size={28} style={{ color: 'var(--text-tertiary)' }} />
               <span className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Upload Driver's License or ID</span>
-              <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>JPEG, PNG, or WebP · Max 10MB</span>
-            </label>
+              <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>Tap to take a photo or choose from gallery</span>
+              <span className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>JPEG, PNG, or WebP · Max 10MB</span>
+            </div>
           ) : (
             <div
               className="relative flex items-center gap-3 p-3 rounded-xl border"

@@ -2,6 +2,7 @@ export type VehicleCategory = 'Economy' | 'Sedan' | 'SUV' | 'Premium';
 
 export interface Vehicle {
   id: string;
+  vin?: string;
   make: string;
   model: string;
   year: number;

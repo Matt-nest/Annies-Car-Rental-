@@ -2526,9 +2526,50 @@ export const REVIEWS: Review[] = [
   }
 ];
 
-// Helper: get reviews for a specific vehicle
+// ── VIN-to-legacy ID mapping ────────────────────────────────────────────────
+// Vehicle IDs changed from slugs (v-expedition) to VINs when we switched to
+// the auto.dev API. This mapping lets reviews connect to the new IDs.
+const VIN_TO_LEGACY: Record<string, string[]> = {
+  '1FMJK1KT1JEA47064': ['v-expedition'],                         // Ford Expedition Max 2018
+  '1N4BL4DV4SN333164': ['v-altima-25'],                           // Nissan Altima 2025
+  '1N4BL4DVXRN318274': ['v-altima-24'],                           // Nissan Altima 2024
+  '1N4BL4DV7PN338432': ['v-altima-23'],                           // Nissan Altima 2023
+  '1N4BL4CV2MN401644': ['v-altima-21', 'v-altima-22'],            // Nissan Altima 2021 (absorbs retired 2022)
+  '3N1AB8DV6LY290213': ['v-sentra-b'],                            // Nissan Sentra 2020
+  '3N1AB8DV3LY242328': ['v-sentra-a'],                            // Nissan Sentra 2020
+  '19XFC2F55GE085810': ['v-civic'],                               // Honda Civic 2016
+  '5N1AZ2BJ3MC123044': ['v-murano'],                              // Nissan Murano 2021
+  'JN8AT2MT2KW254745': ['v-rogue'],                               // Nissan Rogue 2019
+  '3VWC57BU8KM236254': ['v-jetta-19a'],                           // VW Jetta 2019
+  '3VWC57BU6KM129297': ['v-jetta-19b'],                           // VW Jetta 2019
+  '3VWC57BU0MM044667': ['v-jetta-21'],                            // VW Jetta 2021
+  '1VWAA7A30JC008356': ['v-passat-18b'],                          // VW Passat 2018 R-Line
+  '1VWAA7A34JC051095': ['v-passat-18a'],                          // VW Passat 2018 S
+  '1VWSA7A37MC015474': ['v-passat-21'],                           // VW Passat 2021
+  'WAUB8GFF7G1059702': ['v-a3'],                                  // Audi A3 2016
+  'KMHD04LB3JU472768': ['v-elantra'],                             // Hyundai Elantra 2018
+  '3MZBN1W33JM158734': ['v-mazda3'],                              // Mazda Mazda3 2018
+  '1FADP3K26JL262219': ['v-focus-18', 'v-focus-16a'],             // Ford Focus 2018 (absorbs retired 16a)
+  '3FADP4EJ9KM106264': ['v-fiesta-19a'],                          // Ford Fiesta 2019
+  '3FADP4EJXKM149771': ['v-fiesta-19b', 'v-focus-16b'],          // Ford Fiesta 2019 (absorbs retired 16b)
+  '5NPE34AF2KH775218': ['v-sonata', 'v-cla'],                    // Hyundai Sonata 2019 (absorbs retired CLA)
+  '1G1JD5SB2H4115202': ['v-sonic', 'v-altima-19'],               // Chevrolet Sonic 2017 (absorbs retired Altima 19)
+  '3FADP4EJ0GM165887': ['v-fiesta-16'],                           // Ford Fiesta 2016
+};
+
+// Helper: get reviews for a specific vehicle (supports both VIN and legacy IDs)
 export function getReviewsForVehicle(vehicleId: string): Review[] {
-  return REVIEWS.filter(r => r.vehicleId === vehicleId);
+  // Direct match first (legacy ID or if reviews already use VINs)
+  const direct = REVIEWS.filter(r => r.vehicleId === vehicleId);
+  if (direct.length > 0) return direct;
+
+  // Map VIN → legacy IDs and collect all matching reviews
+  const legacyIds = VIN_TO_LEGACY[vehicleId] || VIN_TO_LEGACY[vehicleId.toUpperCase()];
+  if (legacyIds) {
+    return REVIEWS.filter(r => legacyIds.includes(r.vehicleId));
+  }
+
+  return [];
 }
 
 // Helper: get aggregate reviews for the homepage trust section
