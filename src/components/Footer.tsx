@@ -115,7 +115,7 @@ export default function Footer() {
             <p>Port St. Lucie, FL · Treasure Coast</p>
             <span style={{ opacity: 0.3 }}>·</span>
             <a
-              href="http://localhost:5174"
+              href="https://admin.anniescarrental.com"
               target="_blank"
               rel="noopener noreferrer"
               className="transition-opacity hover:opacity-70"
