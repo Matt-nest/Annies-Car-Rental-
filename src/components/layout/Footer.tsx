@@ -104,7 +104,18 @@ export default function Footer() {
           style={{ borderTop: '1px solid var(--border-subtle)', color: 'var(--text-tertiary)' }}
         >
           <p>© {new Date().getFullYear()} Annie's Car Rental. All rights reserved.</p>
-          <p>Port St. Lucie, FL · Treasure Coast</p>
+          <div className="flex items-center gap-4">
+            <p>Port St. Lucie, FL · Treasure Coast</p>
+            <a
+              href="https://dashboard-two-gilt-51.vercel.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="transition-opacity hover:opacity-70"
+              style={{ color: 'var(--text-tertiary)' }}
+            >
+              Admin
+            </a>
+          </div>
         </div>
       </div>
     </footer>
