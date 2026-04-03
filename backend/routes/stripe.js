@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import Stripe from 'stripe';
 import { createPaymentIntent, confirmPayment, handleWebhookEvent } from '../services/stripeService.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
+import { getStripe } from '../utils/stripe.js';
 
 const router = Router();
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const stripe = getStripe();
 
 /**
  * POST /stripe/create-payment-intent

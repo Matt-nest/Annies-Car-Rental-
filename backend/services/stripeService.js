@@ -1,7 +1,7 @@
-import Stripe from 'stripe';
+import { getStripe } from '../utils/stripe.js';
 import { supabase } from '../db/supabase.js';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const stripe = getStripe();
 
 /**
  * Create a PaymentIntent for a booking.

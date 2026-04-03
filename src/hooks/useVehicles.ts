@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Vehicle } from '../types';
 import { VEHICLES as FALLBACK_VEHICLES } from '../data/vehicles';
-
-const API_URL = import.meta.env.VITE_API_URL || 'https://backend-fawn-phi-13.vercel.app/api/v1';
+import { API_URL } from '../config';
 
 let cachedVehicles: Vehicle[] | null = null;
 

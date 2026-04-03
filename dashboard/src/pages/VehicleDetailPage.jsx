@@ -5,6 +5,8 @@ import { api } from '../api/client';
 import StatusBadge from '../components/shared/StatusBadge';
 import LoadingSpinner from '../components/shared/LoadingSpinner';
 import Modal from '../components/shared/Modal';
+import Section from '../components/shared/Section';
+import Field from '../components/shared/Field';
 import { format } from 'date-fns';
 
 const STATUS_OPTIONS = ['available', 'turo', 'maintenance', 'retired'];
@@ -15,30 +17,6 @@ const STATUS_COLORS = {
   maintenance: 'bg-amber-500',
   retired:     'bg-stone-400',
 };
-
-function Section({ title, icon: Icon, action, children }) {
-  return (
-    <div className="card p-5 space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {Icon && <Icon size={15} className="text-stone-400" />}
-          <h3 className="text-sm font-semibold text-stone-700 uppercase tracking-wide">{title}</h3>
-        </div>
-        {action}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function Field({ label, value }) {
-  return (
-    <div>
-      <p className="text-xs text-stone-400">{label}</p>
-      <p className="text-sm text-stone-900 font-medium">{value || '—'}</p>
-    </div>
-  );
-}
 
 export default function VehicleDetailPage() {
   const { id } = useParams();

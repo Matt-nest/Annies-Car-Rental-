@@ -1,40 +1,29 @@
-import React, { useState, useEffect, createContext, useContext } from 'react';
+import { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Vehicle } from './types';
-import { EASE, DURATION } from './utils/motion';
-import Navbar from './components/Navbar';
-import Hero from './components/Hero';
-import FleetGrid from './components/FleetGrid';
-import QuickViewModal from './components/QuickViewModal';
-import HowItWorks from './components/HowItWorks';
-import TrustSection from './components/TrustSection';
-import ReviewsSection from './components/ReviewsSection';
-import InsuranceSection from './components/InsuranceSection';
-import FAQ from './components/FAQ';
-import ContactSection from './components/ContactSection';
-import MobileStickyCTA from './components/MobileStickyCTA';
-import Footer from './components/Footer';
-import VehicleDetailPage from './components/VehicleDetailPage';
-import ConfirmBooking from './components/ConfirmBooking';
-import RentalAgreementPage from './components/RentalAgreementPage';
-import BookingStatusPage from './components/BookingStatusPage';
-import CustomCursor from './components/CustomCursor';
-
-// Theme context
-type Theme = 'dark' | 'light';
-export const ThemeContext = createContext<{ theme: Theme; toggleTheme: () => void }>({
-  theme: 'dark',
-  toggleTheme: () => {},
-});
-export const useTheme = () => useContext(ThemeContext);
+import { EASE } from './utils/motion';
+import { ThemeProvider } from './context/ThemeContext';
+import Navbar from './components/layout/Navbar';
+import Hero from './components/home/Hero';
+import FleetGrid from './components/home/FleetGrid';
+import QuickViewModal from './components/vehicle/QuickViewModal';
+import HowItWorks from './components/home/HowItWorks';
+import TrustSection from './components/home/TrustSection';
+import ReviewsSection from './components/home/ReviewsSection';
+import InsuranceSection from './components/home/InsuranceSection';
+import FAQ from './components/home/FAQ';
+import ContactSection from './components/home/ContactSection';
+import MobileStickyCTA from './components/home/MobileStickyCTA';
+import Footer from './components/layout/Footer';
+import VehicleDetailPage from './components/vehicle/VehicleDetailPage';
+import ConfirmBooking from './components/booking/ConfirmBooking';
+import RentalAgreementPage from './components/booking/RentalAgreementPage';
+import BookingStatusPage from './components/booking/BookingStatusPage';
+import CustomCursor from './components/home/CustomCursor';
 
 type Page = 'home' | 'detail' | 'confirm' | 'rental-agreement' | 'booking-status';
 
-/** Must stay in sync with .theme-transition CSS duration (index.css) */
-const THEME_TRANSITION_MS = 600;
-
 export default function App() {
-  const [theme, setTheme] = useState<Theme>('dark');
   const [currentPage, setCurrentPage] = useState<Page>(() => {
     const path = window.location.pathname;
     if (path === '/confirm') return 'confirm';
@@ -44,13 +33,6 @@ export default function App() {
   });
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [quickViewVehicle, setQuickViewVehicle] = useState<Vehicle | null>(null);
-  const [isTransitioning, setIsTransitioning] = useState(false);
-
-  const toggleTheme = () => {
-    setIsTransitioning(true);
-    setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
-    setTimeout(() => setIsTransitioning(false), THEME_TRANSITION_MS);
-  };
 
   // Quick-view: fleet card click opens modal (desktop only, bypasses to detail on mobile)
   const handleQuickView = (vehicle: Vehicle) => {
@@ -101,91 +83,84 @@ export default function App() {
   const handleBrowseFleet = () => scrollToSection('fleet');
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      <div
-        className={`min-h-screen font-sans transition-colors duration-500 ${theme} ${
-          isTransitioning ? 'theme-transition' : ''
-        }`}
-        style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
-      >
-        <AnimatePresence mode="wait">
-          {currentPage === 'booking-status' ? (
-            <motion.div
-              key="booking-status"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.4, ease: EASE.dramatic }}
-            >
-              <BookingStatusPage onBack={() => { setCurrentPage('home'); window.history.pushState({}, '', '/'); }} />
-            </motion.div>
-          ) : currentPage === 'rental-agreement' ? (
-            <motion.div
-              key="rental-agreement"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.4, ease: EASE.dramatic }}
-            >
-              <RentalAgreementPage />
-            </motion.div>
-          ) : currentPage === 'confirm' ? (
-            <motion.div
-              key="confirm"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.4, ease: EASE.dramatic }}
-            >
-              <ConfirmBooking />
-            </motion.div>
-          ) : currentPage === 'detail' && selectedVehicle ? (
-            <motion.div
-              key="detail"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.4, ease: EASE.dramatic }}
-            >
-              <VehicleDetailPage vehicle={selectedVehicle} onBack={handleBackToHome} />
-            </motion.div>
-          ) : (
-            <motion.div
-              key="home"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3, ease: EASE.standard }}
-            >
-              <Navbar onNavigate={scrollToSection} isHomePage />
-              <Hero onBrowseFleet={handleBrowseFleet} />
-              <HowItWorks />
-              <FleetGrid onSelectVehicle={handleQuickView} />
-              <TrustSection />
-              <ReviewsSection />
-              <InsuranceSection />
-              <FAQ />
-              <ContactSection onBrowseFleet={handleBrowseFleet} />
-              <Footer />
-              <MobileStickyCTA />
-            </motion.div>
-          )}
-        </AnimatePresence>
+    <ThemeProvider>
+      <AnimatePresence mode="wait">
+        {currentPage === 'booking-status' ? (
+          <motion.div
+            key="booking-status"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4, ease: EASE.dramatic }}
+          >
+            <BookingStatusPage onBack={() => { setCurrentPage('home'); window.history.pushState({}, '', '/'); }} />
+          </motion.div>
+        ) : currentPage === 'rental-agreement' ? (
+          <motion.div
+            key="rental-agreement"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4, ease: EASE.dramatic }}
+          >
+            <RentalAgreementPage />
+          </motion.div>
+        ) : currentPage === 'confirm' ? (
+          <motion.div
+            key="confirm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4, ease: EASE.dramatic }}
+          >
+            <ConfirmBooking />
+          </motion.div>
+        ) : currentPage === 'detail' && selectedVehicle ? (
+          <motion.div
+            key="detail"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4, ease: EASE.dramatic }}
+          >
+            <VehicleDetailPage vehicle={selectedVehicle} onBack={handleBackToHome} />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="home"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3, ease: EASE.standard }}
+          >
+            <Navbar onNavigate={scrollToSection} isHomePage />
+            <Hero onBrowseFleet={handleBrowseFleet} />
+            <HowItWorks />
+            <FleetGrid onSelectVehicle={handleQuickView} />
+            <TrustSection />
+            <ReviewsSection />
+            <InsuranceSection />
+            <FAQ />
+            <ContactSection onBrowseFleet={handleBrowseFleet} />
+            <Footer />
+            <MobileStickyCTA />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-        {/* Custom cursor — outside page transitions, desktop-only */}
-        <CustomCursor />
+      {/* Custom cursor — outside page transitions, desktop-only */}
+      <CustomCursor />
 
-        {/* Quick-view modal — outside page transitions so it works on both pages */}
-        <AnimatePresence>
-          {quickViewVehicle && (
-            <QuickViewModal
-              vehicle={quickViewVehicle}
-              onClose={closeQuickView}
-              onViewDetails={handleOpenDetail}
-            />
-          )}
-        </AnimatePresence>
-      </div>
-    </ThemeContext.Provider>
+      {/* Quick-view modal — outside page transitions so it works on both pages */}
+      <AnimatePresence>
+        {quickViewVehicle && (
+          <QuickViewModal
+            vehicle={quickViewVehicle}
+            onClose={closeQuickView}
+            onViewDetails={handleOpenDetail}
+          />
+        )}
+      </AnimatePresence>
+    </ThemeProvider>
   );
 }

@@ -1,0 +1,8 @@
+/**
+ * Shared application configuration.
+ * Single source of truth for API URLs and environment variables.
+ */
+export const API_URL =
+  import.meta.env.VITE_API_URL || 'https://backend-fawn-phi-13.vercel.app/api/v1';
+
+export const API_KEY = import.meta.env.VITE_API_KEY || '';
