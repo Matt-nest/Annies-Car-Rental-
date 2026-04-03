@@ -1,13 +1,14 @@
 import { CheckCircle2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { TOTAL_REVIEW_COUNT } from '../data/reviews';
-import { VEHICLES } from '../data/vehicles';
+import { useVehicles } from '../hooks/useVehicles';
 import { useTheme } from '../App';
 import { EASE, STAGGER } from '../utils/motion';
 const happyDriverImg = new URL('/happy-driver.png', import.meta.url).href;
 
 export default function TrustSection() {
   const { theme } = useTheme();
+  const { vehicles } = useVehicles();
 
   const trustPoints = [
     { title: 'Professionally Maintained', desc: 'Every vehicle is inspected and detailed before each rental at our Port St. Lucie facility.' },
@@ -72,7 +73,7 @@ export default function TrustSection() {
             style={{ borderTop: '1px solid var(--border-subtle)' }}
           >
             {[
-              { val: VEHICLES.length.toString(), label: 'Vehicles' },
+              { val: vehicles.length.toString(), label: 'Vehicles' },
               { val: '1,823', label: 'Trips Completed' },
               { val: '4 yrs', label: 'Serving PSL' },
             ].map((stat, i) => (

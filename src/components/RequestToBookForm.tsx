@@ -5,27 +5,18 @@ import { Vehicle, BookingRequest } from '../types';
 import { getVehicleDisplayName } from '../data/vehicles';
 import { useTheme } from '../App';
 
-const WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/kP7owzBOHxXk0Ch6wiZT/webhook-trigger/ivjo1qPItO8lTrMJ5icB';
+// Backend API for booking submissions
+const API_URL = import.meta.env.VITE_API_URL || 'https://annies-car-rental-backend.onrender.com/api/v1';
+const API_KEY = import.meta.env.VITE_API_KEY || 'annies-rental-api-key-2026';
 
-function generateRefCode(): string {
+// GHL webhook as fallback if backend is unreachable
+const GHL_FALLBACK_URL = 'https://services.leadconnectorhq.com/hooks/kP7owzBOHxXk0Ch6wiZT/webhook-trigger/ivjo1qPItO8lTrMJ5icB';
+
+function generateFallbackRefCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
   for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
   return code;
-}
-
-function calculateRentalTotal(startDate: string, endDate: string, dailyRate: number, weeklyRate?: number): number {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  const diffTime = Math.abs(end.getTime() - start.getTime());
-  const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  if (days <= 0) return dailyRate;
-  if (days >= 7 && weeklyRate) {
-    const fullWeeks = Math.floor(days / 7);
-    const remainingDays = days % 7;
-    return (fullWeeks * weeklyRate) + (remainingDays * dailyRate);
-  }
-  return days * dailyRate;
 }
 
 interface RequestToBookFormProps {
@@ -73,40 +64,77 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
     setIsSubmitting(true);
     setSubmitError('');
 
-    const code = generateRefCode();
-    const rentalTotal = calculateRentalTotal(
-      formData.startDate,
-      formData.endDate,
-      vehicle.dailyRate,
-      vehicle.weeklyRate,
-    );
+    // Map frontend fields to backend API format
+    const bookingPayload = {
+      first_name: formData.firstName.trim(),
+      last_name: formData.lastName.trim(),
+      phone: formData.phone.trim(),
+      email: formData.email.trim(),
+      vehicle_code: vehicle.id,
+      pickup_date: formData.startDate,
+      return_date: formData.endDate,
+      pickup_time: formData.pickupTime,
+      return_time: formData.returnTime,
+      pickup_location: formData.pickupLocation.trim() || 'Port St. Lucie',
+      insurance_provider: formData.insuranceNeeded === 'yes' ? 'bonzah' : formData.insuranceNeeded === 'no' ? 'none' : undefined,
+      special_requests: formData.notes.trim() || undefined,
+      source: 'website',
+    };
 
     try {
-      const params = new URLSearchParams({
-          first_name: formData.firstName.trim(),
-          last_name: formData.lastName.trim(),
-          phone: formData.phone.trim(),
-          email: formData.email.trim(),
-          vehicle_requested: formData.vehicleName,
-          pickup_date: formData.startDate,
-          return_date: formData.endDate,
-          rental_total: rentalTotal.toString(),
-          booking_reference_code: code,
-        });
-      
-      const fullUrl = WEBHOOK_URL + '?' + params.toString();
-      console.log('Submitting Webhook URL:', fullUrl);
+      // Try the backend API first
+      const response = await fetch(`${API_URL}/bookings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': API_KEY,
+        },
+        body: JSON.stringify(bookingPayload),
+      });
 
-      const response = await fetch(fullUrl);
-      if (!response.ok) throw new Error('Request failed');
-      setRefCode(code);
-      setIsSuccess(true);
+      if (response.ok) {
+        const result = await response.json();
+        setRefCode(result.booking_code);
+        setIsSuccess(true);
+      } else {
+        const errData = await response.json().catch(() => ({}));
+        // If it's a vehicle-not-found error, fall back to GHL
+        if (response.status === 404 || response.status === 409) {
+          await submitToGHLFallback();
+        } else {
+          throw new Error(errData.error || 'Booking submission failed');
+        }
+      }
     } catch {
-      setSubmitError('Something went wrong submitting your request. Please try again or call us at (772) 985-6667.');
+      // Backend unreachable — fall back to GHL direct
+      try {
+        await submitToGHLFallback();
+      } catch {
+        setSubmitError('Something went wrong submitting your request. Please try again or call us at (772) 985-6667.');
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  // Fallback: submit directly to GHL if backend is down or vehicle not in DB yet
+  async function submitToGHLFallback() {
+    const params = new URLSearchParams({
+      first_name: formData.firstName.trim(),
+      last_name: formData.lastName.trim(),
+      phone: formData.phone.trim(),
+      email: formData.email.trim(),
+      vehicle_requested: formData.vehicleName,
+      pickup_date: formData.startDate,
+      return_date: formData.endDate,
+      booking_reference_code: generateFallbackRefCode(),
+    });
+    const response = await fetch(GHL_FALLBACK_URL + '?' + params.toString());
+    if (!response.ok) throw new Error('GHL fallback failed');
+    const code = params.get('booking_reference_code') || generateFallbackRefCode();
+    setRefCode(code);
+    setIsSuccess(true);
+  }
 
   const formatTime = (t: string) => {
     const hr = parseInt(t.split(':')[0]);

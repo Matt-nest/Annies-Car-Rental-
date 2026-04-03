@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { ArrowUpDown, ChevronDown } from 'lucide-react';
 import { motion } from 'motion/react';
-import { VEHICLES } from '../data/vehicles';
+import { useVehicles } from '../hooks/useVehicles';
 import { Vehicle, SortOption, FilterCategory } from '../types';
 import VehicleCard from './VehicleCard';
 import { useTheme } from '../App';
@@ -13,6 +13,7 @@ interface FleetGridProps {
 
 export default function FleetGrid({ onSelectVehicle }: FleetGridProps) {
   const { theme } = useTheme();
+  const { vehicles } = useVehicles();
   const [sortBy, setSortBy] = useState<SortOption>('default');
   const [filterCategory, setFilterCategory] = useState<FilterCategory>('all');
   const [showAll, setShowAll] = useState(false);
@@ -26,7 +27,7 @@ export default function FleetGrid({ onSelectVehicle }: FleetGridProps) {
   ];
 
   const filteredAndSorted = useMemo(() => {
-    let result = [...VEHICLES];
+    let result = [...vehicles];
     if (filterCategory !== 'all') result = result.filter((v) => v.category === filterCategory);
     switch (sortBy) {
       case 'price-asc': result.sort((a, b) => a.dailyRate - b.dailyRate); break;
@@ -34,7 +35,7 @@ export default function FleetGrid({ onSelectVehicle }: FleetGridProps) {
       case 'year-desc': result.sort((a, b) => b.year - a.year); break;
     }
     return result;
-  }, [sortBy, filterCategory]);
+  }, [vehicles, sortBy, filterCategory]);
 
   const displayedVehicles = showAll ? filteredAndSorted : filteredAndSorted.slice(0, 9);
 
@@ -69,7 +70,7 @@ export default function FleetGrid({ onSelectVehicle }: FleetGridProps) {
             className="text-lg"
             style={{ color: 'var(--text-secondary)' }}
           >
-            {VEHICLES.length} vehicles ready for daily and weekly rental.
+            {vehicles.length} vehicles ready for daily and weekly rental.
           </motion.p>
         </div>
 

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   CheckCircle2,
@@ -12,16 +12,24 @@ import {
   Home,
   Check,
   Search,
+  Car,
+  Calendar,
+  MapPin,
+  DollarSign,
 } from 'lucide-react';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { useTheme } from '../App';
 import { EASE, DURATION } from '../utils/motion';
 import Navbar from './Navbar';
 import Footer from './Footer';
 
+const stripePromise = loadStripe('pk_test_51THqNVBDLBS4aYcfqHPZnNGlwL6E8lGdzFOxYoSmd37DjxD3ofbWe6AsrEkL90LqnHfp8fEFDfAmrqfkDgcNYYqE009CXY3fGT');
+const API_URL = import.meta.env.VITE_API_URL || 'https://annies-car-rental-backend.onrender.com/api/v1';
+
 /* ────────────────────────────────────────────────────────
    Constants
    ──────────────────────────────────────────────────────── */
-const PAYMENT_URL = 'https://www.anniescarrental.com';
 const BONZAH_URL = 'https://www.bonzah.com';
 const WEBHOOK_URL =
   'https://services.leadconnectorhq.com/hooks/kP7owzBOHxXk0Ch6wiZT/webhook-trigger/7214c771-a6e1-4167-b1cf-59b957e57309';
@@ -275,6 +283,185 @@ function Field({
 /* ────────────────────────────────────────────────────────
    Main Component
    ──────────────────────────────────────────────────────── */
+/* ────────────────────────────────────────────────────────
+   Stripe Checkout Form (inner component used inside <Elements>)
+   ──────────────────────────────────────────────────────── */
+function StripeCheckoutForm({
+  bookingSummary,
+  onSuccess,
+  theme,
+}: {
+  bookingSummary: any;
+  onSuccess: () => void;
+  theme: string;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [paying, setPaying] = useState(false);
+  const [payError, setPayError] = useState('');
+
+  const handlePay = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+
+    setPaying(true);
+    setPayError('');
+
+    const { error, paymentIntent } = await stripe.confirmPayment({
+      elements,
+      confirmParams: {
+        return_url: window.location.href, // fallback only; we handle inline
+      },
+      redirect: 'if_required',
+    });
+
+    if (error) {
+      setPayError(error.message || 'Payment failed. Please try again.');
+      setPaying(false);
+    } else {
+      // Payment succeeded — tell the backend to record it
+      try {
+        await fetch(`${API_URL}/stripe/confirm-payment`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ payment_intent_id: paymentIntent?.id }),
+        });
+      } catch {
+        // Non-critical: webhook will catch it in production
+        console.warn('Could not confirm payment with backend');
+      }
+      onSuccess();
+    }
+  };
+
+  const total = bookingSummary?.totalCost || 0;
+
+  return (
+    <form onSubmit={handlePay}>
+      {/* Booking summary */}
+      {bookingSummary && (
+        <div
+          className="rounded-xl p-4 mb-6 space-y-2.5"
+          style={{
+            backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+            border: '1px solid var(--border-subtle)',
+          }}
+        >
+          {bookingSummary.vehicle && (
+            <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-primary)' }}>
+              <Car size={14} style={{ color: 'var(--accent-color)' }} />
+              <span className="font-medium">{bookingSummary.vehicle}</span>
+            </div>
+          )}
+          <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+            <Calendar size={14} style={{ color: 'var(--text-tertiary)' }} />
+            <span>
+              {new Date(bookingSummary.pickupDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              {' → '}
+              {new Date(bookingSummary.returnDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              <span className="opacity-60"> · {bookingSummary.rentalDays} day{bookingSummary.rentalDays !== 1 ? 's' : ''}</span>
+            </span>
+          </div>
+          <div
+            className="pt-2 mt-2 space-y-1 text-sm"
+            style={{ borderTop: '1px solid var(--border-subtle)' }}
+          >
+            <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>
+              <span>${bookingSummary.dailyRate}/day × {bookingSummary.rentalDays} days</span>
+              <span>${bookingSummary.subtotal?.toFixed(2)}</span>
+            </div>
+            {bookingSummary.deliveryFee > 0 && (
+              <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>
+                <span>Delivery fee</span>
+                <span>${bookingSummary.deliveryFee.toFixed(2)}</span>
+              </div>
+            )}
+            {bookingSummary.discountAmount > 0 && (
+              <div className="flex justify-between" style={{ color: '#22c55e' }}>
+                <span>Discount</span>
+                <span>-${bookingSummary.discountAmount.toFixed(2)}</span>
+              </div>
+            )}
+            {bookingSummary.taxAmount > 0 && (
+              <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>
+                <span>Tax</span>
+                <span>${bookingSummary.taxAmount.toFixed(2)}</span>
+              </div>
+            )}
+            <div
+              className="flex justify-between font-semibold pt-1.5 mt-1.5"
+              style={{ borderTop: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
+            >
+              <span>Total</span>
+              <span>${total.toFixed(2)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Stripe Payment Element */}
+      <div className="mb-6">
+        <PaymentElement
+          options={{
+            layout: 'tabs',
+          }}
+        />
+      </div>
+
+      {/* Error */}
+      <AnimatePresence>
+        {payError && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-4 overflow-hidden"
+          >
+            <div
+              className="flex items-start gap-3 p-4 rounded-xl border text-sm"
+              style={{
+                backgroundColor: 'rgba(239,68,68,0.08)',
+                borderColor: 'rgba(239,68,68,0.25)',
+                color: '#ef4444',
+              }}
+            >
+              <AlertCircle size={18} className="mt-0.5 shrink-0" />
+              <span>{payError}</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Pay button */}
+      <button
+        type="submit"
+        disabled={!stripe || paying}
+        className={`group w-full py-4 rounded-full font-medium transition-all duration-300 flex items-center justify-center gap-2 ${
+          paying
+            ? 'opacity-60 cursor-not-allowed'
+            : 'hover:scale-[1.02] hover:-translate-y-px active:scale-95 hover:shadow-lg cursor-pointer'
+        }`}
+        style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
+      >
+        {paying ? (
+          <>
+            <Loader2 className="animate-spin" size={18} />
+            Processing…
+          </>
+        ) : (
+          <>
+            <DollarSign size={18} />
+            Pay ${total.toFixed(2)}
+          </>
+        )}
+      </button>
+    </form>
+  );
+}
+
+/* ────────────────────────────────────────────────────────
+   Main Component
+   ──────────────────────────────────────────────────────── */
 export default function ConfirmBooking() {
   const { theme } = useTheme();
   const refCode = useMemo(() => getRefCode(), []);
@@ -284,8 +471,12 @@ export default function ConfirmBooking() {
   // direction: 0 = initial load, 1 = forward, -1 = backward
   const [direction, setDirection] = useState<-1 | 0 | 1>(0);
 
-  // Step 1 state
-  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+  // Step 1 — Stripe payment state
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [bookingSummary, setBookingSummary] = useState<any>(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentError, setPaymentError] = useState('');
+  const [alreadyPaid, setAlreadyPaid] = useState(false);
 
   // Step 2 state
   const [policyNumber, setPolicyNumber] = useState('');
@@ -301,6 +492,33 @@ export default function ConfirmBooking() {
   const [manualRef, setManualRef] = useState('');
   const [manualTouched, setManualTouched] = useState(false);
   const [manualError, setManualError] = useState('');
+
+  // Fetch PaymentIntent from backend when refCode is available
+  useEffect(() => {
+    if (!refCode) return;
+    setPaymentLoading(true);
+    fetch(`${API_URL}/stripe/create-payment-intent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ booking_code: refCode }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) {
+          setPaymentError(data.error);
+        } else if (data.alreadyPaid) {
+          setAlreadyPaid(true);
+          setBookingSummary(data.booking);
+          // Skip straight to step 2
+          setCurrentStep(2);
+        } else {
+          setClientSecret(data.clientSecret);
+          setBookingSummary(data.booking);
+        }
+      })
+      .catch(() => setPaymentError('Could not load payment form. Please try again.'))
+      .finally(() => setPaymentLoading(false));
+  }, [refCode]);
 
   const scrollToSection = (section: string) => {
     if (section === 'home') window.location.href = '/';
@@ -650,7 +868,7 @@ export default function ConfirmBooking() {
           <AnimatePresence mode="wait">
 
             {/* ══════════════════════════════════════════════
-                STEP 1 — Pay for Your Rental
+                STEP 1 — Pay for Your Rental (Stripe)
                 ══════════════════════════════════════════════ */}
             {currentStep === 1 && (
               <motion.div
@@ -678,104 +896,63 @@ export default function ConfirmBooking() {
                       className="text-xl sm:text-2xl font-medium mb-2 flex items-center gap-2.5"
                       style={{ color: 'var(--text-primary)' }}
                     >
-                      <CreditCard
-                        size={22}
-                        style={{ color: 'var(--accent-color)' }}
-                      />
+                      <CreditCard size={22} style={{ color: 'var(--accent-color)' }} />
                       Pay for Your Rental
                     </h2>
                     <p
                       className="text-sm sm:text-[15px] leading-relaxed mb-6"
                       style={{ color: 'var(--text-secondary)' }}
                     >
-                      Click below to securely pay for your rental. Once payment is
-                      complete, return here and check the box to continue.
+                      Complete your payment below to secure your reservation.
                     </p>
 
-                    {/* Pay Now CTA */}
-                    <a
-                      href={PAYMENT_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="group inline-flex items-center gap-2 px-6 sm:px-8 py-3.5 rounded-full font-medium transition-all duration-300 hover:scale-[1.03] hover:-translate-y-px active:scale-95 hover:shadow-lg text-sm sm:text-base cursor-pointer"
-                      style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
-                    >
-                      Pay Now
-                      <ExternalLink
-                        size={15}
-                        className="transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-                      />
-                    </a>
+                    {/* Loading state */}
+                    {paymentLoading && (
+                      <div className="flex items-center justify-center py-12 gap-3">
+                        <Loader2 className="animate-spin" size={22} style={{ color: 'var(--accent-color)' }} />
+                        <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Loading payment form…</span>
+                      </div>
+                    )}
 
-                    {/* Payment confirmation checkbox */}
-                    <div
-                      className="mt-6 pt-5"
-                      style={{ borderTop: '1px solid var(--border-subtle)' }}
-                    >
-                      <label className="flex items-center gap-3 cursor-pointer group select-none">
-                        <div className="relative shrink-0">
-                          <input
-                            type="checkbox"
-                            id="paymentCheck"
-                            checked={paymentConfirmed}
-                            onChange={(e) => setPaymentConfirmed(e.target.checked)}
-                            className="sr-only"
-                          />
-                          <div
-                            className="w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all duration-300 cursor-pointer"
-                            style={{
-                              borderColor: paymentConfirmed
-                                ? '#22c55e'
-                                : 'var(--border-medium)',
-                              backgroundColor: paymentConfirmed ? '#22c55e' : 'transparent',
-                            }}
-                          >
-                            <AnimatePresence>
-                              {paymentConfirmed && (
-                                <motion.div
-                                  initial={{ scale: 0, opacity: 0 }}
-                                  animate={{ scale: 1, opacity: 1 }}
-                                  exit={{ scale: 0, opacity: 0 }}
-                                  transition={{
-                                    type: 'spring',
-                                    stiffness: 300,
-                                    damping: 20,
-                                  }}
-                                >
-                                  <Check size={14} strokeWidth={3} color="#fff" />
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
-                          </div>
-                        </div>
-                        <span
-                          className="text-sm sm:text-[15px] font-medium"
-                          style={{ color: 'var(--text-primary)' }}
-                        >
-                          I've completed my payment
-                        </span>
-                      </label>
-                    </div>
-
-                    {/* Continue button */}
-                    <div className="mt-6">
-                      <button
-                        onClick={advanceToStep2}
-                        disabled={!paymentConfirmed}
-                        className={`group w-full py-4 rounded-full font-medium transition-all duration-300 flex items-center justify-center gap-2 ${
-                          paymentConfirmed
-                            ? 'hover:scale-[1.02] hover:-translate-y-px active:scale-95 hover:shadow-lg cursor-pointer'
-                            : 'opacity-40 cursor-not-allowed'
-                        }`}
-                        style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
+                    {/* Error state */}
+                    {paymentError && !paymentLoading && (
+                      <div
+                        className="flex items-start gap-3 p-4 rounded-xl border text-sm"
+                        style={{
+                          backgroundColor: 'rgba(239,68,68,0.08)',
+                          borderColor: 'rgba(239,68,68,0.25)',
+                          color: '#ef4444',
+                        }}
                       >
-                        Continue to Insurance
-                        <ArrowRight
-                          size={18}
-                          className={`transition-transform duration-300 ${paymentConfirmed ? 'group-hover:translate-x-1' : ''}`}
+                        <AlertCircle size={18} className="mt-0.5 shrink-0" />
+                        <span>{paymentError}</span>
+                      </div>
+                    )}
+
+                    {/* Stripe Payment Element */}
+                    {clientSecret && !paymentLoading && (
+                      <Elements
+                        stripe={stripePromise}
+                        options={{
+                          clientSecret,
+                          appearance: {
+                            theme: theme === 'dark' ? 'night' : 'stripe',
+                            variables: {
+                              colorPrimary: '#c8a97e',
+                              borderRadius: '12px',
+                              fontFamily: 'Inter, system-ui, sans-serif',
+                            },
+                          },
+                          loader: 'auto',
+                        }}
+                      >
+                        <StripeCheckoutForm
+                          bookingSummary={bookingSummary}
+                          onSuccess={advanceToStep2}
+                          theme={theme}
                         />
-                      </button>
-                    </div>
+                      </Elements>
+                    )}
                   </div>
                 </div>
               </motion.div>
