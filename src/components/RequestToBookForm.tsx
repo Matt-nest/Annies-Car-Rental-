@@ -43,7 +43,41 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
   const [idPhotoPreview, setIdPhotoPreview] = useState('');
   const idPhotoRef = useRef<HTMLInputElement>(null);
 
-  const handleIdPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Compress image before upload (keeps under Vercel's 4.5MB limit)
+  const compressImage = (file: File, maxWidth = 1200, quality = 0.8): Promise<File> => {
+    return new Promise((resolve) => {
+      // If already small enough, skip compression
+      if (file.size < 1 * 1024 * 1024) return resolve(file);
+      
+      const img = new Image();
+      const canvas = document.createElement('canvas');
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve(new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' }));
+            } else {
+              resolve(file);
+            }
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+      img.onerror = () => resolve(file);
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const handleIdPhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const maxSize = 10 * 1024 * 1024; // 10MB
@@ -55,8 +89,10 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
       setErrors(prev => ({ ...prev, idPhoto: 'Only JPEG, PNG, WebP, or HEIC images accepted.' }));
       return;
     }
-    setIdPhoto(file);
-    setIdPhotoPreview(URL.createObjectURL(file));
+    // Compress before setting state
+    const compressed = await compressImage(file);
+    setIdPhoto(compressed);
+    setIdPhotoPreview(URL.createObjectURL(compressed));
     setErrors(prev => { const n = { ...prev }; delete n.idPhoto; return n; });
   };
 
@@ -103,7 +139,11 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
           method: 'POST',
           body: photoForm,
         });
-        if (!uploadRes.ok) throw new Error('Photo upload failed');
+        if (!uploadRes.ok) {
+          const errData = await uploadRes.text();
+          console.error('Upload failed:', uploadRes.status, errData);
+          throw new Error(`Photo upload failed: ${uploadRes.status}`);
+        }
         const uploadData = await uploadRes.json();
         id_photo_url = uploadData.url;
       } catch {
