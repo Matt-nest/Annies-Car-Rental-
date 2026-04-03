@@ -42,6 +42,7 @@ export const api = {
   getBookings: (params = {}) => request(`/bookings?${new URLSearchParams(params)}`),
   getBooking: (id) => request(`/bookings/${id}`),
   updateBooking: (id, body) => request(`/bookings/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  updateInsuranceStatus: (id, status, policyId) => request(`/bookings/${id}`, { method: 'PUT', body: JSON.stringify({ insurance_status: status, ...(policyId ? { bonzah_policy_id: policyId } : {}) }) }),
   approveBooking: (id) => request(`/bookings/${id}/approve`, { method: 'POST' }),
   declineBooking: (id, reason) => request(`/bookings/${id}/decline`, { method: 'POST', body: JSON.stringify({ reason }) }),
   cancelBooking: (id, reason, cancelled_by = 'owner') => request(`/bookings/${id}/cancel`, { method: 'POST', body: JSON.stringify({ reason, cancelled_by }) }),
@@ -70,6 +71,7 @@ export const api = {
   getVehicleStats: () => request('/stats/vehicles'),
   getUpcoming: () => request('/stats/upcoming'),
   getActivity: (limit = 20) => request(`/stats/activity?limit=${limit}`),
+  getWebhookFailures: (limit = 50) => request(`/stats/webhook-failures?limit=${limit}`),
 
   // Agreements
   getAgreementDetail: (bookingId) => request(`/agreements/${bookingId}/detail`),

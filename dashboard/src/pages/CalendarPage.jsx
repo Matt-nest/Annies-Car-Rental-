@@ -37,6 +37,9 @@ export default function CalendarPage() {
         ]);
         setVehicles(vs);
         setBookings(bs.data || bs);
+        // Fetch blocked dates for all vehicles in parallel
+        const blockedResults = await Promise.all(vs.map(v => api.getBlockedDates(v.id).catch(() => [])));
+        setBlocked(blockedResults.flat());
       } catch (e) { console.error(e); }
       setLoading(false);
     }
@@ -49,9 +52,18 @@ export default function CalendarPage() {
     return bookings.filter(b => b.vehicle_id === vehicleId && !['declined', 'cancelled'].includes(b.status));
   }
 
+  function getBlockedForVehicle(vehicleId) {
+    return blocked.filter(b => b.vehicle_id === vehicleId);
+  }
+
   function isCovered(booking, day) {
     const d = format(day, 'yyyy-MM-dd');
     return d >= booking.pickup_date && d <= booking.return_date;
+  }
+
+  function isBlocked(blockedDates, day) {
+    const d = format(day, 'yyyy-MM-dd');
+    return blockedDates.some(b => d >= b.start_date && d <= b.end_date);
   }
 
   if (loading) return <LoadingSpinner className="min-h-screen" />;
@@ -83,6 +95,10 @@ export default function CalendarPage() {
             <span className="capitalize">{s.replace('_', ' ')}</span>
           </div>
         ))}
+        <div className="flex items-center gap-1.5 text-xs text-stone-600">
+          <div className="w-3 h-3 rounded-sm bg-stone-300" style={{ backgroundImage: 'repeating-linear-gradient(45deg, #9ca3af 0, #9ca3af 1px, transparent 0, transparent 50%)', backgroundSize: '4px 4px' }} />
+          <span>Blocked</span>
+        </div>
       </div>
 
       {/* Gantt grid */}
@@ -104,6 +120,7 @@ export default function CalendarPage() {
           {/* Vehicle rows */}
           {vehicles.map(v => {
             const vBookings = getBookingsForVehicle(v.id);
+            const vBlocked = getBlockedForVehicle(v.id);
             return (
               <div key={v.id} className="flex border-b border-stone-50 hover:bg-stone-50 transition-colors min-h-[44px]">
                 {/* Vehicle label */}
@@ -116,6 +133,7 @@ export default function CalendarPage() {
                 <div className="flex flex-1">
                   {days.map(day => {
                     const booking = vBookings.find(b => isCovered(b, day));
+                    const blocked = !booking && isBlocked(vBlocked, day);
                     const isStart = booking && format(day, 'yyyy-MM-dd') === booking.pickup_date;
 
                     return (
@@ -126,9 +144,16 @@ export default function CalendarPage() {
                         style={{
                           backgroundColor: booking
                             ? `${STATUS_COLORS[booking.status]}22`
+                            : blocked
+                            ? undefined
                             : undefined,
+                          backgroundImage: blocked
+                            ? 'repeating-linear-gradient(45deg, #d1d5db 0, #d1d5db 1px, transparent 0, transparent 50%)'
+                            : undefined,
+                          backgroundSize: blocked ? '6px 6px' : undefined,
                         }}
                         onClick={() => booking && navigate(`/bookings/${booking.id}`)}
+                        title={blocked ? 'Blocked' : undefined}
                       >
                         {isStart && (
                           <div

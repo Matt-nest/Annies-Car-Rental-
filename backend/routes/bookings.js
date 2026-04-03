@@ -6,6 +6,7 @@ import { requireApiKey } from '../middleware/apiKey.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { validateBookingPayload } from '../utils/validators.js';
 import { createBooking, transitionBooking, getBookingDetail } from '../services/bookingService.js';
+import { calcRentalDays, calcPricing } from '../services/pricingService.js';
 
 const router = Router();
 
@@ -59,6 +60,42 @@ router.get('/:id/timeline', requireAuth, asyncHandler(async (req, res) => {
 
   if (error) throw error;
   res.json(data);
+}));
+
+/** GET /bookings/status/:bookingCode — public status lookup by code */
+router.get('/status/:bookingCode', asyncHandler(async (req, res) => {
+  const { data: booking, error } = await supabase
+    .from('bookings')
+    .select('booking_code, status, pickup_date, return_date, pickup_time, return_time, pickup_location, vehicles(year, make, model)')
+    .eq('booking_code', req.params.bookingCode.toUpperCase())
+    .single();
+
+  if (error || !booking) {
+    return res.status(404).json({ error: 'Booking not found. Check your reference code and try again.' });
+  }
+
+  const nextStep = {
+    pending_approval: { label: 'Awaiting approval', detail: "We're reviewing your request and will contact you shortly." },
+    approved: { label: 'Approved — action needed', detail: 'Please sign your rental agreement and complete payment to confirm your booking.' },
+    confirmed: { label: 'Confirmed', detail: "You're all set! We'll be in touch with pickup details." },
+    active: { label: 'Active rental', detail: 'Your rental is currently active.' },
+    returned: { label: 'Vehicle returned', detail: 'The vehicle has been returned. Your rental is being finalized.' },
+    completed: { label: 'Completed', detail: 'Your rental is complete. Thank you!' },
+    declined: { label: 'Declined', detail: 'Unfortunately your request was declined. Please call us for assistance.' },
+    cancelled: { label: 'Cancelled', detail: 'This booking has been cancelled.' },
+  }[booking.status] || { label: booking.status, detail: '' };
+
+  res.json({
+    booking_code: booking.booking_code,
+    status: booking.status,
+    pickup_date: booking.pickup_date,
+    return_date: booking.return_date,
+    pickup_time: booking.pickup_time,
+    return_time: booking.return_time,
+    pickup_location: booking.pickup_location,
+    vehicle: booking.vehicles ? `${booking.vehicles.year} ${booking.vehicles.make} ${booking.vehicles.model}` : null,
+    next_step: nextStep,
+  });
 }));
 
 /** POST /bookings — public, rate-limited, API key required */
@@ -141,15 +178,42 @@ router.post('/:id/pickup', requireAuth, asyncHandler(async (req, res) => {
 /** POST /bookings/:id/return */
 router.post('/:id/return', requireAuth, asyncHandler(async (req, res) => {
   const { mileage, fuel_level, condition_notes, photos = [] } = req.body;
+
+  // Check for late return — recalculate cost if returned after booked return_date
+  const booking = await getBookingDetail(req.params.id);
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const extraFields = {
+    return_mileage: mileage,
+    return_fuel_level: fuel_level,
+    return_condition_notes: condition_notes,
+    return_photos: photos,
+  };
+
+  if (todayStr > booking.return_date) {
+    const actualDays = calcRentalDays(booking.pickup_date, todayStr);
+    const pricing = calcPricing({
+      dailyRate: Number(booking.daily_rate),
+      weeklyRate: booking.vehicles?.weekly_rate ? Number(booking.vehicles.weekly_rate) : null,
+      rentalDays: actualDays,
+      deliveryRequested: booking.delivery_requested,
+      discountAmount: Number(booking.discount_amount || 0),
+    });
+    Object.assign(extraFields, {
+      return_date: todayStr,
+      rental_days: actualDays,
+      subtotal: pricing.subtotal,
+      tax_amount: pricing.tax_amount,
+      total_cost: pricing.total_cost,
+      late_return: true,
+    });
+  }
+
   const result = await transitionBooking(req.params.id, 'returned', {
     changedBy: req.user?.email || 'owner',
-    reason: 'Vehicle returned',
-    extraFields: {
-      return_mileage: mileage,
-      return_fuel_level: fuel_level,
-      return_condition_notes: condition_notes,
-      return_photos: photos,
-    },
+    reason: todayStr > booking.return_date
+      ? `Vehicle returned late (${todayStr} vs booked ${booking.return_date}) — cost recalculated`
+      : 'Vehicle returned',
+    extraFields,
   });
   res.json(result);
 }));

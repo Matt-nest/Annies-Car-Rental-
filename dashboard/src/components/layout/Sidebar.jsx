@@ -1,21 +1,22 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Calendar, Car, Users, BookOpen,
-  TrendingUp, Settings, X, LogOut
+  TrendingUp, Settings, X, LogOut, AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
 
 const NAV = [
   { to: '/',          label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/bookings',  label: 'Bookings',  icon: BookOpen },
+  { to: '/bookings',  label: 'Bookings',  icon: BookOpen, alertKey: 'pending_approvals' },
   { to: '/fleet',     label: 'Fleet',     icon: Car },
   { to: '/customers', label: 'Customers', icon: Users },
   { to: '/calendar',  label: 'Calendar',  icon: Calendar },
-  { to: '/revenue',   label: 'Revenue',   icon: TrendingUp },
-  { to: '/settings',  label: 'Settings',  icon: Settings },
+  { to: '/revenue',          label: 'Revenue',          icon: TrendingUp },
+  { to: '/settings',         label: 'Settings',         icon: Settings },
+  { to: '/webhook-failures', label: 'Webhook Failures', icon: AlertTriangle },
 ];
 
-export default function Sidebar({ open, onClose }) {
+export default function Sidebar({ open, onClose, alerts = {} }) {
   const { signOut } = useAuth();
 
   return (
@@ -47,24 +48,32 @@ export default function Sidebar({ open, onClose }) {
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          {NAV.map(({ to, label, icon: Icon, end }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={end}
-              onClick={onClose}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-amber-50 text-amber-700'
-                    : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
-                }`
-              }
-            >
-              <Icon size={17} />
-              {label}
-            </NavLink>
-          ))}
+          {NAV.map(({ to, label, icon: Icon, end, alertKey }) => {
+            const count = alertKey ? (alerts[alertKey] || 0) : 0;
+            return (
+              <NavLink
+                key={to}
+                to={to}
+                end={end}
+                onClick={onClose}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-amber-50 text-amber-700'
+                      : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
+                  }`
+                }
+              >
+                <Icon size={17} />
+                <span className="flex-1">{label}</span>
+                {count > 0 && (
+                  <span className="bg-amber-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                    {count}
+                  </span>
+                )}
+              </NavLink>
+            );
+          })}
         </nav>
 
         {/* Sign out */}

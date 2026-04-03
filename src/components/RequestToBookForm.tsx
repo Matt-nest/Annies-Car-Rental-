@@ -247,6 +247,25 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
     setIsSuccess(true);
   }
 
+  // Price estimate computed from selected dates
+  const priceEstimate = (() => {
+    if (!formData.startDate || !formData.endDate) return null;
+    const start = new Date(formData.startDate);
+    const end = new Date(formData.endDate);
+    const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    if (days <= 0) return null;
+    let subtotal: number;
+    if (days >= 7 && vehicle.weeklyRate) {
+      const weeks = Math.floor(days / 7);
+      const remainingDays = days % 7;
+      subtotal = weeks * vehicle.weeklyRate + remainingDays * vehicle.dailyRate;
+    } else {
+      subtotal = days * vehicle.dailyRate;
+    }
+    const tax = subtotal * 0.07;
+    return { days, subtotal, tax, total: subtotal + tax };
+  })();
+
   const formatTime = (t: string) => {
     const hr = parseInt(t.split(':')[0]);
     const m = t.split(':')[1];
@@ -314,6 +333,13 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
         <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
           You'll receive a call or text within a few hours during business hours.
         </p>
+        <a
+          href={`/booking-status?code=${refCode}`}
+          className="inline-block text-sm underline transition-opacity hover:opacity-70"
+          style={{ color: 'var(--text-secondary)' }}
+        >
+          Check booking status anytime →
+        </a>
       </motion.div>
     );
   }
@@ -395,6 +421,33 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
             </select>
           </div>
         </div>
+
+        {/* Price estimate */}
+        {priceEstimate && (
+          <div
+            className="rounded-xl border p-4 space-y-2 text-sm"
+            style={{ backgroundColor: 'var(--bg-card-hover)', borderColor: 'var(--border-subtle)' }}
+          >
+            <p className="text-[10px] uppercase tracking-widest font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>
+              Estimated Total — {priceEstimate.days} day{priceEstimate.days !== 1 ? 's' : ''}
+            </p>
+            <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>
+              <span>Subtotal</span>
+              <span>${priceEstimate.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </div>
+            <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>
+              <span>FL Tax (7%)</span>
+              <span>${priceEstimate.tax.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between font-semibold border-t pt-2" style={{ color: 'var(--text-primary)', borderColor: 'var(--border-subtle)' }}>
+              <span>Estimated Total</span>
+              <span>${priceEstimate.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </div>
+            <p className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
+              Final price confirmed at approval. No charge until approved.
+            </p>
+          </div>
+        )}
 
         <div>
           <label htmlFor="pickupLocation" className="text-[10px] uppercase tracking-widest mb-1 block ml-1" style={{ color: 'var(--text-tertiary)' }}>Preferred Pickup Location</label>

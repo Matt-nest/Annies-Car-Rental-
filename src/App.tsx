@@ -17,6 +17,7 @@ import Footer from './components/Footer';
 import VehicleDetailPage from './components/VehicleDetailPage';
 import ConfirmBooking from './components/ConfirmBooking';
 import RentalAgreementPage from './components/RentalAgreementPage';
+import BookingStatusPage from './components/BookingStatusPage';
 import CustomCursor from './components/CustomCursor';
 
 // Theme context
@@ -27,7 +28,7 @@ export const ThemeContext = createContext<{ theme: Theme; toggleTheme: () => voi
 });
 export const useTheme = () => useContext(ThemeContext);
 
-type Page = 'home' | 'detail' | 'confirm' | 'rental-agreement';
+type Page = 'home' | 'detail' | 'confirm' | 'rental-agreement' | 'booking-status';
 
 /** Must stay in sync with .theme-transition CSS duration (index.css) */
 const THEME_TRANSITION_MS = 600;
@@ -38,6 +39,7 @@ export default function App() {
     const path = window.location.pathname;
     if (path === '/confirm') return 'confirm';
     if (path === '/rental-agreement') return 'rental-agreement';
+    if (path === '/booking-status') return 'booking-status';
     return 'home';
   });
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
@@ -107,7 +109,17 @@ export default function App() {
         style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
       >
         <AnimatePresence mode="wait">
-          {currentPage === 'rental-agreement' ? (
+          {currentPage === 'booking-status' ? (
+            <motion.div
+              key="booking-status"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4, ease: EASE.dramatic }}
+            >
+              <BookingStatusPage onBack={() => { setCurrentPage('home'); window.history.pushState({}, '', '/'); }} />
+            </motion.div>
+          ) : currentPage === 'rental-agreement' ? (
             <motion.div
               key="rental-agreement"
               initial={{ opacity: 0 }}

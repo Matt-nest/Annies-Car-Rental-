@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Save, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, ExternalLink, Info } from 'lucide-react';
 
 function Section({ title, description, children }) {
   return (
@@ -13,7 +13,25 @@ function Section({ title, description, children }) {
   );
 }
 
-function WebhookField({ label, envKey }) {
+function EnvRow({ label, envKey, value, note }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="flex items-start justify-between gap-4 py-2 border-b border-stone-50 last:border-0">
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-stone-800">{label}</p>
+        <p className="text-[11px] font-mono text-stone-400 mt-0.5">{envKey}</p>
+        {note && <p className="text-[11px] text-stone-400 mt-0.5">{note}</p>}
+      </div>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${value ? 'bg-green-100 text-green-700' : 'bg-stone-100 text-stone-500'}`}>
+          {value ? 'Set' : 'Not set'}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function WebhookRow({ label, envKey }) {
   const [show, setShow] = useState(false);
   const [val, setVal] = useState('');
   return (
@@ -26,109 +44,92 @@ function WebhookField({ label, envKey }) {
           value={val}
           onChange={e => setVal(e.target.value)}
           placeholder="https://services.leadconnectorhq.com/hooks/..."
+          readOnly
         />
         <button onClick={() => setShow(s => !s)} className="btn-ghost px-3 py-2 shrink-0">
           {show ? <EyeOff size={14} /> : <Eye size={14} />}
         </button>
       </div>
-      <p className="text-[10px] text-stone-400 mt-0.5">Env: {envKey}</p>
+      <p className="text-[10px] text-stone-400 mt-0.5">Env var: {envKey}</p>
     </div>
   );
 }
 
 export default function SettingsPage() {
-  const [saved, setSaved] = useState(false);
-
-  function handleSave() {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  }
-
   return (
     <div className="p-4 sm:p-6 max-w-2xl mx-auto space-y-5">
-      <div className="flex items-center justify-between">
+      <div>
         <h1 className="text-xl font-semibold text-stone-900">Settings</h1>
-        <button onClick={handleSave} className="btn-primary">
-          <Save size={14} /> {saved ? 'Saved!' : 'Save Changes'}
-        </button>
+        <p className="text-sm text-stone-500 mt-1">Configuration reference — all settings are managed via Vercel environment variables.</p>
       </div>
 
-      <Section title="Business" description="Your rental business information">
-        <div className="grid grid-cols-2 gap-3">
-          <div className="col-span-2">
-            <label className="label">Business Name</label>
-            <input className="input" defaultValue="Annie's Car Rental" />
-          </div>
-          <div>
-            <label className="label">Owner Name</label>
-            <input className="input" defaultValue="Annie" />
-          </div>
-          <div>
-            <label className="label">Phone</label>
-            <input className="input" defaultValue="+17729856667" />
-          </div>
-          <div className="col-span-2">
-            <label className="label">Default Pickup Location</label>
-            <input className="input" defaultValue="Port St. Lucie, FL" />
-          </div>
-          <div>
-            <label className="label">Tax Rate (%)</label>
-            <input className="input" type="number" step="0.1" defaultValue="7" />
-          </div>
-          <div>
-            <label className="label">Delivery Fee ($)</label>
-            <input className="input" type="number" step="1" defaultValue="50" />
-          </div>
+      <div className="flex items-start gap-2.5 bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800">
+        <Info size={15} className="mt-0.5 shrink-0 text-blue-500" />
+        <div>
+          <p className="font-medium">Settings are environment variables</p>
+          <p className="text-blue-700 mt-0.5 text-xs">
+            To change any value, update it in your{' '}
+            <a href="https://vercel.com/dashboard" target="_blank" rel="noopener noreferrer" className="underline inline-flex items-center gap-0.5">
+              Vercel dashboard <ExternalLink size={10} />
+            </a>{' '}
+            under the backend project → Settings → Environment Variables, then redeploy.
+          </p>
+        </div>
+      </div>
+
+      <Section title="Business" description="Core business configuration (backend env vars)">
+        <div className="space-y-0">
+          <EnvRow label="Owner Name" envKey="OWNER_NAME" note="Used in counter-signature and notifications" />
+          <EnvRow label="Business Phone" envKey="BUSINESS_PHONE" />
+          <EnvRow label="Default Pickup Location" envKey="DEFAULT_PICKUP_LOCATION" />
+          <EnvRow label="Tax Rate" envKey="TAX_RATE" note="Currently hardcoded at 7% (Florida)" />
+          <EnvRow label="Delivery Fee" envKey="DELIVERY_FEE" note="Currently hardcoded at $50" />
         </div>
       </Section>
 
-      <Section title="Vehicle Defaults" description="Applied to new vehicles unless overridden">
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="label">Daily Mileage Limit</label>
-            <input className="input" type="number" defaultValue="250" />
+      <Section title="Booking Automation" description="Timing for auto-expire and reminders (hardcoded in cron job)">
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="bg-stone-50 rounded-lg p-3">
+            <p className="font-medium text-stone-800">24 hours</p>
+            <p className="text-stone-500 text-xs mt-0.5">Approval reminder sent to Annie</p>
           </div>
-          <div>
-            <label className="label">Overage Rate ($/mile)</label>
-            <input className="input" type="number" step="0.01" defaultValue="0.25" />
+          <div className="bg-stone-50 rounded-lg p-3">
+            <p className="font-medium text-stone-800">48 hours</p>
+            <p className="text-stone-500 text-xs mt-0.5">Unapproved booking auto-declined</p>
           </div>
-          <div>
-            <label className="label">Default Deposit ($)</label>
-            <input className="input" type="number" defaultValue="250" />
+          <div className="bg-stone-50 rounded-lg p-3">
+            <p className="font-medium text-stone-800">Daily at 9 AM ET</p>
+            <p className="text-stone-500 text-xs mt-0.5">Cron job runs (Vercel Hobby plan)</p>
           </div>
         </div>
+        <p className="text-xs text-stone-400">To change these values, edit <span className="font-mono bg-stone-100 px-1 rounded">backend/routes/cron.js</span> and redeploy.</p>
       </Section>
 
       <Section
         title="GoHighLevel Webhooks"
-        description="Paste your GHL inbound webhook URLs. These trigger SMS/email automations when booking events occur."
+        description="SMS/email automation triggers — set these in Vercel backend environment variables"
       >
-        <div className="space-y-4">
-          <WebhookField label="New Booking (→ notify Annie)" envKey="GHL_WEBHOOK_BOOKING_CREATED" />
-          <WebhookField label="Booking Approved (→ notify customer)" envKey="GHL_WEBHOOK_BOOKING_APPROVED" />
-          <WebhookField label="Booking Declined (→ notify customer)" envKey="GHL_WEBHOOK_BOOKING_DECLINED" />
-          <WebhookField label="Booking Cancelled" envKey="GHL_WEBHOOK_BOOKING_CANCELLED" />
-          <WebhookField label="Pickup Reminder (day before)" envKey="GHL_WEBHOOK_PICKUP_REMINDER" />
-          <WebhookField label="Return Reminder (day before)" envKey="GHL_WEBHOOK_RETURN_REMINDER" />
-          <WebhookField label="Rental Completed + Review Request" envKey="GHL_WEBHOOK_COMPLETED" />
+        <div className="space-y-0">
+          <EnvRow label="New Booking" envKey="GHL_WEBHOOK_BOOKING_CREATED" note="Notifies Annie of new request" />
+          <EnvRow label="Booking Approved" envKey="GHL_WEBHOOK_BOOKING_APPROVED" note="Notifies customer" />
+          <EnvRow label="Booking Declined" envKey="GHL_WEBHOOK_BOOKING_DECLINED" note="Notifies customer" />
+          <EnvRow label="Booking Cancelled" envKey="GHL_WEBHOOK_BOOKING_CANCELLED" />
+          <EnvRow label="Pickup Reminder" envKey="GHL_WEBHOOK_PICKUP_REMINDER" note="Day before pickup" />
+          <EnvRow label="Return Reminder" envKey="GHL_WEBHOOK_RETURN_REMINDER" note="Day before return" />
+          <EnvRow label="Overdue" envKey="GHL_WEBHOOK_BOOKING_OVERDUE" />
+          <EnvRow label="Completed + Review Request" envKey="GHL_WEBHOOK_COMPLETED" />
         </div>
-        <p className="text-xs text-stone-400 bg-stone-50 p-3 rounded-lg">
-          ⚠️ Webhook URLs are stored in your server's environment variables (.env file), not in the database.
-          Update them in your deployment platform (Render, Railway, Fly.io) for changes to take effect.
-        </p>
       </Section>
 
-      <Section title="Booking Automation" description="Auto-expire settings for unapproved bookings">
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="label">Remind Annie after (hours)</label>
-            <input className="input" type="number" defaultValue="24" />
-          </div>
-          <div>
-            <label className="label">Auto-decline after (hours)</label>
-            <input className="input" type="number" defaultValue="48" />
-          </div>
+      <Section title="Stripe" description="Payment processing">
+        <div className="space-y-0">
+          <EnvRow label="Secret Key" envKey="STRIPE_SECRET_KEY" note="Backend only — never expose to frontend" />
+          <EnvRow label="Webhook Secret" envKey="STRIPE_WEBHOOK_SECRET" note="From Stripe dashboard → Webhooks" />
+          <EnvRow label="Publishable Key" envKey="VITE_STRIPE_PUBLISHABLE_KEY" note="Frontend (customer site)" />
         </div>
+        <p className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-lg">
+          Currently using test mode keys. Switch to live keys when ready to take real payments.
+        </p>
       </Section>
     </div>
   );

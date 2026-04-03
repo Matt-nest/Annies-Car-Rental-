@@ -1,16 +1,27 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Menu, Bell } from 'lucide-react';
 import Sidebar from './Sidebar';
 import { useAuth } from '../../auth/AuthProvider';
+import { api } from '../../api/client';
 
 export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user } = useAuth();
+  const [alerts, setAlerts] = useState({ pending_approvals: 0, pending_agreements: 0 });
+
+  useEffect(() => {
+    api.getOverview()
+      .then(ov => setAlerts({
+        pending_approvals: ov.pending_approvals || 0,
+        pending_agreements: ov.pending_agreements || 0,
+      }))
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="flex h-screen overflow-hidden bg-stone-50">
-      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} alerts={alerts} />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top bar */}

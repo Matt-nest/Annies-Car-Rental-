@@ -35,6 +35,8 @@ export default function BookingDetailPage() {
   const [modalInput, setModalInput] = useState('');
   const [actioning, setActioning] = useState(false);
   const [paymentForm, setPaymentForm] = useState({ payment_type: 'rental', amount: '', method: 'cash', reference_id: '', notes: '' });
+  const [conditionForm, setConditionForm] = useState({ fuel: 'full', notes: '', photoUrl: '' });
+  const [damageForm, setDamageForm] = useState({ description: '', severity: 'minor', estimated_cost: '', photo_url: '' });
 
   const load = async () => {
     setLoading(true);
@@ -47,20 +49,33 @@ export default function BookingDetailPage() {
 
   useEffect(() => { load(); }, [id]);
 
-  async function doAction(action, payload = {}) {
+  async function doAction(action) {
     setActioning(true);
     try {
       if (action === 'approve')  await api.approveBooking(id);
       if (action === 'decline')  await api.declineBooking(id, modalInput);
       if (action === 'cancel')   await api.cancelBooking(id, modalInput);
-      if (action === 'pickup')   await api.recordPickup(id, { mileage: modalInput, fuel_level: payload.fuel });
-      if (action === 'return')   await api.recordReturn(id, { mileage: modalInput, fuel_level: payload.fuel });
+      if (action === 'pickup')   await api.recordPickup(id, {
+        mileage: modalInput,
+        fuel_level: conditionForm.fuel,
+        condition_notes: conditionForm.notes || undefined,
+        photos: conditionForm.photoUrl ? [conditionForm.photoUrl] : [],
+      });
+      if (action === 'return')   await api.recordReturn(id, {
+        mileage: modalInput,
+        fuel_level: conditionForm.fuel,
+        condition_notes: conditionForm.notes || undefined,
+        photos: conditionForm.photoUrl ? [conditionForm.photoUrl] : [],
+      });
       if (action === 'complete') await api.completeBooking(id);
       if (action === 'payment')  await api.recordPayment(id, paymentForm);
+      if (action === 'damage')   await api.fileDamageReport(id, damageForm);
       await load();
     } catch (e) { console.error(e); }
     setModal(null);
     setModalInput('');
+    setConditionForm({ fuel: 'full', notes: '', photoUrl: '' });
+    setDamageForm({ description: '', severity: 'minor', estimated_cost: '', photo_url: '' });
     setActioning(false);
   }
 
@@ -223,10 +238,35 @@ export default function BookingDetailPage() {
         <Section title="Insurance">
           <div className="grid grid-cols-2 gap-3">
             <Field label="Provider" value={booking.insurance_provider} />
-            <Field label="Status" value={booking.insurance_status} />
-            {booking.bonzah_policy_id && (
-              <Field label="Policy ID" value={booking.bonzah_policy_id} />
-            )}
+            <div>
+              <p className="text-xs text-stone-400">Status</p>
+              <select
+                className="input text-sm mt-0.5"
+                defaultValue={booking.insurance_status || 'pending'}
+                onChange={async e => {
+                  await api.updateInsuranceStatus(id, e.target.value);
+                  await load();
+                }}
+              >
+                {['pending', 'active', 'declined', 'not_required', 'external'].map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+            <div className="col-span-2">
+              <p className="text-xs text-stone-400">Policy ID</p>
+              <input
+                className="input text-sm mt-0.5"
+                defaultValue={booking.bonzah_policy_id || ''}
+                placeholder="Policy number (if applicable)"
+                onBlur={async e => {
+                  if (e.target.value !== (booking.bonzah_policy_id || '')) {
+                    await api.updateInsuranceStatus(id, booking.insurance_status, e.target.value);
+                    await load();
+                  }
+                }}
+              />
+            </div>
           </div>
         </Section>
 
@@ -249,9 +289,20 @@ export default function BookingDetailPage() {
           ) : (
             <p className="text-sm text-stone-400">No payments recorded</p>
           )}
-          <button onClick={() => setModal('payment')} className="btn-secondary w-full justify-center">
-            <DollarSign size={14} /> Record Payment
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setPaymentForm(p => ({ ...p, payment_type: 'rental' })); setModal('payment'); }}
+              className="btn-secondary flex-1 justify-center"
+            >
+              <DollarSign size={14} /> Record Payment
+            </button>
+            <button
+              onClick={() => { setPaymentForm(p => ({ ...p, payment_type: 'refund', amount: '' })); setModal('payment'); }}
+              className="btn-ghost flex-1 justify-center text-red-500 hover:bg-red-50"
+            >
+              Issue Refund
+            </button>
+          </div>
         </Section>
 
         {/* Vehicle Condition */}
@@ -352,9 +403,26 @@ export default function BookingDetailPage() {
 
       <Modal open={modal === 'pickup'} onClose={() => setModal(null)} title="Record Pickup">
         <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Mileage Out</label>
+              <input className="input" type="number" value={modalInput} onChange={e => setModalInput(e.target.value)} placeholder="15000" />
+            </div>
+            <div>
+              <label className="label">Fuel Level</label>
+              <select className="input" value={conditionForm.fuel} onChange={e => setConditionForm(f => ({ ...f, fuel: e.target.value }))}>
+                {['full', '3/4', '1/2', '1/4', 'empty'].map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+            </div>
+          </div>
           <div>
-            <label className="label">Current Mileage</label>
-            <input className="input" type="number" value={modalInput} onChange={e => setModalInput(e.target.value)} placeholder="15000" />
+            <label className="label">Condition Notes</label>
+            <textarea className="input resize-none text-sm" rows={2} placeholder="Any pre-existing damage, notes…" value={conditionForm.notes} onChange={e => setConditionForm(f => ({ ...f, notes: e.target.value }))} />
+          </div>
+          <div>
+            <label className="label">Photo URL (optional)</label>
+            <input className="input text-sm" type="url" placeholder="https://…" value={conditionForm.photoUrl} onChange={e => setConditionForm(f => ({ ...f, photoUrl: e.target.value }))} />
+            <p className="text-[10px] text-stone-400 mt-0.5">Paste a link to a photo of the vehicle condition at pickup</p>
           </div>
           <div className="flex gap-3">
             <button onClick={() => setModal(null)} className="btn-secondary flex-1 justify-center">Cancel</button>
@@ -367,14 +435,63 @@ export default function BookingDetailPage() {
 
       <Modal open={modal === 'return'} onClose={() => setModal(null)} title="Record Return">
         <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Mileage In</label>
+              <input className="input" type="number" value={modalInput} onChange={e => setModalInput(e.target.value)} placeholder="15450" />
+            </div>
+            <div>
+              <label className="label">Fuel Level</label>
+              <select className="input" value={conditionForm.fuel} onChange={e => setConditionForm(f => ({ ...f, fuel: e.target.value }))}>
+                {['full', '3/4', '1/2', '1/4', 'empty'].map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+            </div>
+          </div>
           <div>
-            <label className="label">Return Mileage</label>
-            <input className="input" type="number" value={modalInput} onChange={e => setModalInput(e.target.value)} placeholder="15450" />
+            <label className="label">Condition Notes</label>
+            <textarea className="input resize-none text-sm" rows={2} placeholder="Any damage, notes on return condition…" value={conditionForm.notes} onChange={e => setConditionForm(f => ({ ...f, notes: e.target.value }))} />
+          </div>
+          <div>
+            <label className="label">Photo URL (optional)</label>
+            <input className="input text-sm" type="url" placeholder="https://…" value={conditionForm.photoUrl} onChange={e => setConditionForm(f => ({ ...f, photoUrl: e.target.value }))} />
+            <p className="text-[10px] text-stone-400 mt-0.5">Paste a link to a photo of the vehicle condition at return</p>
           </div>
           <div className="flex gap-3">
             <button onClick={() => setModal(null)} className="btn-secondary flex-1 justify-center">Cancel</button>
             <button onClick={() => doAction('return')} disabled={actioning} className="btn-primary flex-1 justify-center">
               {actioning ? 'Saving…' : 'Record Return'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={modal === 'damage'} onClose={() => setModal(null)} title="File Damage Report">
+        <div className="space-y-4">
+          <div>
+            <label className="label">Description</label>
+            <textarea className="input resize-none text-sm" rows={3} placeholder="Describe the damage…" value={damageForm.description} onChange={e => setDamageForm(f => ({ ...f, description: e.target.value }))} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Severity</label>
+              <select className="input" value={damageForm.severity} onChange={e => setDamageForm(f => ({ ...f, severity: e.target.value }))}>
+                {['minor', 'moderate', 'major', 'totaled'].map(s => <option key={s} value={s} className="capitalize">{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">Estimated Cost ($)</label>
+              <input className="input" type="number" step="0.01" placeholder="0.00" value={damageForm.estimated_cost} onChange={e => setDamageForm(f => ({ ...f, estimated_cost: e.target.value }))} />
+            </div>
+          </div>
+          <div>
+            <label className="label">Photo URL (optional)</label>
+            <input className="input text-sm" type="url" placeholder="https://…" value={damageForm.photo_url} onChange={e => setDamageForm(f => ({ ...f, photo_url: e.target.value }))} />
+            <p className="text-[10px] text-stone-400 mt-0.5">Paste a link to a photo of the damage</p>
+          </div>
+          <div className="flex gap-3">
+            <button onClick={() => setModal(null)} className="btn-secondary flex-1 justify-center">Cancel</button>
+            <button onClick={() => doAction('damage')} disabled={actioning || !damageForm.description} className="btn-danger flex-1 justify-center disabled:opacity-50">
+              {actioning ? 'Saving…' : 'File Report'}
             </button>
           </div>
         </div>

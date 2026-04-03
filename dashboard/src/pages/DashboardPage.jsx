@@ -60,21 +60,42 @@ export default function DashboardPage() {
       </div>
 
       {/* Action Required */}
-      {overview?.pending_approvals > 0 && (
-        <div
-          className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between cursor-pointer hover:bg-amber-100 transition-colors"
-          onClick={() => navigate('/bookings?status=pending_approval')}
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
-            <div>
-              <p className="font-medium text-amber-900">
-                {overview.pending_approvals} booking{overview.pending_approvals !== 1 ? 's' : ''} waiting for approval
-              </p>
-              <p className="text-sm text-amber-700">Review and approve or decline</p>
+      {(overview?.pending_approvals > 0 || overview?.pending_agreements > 0) && (
+        <div className="space-y-2">
+          {overview?.pending_approvals > 0 && (
+            <div
+              className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between cursor-pointer hover:bg-amber-100 transition-colors"
+              onClick={() => navigate('/bookings?status=pending_approval')}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+                <div>
+                  <p className="font-medium text-amber-900">
+                    {overview.pending_approvals} booking{overview.pending_approvals !== 1 ? 's' : ''} waiting for approval
+                  </p>
+                  <p className="text-sm text-amber-700">Review and approve or decline</p>
+                </div>
+              </div>
+              <span className="text-sm font-medium text-amber-700">View →</span>
             </div>
-          </div>
-          <span className="text-sm font-medium text-amber-700">View →</span>
+          )}
+          {overview?.pending_agreements > 0 && (
+            <div
+              className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between cursor-pointer hover:bg-blue-100 transition-colors"
+              onClick={() => navigate('/bookings')}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                <div>
+                  <p className="font-medium text-blue-900">
+                    {overview.pending_agreements} rental agreement{overview.pending_agreements !== 1 ? 's' : ''} need{overview.pending_agreements === 1 ? 's' : ''} your counter-signature
+                  </p>
+                  <p className="text-sm text-blue-700">Open the booking and use the Rental Agreement section</p>
+                </div>
+              </div>
+              <span className="text-sm font-medium text-blue-700">View →</span>
+            </div>
+          )}
         </div>
       )}
 

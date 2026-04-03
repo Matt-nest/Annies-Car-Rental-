@@ -123,6 +123,21 @@ export async function handleWebhookEvent(event) {
       break;
     }
 
+    case 'payment_intent.canceled': {
+      const pi = event.data.object;
+      const bookingId = pi.metadata?.booking_id;
+      console.log(`[Stripe] PaymentIntent canceled for booking ${pi.metadata?.booking_code}`);
+      if (bookingId) {
+        // Mark deposit as none so the booking doesn't sit in limbo
+        await supabase
+          .from('bookings')
+          .update({ deposit_status: 'none' })
+          .eq('id', bookingId)
+          .eq('deposit_status', 'pending');
+      }
+      break;
+    }
+
     default:
       // Unexpected event type
       break;

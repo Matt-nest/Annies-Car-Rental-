@@ -19,6 +19,7 @@ router.get('/overview', requireAuth, asyncHandler(async (req, res) => {
     { data: monthRevenue },
     { data: avgRating },
     { count: monthBookings },
+    { count: pendingAgreements },
   ] = await Promise.all([
     supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'pending_approval'),
     supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'active'),
@@ -29,6 +30,9 @@ router.get('/overview', requireAuth, asyncHandler(async (req, res) => {
     supabase.from('bookings').select('total_cost').gte('pickup_date', startOfMonth).in('status', ['active', 'returned', 'completed']),
     supabase.from('reviews').select('rating'),
     supabase.from('bookings').select('*', { count: 'exact', head: true }).gte('created_at', `${startOfMonth}T00:00:00`),
+    supabase.from('rental_agreements').select('*', { count: 'exact', head: true })
+      .not('customer_signed_at', 'is', null)
+      .is('owner_signed_at', null),
   ]);
 
   const revenueThisMonth = (monthRevenue || []).reduce((s, b) => s + parseFloat(b.total_cost), 0);
@@ -44,6 +48,7 @@ router.get('/overview', requireAuth, asyncHandler(async (req, res) => {
     revenue_this_month: revenueThisMonth.toFixed(2),
     bookings_this_month: monthBookings || 0,
     average_rating: avgRatingVal,
+    pending_agreements: pendingAgreements || 0,
   });
 }));
 
@@ -53,11 +58,11 @@ router.get('/revenue', requireAuth, asyncHandler(async (req, res) => {
 
   const { data, error } = await supabase
     .from('bookings')
-    .select('pickup_date, total_cost, source, vehicle_id, vehicles(year, make, model)')
+    .select('booking_code, pickup_date, total_cost, tax_amount, source, vehicle_id, vehicles(year, make, model)')
     .in('status', ['active', 'returned', 'completed'])
     .gte('pickup_date', from || new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10))
     .lte('pickup_date', to || new Date().toISOString().slice(0, 10))
-    .order('pickup_date');
+    .order('pickup_date', { ascending: false });
 
   if (error) throw error;
 
@@ -82,9 +87,11 @@ router.get('/revenue', requireAuth, asyncHandler(async (req, res) => {
   }
 
   const total = (data || []).reduce((s, b) => s + parseFloat(b.total_cost), 0);
+  const totalTax = (data || []).reduce((s, b) => s + parseFloat(b.tax_amount || 0), 0);
 
   res.json({
     total: total.toFixed(2),
+    total_tax: totalTax.toFixed(2),
     by_month: byMonth,
     by_source: bySource,
     by_vehicle: byVehicle,
@@ -144,6 +151,19 @@ router.get('/upcoming', requireAuth, asyncHandler(async (req, res) => {
   ]);
 
   res.json({ pickups: pickups || [], returns: returns || [] });
+}));
+
+/** GET /stats/webhook-failures — failed GHL webhook attempts */
+router.get('/webhook-failures', requireAuth, asyncHandler(async (req, res) => {
+  const limit = parseInt(req.query.limit) || 50;
+  const { data, error } = await supabase
+    .from('webhook_failures')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  res.json(data || []);
 }));
 
 /** GET /stats/activity — recent status changes */

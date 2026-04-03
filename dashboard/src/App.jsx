@@ -13,6 +13,7 @@ import CustomerDetailPage from './pages/CustomerDetailPage';
 import CalendarPage from './pages/CalendarPage';
 import RevenuePage from './pages/RevenuePage';
 import SettingsPage from './pages/SettingsPage';
+import WebhookFailuresPage from './pages/WebhookFailuresPage';
 
 export default function App() {
   return (
@@ -37,6 +38,7 @@ export default function App() {
             <Route path="/calendar"   element={<CalendarPage />} />
             <Route path="/revenue"    element={<RevenuePage />} />
             <Route path="/settings"   element={<SettingsPage />} />
+            <Route path="/webhook-failures" element={<WebhookFailuresPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

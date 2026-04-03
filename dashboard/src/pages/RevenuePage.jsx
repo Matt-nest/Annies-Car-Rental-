@@ -1,7 +1,29 @@
 import { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { Download } from 'lucide-react';
 import { api } from '../api/client';
 import LoadingSpinner from '../components/shared/LoadingSpinner';
+
+function exportCSV(transactions) {
+  const headers = ['Date', 'Booking Code', 'Vehicle', 'Subtotal', 'Tax', 'Total', 'Source'];
+  const rows = (transactions || []).map(t => [
+    t.pickup_date,
+    t.booking_code,
+    t.vehicles ? `${t.vehicles.year} ${t.vehicles.make} ${t.vehicles.model}` : '',
+    Number(t.total_cost - (t.tax_amount || 0)).toFixed(2),
+    Number(t.tax_amount || 0).toFixed(2),
+    Number(t.total_cost).toFixed(2),
+    t.source || 'website',
+  ]);
+  const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `annies-revenue-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 const PIE_COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#8b5cf6', '#f43f5e'];
 
@@ -42,7 +64,15 @@ export default function RevenuePage() {
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
-      <h1 className="text-xl font-semibold text-stone-900">Revenue</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-stone-900">Revenue</h1>
+        <button
+          onClick={() => exportCSV(revenue?.transactions)}
+          className="btn-secondary text-xs flex items-center gap-1.5"
+        >
+          <Download size={13} /> Export CSV
+        </button>
+      </div>
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -55,9 +85,9 @@ export default function RevenuePage() {
             : '$0'}
         />
         <StatCard
-          label="Top Source"
-          value={sourceData[0]?.name || '—'}
-          sub={sourceData[0] ? `$${Number(sourceData[0].value).toLocaleString()}` : ''}
+          label="FL Sales Tax Collected"
+          value={`$${Number(revenue?.total_tax || 0).toLocaleString()}`}
+          sub="7% of subtotal"
         />
       </div>
 
@@ -118,24 +148,27 @@ export default function RevenuePage() {
 
       {/* Transaction log */}
       <div className="card">
-        <div className="px-5 py-4 border-b border-stone-100">
-          <h2 className="text-sm font-semibold text-stone-700">Recent Transactions</h2>
+        <div className="px-5 py-4 border-b border-stone-100 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-stone-700">Transactions</h2>
+          <span className="text-xs text-stone-400">{revenue?.transactions?.length || 0} total</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-stone-100">
-                {['Date', 'Booking', 'Vehicle', 'Amount', 'Source'].map(h => (
+                {['Date', 'Booking', 'Vehicle', 'Subtotal', 'Tax', 'Total', 'Source'].map(h => (
                   <th key={h} className="text-left text-xs font-medium text-stone-400 px-4 py-3">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-50">
-              {(revenue?.transactions || []).slice(0, 20).map((t, i) => (
+              {(revenue?.transactions || []).map((t, i) => (
                 <tr key={i} className="hover:bg-stone-50">
                   <td className="px-4 py-3 text-stone-500">{t.pickup_date}</td>
                   <td className="px-4 py-3 font-mono text-xs text-stone-600">{t.booking_code}</td>
                   <td className="px-4 py-3 text-stone-700">{t.vehicles ? `${t.vehicles.year} ${t.vehicles.make} ${t.vehicles.model}` : '—'}</td>
+                  <td className="px-4 py-3 text-stone-600">${Number(t.total_cost - (t.tax_amount || 0)).toFixed(2)}</td>
+                  <td className="px-4 py-3 text-stone-400">${Number(t.tax_amount || 0).toFixed(2)}</td>
                   <td className="px-4 py-3 font-medium text-green-700">${Number(t.total_cost).toLocaleString()}</td>
                   <td className="px-4 py-3 text-stone-500 capitalize">{t.source}</td>
                 </tr>
