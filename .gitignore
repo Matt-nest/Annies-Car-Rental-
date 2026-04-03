@@ -6,7 +6,13 @@ coverage/
 *.log
 .env*
 !.env.example
-.agent/skills/ui-ux-pro-max-skill/
-Claude.dmg
 .vercel
 .env*.local
+
+# AI tools
+.claude/
+.gemini/
+.agents/
+.agent/
+_agents/
+_agent/

@@ -3,6 +3,7 @@ import { supabase } from '../db/supabase.js';
 import { requireAuth } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { checkAvailability, getAvailableVehicles } from '../services/availabilityService.js';
+import { enrichVehicle } from '../services/autoDevService.js';
 
 const router = Router();
 
@@ -22,7 +23,7 @@ router.get('/', requireAuth, asyncHandler(async (req, res) => {
 router.get('/catalog', asyncHandler(async (req, res) => {
   const { data, error } = await supabase
     .from('vehicles')
-    .select('vehicle_code, make, model, year, category, daily_rate, weekly_rate, seats, fuel_type, transmission, thumbnail_url, photo_urls, features, notes, mileage_limit_per_day')
+    .select('vehicle_code, vin, make, model, year, trim, category, daily_rate, weekly_rate, seats, fuel_type, transmission, thumbnail_url, photo_urls, features, notes, mileage_limit_per_day')
     .neq('status', 'retired')
     .neq('status', 'turo')
     .eq('status', 'available')
@@ -33,9 +34,11 @@ router.get('/catalog', asyncHandler(async (req, res) => {
   // Map to frontend-friendly format
   const catalog = (data || []).map(v => ({
     id: v.vehicle_code,
+    vin: v.vin,
     make: v.make,
     model: v.model,
     year: v.year,
+    trim: v.trim || '',
     category: v.category === 'suv' ? 'SUV' : v.category === 'luxury' ? 'Premium' : v.category.charAt(0).toUpperCase() + v.category.slice(1),
     dailyRate: parseFloat(v.daily_rate),
     weeklyRate: v.weekly_rate ? parseFloat(v.weekly_rate) : undefined,
@@ -62,6 +65,20 @@ router.get('/available', asyncHandler(async (req, res) => {
   res.json(vehicles);
 }));
 
+/** POST /vehicles/enrich-vin — auto-fill vehicle data from VIN (admin) */
+router.post('/enrich-vin', requireAuth, asyncHandler(async (req, res) => {
+  const { vin } = req.body;
+  if (!vin || vin.length !== 17) {
+    return res.status(400).json({ error: 'Valid 17-character VIN required' });
+  }
+
+  const enriched = await enrichVehicle(vin);
+  if (!enriched) {
+    return res.status(404).json({ error: 'Could not decode VIN — check the number and try again' });
+  }
+
+  res.json(enriched);
+}));
 
 /** GET /vehicles/:id — single vehicle (admin) */
 router.get('/:id', requireAuth, asyncHandler(async (req, res) => {

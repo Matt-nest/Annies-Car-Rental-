@@ -16,6 +16,7 @@ import stripeRoutes from '../routes/stripe.js';
 import uploadRoutes from '../routes/uploads.js';
 import agreementRoutes from '../routes/agreements.js';
 import statsRoutes from '../routes/stats.js';
+import cronRoutes from '../routes/cron.js';
 
 const app = express();
 
@@ -51,6 +52,7 @@ app.use('/api/v1/stripe/webhook', express.raw({ type: 'application/json' }));
 app.use('/api/v1/stripe', stripeRoutes);
 app.use('/api/v1/uploads', uploadRoutes);
 app.use('/api/v1/agreements', agreementRoutes);
+app.use('/api/v1/cron', cronRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ error: `${req.method} ${req.path} not found` }));

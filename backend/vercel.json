@@ -8,5 +8,15 @@
   ],
   "rewrites": [
     { "source": "/(.*)", "destination": "/api/index.js" }
+  ],
+  "crons": [
+    {
+      "path": "/api/v1/cron/daily",
+      "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/v1/cron/auto-expire",
+      "schedule": "0 */6 * * *"
+    }
   ]
 }
