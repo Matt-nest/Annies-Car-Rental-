@@ -41,7 +41,7 @@ function today() {
  * - Overdue flags (return_date < today, status = active)
  */
 router.get('/daily', async (req, res) => {
-  const results = { pickupReminders: 0, returnReminders: 0, overdueFlags: 0 };
+  const results = { pickupReminders: 0, returnReminders: 0, overdueFlags: 0, autoDeclined: 0, approvalReminders: 0 };
 
   try {
     // 1. Pickup reminders
@@ -78,6 +78,47 @@ router.get('/daily', async (req, res) => {
     for (const b of overdue || []) {
       fireGHLWebhook('booking.overdue', buildBookingPayload(b));
       results.overdueFlags++;
+    }
+
+    // 4. Auto-expire unapproved bookings (48h+ → decline, 24-48h → remind)
+    const cutoff48h = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+    const cutoff24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+    const { data: toDecline } = await supabase
+      .from('bookings')
+      .select('*, customers(*), vehicles(*)')
+      .eq('status', 'pending_approval')
+      .lt('created_at', cutoff48h);
+
+    for (const b of toDecline || []) {
+      await supabase.from('bookings').update({
+        status: 'declined',
+        decline_reason: 'No response — booking expired after 48 hours',
+        owner_declined_at: new Date().toISOString(),
+      }).eq('id', b.id);
+
+      await supabase.from('booking_status_log').insert({
+        booking_id: b.id,
+        from_status: 'pending_approval',
+        to_status: 'declined',
+        changed_by: 'system',
+        reason: 'Auto-expired after 48 hours with no owner response',
+      });
+
+      fireGHLWebhook('booking.declined', buildBookingPayload({ ...b, status: 'declined' }));
+      results.autoDeclined++;
+    }
+
+    const { data: toRemind } = await supabase
+      .from('bookings')
+      .select('*, customers(*), vehicles(*)')
+      .eq('status', 'pending_approval')
+      .lt('created_at', cutoff24h)
+      .gte('created_at', cutoff48h);
+
+    for (const b of toRemind || []) {
+      fireGHLWebhook('booking.approval_reminder', buildBookingPayload(b));
+      results.approvalReminders++;
     }
 
     console.log('[CRON/daily]', results);
