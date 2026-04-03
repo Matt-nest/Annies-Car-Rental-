@@ -16,6 +16,7 @@ import {
   Calendar,
   MapPin,
   DollarSign,
+  FileText,
 } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
@@ -23,6 +24,7 @@ import { useTheme } from '../App';
 import { EASE, DURATION } from '../utils/motion';
 import Navbar from './Navbar';
 import Footer from './Footer';
+import RentalAgreement from './RentalAgreement';
 
 const stripePromise = loadStripe('pk_test_51THqNVBDLBS4aYcfqHPZnNGlwL6E8lGdzFOxYoSmd37DjxD3ofbWe6AsrEkL90LqnHfp8fEFDfAmrqfkDgcNYYqE009CXY3fGT');
 const API_URL = import.meta.env.VITE_API_URL || 'https://annies-car-rental-backend.onrender.com/api/v1';
@@ -36,8 +38,9 @@ const WEBHOOK_URL =
 const PHONE_NUMBER = '(772) 985-6667';
 
 const STEPS = [
-  { number: 1, label: 'Payment', sublabel: 'Pay for your rental' },
-  { number: 2, label: 'Insurance', sublabel: 'Purchase policy' },
+  { number: 1, label: 'Agreement', sublabel: 'Sign rental contract' },
+  { number: 2, label: 'Payment', sublabel: 'Pay for your rental' },
+  { number: 3, label: 'Insurance', sublabel: 'Purchase policy' },
 ];
 
 /* ────────────────────────────────────────────────────────
@@ -55,9 +58,7 @@ function isValidEmail(email: string): boolean {
 /* ────────────────────────────────────────────────────────
    Progress Stepper
    ──────────────────────────────────────────────────────── */
-function ProgressStepper({ currentStep }: { currentStep: 1 | 2 }) {
-  const step1Complete = currentStep === 2;
-
+function ProgressStepper({ currentStep }: { currentStep: 1 | 2 | 3 }) {
   return (
     <div className="mb-10 sm:mb-12" role="list" aria-label="Booking steps">
       <div className="flex items-start">
@@ -150,7 +151,7 @@ function ProgressStepper({ currentStep }: { currentStep: 1 | 2 }) {
                   <motion.div
                     className="h-full rounded-full"
                     initial={{ width: '0%' }}
-                    animate={{ width: step1Complete ? '100%' : '0%' }}
+                    animate={{ width: step.number < currentStep ? '100%' : '0%' }}
                     transition={{ duration: 0.7, ease: EASE.dramatic }}
                     style={{ backgroundColor: '#22c55e' }}
                   />
@@ -466,10 +467,12 @@ export default function ConfirmBooking() {
   const { theme } = useTheme();
   const refCode = useMemo(() => getRefCode(), []);
 
-  // Navigation state
-  const [currentStep, setCurrentStep] = useState<1 | 2>(1);
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
   // direction: 0 = initial load, 1 = forward, -1 = backward
   const [direction, setDirection] = useState<-1 | 0 | 1>(0);
+
+  // Agreement state
+  const [agreementSigned, setAgreementSigned] = useState(false);
 
   // Step 1 — Stripe payment state
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -509,8 +512,9 @@ export default function ConfirmBooking() {
         } else if (data.alreadyPaid) {
           setAlreadyPaid(true);
           setBookingSummary(data.booking);
-          // Skip straight to step 2
-          setCurrentStep(2);
+          // Skip straight to step 2 (agreement already done if paid)
+          setAgreementSigned(true);
+          setCurrentStep(3);
         } else {
           setClientSecret(data.clientSecret);
           setBookingSummary(data.booking);
@@ -528,12 +532,22 @@ export default function ConfirmBooking() {
   const advanceToStep2 = () => {
     setDirection(1);
     setCurrentStep(2);
+  };
+
+  const advanceToStep3 = () => {
+    setDirection(1);
+    setCurrentStep(3);
     setTimeout(() => document.getElementById('policyNumber')?.focus(), 320);
   };
 
   const goBackToStep1 = () => {
     setDirection(-1);
     setCurrentStep(1);
+  };
+
+  const goBackToStep2 = () => {
+    setDirection(-1);
+    setCurrentStep(2);
   };
 
   /* ── Validation ── */
@@ -837,7 +851,7 @@ export default function ConfirmBooking() {
               className="text-sm sm:text-base leading-relaxed max-w-sm mx-auto mb-5"
               style={{ color: 'var(--text-secondary)' }}
             >
-              Two quick steps to finalize your reservation.
+              Three quick steps to finalize your reservation.
             </p>
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
@@ -868,11 +882,65 @@ export default function ConfirmBooking() {
           <AnimatePresence mode="wait">
 
             {/* ══════════════════════════════════════════════
-                STEP 1 — Pay for Your Rental (Stripe)
+                STEP 1 — Rental Agreement (E-Sign)
                 ══════════════════════════════════════════════ */}
             {currentStep === 1 && (
               <motion.div
                 key="step1"
+                initial={{
+                  opacity: 0,
+                  x: direction === -1 ? -24 : 0,
+                  y: direction === 0 ? 20 : 0,
+                }}
+                animate={{ opacity: 1, x: 0, y: 0 }}
+                exit={{ opacity: 0, x: -24 }}
+                transition={{ duration: 0.25, ease: EASE.standard }}
+              >
+                <div
+                  className="rounded-2xl border overflow-hidden"
+                  style={{
+                    backgroundColor: 'var(--bg-card)',
+                    borderColor: 'var(--border-subtle)',
+                    borderLeftWidth: '3px',
+                    borderLeftColor: 'var(--accent-color)',
+                  }}
+                >
+                  <div className="p-6 sm:p-8">
+                    <h2
+                      className="text-xl sm:text-2xl font-medium mb-2 flex items-center gap-2.5"
+                      style={{ color: 'var(--text-primary)' }}
+                    >
+                      <FileText size={22} style={{ color: 'var(--accent-color)' }} />
+                      Rental Agreement
+                    </h2>
+                    <p
+                      className="text-sm sm:text-[15px] leading-relaxed mb-6"
+                      style={{ color: 'var(--text-secondary)' }}
+                    >
+                      Review and sign the rental agreement before proceeding to payment.
+                    </p>
+
+                    {refCode && (
+                      <RentalAgreement
+                        bookingCode={refCode}
+                        theme={theme}
+                        onSigned={() => {
+                          setAgreementSigned(true);
+                          advanceToStep2();
+                        }}
+                      />
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* ══════════════════════════════════════════════
+                STEP 2 — Pay for Your Rental (Stripe)
+                ══════════════════════════════════════════════ */}
+            {currentStep === 2 && (
+              <motion.div
+                key="step2"
                 initial={{
                   opacity: 0,
                   x: direction === -1 ? -24 : 0,
@@ -948,7 +1016,7 @@ export default function ConfirmBooking() {
                       >
                         <StripeCheckoutForm
                           bookingSummary={bookingSummary}
-                          onSuccess={advanceToStep2}
+                          onSuccess={advanceToStep3}
                           theme={theme}
                         />
                       </Elements>
@@ -961,9 +1029,9 @@ export default function ConfirmBooking() {
             {/* ══════════════════════════════════════════════
                 STEP 2 — Purchase Insurance
                 ══════════════════════════════════════════════ */}
-            {currentStep === 2 && (
+            {currentStep === 3 && (
               <motion.div
-                key="step2"
+                key="step3"
                 initial={{ opacity: 0, x: 24 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 24 }}
@@ -1084,7 +1152,7 @@ export default function ConfirmBooking() {
                     <div className="flex flex-col sm:flex-row gap-3 mt-6">
                       <button
                         type="button"
-                        onClick={goBackToStep1}
+                        onClick={goBackToStep2}
                         className="group flex items-center justify-center gap-2 px-6 py-3.5 rounded-full font-medium transition-all duration-300 hover:scale-[1.02] active:scale-95 cursor-pointer text-sm sm:text-base"
                         style={{
                           backgroundColor: 'var(--bg-card-hover)',

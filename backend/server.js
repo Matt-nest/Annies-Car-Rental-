@@ -11,6 +11,7 @@ import paymentRoutes from './routes/payments.js';
 import damageRoutes from './routes/damageReports.js';
 import stripeRoutes from './routes/stripe.js';
 import uploadRoutes from './routes/uploads.js';
+import agreementRoutes from './routes/agreements.js';
 import statsRoutes from './routes/stats.js';
 import { startCronJobs } from './services/cronJobs.js';
 
@@ -55,6 +56,9 @@ app.use('/api/v1/stripe', stripeRoutes);
 
 // File uploads (ID photos + vehicle images)
 app.use('/api/v1/uploads', uploadRoutes);
+
+// Rental agreements (e-sign)
+app.use('/api/v1/agreements', agreementRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ error: `${req.method} ${req.path} not found` }));
