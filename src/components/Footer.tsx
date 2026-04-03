@@ -73,34 +73,27 @@ export default function Footer() {
           {/* Links */}
           <div>
             <h4 className="text-[11px] uppercase tracking-[0.2em] font-semibold mb-4" style={{ color: 'var(--text-tertiary)' }}>
-              Legal
+              Your Booking
             </h4>
             <div className="flex flex-col gap-3">
-              <a href="#" className="nav-link text-sm">Terms of Service</a>
-              <a href="#" className="nav-link text-sm">Privacy Policy</a>
+              <div>
+                <p className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>
+                  Check your confirmation email for your reference code.
+                </p>
+                <a href="/booking-status" className="nav-link text-sm font-medium">
+                  Check Booking Status →
+                </a>
+              </div>
+              <a href="/confirm" className="nav-link text-sm">Complete Your Booking</a>
               <a href="/rental-agreement" className="nav-link text-sm">Rental Agreement</a>
-              <a
-                href="/confirm"
-                className="nav-link text-sm"
-              >
-                Complete Your Booking
-              </a>
-              <a
-                href="https://www.bonzah.com/faq"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="nav-link text-sm"
-              >
-                Bonzah FAQs
-              </a>
-              <a
-                href="https://www.bonzah.com/about"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="nav-link text-sm"
-              >
-                Bonzah: How It Works
-              </a>
+              <div className="pt-1" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                <p className="text-[11px] mb-2 pt-2" style={{ color: 'var(--text-tertiary)' }}>Legal</p>
+                <div className="flex flex-col gap-2">
+                  <a href="#" className="nav-link text-sm">Terms of Service</a>
+                  <a href="#" className="nav-link text-sm">Privacy Policy</a>
+                  <a href="https://www.bonzah.com/faq" target="_blank" rel="noopener noreferrer" className="nav-link text-sm">Bonzah FAQs</a>
+                </div>
+              </div>
             </div>
           </div>
         </div>

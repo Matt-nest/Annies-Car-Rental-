@@ -3,6 +3,7 @@ import { generateBookingCode } from '../utils/generateBookingCode.js';
 import { checkAvailability } from './availabilityService.js';
 import { calcRentalDays, calcPricing } from './pricingService.js';
 import { fireGHLWebhook, buildBookingPayload } from './ghlWebhook.js';
+import { sendBookingConfirmation } from './emailService.js';
 
 // Valid one-way status transitions
 const TRANSITIONS = {
@@ -155,6 +156,13 @@ export async function createBooking(payload) {
   // 8. GHL webhooks (fire-and-forget)
   const fullBooking = { ...booking, customers: customer, vehicles: vehicle };
   fireGHLWebhook('booking.created', buildBookingPayload(fullBooking));
+
+  // 9. Confirmation email to customer (fire-and-forget)
+  sendBookingConfirmation({
+    customer,
+    booking,
+    vehicle: vehicle.year && vehicle.make ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : null,
+  }).catch(err => console.error('[Email] Confirmation email failed:', err));
 
   return booking;
 }

@@ -121,6 +121,15 @@ export default function SettingsPage() {
         </div>
       </Section>
 
+      <Section title="Email" description="Transactional emails via Resend (resend.com — free tier available)">
+        <div className="space-y-0">
+          <EnvRow label="Resend API Key" envKey="RESEND_API_KEY" note="Create a free account at resend.com, verify your domain, generate a key" />
+          <EnvRow label="From Address" envKey="EMAIL_FROM" note="e.g. Annie's Car Rental <noreply@anniescarrental.com>" />
+          <EnvRow label="Site URL" envKey="SITE_URL" note="e.g. https://anniescarrental.com — used in email links" />
+        </div>
+        <p className="text-xs text-stone-400">Without RESEND_API_KEY the confirmation email is skipped but everything else works normally.</p>
+      </Section>
+
       <Section title="Stripe" description="Payment processing">
         <div className="space-y-0">
           <EnvRow label="Secret Key" envKey="STRIPE_SECRET_KEY" note="Backend only — never expose to frontend" />
