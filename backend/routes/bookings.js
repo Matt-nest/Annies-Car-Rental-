@@ -6,7 +6,7 @@ import { requireApiKey } from '../middleware/apiKey.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { validateBookingPayload } from '../utils/validators.js';
 import { createBooking, transitionBooking, getBookingDetail } from '../services/bookingService.js';
-import { calcRentalDays, calcPricing } from '../services/pricingService.js';
+import { calcRentalDays, calcPricing, DELIVERY_FEES } from '../services/pricingService.js';
 
 const router = Router();
 
@@ -195,7 +195,7 @@ router.post('/:id/return', requireAuth, asyncHandler(async (req, res) => {
       dailyRate: Number(booking.daily_rate),
       weeklyRate: booking.vehicles?.weekly_rate ? Number(booking.vehicles.weekly_rate) : null,
       rentalDays: actualDays,
-      deliveryRequested: booking.delivery_requested,
+      deliveryFeeAmount: DELIVERY_FEES[booking.delivery_type] ?? Number(booking.delivery_fee || 0),
       discountAmount: Number(booking.discount_amount || 0),
     });
     Object.assign(extraFields, {

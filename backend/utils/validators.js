@@ -3,7 +3,7 @@ export function validateBookingPayload(body) {
   const required = [
     'first_name', 'last_name', 'email', 'phone',
     'vehicle_code', 'pickup_date', 'return_date',
-    'pickup_time', 'return_time', 'pickup_location',
+    'pickup_time', 'return_time',
   ];
 
   for (const field of required) {

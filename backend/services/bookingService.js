@@ -1,7 +1,7 @@
 import { supabase } from '../db/supabase.js';
 import { generateBookingCode } from '../utils/generateBookingCode.js';
 import { checkAvailability } from './availabilityService.js';
-import { calcRentalDays, calcPricing } from './pricingService.js';
+import { calcRentalDays, calcPricing, DELIVERY_FEES } from './pricingService.js';
 import { fireGHLWebhook, buildBookingPayload } from './ghlWebhook.js';
 import { sendBookingConfirmation } from './emailService.js';
 
@@ -45,12 +45,18 @@ export async function createBooking(payload) {
   const {
     first_name, last_name, email, phone,
     vehicle_code, pickup_date, return_date,
-    pickup_time, return_time, pickup_location,
-    return_location, delivery_requested = false, delivery_address,
+    pickup_time, return_time,
+    delivery_type = 'pickup', delivery_address,
     insurance_provider, insurance_status, bonzah_policy_id,
     special_requests, source = 'website',
     id_photo_url,
   } = payload;
+
+  const deliveryFeeAmount = DELIVERY_FEES[delivery_type] ?? 0;
+  const deliveryRequested = deliveryFeeAmount > 0;
+  const pickup_location = deliveryRequested
+    ? (delivery_address || 'Delivery address TBD')
+    : 'Port St. Lucie';
 
   // 1. Look up vehicle
   const { data: vehicle, error: vErr } = await supabase
@@ -98,7 +104,7 @@ export async function createBooking(payload) {
     dailyRate: vehicle.daily_rate,
     weeklyRate: vehicle.weekly_rate,
     rentalDays,
-    deliveryRequested: delivery_requested,
+    deliveryFeeAmount,
   });
 
   // 5. Generate booking code (retry on collision)
@@ -127,9 +133,10 @@ export async function createBooking(payload) {
       pickup_time,
       return_time,
       pickup_location,
-      return_location: return_location || pickup_location,
-      delivery_requested,
-      delivery_address,
+      return_location: pickup_location,
+      delivery_requested: deliveryRequested,
+      delivery_type,
+      delivery_address: deliveryRequested ? delivery_address : null,
       ...pricing,
       deposit_amount: vehicle.deposit_amount || 0,
       insurance_provider,

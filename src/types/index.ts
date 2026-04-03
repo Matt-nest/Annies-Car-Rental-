@@ -30,6 +30,8 @@ export interface Review {
   date?: string;
 }
 
+export type DeliveryOption = 'pickup' | 'psl_delivery' | 'surrounding_delivery';
+
 export interface BookingRequest {
   firstName: string;
   lastName: string;
@@ -39,7 +41,8 @@ export interface BookingRequest {
   endDate: string;
   pickupTime: string;
   returnTime: string;
-  pickupLocation: string;
+  deliveryOption: DeliveryOption;
+  deliveryAddress: string;
   insuranceNeeded: 'yes' | 'no' | 'not-sure';
   notes: string;
   vehicleId: string;

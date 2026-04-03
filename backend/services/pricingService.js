@@ -11,11 +11,19 @@ export function calcRentalDays(pickupDate, returnDate) {
   return Math.max(1, Math.ceil((ret - pickup) / msPerDay));
 }
 
+// Fee schedule for delivery options
+export const DELIVERY_FEES = {
+  pickup:               0,
+  psl_delivery:         39,
+  surrounding_delivery: 49,
+};
+
 /**
  * Calculate the full pricing breakdown for a booking.
  * Supports weekly rate discounts: full weeks at weeklyRate, remaining days at dailyRate.
+ * deliveryFeeAmount: pass the exact fee (use DELIVERY_FEES map to look up from delivery_type).
  */
-export function calcPricing({ dailyRate, weeklyRate, rentalDays, deliveryRequested = false, discountAmount = 0 }) {
+export function calcPricing({ dailyRate, weeklyRate, rentalDays, deliveryFeeAmount = 0, discountAmount = 0 }) {
   let subtotal;
   if (rentalDays >= 7 && weeklyRate) {
     const fullWeeks = Math.floor(rentalDays / 7);
@@ -25,8 +33,7 @@ export function calcPricing({ dailyRate, weeklyRate, rentalDays, deliveryRequest
     subtotal = parseFloat((dailyRate * rentalDays).toFixed(2));
   }
 
-  const deliveryFee = deliveryRequested ? DELIVERY_FEE : 0;
-  const taxableAmount = subtotal - discountAmount + deliveryFee;
+  const taxableAmount = subtotal - discountAmount + deliveryFeeAmount;
   const taxAmount = parseFloat((taxableAmount * TAX_RATE).toFixed(2));
   const totalCost = parseFloat((taxableAmount + taxAmount).toFixed(2));
 
@@ -35,7 +42,7 @@ export function calcPricing({ dailyRate, weeklyRate, rentalDays, deliveryRequest
     rental_days: rentalDays,
     subtotal,
     discount_amount: discountAmount,
-    delivery_fee: deliveryFee,
+    delivery_fee: deliveryFeeAmount,
     tax_amount: taxAmount,
     total_cost: totalCost,
   };

@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { ArrowRight, CheckCircle2, Loader2, AlertCircle, Camera, X } from 'lucide-react';
 import { motion } from 'motion/react';
-import { Vehicle, BookingRequest } from '../types';
+import { Vehicle, BookingRequest, DeliveryOption } from '../types';
 import { getVehicleDisplayName } from '../data/vehicles';
 import { useTheme } from '../App';
 
@@ -26,10 +26,17 @@ interface RequestToBookFormProps {
 export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
   const { theme } = useTheme();
 
+  const DELIVERY_FEES: Record<DeliveryOption, number> = {
+    pickup:               0,
+    psl_delivery:         39,
+    surrounding_delivery: 49,
+  };
+
   const [formData, setFormData] = useState<BookingRequest>({
     firstName: '', lastName: '', phone: '', email: '',
     startDate: '', endDate: '', pickupTime: '10:00', returnTime: '10:00',
-    pickupLocation: '', insuranceNeeded: 'not-sure', notes: '',
+    deliveryOption: 'pickup', deliveryAddress: '',
+    insuranceNeeded: 'not-sure', notes: '',
     vehicleId: vehicle.id, vehicleName: getVehicleDisplayName(vehicle), vehicleDailyRate: vehicle.dailyRate,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -184,7 +191,8 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
       return_date: formData.endDate,
       pickup_time: formData.pickupTime,
       return_time: formData.returnTime,
-      pickup_location: formData.pickupLocation.trim() || 'Port St. Lucie',
+      delivery_type: formData.deliveryOption,
+      delivery_address: formData.deliveryOption !== 'pickup' ? formData.deliveryAddress.trim() : undefined,
       insurance_provider: formData.insuranceNeeded === 'yes' ? 'bonzah' : formData.insuranceNeeded === 'no' ? 'none' : undefined,
       special_requests: formData.notes.trim() || undefined,
       id_photo_url: id_photo_url || undefined,
@@ -230,6 +238,11 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
 
   // Fallback: submit directly to GHL if backend is down or vehicle not in DB yet
   async function submitToGHLFallback() {
+    const deliveryLabels: Record<DeliveryOption, string> = {
+      pickup: 'Pickup — Port St. Lucie (free)',
+      psl_delivery: 'Delivery — Port St. Lucie ($39)',
+      surrounding_delivery: 'Delivery — Surrounding Areas ($49)',
+    };
     const params = new URLSearchParams({
       first_name: formData.firstName.trim(),
       last_name: formData.lastName.trim(),
@@ -238,6 +251,8 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
       vehicle_requested: formData.vehicleName,
       pickup_date: formData.startDate,
       return_date: formData.endDate,
+      delivery_option: deliveryLabels[formData.deliveryOption],
+      ...(formData.deliveryOption !== 'pickup' && formData.deliveryAddress ? { delivery_address: formData.deliveryAddress.trim() } : {}),
       booking_reference_code: generateFallbackRefCode(),
     });
     const response = await fetch(GHL_FALLBACK_URL + '?' + params.toString());
@@ -247,7 +262,7 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
     setIsSuccess(true);
   }
 
-  // Price estimate computed from selected dates
+  // Price estimate computed from selected dates + delivery option
   const priceEstimate = (() => {
     if (!formData.startDate || !formData.endDate) return null;
     const start = new Date(formData.startDate);
@@ -262,8 +277,10 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
     } else {
       subtotal = days * vehicle.dailyRate;
     }
-    const tax = subtotal * 0.07;
-    return { days, subtotal, tax, total: subtotal + tax };
+    const deliveryFee = DELIVERY_FEES[formData.deliveryOption];
+    const taxable = subtotal + deliveryFee;
+    const tax = taxable * 0.07;
+    return { days, subtotal, deliveryFee, tax, total: taxable + tax };
   })();
 
   const formatTime = (t: string) => {
@@ -432,11 +449,17 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
               Estimated Total — {priceEstimate.days} day{priceEstimate.days !== 1 ? 's' : ''}
             </p>
             <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>
-              <span>Subtotal</span>
+              <span>Rental ({priceEstimate.days} day{priceEstimate.days !== 1 ? 's' : ''})</span>
               <span>${priceEstimate.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
+            {priceEstimate.deliveryFee > 0 && (
+              <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>
+                <span>Delivery fee</span>
+                <span>${priceEstimate.deliveryFee.toFixed(2)}</span>
+              </div>
+            )}
             <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>
-              <span>FL Tax (7%)</span>
+              <span>FL Sales Tax (7%)</span>
               <span>${priceEstimate.tax.toFixed(2)}</span>
             </div>
             <div className="flex justify-between font-semibold border-t pt-2" style={{ color: 'var(--text-primary)', borderColor: 'var(--border-subtle)' }}>
@@ -449,9 +472,63 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
           </div>
         )}
 
+        {/* Pickup or Delivery */}
         <div>
-          <label htmlFor="pickupLocation" className="text-[10px] uppercase tracking-widest mb-1 block ml-1" style={{ color: 'var(--text-tertiary)' }}>Preferred Pickup Location</label>
-          <input id="pickupLocation" type="text" name="pickupLocation" value={formData.pickupLocation} onChange={handleChange} placeholder="Address or area" className={inputClass('pickupLocation')} style={{ ...inputStyle, ...inputBorder('pickupLocation') }} />
+          <label className="text-[10px] uppercase tracking-widest mb-2 block ml-1" style={{ color: 'var(--text-tertiary)' }}>Pickup or Delivery?</label>
+          <div className="grid grid-cols-3 gap-2">
+            {([
+              { val: 'pickup',               label: 'I\'ll Pick It Up',      sub: 'Port St. Lucie',        price: null },
+              { val: 'psl_delivery',         label: 'Deliver to Me',          sub: 'Port St. Lucie area',   price: '$39' },
+              { val: 'surrounding_delivery', label: 'Deliver to Me',          sub: 'Surrounding areas',     price: '$49' },
+            ] as const).map(({ val, label, sub, price }) => {
+              const active = formData.deliveryOption === val;
+              return (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, deliveryOption: val, deliveryAddress: '' }))}
+                  className="py-3 px-2 rounded-xl text-sm border transition-all duration-300 cursor-pointer flex flex-col items-center gap-0.5"
+                  style={{
+                    backgroundColor: active ? 'var(--accent)' : 'var(--bg-card-hover)',
+                    color: active ? 'var(--accent-fg)' : 'var(--text-secondary)',
+                    borderColor: active ? 'var(--accent)' : 'var(--border-subtle)',
+                  }}
+                >
+                  <span className="font-medium text-[13px] leading-tight text-center">{label}</span>
+                  <span className="text-[11px] opacity-75 text-center">{sub}</span>
+                  {price ? (
+                    <span className={`text-[11px] font-semibold mt-0.5 ${active ? 'opacity-90' : ''}`}>{price}</span>
+                  ) : (
+                    <span className={`text-[11px] font-semibold mt-0.5 ${active ? 'opacity-90' : 'text-green-600'}`}>Free</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Surrounding areas hint */}
+          {formData.deliveryOption === 'surrounding_delivery' && (
+            <p className="text-[11px] mt-2 ml-1" style={{ color: 'var(--text-tertiary)' }}>
+              Includes Stuart, Jensen Beach, Fort Pierce, Palm City, and nearby areas.
+            </p>
+          )}
+
+          {/* Delivery address field */}
+          {formData.deliveryOption !== 'pickup' && (
+            <div className="mt-3">
+              <label className="text-[10px] uppercase tracking-widest mb-1 block ml-1" style={{ color: 'var(--text-tertiary)' }}>
+                Delivery Address
+              </label>
+              <input
+                type="text"
+                value={formData.deliveryAddress}
+                onChange={e => setFormData(prev => ({ ...prev, deliveryAddress: e.target.value }))}
+                placeholder="Street address, city, ZIP"
+                className={inputClass('deliveryAddress')}
+                style={{ ...inputStyle, ...inputBorder('deliveryAddress') }}
+              />
+            </div>
+          )}
         </div>
 
         {/* Insurance */}
@@ -544,9 +621,6 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
           />
         </div>
 
-        <input type="hidden" name="vehicle_id" value={vehicle.id} />
-        <input type="hidden" name="vehicle_name" value={getVehicleDisplayName(vehicle)} />
-        <input type="hidden" name="vehicle_daily_rate" value={vehicle.dailyRate} />
 
         <button
           type="submit"
