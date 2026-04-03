@@ -27,7 +27,7 @@ import Footer from './Footer';
 import RentalAgreement from './RentalAgreement';
 
 const stripePromise = loadStripe('pk_test_51THqNVBDLBS4aYcfqHPZnNGlwL6E8lGdzFOxYoSmd37DjxD3ofbWe6AsrEkL90LqnHfp8fEFDfAmrqfkDgcNYYqE009CXY3fGT');
-const API_URL = import.meta.env.VITE_API_URL || 'https://annies-car-rental-backend.onrender.com/api/v1';
+const API_URL = import.meta.env.VITE_API_URL || 'https://backend-fawn-phi-13.vercel.app/api/v1';
 
 /* ────────────────────────────────────────────────────────
    Constants

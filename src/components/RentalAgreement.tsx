@@ -7,7 +7,7 @@ import {
 import SignaturePad from 'signature_pad';
 import { RENTAL_TERMS, ACKNOWLEDGEMENTS, US_STATES } from '../data/rentalTerms';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://annies-car-rental-backend.onrender.com/api/v1';
+const API_URL = import.meta.env.VITE_API_URL || 'https://backend-fawn-phi-13.vercel.app/api/v1';
 
 /* ────────────────────────────────────────────────────────
    Types

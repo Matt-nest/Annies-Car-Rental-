@@ -6,7 +6,7 @@ import { getVehicleDisplayName } from '../data/vehicles';
 import { useTheme } from '../App';
 
 // Backend API for booking submissions
-const API_URL = import.meta.env.VITE_API_URL || 'https://annies-car-rental-backend.onrender.com/api/v1';
+const API_URL = import.meta.env.VITE_API_URL || 'https://backend-fawn-phi-13.vercel.app/api/v1';
 const API_KEY = import.meta.env.VITE_API_KEY || 'annies-rental-api-key-2026';
 
 // GHL webhook as fallback if backend is unreachable
