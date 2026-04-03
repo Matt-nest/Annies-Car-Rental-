@@ -16,6 +16,7 @@ import MobileStickyCTA from './components/MobileStickyCTA';
 import Footer from './components/Footer';
 import VehicleDetailPage from './components/VehicleDetailPage';
 import ConfirmBooking from './components/ConfirmBooking';
+import RentalAgreementPage from './components/RentalAgreementPage';
 import CustomCursor from './components/CustomCursor';
 
 // Theme context
@@ -26,7 +27,7 @@ export const ThemeContext = createContext<{ theme: Theme; toggleTheme: () => voi
 });
 export const useTheme = () => useContext(ThemeContext);
 
-type Page = 'home' | 'detail' | 'confirm';
+type Page = 'home' | 'detail' | 'confirm' | 'rental-agreement';
 
 /** Must stay in sync with .theme-transition CSS duration (index.css) */
 const THEME_TRANSITION_MS = 600;
@@ -34,7 +35,10 @@ const THEME_TRANSITION_MS = 600;
 export default function App() {
   const [theme, setTheme] = useState<Theme>('dark');
   const [currentPage, setCurrentPage] = useState<Page>(() => {
-    return window.location.pathname === '/confirm' ? 'confirm' : 'home';
+    const path = window.location.pathname;
+    if (path === '/confirm') return 'confirm';
+    if (path === '/rental-agreement') return 'rental-agreement';
+    return 'home';
   });
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [quickViewVehicle, setQuickViewVehicle] = useState<Vehicle | null>(null);
@@ -103,7 +107,17 @@ export default function App() {
         style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
       >
         <AnimatePresence mode="wait">
-          {currentPage === 'confirm' ? (
+          {currentPage === 'rental-agreement' ? (
+            <motion.div
+              key="rental-agreement"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4, ease: EASE.dramatic }}
+            >
+              <RentalAgreementPage />
+            </motion.div>
+          ) : currentPage === 'confirm' ? (
             <motion.div
               key="confirm"
               initial={{ opacity: 0 }}

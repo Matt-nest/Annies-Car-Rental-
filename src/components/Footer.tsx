@@ -76,15 +76,9 @@ export default function Footer() {
               Legal
             </h4>
             <div className="flex flex-col gap-3">
-              {['Terms of Service', 'Privacy Policy', 'Rental Agreement'].map((link) => (
-                <a
-                  key={link}
-                  href="#"
-                  className="nav-link text-sm"
-                >
-                  {link}
-                </a>
-              ))}
+              <a href="#" className="nav-link text-sm">Terms of Service</a>
+              <a href="#" className="nav-link text-sm">Privacy Policy</a>
+              <a href="/rental-agreement" className="nav-link text-sm">Rental Agreement</a>
               <a
                 href="/confirm"
                 className="nav-link text-sm"
@@ -121,7 +115,9 @@ export default function Footer() {
             <p>Port St. Lucie, FL · Treasure Coast</p>
             <span style={{ opacity: 0.3 }}>·</span>
             <a
-              href="/admin"
+              href="http://localhost:5174"
+              target="_blank"
+              rel="noopener noreferrer"
               className="transition-opacity hover:opacity-70"
               style={{ color: 'var(--text-tertiary)' }}
             >
