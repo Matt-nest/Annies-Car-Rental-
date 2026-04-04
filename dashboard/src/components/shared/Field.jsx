@@ -1,12 +1,11 @@
 /**
  * Reusable label/value display field.
- * Used across BookingDetailPage and VehicleDetailPage.
  */
 export default function Field({ label, value }) {
   return (
     <div>
-      <p className="text-xs text-stone-400">{label}</p>
-      <p className="text-sm text-stone-900 font-medium">{value || '—'}</p>
+      <p className="text-[10px] uppercase tracking-wider font-semibold mb-0.5" style={{ color: 'var(--text-tertiary)' }}>{label}</p>
+      <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{value || '—'}</p>
     </div>
   );
 }

@@ -1,17 +1,14 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Car, Plus, Search, ChevronDown, Upload, Link, X } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { api } from '../api/client';
-import LoadingSpinner from '../components/shared/LoadingSpinner';
+import StatusBadge from '../components/shared/StatusBadge';
+import { SkeletonFleetGrid, SkeletonKpi } from '../components/shared/Skeleton';
+import EmptyState from '../components/shared/EmptyState';
 import Modal from '../components/shared/Modal';
 
-const STATUS_COLORS = {
-  available:   'bg-green-100 text-green-700',
-  rented:      'bg-blue-100 text-blue-700',
-  turo:        'bg-indigo-100 text-indigo-700',
-  maintenance: 'bg-amber-100 text-amber-700',
-  retired:     'bg-stone-100 text-stone-500',
-};
+const EASE = [0.25, 1, 0.5, 1];
 
 const EMPTY_VEHICLE = {
   vehicle_code: '', make: '', model: '', year: new Date().getFullYear(),
@@ -30,8 +27,7 @@ export default function FleetPage() {
   const [statusDropdown, setStatusDropdown] = useState(null);
   const navigate = useNavigate();
 
-  // Image upload state
-  const [imageMode, setImageMode] = useState('upload'); // 'upload' or 'url'
+  const [imageMode, setImageMode] = useState('upload');
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -52,7 +48,7 @@ export default function FleetPage() {
     if (file.size > 10 * 1024 * 1024) { alert('File too large. Max 10MB.'); return; }
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
-    setAddForm(f => ({ ...f, thumbnail_url: '' })); // clear URL if switching to file
+    setAddForm(f => ({ ...f, thumbnail_url: '' }));
   };
 
   const clearImageFile = () => {
@@ -65,15 +61,12 @@ export default function FleetPage() {
     setAdding(true);
     try {
       let thumbnailUrl = addForm.thumbnail_url;
-
-      // If file was selected, upload it first
       if (imageFile) {
         setUploading(true);
         const result = await api.uploadVehicleImage(imageFile);
         thumbnailUrl = result.url;
         setUploading(false);
       }
-
       const code = addForm.vehicle_code || `v-${addForm.make.toLowerCase()}-${addForm.model.toLowerCase().replace(/\s+/g, '')}`;
       await api.createVehicle({ ...addForm, vehicle_code: code, thumbnail_url: thumbnailUrl });
       setAddModal(false);
@@ -104,30 +97,39 @@ export default function FleetPage() {
     return true;
   });
 
-  if (loading) return <LoadingSpinner className="min-h-screen" />;
-
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-stone-900">Fleet</h1>
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: EASE }}
+        className="flex items-center justify-between"
+      >
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight display-num" style={{ color: 'var(--text-primary)' }}>Fleet</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-tertiary)' }}>Manage your vehicle inventory</p>
+        </div>
         <button onClick={() => setAddModal(true)} className="btn-primary">
-          <Plus size={15} /> Add Vehicle
+          <Plus size={16} /> Add Vehicle
         </button>
-      </div>
+      </motion.div>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
-        <div className="flex items-center gap-2 bg-white border border-stone-200 rounded-lg px-3 py-2">
-          <Search size={14} className="text-stone-400" />
+        <div className="flex items-center gap-2 rounded-xl px-4 py-3 flex-1 min-w-[200px]"
+          style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+          <Search size={15} style={{ color: 'var(--text-tertiary)' }} />
           <input
-            className="bg-transparent text-sm outline-none placeholder-stone-400"
+            className="bg-transparent text-sm outline-none flex-1"
+            style={{ color: 'var(--text-primary)' }}
             placeholder="Search vehicles…"
             value={filter.q}
             onChange={e => setFilter(f => ({ ...f, q: e.target.value }))}
           />
         </div>
         <select
-          className="text-sm border border-stone-200 rounded-lg px-3 py-2 bg-white outline-none"
+          className="input max-w-[180px]"
           value={filter.status}
           onChange={e => setFilter(f => ({ ...f, status: e.target.value }))}
         >
@@ -141,71 +143,109 @@ export default function FleetPage() {
       </div>
 
       {/* Stats bar */}
-      <div className="grid grid-cols-5 gap-3">
-        {['available', 'rented', 'turo', 'maintenance', 'retired'].map(s => (
-          <div key={s} className="card p-3 text-center cursor-pointer hover:border-amber-200 transition-colors"
-            onClick={() => setFilter(f => ({ ...f, status: f.status === s ? '' : s }))}>
-            <p className="text-2xl font-semibold text-stone-900">
-              {vehicles.filter(v => v.status === s).length}
-            </p>
-            <p className="text-xs text-stone-500 capitalize">{s}</p>
-          </div>
-        ))}
-      </div>
+      {loading ? (
+        <SkeletonKpi count={5} />
+      ) : (
+        <div className="grid grid-cols-5 gap-3">
+          {['available', 'rented', 'turo', 'maintenance', 'retired'].map(s => (
+            <button
+              key={s}
+              className="card p-3 text-center transition-all duration-200"
+              onClick={() => setFilter(f => ({ ...f, status: f.status === s ? '' : s }))}
+              style={{
+                borderColor: filter.status === s ? 'var(--accent-color)' : undefined,
+                minHeight: 64,
+              }}
+            >
+              <p className="text-2xl font-bold display-num" style={{ color: 'var(--text-primary)' }}>
+                {vehicles.filter(v => v.status === s).length}
+              </p>
+              <p className="text-[10px] uppercase tracking-wider font-semibold capitalize" style={{ color: 'var(--text-tertiary)' }}>{s}</p>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Vehicle grid */}
-      {filtered.length === 0 ? (
-        <div className="text-center py-16 text-stone-400 text-sm">No vehicles found</div>
+      {loading ? (
+        <SkeletonFleetGrid />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          icon={Car}
+          title="No vehicles found"
+          description="Try adjusting your search or filters, or add a new vehicle to your fleet."
+          action={() => setAddModal(true)}
+          actionLabel="Add Vehicle"
+        />
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filtered.map(v => (
-            <div
+          {filtered.map((v, i) => (
+            <motion.div
               key={v.id}
-              className="card overflow-hidden cursor-pointer hover:border-amber-200 hover:shadow-md transition-all duration-200"
-              onClick={() => navigate(`/fleet/${v.id}`)}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: i * 0.05, duration: 0.4, ease: EASE }}
             >
-              {/* Photo */}
-              <div className="h-36 bg-stone-100 flex items-center justify-center relative">
-                {v.thumbnail_url ? (
-                  <img src={v.thumbnail_url} alt={`${v.make} ${v.model}`} className="h-full w-full object-cover" />
-                ) : (
-                  <Car size={36} className="text-stone-300" />
-                )}
-                {/* Quick status dropdown */}
-                <div className="absolute top-2 right-2" onClick={e => e.stopPropagation()}>
-                  <button
-                    onClick={() => setStatusDropdown(statusDropdown === v.id ? null : v.id)}
-                    className={`badge ${STATUS_COLORS[v.status] || 'bg-stone-100 text-stone-500'} flex items-center gap-1 cursor-pointer hover:opacity-80`}
-                  >
-                    {v.status} <ChevronDown size={10} />
-                  </button>
-                  {statusDropdown === v.id && (
-                    <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-stone-200 py-1 z-20 min-w-[120px]">
-                      {['available', 'turo', 'maintenance', 'retired'].map(s => (
-                        <button
-                          key={s}
-                          onClick={e => handleQuickStatus(v.id, s, e)}
-                          className={`w-full text-left px-3 py-1.5 text-xs capitalize hover:bg-stone-50 transition-colors
-                            ${v.status === s ? 'text-amber-700 font-medium' : 'text-stone-600'}`}
-                        >
-                          {s === 'available' ? '✓ Available' : s === 'turo' ? '🚗 On Turo' : s === 'maintenance' ? '🔧 Maintenance' : '🚫 Retired'}
-                        </button>
-                      ))}
-                    </div>
+              <div
+                className="card overflow-hidden cursor-pointer hover-zoom transition-all duration-300 group"
+                onClick={() => navigate(`/fleet/${v.id}`)}
+              >
+                {/* Photo */}
+                <div className="h-40 flex items-center justify-center relative" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+                  {v.thumbnail_url ? (
+                    <img src={v.thumbnail_url} alt={`${v.make} ${v.model}`} className="h-full w-full object-cover" />
+                  ) : (
+                    <Car size={36} style={{ color: 'var(--text-tertiary)', opacity: 0.3 }} />
                   )}
+                  {/* Status badge */}
+                  <div className="absolute top-3 right-3" onClick={e => e.stopPropagation()}>
+                    <button
+                      onClick={() => setStatusDropdown(statusDropdown === v.id ? null : v.id)}
+                      className="flex items-center gap-1 cursor-pointer"
+                    >
+                      <StatusBadge status={v.status} />
+                      <ChevronDown size={10} style={{ color: 'var(--text-tertiary)' }} />
+                    </button>
+                    {statusDropdown === v.id && (
+                      <div className="absolute right-0 top-full mt-1 rounded-xl py-1.5 z-20 min-w-[140px]"
+                        style={{
+                          backgroundColor: 'var(--bg-elevated)',
+                          border: '1px solid var(--border-medium)',
+                          boxShadow: '0 12px 40px -8px rgba(0,0,0,0.25)',
+                        }}
+                      >
+                        {['available', 'turo', 'maintenance', 'retired'].map(s => (
+                          <button
+                            key={s}
+                            onClick={e => handleQuickStatus(v.id, s, e)}
+                            className="w-full text-left px-4 py-2 text-xs capitalize transition-colors"
+                            style={{
+                              color: v.status === s ? 'var(--accent-color)' : 'var(--text-secondary)',
+                              fontWeight: v.status === s ? 600 : 400,
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-card-hover)'}
+                            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                          >
+                            {s === 'available' ? '✓ Available' : s === 'turo' ? '🚗 On Turo' : s === 'maintenance' ? '🔧 Maintenance' : '🚫 Retired'}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              {/* Info */}
-              <div className="p-4">
-                <p className="font-semibold text-stone-900">{v.year} {v.make} {v.model}</p>
-                <p className="text-xs text-stone-400 font-mono">{v.vehicle_code}</p>
-                <div className="flex items-center justify-between mt-3">
-                  <p className="text-sm font-medium text-amber-700">${v.daily_rate}/day</p>
-                  <p className="text-xs text-stone-400 capitalize">{v.category}</p>
+                {/* Info */}
+                <div className="p-5">
+                  <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--accent-color)' }}>{v.category}</p>
+                  <p className="font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>{v.year} {v.make} {v.model}</p>
+                  <p className="text-xs mono-code mt-0.5" style={{ color: 'var(--text-tertiary)' }}>{v.vehicle_code}</p>
+                  <div className="flex items-center justify-between mt-4 pt-3" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                    <p className="text-lg font-bold display-num" style={{ color: 'var(--accent-color)' }}>${v.daily_rate}</p>
+                    <p className="text-[10px] uppercase font-semibold tracking-wider" style={{ color: 'var(--text-tertiary)' }}>per day</p>
+                  </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
       )}
@@ -230,9 +270,9 @@ export default function FleetPage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Vehicle Code</label>
-              <input className="input font-mono text-xs" value={addForm.vehicle_code}
+              <input className="input mono-code text-xs" value={addForm.vehicle_code}
                 onChange={e => setAddForm(f => ({...f, vehicle_code: e.target.value}))}
-                placeholder="Auto-generated (e.g. v-ford-focus)" />
+                placeholder="Auto-generated" />
             </div>
             <div>
               <label className="label">Category</label>
@@ -271,16 +311,24 @@ export default function FleetPage() {
             </div>
           </div>
 
-          {/* Vehicle Image — Upload or URL */}
+          {/* Image */}
           <div>
             <label className="label">Vehicle Image</label>
             <div className="flex gap-1 mb-2">
               <button type="button" onClick={() => { setImageMode('upload'); clearImageFile(); }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${imageMode === 'upload' ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'}`}>
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors"
+                style={{
+                  backgroundColor: imageMode === 'upload' ? 'var(--accent-glow)' : 'var(--bg-card)',
+                  color: imageMode === 'upload' ? 'var(--accent-color)' : 'var(--text-secondary)',
+                }}>
                 <Upload size={12} /> Upload
               </button>
               <button type="button" onClick={() => { setImageMode('url'); clearImageFile(); }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${imageMode === 'url' ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'}`}>
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors"
+                style={{
+                  backgroundColor: imageMode === 'url' ? 'var(--accent-glow)' : 'var(--bg-card)',
+                  color: imageMode === 'url' ? 'var(--accent-color)' : 'var(--text-secondary)',
+                }}>
                 <Link size={12} /> URL
               </button>
             </div>
@@ -290,18 +338,30 @@ export default function FleetPage() {
                 <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleImageFileChange} className="hidden" id="vehicleImageInput" />
                 {!imageFile ? (
                   <label htmlFor="vehicleImageInput"
-                    className="flex flex-col items-center justify-center gap-1.5 py-5 rounded-lg border-2 border-dashed border-stone-200 cursor-pointer hover:border-amber-300 transition-colors bg-stone-50">
-                    <Upload size={20} className="text-stone-400" />
-                    <span className="text-xs text-stone-500">Click to upload · JPEG, PNG, WebP · Max 10MB</span>
+                    className="flex flex-col items-center justify-center gap-1.5 py-6 rounded-xl border-2 border-dashed cursor-pointer transition-colors"
+                    style={{
+                      borderColor: 'var(--border-medium)',
+                      backgroundColor: 'var(--bg-card)',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-color)'}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-medium)'}
+                  >
+                    <Upload size={20} style={{ color: 'var(--text-tertiary)' }} />
+                    <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Click to upload · JPEG, PNG, WebP · Max 10MB</span>
                   </label>
                 ) : (
-                  <div className="flex items-center gap-3 p-2.5 rounded-lg border border-stone-200 bg-stone-50">
-                    <img src={imagePreview} alt="Preview" className="w-16 h-12 object-cover rounded" />
+                  <div className="flex items-center gap-3 p-3 rounded-xl"
+                    style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+                    <img src={imagePreview} alt="Preview" className="w-16 h-12 object-cover rounded-xl" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-stone-700 truncate">{imageFile.name}</p>
-                      <p className="text-xs text-stone-400">{(imageFile.size / 1024 / 1024).toFixed(1)} MB</p>
+                      <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{imageFile.name}</p>
+                      <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{(imageFile.size / 1024 / 1024).toFixed(1)} MB</p>
                     </div>
-                    <button type="button" onClick={clearImageFile} className="p-1 rounded-full hover:bg-stone-200 text-stone-400"><X size={14} /></button>
+                    <button type="button" onClick={clearImageFile} className="p-2 rounded-xl transition-colors"
+                      style={{ color: 'var(--text-tertiary)' }}
+                      onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-card-hover)'}
+                      onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                    ><X size={14} /></button>
                   </div>
                 )}
               </>
@@ -310,8 +370,8 @@ export default function FleetPage() {
                 <input className="input text-xs" value={addForm.thumbnail_url} onChange={e => setAddForm(f => ({...f, thumbnail_url: e.target.value}))} placeholder="https://…" />
                 {addForm.thumbnail_url && (
                   <div className="mt-2 flex items-center gap-2">
-                    <img src={addForm.thumbnail_url} alt="Preview" className="w-16 h-12 object-cover rounded border border-stone-200" onError={e => e.currentTarget.style.display = 'none'} />
-                    <span className="text-xs text-stone-400">Preview</span>
+                    <img src={addForm.thumbnail_url} alt="Preview" className="w-16 h-12 object-cover rounded-xl" style={{ border: '1px solid var(--border-subtle)' }} onError={e => e.currentTarget.style.display = 'none'} />
+                    <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Preview</span>
                   </div>
                 )}
               </div>

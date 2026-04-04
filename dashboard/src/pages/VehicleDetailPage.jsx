@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Car, Edit3, Save, X, Plus, Trash2, Calendar, DollarSign, AlertTriangle } from 'lucide-react';
 import { api } from '../api/client';
 import StatusBadge from '../components/shared/StatusBadge';
-import LoadingSpinner from '../components/shared/LoadingSpinner';
+import { SkeletonDashboard } from '../components/shared/Skeleton';
 import Modal from '../components/shared/Modal';
 import Section from '../components/shared/Section';
 import Field from '../components/shared/Field';
@@ -12,7 +12,7 @@ import { format } from 'date-fns';
 const STATUS_OPTIONS = ['available', 'turo', 'maintenance', 'retired'];
 const STATUS_COLORS = {
   available:   'bg-green-500',
-  rented:      'bg-blue-500',
+  rented:      'bg-[rgba(99,179,237,0.07)]0',
   turo:        'bg-indigo-500',
   maintenance: 'bg-amber-500',
   retired:     'bg-stone-400',
@@ -86,8 +86,8 @@ export default function VehicleDetailPage() {
     } catch (e) { console.error(e); }
   }
 
-  if (loading) return <LoadingSpinner className="min-h-screen" />;
-  if (!vehicle) return <div className="p-6 text-stone-500">Vehicle not found</div>;
+  if (loading) return <SkeletonDashboard />;
+  if (!vehicle) return <div className="p-6 text-[var(--text-secondary)]">Vehicle not found</div>;
 
   const bookings = (vehicle.bookings || []).sort((a, b) => b.pickup_date.localeCompare(a.pickup_date));
   const activeBookings = bookings.filter(b => ['active', 'approved', 'confirmed'].includes(b.status));
@@ -103,12 +103,12 @@ export default function VehicleDetailPage() {
           </button>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-semibold text-stone-900">
+              <h1 className="text-xl font-semibold text-[var(--text-primary)]">
                 {vehicle.year} {vehicle.make} {vehicle.model}
               </h1>
               <span className={`w-2.5 h-2.5 rounded-full ${STATUS_COLORS[vehicle.status]}`} />
             </div>
-            <p className="text-xs text-stone-400 font-mono">{vehicle.vehicle_code}</p>
+            <p className="text-xs text-[var(--text-tertiary)] font-mono">{vehicle.vehicle_code}</p>
           </div>
         </div>
 
@@ -122,7 +122,7 @@ export default function VehicleDetailPage() {
               className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-all capitalize
                 ${vehicle.status === s
                   ? 'bg-stone-900 text-white border-stone-900'
-                  : 'bg-white text-stone-600 border-stone-200 hover:border-stone-400'
+                  : 'bg-white text-[var(--text-secondary)] border-stone-200 hover:border-stone-400'
                 }`}
             >
               {s}
@@ -133,9 +133,9 @@ export default function VehicleDetailPage() {
 
       {/* Active booking alert */}
       {activeBookings.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center gap-3">
-          <AlertTriangle size={16} className="text-blue-600 shrink-0" />
-          <p className="text-sm text-blue-800">
+        <div className="bg-[rgba(99,179,237,0.07)] border border-[rgba(99,179,237,0.15)] rounded-xl p-4 flex items-center gap-3">
+          <AlertTriangle size={16} className="text-[#63b3ed] shrink-0" />
+          <p className="text-sm text-[#63b3ed]">
             This vehicle has {activeBookings.length} active/upcoming booking{activeBookings.length !== 1 ? 's' : ''}.
           </p>
         </div>
@@ -148,8 +148,8 @@ export default function VehicleDetailPage() {
           {vehicle.thumbnail_url ? (
             <img src={vehicle.thumbnail_url} alt={`${vehicle.make} ${vehicle.model}`} className="w-full h-56 object-cover" />
           ) : (
-            <div className="h-56 bg-stone-100 flex items-center justify-center">
-              <Car size={48} className="text-stone-300" />
+            <div className="h-56 bg-[var(--bg-card)] flex items-center justify-center">
+              <Car size={48} className="text-[var(--text-tertiary)]" />
             </div>
           )}
         </div>
@@ -212,9 +212,9 @@ export default function VehicleDetailPage() {
             </div>
           )}
           {vehicle.notes && !editing && (
-            <div className="pt-2 border-t border-stone-100">
-              <p className="text-xs text-stone-400 mb-1">Description</p>
-              <p className="text-sm text-stone-600">{vehicle.notes}</p>
+            <div className="pt-2 border-t border-[var(--border-subtle)]">
+              <p className="text-xs text-[var(--text-tertiary)] mb-1">Description</p>
+              <p className="text-sm text-[var(--text-secondary)]">{vehicle.notes}</p>
             </div>
           )}
         </Section>
@@ -229,18 +229,18 @@ export default function VehicleDetailPage() {
         }
       >
         {blocked.length === 0 ? (
-          <p className="text-sm text-stone-400">No dates blocked. Use this to mark days when the vehicle is unavailable (personal use, servicing, etc.)</p>
+          <p className="text-sm text-[var(--text-tertiary)]">No dates blocked. Use this to mark days when the vehicle is unavailable (personal use, servicing, etc.)</p>
         ) : (
           <div className="space-y-2">
             {blocked.map(b => (
-              <div key={b.id} className="flex items-center justify-between py-2 px-3 bg-stone-50 rounded-lg">
+              <div key={b.id} className="flex items-center justify-between py-2 px-3 bg-[var(--bg-card)] rounded-lg">
                 <div>
-                  <p className="text-sm font-medium text-stone-800">
+                  <p className="text-sm font-medium text-[var(--text-primary)]">
                     {format(new Date(b.start_date), 'MMM d, yyyy')} — {format(new Date(b.end_date), 'MMM d, yyyy')}
                   </p>
-                  <p className="text-xs text-stone-400 capitalize">{b.reason?.replace('_', ' ')}{b.notes ? ` · ${b.notes}` : ''}</p>
+                  <p className="text-xs text-[var(--text-tertiary)] capitalize">{b.reason?.replace('_', ' ')}{b.notes ? ` · ${b.notes}` : ''}</p>
                 </div>
-                <button onClick={() => handleDeleteBlock(b.id)} className="btn-ghost p-1.5 text-red-400 hover:text-red-600">
+                <button onClick={() => handleDeleteBlock(b.id)} className="btn-ghost p-1.5 text-red-400 hover:text-[var(--danger-color)]">
                   <Trash2 size={14} />
                 </button>
               </div>
@@ -252,25 +252,25 @@ export default function VehicleDetailPage() {
       {/* Booking History */}
       <Section title={`Booking History (${bookings.length})`} icon={DollarSign}>
         {bookings.length === 0 ? (
-          <p className="text-sm text-stone-400">No bookings for this vehicle yet.</p>
+          <p className="text-sm text-[var(--text-tertiary)]">No bookings for this vehicle yet.</p>
         ) : (
           <div className="space-y-1">
             {bookings.map(b => (
               <Link
                 key={b.id}
                 to={`/bookings/${b.id}`}
-                className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-stone-50 transition-colors"
+                className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-[var(--bg-card)] transition-colors"
               >
                 <div className="flex items-center gap-3">
                   <StatusBadge status={b.status} />
                   <div>
-                    <p className="text-sm font-medium text-stone-800">
+                    <p className="text-sm font-medium text-[var(--text-primary)]">
                       {b.customers?.first_name} {b.customers?.last_name}
                     </p>
-                    <p className="text-xs text-stone-400 font-mono">{b.booking_code}</p>
+                    <p className="text-xs text-[var(--text-tertiary)] font-mono">{b.booking_code}</p>
                   </div>
                 </div>
-                <p className="text-xs text-stone-500">
+                <p className="text-xs text-[var(--text-secondary)]">
                   {format(new Date(b.pickup_date), 'MMM d')} → {format(new Date(b.return_date), 'MMM d, yyyy')}
                 </p>
               </Link>
@@ -282,16 +282,16 @@ export default function VehicleDetailPage() {
       {/* Quick stats */}
       <div className="grid grid-cols-3 gap-4">
         <div className="card p-4 text-center">
-          <p className="text-2xl font-semibold text-stone-900">{bookings.length}</p>
-          <p className="text-xs text-stone-500">Total Bookings</p>
+          <p className="text-2xl font-semibold text-[var(--text-primary)]">{bookings.length}</p>
+          <p className="text-xs text-[var(--text-secondary)]">Total Bookings</p>
         </div>
         <div className="card p-4 text-center">
-          <p className="text-2xl font-semibold text-stone-900">{completedCount}</p>
-          <p className="text-xs text-stone-500">Completed</p>
+          <p className="text-2xl font-semibold text-[var(--text-primary)]">{completedCount}</p>
+          <p className="text-xs text-[var(--text-secondary)]">Completed</p>
         </div>
         <div className="card p-4 text-center">
-          <p className="text-2xl font-semibold text-stone-900">{activeBookings.length}</p>
-          <p className="text-xs text-stone-500">Active Now</p>
+          <p className="text-2xl font-semibold text-[var(--text-primary)]">{activeBookings.length}</p>
+          <p className="text-xs text-[var(--text-secondary)]">Active Now</p>
         </div>
       </div>
 

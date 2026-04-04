@@ -5,8 +5,8 @@ function Section({ title, description, children }) {
   return (
     <div className="card p-5 space-y-4">
       <div>
-        <h2 className="text-sm font-semibold text-stone-900">{title}</h2>
-        {description && <p className="text-xs text-stone-500 mt-0.5">{description}</p>}
+        <h2 className="text-sm font-semibold text-[var(--text-primary)]">{title}</h2>
+        {description && <p className="text-xs text-[var(--text-secondary)] mt-0.5">{description}</p>}
       </div>
       {children}
     </div>
@@ -16,14 +16,14 @@ function Section({ title, description, children }) {
 function EnvRow({ label, envKey, value, note }) {
   const [show, setShow] = useState(false);
   return (
-    <div className="flex items-start justify-between gap-4 py-2 border-b border-stone-50 last:border-0">
+    <div className="flex items-start justify-between gap-4 py-2 border-b border-[var(--border-subtle)] last:border-0">
       <div className="min-w-0">
-        <p className="text-sm font-medium text-stone-800">{label}</p>
-        <p className="text-[11px] font-mono text-stone-400 mt-0.5">{envKey}</p>
-        {note && <p className="text-[11px] text-stone-400 mt-0.5">{note}</p>}
+        <p className="text-sm font-medium text-[var(--text-primary)]">{label}</p>
+        <p className="text-[11px] font-mono text-[var(--text-tertiary)] mt-0.5">{envKey}</p>
+        {note && <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5">{note}</p>}
       </div>
       <div className="flex items-center gap-1.5 shrink-0">
-        <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${value ? 'bg-green-100 text-green-700' : 'bg-stone-100 text-stone-500'}`}>
+        <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${value ? 'bg-green-100 text-[#22c55e]' : 'bg-[var(--bg-card)] text-[var(--text-secondary)]'}`}>
           {value ? 'Set' : 'Not set'}
         </span>
       </div>
@@ -50,7 +50,7 @@ function WebhookRow({ label, envKey }) {
           {show ? <EyeOff size={14} /> : <Eye size={14} />}
         </button>
       </div>
-      <p className="text-[10px] text-stone-400 mt-0.5">Env var: {envKey}</p>
+      <p className="text-[10px] text-[var(--text-tertiary)] mt-0.5">Env var: {envKey}</p>
     </div>
   );
 }
@@ -59,15 +59,15 @@ export default function SettingsPage() {
   return (
     <div className="p-4 sm:p-6 max-w-2xl mx-auto space-y-5">
       <div>
-        <h1 className="text-xl font-semibold text-stone-900">Settings</h1>
-        <p className="text-sm text-stone-500 mt-1">Configuration reference — all settings are managed via Vercel environment variables.</p>
+        <h1 className="text-2xl font-bold tracking-tight display-num">Settings</h1>
+        <p className="text-sm text-[var(--text-secondary)] mt-1">Configuration reference — all settings are managed via Vercel environment variables.</p>
       </div>
 
-      <div className="flex items-start gap-2.5 bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800">
-        <Info size={15} className="mt-0.5 shrink-0 text-blue-500" />
+      <div className="flex items-start gap-2.5 bg-[rgba(99,179,237,0.07)] border border-[rgba(99,179,237,0.15)] rounded-xl p-4 text-sm text-[#63b3ed]">
+        <Info size={15} className="mt-0.5 shrink-0 text-[#63b3ed]" />
         <div>
           <p className="font-medium">Settings are environment variables</p>
-          <p className="text-blue-700 mt-0.5 text-xs">
+          <p className="text-[#63b3ed] mt-0.5 text-xs">
             To change any value, update it in your{' '}
             <a href="https://vercel.com/dashboard" target="_blank" rel="noopener noreferrer" className="underline inline-flex items-center gap-0.5">
               Vercel dashboard <ExternalLink size={10} />
@@ -89,20 +89,20 @@ export default function SettingsPage() {
 
       <Section title="Booking Automation" description="Timing for auto-expire and reminders (hardcoded in cron job)">
         <div className="grid grid-cols-2 gap-4 text-sm">
-          <div className="bg-stone-50 rounded-lg p-3">
-            <p className="font-medium text-stone-800">24 hours</p>
-            <p className="text-stone-500 text-xs mt-0.5">Approval reminder sent to Annie</p>
+          <div className="bg-[var(--bg-card)] rounded-lg p-3">
+            <p className="font-medium text-[var(--text-primary)]">24 hours</p>
+            <p className="text-[var(--text-secondary)] text-xs mt-0.5">Approval reminder sent to Annie</p>
           </div>
-          <div className="bg-stone-50 rounded-lg p-3">
-            <p className="font-medium text-stone-800">48 hours</p>
-            <p className="text-stone-500 text-xs mt-0.5">Unapproved booking auto-declined</p>
+          <div className="bg-[var(--bg-card)] rounded-lg p-3">
+            <p className="font-medium text-[var(--text-primary)]">48 hours</p>
+            <p className="text-[var(--text-secondary)] text-xs mt-0.5">Unapproved booking auto-declined</p>
           </div>
-          <div className="bg-stone-50 rounded-lg p-3">
-            <p className="font-medium text-stone-800">Daily at 9 AM ET</p>
-            <p className="text-stone-500 text-xs mt-0.5">Cron job runs (Vercel Hobby plan)</p>
+          <div className="bg-[var(--bg-card)] rounded-lg p-3">
+            <p className="font-medium text-[var(--text-primary)]">Daily at 9 AM ET</p>
+            <p className="text-[var(--text-secondary)] text-xs mt-0.5">Cron job runs (Vercel Hobby plan)</p>
           </div>
         </div>
-        <p className="text-xs text-stone-400">To change these values, edit <span className="font-mono bg-stone-100 px-1 rounded">backend/routes/cron.js</span> and redeploy.</p>
+        <p className="text-xs text-[var(--text-tertiary)]">To change these values, edit <span className="font-mono bg-[var(--bg-card)] px-1 rounded">backend/routes/cron.js</span> and redeploy.</p>
       </Section>
 
       <Section
@@ -127,7 +127,7 @@ export default function SettingsPage() {
           <EnvRow label="From Address" envKey="EMAIL_FROM" note="e.g. Annie's Car Rental <noreply@anniescarrental.com>" />
           <EnvRow label="Site URL" envKey="SITE_URL" note="e.g. https://anniescarrental.com — used in email links" />
         </div>
-        <p className="text-xs text-stone-400">Without RESEND_API_KEY the confirmation email is skipped but everything else works normally.</p>
+        <p className="text-xs text-[var(--text-tertiary)]">Without RESEND_API_KEY the confirmation email is skipped but everything else works normally.</p>
       </Section>
 
       <Section title="Stripe" description="Payment processing">
@@ -136,7 +136,7 @@ export default function SettingsPage() {
           <EnvRow label="Webhook Secret" envKey="STRIPE_WEBHOOK_SECRET" note="From Stripe dashboard → Webhooks" />
           <EnvRow label="Publishable Key" envKey="VITE_STRIPE_PUBLISHABLE_KEY" note="Frontend (customer site)" />
         </div>
-        <p className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-lg">
+        <p className="text-xs text-[var(--accent-color)] bg-amber-50 px-3 py-2 rounded-lg">
           Currently using test mode keys. Switch to live keys when ready to take real payments.
         </p>
       </Section>

@@ -1,13 +1,14 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, Filter, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { Search, Filter, CheckCircle, XCircle, RefreshCw, BookOpen } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { api } from '../api/client';
 import StatusBadge from '../components/shared/StatusBadge';
 import DataTable from '../components/shared/DataTable';
-import LoadingSpinner from '../components/shared/LoadingSpinner';
 import Modal from '../components/shared/Modal';
 import { format } from 'date-fns';
 
+const EASE = [0.25, 1, 0.5, 1];
 const STATUSES = ['', 'pending_approval', 'approved', 'confirmed', 'active', 'returned', 'completed', 'declined', 'cancelled'];
 
 export default function BookingsPage() {
@@ -15,7 +16,7 @@ export default function BookingsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [actionModal, setActionModal] = useState(null); // { type, booking }
+  const [actionModal, setActionModal] = useState(null);
   const [declineReason, setDeclineReason] = useState('');
   const [actioning, setActioning] = useState(false);
 
@@ -30,11 +31,8 @@ export default function BookingsPage() {
       if (q) params.q = q;
       const res = await api.getBookings(params);
       setBookings(res.data || res);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
   }, [status, q]);
 
   useEffect(() => { fetchBookings(); }, [fetchBookings]);
@@ -58,35 +56,46 @@ export default function BookingsPage() {
 
   const columns = [
     { key: 'booking_code', label: 'Booking', render: b => (
-      <span className="font-mono text-xs font-medium text-stone-700">{b.booking_code}</span>
+      <span className="mono-code text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{b.booking_code}</span>
     )},
     { key: 'customer', label: 'Customer', render: b => (
-      <div>
-        <p className="font-medium text-stone-900">{b.customers?.first_name} {b.customers?.last_name}</p>
-        <p className="text-xs text-stone-400">{b.customers?.email}</p>
+      <div className="flex items-center gap-3">
+        <div
+          className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shrink-0"
+          style={{
+            background: 'linear-gradient(135deg, var(--accent-color), #B8941E)',
+            color: 'var(--accent-fg)',
+          }}
+        >
+          {b.customers?.first_name?.[0]}{b.customers?.last_name?.[0]}
+        </div>
+        <div>
+          <p className="font-medium" style={{ color: 'var(--text-primary)' }}>{b.customers?.first_name} {b.customers?.last_name}</p>
+          <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{b.customers?.email}</p>
+        </div>
       </div>
     )},
     { key: 'vehicle', label: 'Vehicle', render: b => (
-      <span className="text-stone-700">{b.vehicles?.year} {b.vehicles?.make} {b.vehicles?.model}</span>
+      <span style={{ color: 'var(--text-secondary)' }}>{b.vehicles?.year} {b.vehicles?.make} {b.vehicles?.model}</span>
     )},
     { key: 'dates', label: 'Dates', render: b => (
-      <div className="text-xs text-stone-600">
+      <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
         <p>{format(new Date(b.pickup_date), 'MMM d')} → {format(new Date(b.return_date), 'MMM d, yyyy')}</p>
-        <p className="text-stone-400">{b.rental_days}d</p>
+        <p style={{ color: 'var(--text-tertiary)' }}>{b.rental_days}d</p>
       </div>
     )},
     { key: 'status', label: 'Status', render: b => <StatusBadge status={b.status} /> },
     { key: 'total_cost', label: 'Total', render: b => (
-      <span className="font-medium">${Number(b.total_cost).toLocaleString()}</span>
+      <span className="font-bold display-num" style={{ color: 'var(--text-primary)' }}>${Number(b.total_cost).toLocaleString()}</span>
     )},
     { key: 'actions', label: '', render: b => (
       <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
         {b.status === 'pending_approval' && (
           <>
-            <button onClick={() => setActionModal({ type: 'approve', booking: b })} className="btn-primary py-1 px-2.5 text-xs gap-1">
+            <button onClick={() => setActionModal({ type: 'approve', booking: b })} className="btn-primary py-1.5 px-3 text-xs gap-1">
               <CheckCircle size={13} /> Approve
             </button>
-            <button onClick={() => setActionModal({ type: 'decline', booking: b })} className="btn-danger py-1 px-2.5 text-xs gap-1">
+            <button onClick={() => setActionModal({ type: 'decline', booking: b })} className="btn-danger py-1.5 px-3 text-xs gap-1">
               <XCircle size={13} /> Decline
             </button>
           </>
@@ -97,59 +106,67 @@ export default function BookingsPage() {
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-stone-900">Bookings</h1>
-        <button onClick={fetchBookings} className="btn-ghost py-1.5 px-3">
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: EASE }}
+        className="flex items-center justify-between"
+      >
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight display-num" style={{ color: 'var(--text-primary)' }}>Bookings</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-tertiary)' }}>Manage rentals and reservations</p>
+        </div>
+        <button onClick={fetchBookings} className="btn-ghost py-2 px-3">
           <RefreshCw size={14} /> Refresh
         </button>
-      </div>
+      </motion.div>
 
       {/* Filter bar */}
-      <div className="card p-3 flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 flex-1 min-w-[200px]">
-          <Search size={14} className="text-stone-400" />
+      <div className="card p-4 flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2 rounded-xl px-4 py-3 flex-1 min-w-[200px]"
+          style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)' }}>
+          <Search size={15} style={{ color: 'var(--text-tertiary)' }} />
           <input
-            className="bg-transparent text-sm outline-none placeholder-stone-400 flex-1"
+            className="bg-transparent text-sm outline-none flex-1"
+            style={{ color: 'var(--text-primary)' }}
             placeholder="Search booking code…"
             value={q}
             onChange={e => setSearchParams({ status, q: e.target.value })}
           />
         </div>
         <div className="flex items-center gap-2">
-          <Filter size={14} className="text-stone-400" />
+          <Filter size={14} style={{ color: 'var(--text-tertiary)' }} />
           <select
-            className="text-sm border border-stone-200 rounded-lg px-3 py-2 bg-white outline-none focus:ring-2 focus:ring-amber-400"
+            className="input max-w-[200px]"
             value={status}
             onChange={e => setSearchParams({ status: e.target.value, q })}
           >
             {STATUSES.map(s => (
-              <option key={s} value={s}>{s || 'All statuses'}</option>
+              <option key={s} value={s}>{s ? s.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'All statuses'}</option>
             ))}
           </select>
         </div>
       </div>
 
       {/* Table */}
-      <div className="card">
+      <div className="card overflow-hidden">
         <DataTable
           columns={columns}
           data={bookings}
           loading={loading}
           emptyMessage="No bookings found"
+          emptyIcon={BookOpen}
           onRowClick={b => navigate(`/bookings/${b.id}`)}
         />
       </div>
 
       {/* Approve modal */}
-      <Modal
-        open={actionModal?.type === 'approve'}
-        onClose={() => setActionModal(null)}
-        title="Approve Booking"
-      >
+      <Modal open={actionModal?.type === 'approve'} onClose={() => setActionModal(null)} title="Approve Booking">
         <div className="space-y-4">
-          <p className="text-sm text-stone-600">
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
             You're about to approve{' '}
-            <span className="font-mono text-sm font-semibold text-stone-900 bg-stone-100 px-2 py-0.5 rounded">
+            <span className="mono-code text-sm font-semibold px-2 py-0.5 rounded-lg"
+              style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)' }}>
               {actionModal?.booking?.booking_code}
             </span>{' '}
             for {actionModal?.booking?.customers?.first_name} {actionModal?.booking?.customers?.last_name}.
@@ -165,13 +182,9 @@ export default function BookingsPage() {
       </Modal>
 
       {/* Decline modal */}
-      <Modal
-        open={actionModal?.type === 'decline'}
-        onClose={() => setActionModal(null)}
-        title="Decline Booking"
-      >
+      <Modal open={actionModal?.type === 'decline'} onClose={() => setActionModal(null)} title="Decline Booking">
         <div className="space-y-4">
-          <p className="text-sm text-stone-600">
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
             Declining <span className="font-medium">{actionModal?.booking?.booking_code}</span> for{' '}
             {actionModal?.booking?.customers?.first_name} {actionModal?.booking?.customers?.last_name}.
             They'll be notified via SMS/email.

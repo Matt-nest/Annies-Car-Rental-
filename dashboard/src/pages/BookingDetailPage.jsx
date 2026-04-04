@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Phone, Mail, Car, MapPin, CheckCircle, XCircle, Package, RotateCcw, Flag, DollarSign } from 'lucide-react';
 import { api } from '../api/client';
 import StatusBadge from '../components/shared/StatusBadge';
-import LoadingSpinner from '../components/shared/LoadingSpinner';
+import { SkeletonDashboard } from '../components/shared/Skeleton';
 import AgreementSection from '../components/shared/AgreementSection';
 import BookingModals from '../components/shared/BookingModals';
 import BookingTimeline from '../components/shared/BookingTimeline';
@@ -67,8 +67,8 @@ export default function BookingDetailPage() {
     setActioning(false);
   }
 
-  if (loading) return <LoadingSpinner className="min-h-screen" />;
-  if (!booking) return <div className="p-6 text-stone-500">Booking not found</div>;
+  if (loading) return <SkeletonDashboard />;
+  if (!booking) return <div className="p-6 text-[var(--text-secondary)]">Booking not found</div>;
 
   const { status, customers: c, vehicles: v } = booking;
 
@@ -82,10 +82,10 @@ export default function BookingDetailPage() {
           </button>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-semibold text-stone-900 font-mono">{booking.booking_code}</h1>
+              <h1 className="text-xl font-bold display-num mono-code tracking-tight">{booking.booking_code}</h1>
               <StatusBadge status={status} />
             </div>
-            <p className="text-xs text-stone-400 mt-0.5">
+            <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
               Created {format(new Date(booking.created_at), 'MMM d, yyyy h:mm a')}
             </p>
           </div>
@@ -124,7 +124,7 @@ export default function BookingDetailPage() {
             </>
           )}
           {['pending_approval', 'approved', 'confirmed', 'active'].includes(status) && (
-            <button onClick={() => setModal('cancel')} className="btn-ghost text-red-500">
+            <button onClick={() => setModal('cancel')} className="btn-ghost text-[var(--danger-color)]">
               Cancel
             </button>
           )}
@@ -134,12 +134,12 @@ export default function BookingDetailPage() {
       <div className="grid md:grid-cols-2 gap-5">
         {/* Customer */}
         <Section title="Customer">
-          <p className="font-semibold text-stone-900">{c?.first_name} {c?.last_name}</p>
+          <p className="font-semibold text-[var(--text-primary)]">{c?.first_name} {c?.last_name}</p>
           <div className="space-y-2">
-            <a href={`tel:${c?.phone}`} className="flex items-center gap-2 text-sm text-stone-600 hover:text-amber-600">
+            <a href={`tel:${c?.phone}`} className="flex items-center gap-2 text-sm text-[var(--text-secondary)] hover:text-[var(--accent-color)]">
               <Phone size={14} /> {c?.phone}
             </a>
-            <a href={`mailto:${c?.email}`} className="flex items-center gap-2 text-sm text-stone-600 hover:text-amber-600">
+            <a href={`mailto:${c?.email}`} className="flex items-center gap-2 text-sm text-[var(--text-secondary)] hover:text-[var(--accent-color)]">
               <Mail size={14} /> {c?.email}
             </a>
           </div>
@@ -155,12 +155,12 @@ export default function BookingDetailPage() {
         {/* Vehicle */}
         <Section title="Vehicle">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-stone-100 rounded-xl flex items-center justify-center">
-              <Car size={18} className="text-stone-500" />
+            <div className="w-10 h-10 bg-[var(--bg-card)] rounded-xl flex items-center justify-center">
+              <Car size={18} className="text-[var(--text-secondary)]" />
             </div>
             <div>
-              <p className="font-semibold text-stone-900">{v?.year} {v?.make} {v?.model}</p>
-              <p className="text-xs text-stone-400 font-mono">{v?.vehicle_code}</p>
+              <p className="font-semibold text-[var(--text-primary)]">{v?.year} {v?.make} {v?.model}</p>
+              <p className="text-xs text-[var(--text-tertiary)] font-mono">{v?.vehicle_code}</p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -177,12 +177,12 @@ export default function BookingDetailPage() {
             <Field label="Return Date" value={format(new Date(booking.return_date), 'MMM d, yyyy')} />
             <Field label="Return Time" value={booking.return_time} />
           </div>
-          <div className="flex items-start gap-2 text-sm text-stone-600">
+          <div className="flex items-start gap-2 text-sm text-[var(--text-secondary)]">
             <MapPin size={14} className="mt-0.5 shrink-0" />
             {booking.pickup_location}
           </div>
           {booking.delivery_requested && (
-            <p className="text-xs text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg">
+            <p className="text-xs text-[#63b3ed] bg-[rgba(99,179,237,0.07)] px-3 py-1.5 rounded-lg">
               Delivery requested: {booking.delivery_address}
             </p>
           )}
@@ -191,31 +191,31 @@ export default function BookingDetailPage() {
         {/* Pricing */}
         <Section title="Pricing">
           <div className="space-y-1.5 text-sm">
-            <div className="flex justify-between text-stone-600">
+            <div className="flex justify-between text-[var(--text-secondary)]">
               <span>${booking.daily_rate}/day × {booking.rental_days}d</span>
               <span>${booking.subtotal}</span>
             </div>
             {booking.delivery_fee > 0 && (
-              <div className="flex justify-between text-stone-600">
+              <div className="flex justify-between text-[var(--text-secondary)]">
                 <span>Delivery fee</span>
                 <span>${booking.delivery_fee}</span>
               </div>
             )}
             {booking.discount_amount > 0 && (
-              <div className="flex justify-between text-green-600">
+              <div className="flex justify-between text-[#22c55e]">
                 <span>Discount</span>
                 <span>-${booking.discount_amount}</span>
               </div>
             )}
-            <div className="flex justify-between text-stone-600">
+            <div className="flex justify-between text-[var(--text-secondary)]">
               <span>Tax</span>
               <span>${booking.tax_amount}</span>
             </div>
-            <div className="flex justify-between font-semibold text-stone-900 pt-1.5 border-t border-stone-100">
+            <div className="flex justify-between font-semibold text-[var(--text-primary)] pt-1.5 border-t border-[var(--border-subtle)]">
               <span>Total</span>
               <span>${booking.total_cost}</span>
             </div>
-            <div className="flex justify-between text-stone-500">
+            <div className="flex justify-between text-[var(--text-secondary)]">
               <span>Deposit</span>
               <span>${booking.deposit_amount} ({booking.deposit_status})</span>
             </div>
@@ -227,7 +227,7 @@ export default function BookingDetailPage() {
           <div className="grid grid-cols-2 gap-3">
             <Field label="Provider" value={booking.insurance_provider} />
             <div>
-              <p className="text-xs text-stone-400">Status</p>
+              <p className="text-xs text-[var(--text-tertiary)]">Status</p>
               <select
                 className="input text-sm mt-0.5"
                 defaultValue={booking.insurance_status || 'pending'}
@@ -242,7 +242,7 @@ export default function BookingDetailPage() {
               </select>
             </div>
             <div className="col-span-2">
-              <p className="text-xs text-stone-400">Policy ID</p>
+              <p className="text-xs text-[var(--text-tertiary)]">Policy ID</p>
               <input
                 className="input text-sm mt-0.5"
                 defaultValue={booking.bonzah_policy_id || ''}
@@ -259,8 +259,8 @@ export default function BookingDetailPage() {
           
           {booking.rental_agreements?.length > 0 && 
             booking.rental_agreements[0].insurance_company && (
-            <div className="mt-4 pt-4 border-t border-stone-100">
-              <p className="text-sm font-medium text-stone-800 mb-3">Customer Provided Details</p>
+            <div className="mt-4 pt-4 border-t border-[var(--border-subtle)]">
+              <p className="text-sm font-medium text-[var(--text-primary)] mb-3">Customer Provided Details</p>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Company" value={booking.rental_agreements[0].insurance_company} />
                 <Field label="Policy #" value={booking.rental_agreements[0].insurance_policy_number} />
@@ -283,17 +283,17 @@ export default function BookingDetailPage() {
               {booking.payments.map(p => (
                 <div key={p.id} className="flex justify-between text-sm">
                   <div>
-                    <p className="font-medium text-stone-800 capitalize">{p.payment_type} ({p.method})</p>
-                    <p className="text-xs text-stone-400">{p.reference_id}</p>
+                    <p className="font-medium text-[var(--text-primary)] capitalize">{p.payment_type} ({p.method})</p>
+                    <p className="text-xs text-[var(--text-tertiary)]">{p.reference_id}</p>
                   </div>
-                  <span className={`font-medium ${p.payment_type === 'refund' ? 'text-red-600' : 'text-green-600'}`}>
+                  <span className={`font-medium ${p.payment_type === 'refund' ? 'text-[var(--danger-color)]' : 'text-[#22c55e]'}`}>
                     ${p.amount}
                   </span>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-stone-400">No payments recorded</p>
+            <p className="text-sm text-[var(--text-tertiary)]">No payments recorded</p>
           )}
           <div className="flex gap-2">
             <button
@@ -304,7 +304,7 @@ export default function BookingDetailPage() {
             </button>
             <button
               onClick={() => { setPaymentForm(p => ({ ...p, payment_type: 'refund', amount: '' })); setModal('payment'); }}
-              className="btn-ghost flex-1 justify-center text-red-500 hover:bg-red-50"
+              className="btn-ghost flex-1 justify-center text-[var(--danger-color)] hover:bg-[var(--danger-glow)]"
             >
               Issue Refund
             </button>
@@ -329,12 +329,12 @@ export default function BookingDetailPage() {
         <Section title="Notes">
           {booking.special_requests && (
             <div>
-              <p className="text-xs text-stone-400 mb-1">Customer requests</p>
-              <p className="text-sm text-stone-700">{booking.special_requests}</p>
+              <p className="text-xs text-[var(--text-tertiary)] mb-1">Customer requests</p>
+              <p className="text-sm text-[var(--text-secondary)]">{booking.special_requests}</p>
             </div>
           )}
           <div>
-            <p className="text-xs text-stone-400 mb-1">Internal notes (private)</p>
+            <p className="text-xs text-[var(--text-tertiary)] mb-1">Internal notes (private)</p>
             <textarea
               className="input resize-none text-xs"
               rows={3}

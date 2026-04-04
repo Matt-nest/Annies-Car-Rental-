@@ -1,18 +1,22 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { api } from '../api/client';
-import LoadingSpinner from '../components/shared/LoadingSpinner';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, isSameMonth, isToday } from 'date-fns';
+import { SkeletonChartCard } from '../components/shared/Skeleton';
+import EmptyState from '../components/shared/EmptyState';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, isToday } from 'date-fns';
+
+const EASE = [0.25, 1, 0.5, 1];
 
 const STATUS_COLORS = {
   pending_approval: '#f59e0b',
-  approved:         '#3b82f6',
-  confirmed:        '#1d4ed8',
-  active:           '#16a34a',
-  returned:         '#9333ea',
-  completed:        '#6b7280',
-  blocked:          '#d1d5db',
+  approved:         '#63b3ed',
+  confirmed:        '#22c55e',
+  active:           '#22c55e',
+  returned:         '#a78bfa',
+  completed:        '#a8a29e',
+  blocked:          '#737373',
 };
 
 export default function CalendarPage() {
@@ -37,7 +41,6 @@ export default function CalendarPage() {
         ]);
         setVehicles(vs);
         setBookings(bs.data || bs);
-        // Fetch blocked dates for all vehicles in parallel
         const blockedResults = await Promise.all(vs.map(v => api.getBlockedDates(v.id).catch(() => [])));
         setBlocked(blockedResults.flat());
       } catch (e) { console.error(e); }
@@ -51,130 +54,158 @@ export default function CalendarPage() {
   function getBookingsForVehicle(vehicleId) {
     return bookings.filter(b => b.vehicle_id === vehicleId && !['declined', 'cancelled'].includes(b.status));
   }
-
   function getBlockedForVehicle(vehicleId) {
     return blocked.filter(b => b.vehicle_id === vehicleId);
   }
-
   function isCovered(booking, day) {
     const d = format(day, 'yyyy-MM-dd');
     return d >= booking.pickup_date && d <= booking.return_date;
   }
-
-  function isBlocked(blockedDates, day) {
+  function isBlockedDay(blockedDates, day) {
     const d = format(day, 'yyyy-MM-dd');
     return blockedDates.some(b => d >= b.start_date && d <= b.end_date);
   }
 
-  if (loading) return <LoadingSpinner className="min-h-screen" />;
-
   return (
     <div className="p-4 sm:p-6 max-w-full space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-stone-900">Fleet Calendar</h1>
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: EASE }}
+        className="flex items-center justify-between"
+      >
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight display-num" style={{ color: 'var(--text-primary)' }}>Fleet Calendar</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-tertiary)' }}>Vehicle availability at a glance</p>
+        </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setMonth(subMonths(month, 1))} className="btn-ghost p-2">
+          <button onClick={() => setMonth(subMonths(month, 1))} className="btn-ghost p-2.5 rounded-xl" style={{ minWidth: 44, minHeight: 44 }}>
             <ChevronLeft size={18} />
           </button>
-          <span className="text-sm font-medium text-stone-700 min-w-[120px] text-center">
+          <span className="text-sm font-bold min-w-[140px] text-center tracking-tight" style={{ color: 'var(--text-primary)' }}>
             {format(month, 'MMMM yyyy')}
           </span>
-          <button onClick={() => setMonth(addMonths(month, 1))} className="btn-ghost p-2">
+          <button onClick={() => setMonth(addMonths(month, 1))} className="btn-ghost p-2.5 rounded-xl" style={{ minWidth: 44, minHeight: 44 }}>
             <ChevronRight size={18} />
           </button>
-          <button onClick={() => setMonth(new Date())} className="btn-secondary text-xs py-1.5 px-3">Today</button>
+          <button onClick={() => setMonth(new Date())} className="btn-secondary text-xs py-2 px-3">Today</button>
         </div>
-      </div>
+      </motion.div>
 
       {/* Legend */}
       <div className="flex flex-wrap gap-3">
         {Object.entries(STATUS_COLORS).slice(0, 6).map(([s, c]) => (
-          <div key={s} className="flex items-center gap-1.5 text-xs text-stone-600">
-            <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: c }} />
-            <span className="capitalize">{s.replace('_', ' ')}</span>
+          <div key={s} className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded" style={{ backgroundColor: c }} />
+            <span className="text-[10px] uppercase tracking-wider font-semibold capitalize" style={{ color: 'var(--text-tertiary)' }}>{s.replace('_', ' ')}</span>
           </div>
         ))}
-        <div className="flex items-center gap-1.5 text-xs text-stone-600">
-          <div className="w-3 h-3 rounded-sm bg-stone-300" style={{ backgroundImage: 'repeating-linear-gradient(45deg, #9ca3af 0, #9ca3af 1px, transparent 0, transparent 50%)', backgroundSize: '4px 4px' }} />
-          <span>Blocked</span>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded" style={{
+            backgroundColor: 'var(--bg-card-hover)',
+            backgroundImage: 'repeating-linear-gradient(45deg, var(--text-tertiary) 0, var(--text-tertiary) 1px, transparent 0, transparent 50%)',
+            backgroundSize: '4px 4px',
+          }} />
+          <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>Blocked</span>
         </div>
       </div>
 
-      {/* Gantt grid */}
-      <div className="card overflow-x-auto">
-        <div className="min-w-[800px]">
-          {/* Day headers */}
-          <div className="flex border-b border-stone-100" style={{ paddingLeft: '160px' }}>
-            {days.map(day => (
-              <div
-                key={day.toISOString()}
-                className={`flex-1 text-center py-2 text-xs font-medium border-r border-stone-50 min-w-[28px]
-                  ${isToday(day) ? 'bg-amber-50 text-amber-700' : 'text-stone-400'}`}
-              >
-                {format(day, 'd')}
-              </div>
-            ))}
+      {/* Gantt */}
+      {loading ? (
+        <SkeletonChartCard height={400} />
+      ) : vehicles.length === 0 ? (
+        <EmptyState icon={Calendar} title="No vehicles" description="Add vehicles to see the fleet calendar." />
+      ) : (
+        <div className="card overflow-x-auto glass-scroll">
+          <div className="min-w-[800px]">
+            {/* Day headers */}
+            <div className="flex" style={{ paddingLeft: '170px', borderBottom: '1px solid var(--border-subtle)' }}>
+              {days.map(day => (
+                <div
+                  key={day.toISOString()}
+                  className="flex-1 text-center py-2.5 min-w-[28px]"
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: isToday(day) ? 700 : 600,
+                    color: isToday(day) ? 'var(--accent-color)' : 'var(--text-tertiary)',
+                    backgroundColor: isToday(day) ? 'var(--accent-glow)' : 'transparent',
+                    borderRight: '1px solid var(--border-subtle)',
+                  }}
+                >
+                  {format(day, 'd')}
+                </div>
+              ))}
+            </div>
+
+            {/* Vehicle rows */}
+            {vehicles.map(v => {
+              const vBookings = getBookingsForVehicle(v.id);
+              const vBlocked = getBlockedForVehicle(v.id);
+              return (
+                <div
+                  key={v.id}
+                  className="flex min-h-[44px] transition-colors"
+                  style={{ borderBottom: '1px solid var(--border-subtle)' }}
+                  onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-card-hover)'}
+                  onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  {/* Vehicle label */}
+                  <div
+                    className="w-[170px] shrink-0 px-4 py-2.5 flex flex-col justify-center"
+                    style={{ borderRight: '1px solid var(--border-subtle)' }}
+                  >
+                    <p className="text-xs font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{v.year} {v.make} {v.model}</p>
+                    <p className="text-[10px] mono-code" style={{ color: 'var(--text-tertiary)' }}>{v.vehicle_code}</p>
+                  </div>
+
+                  {/* Day cells */}
+                  <div className="flex flex-1">
+                    {days.map(day => {
+                      const booking = vBookings.find(b => isCovered(b, day));
+                      const blockedDay = !booking && isBlockedDay(vBlocked, day);
+                      const isStart = booking && format(day, 'yyyy-MM-dd') === booking.pickup_date;
+
+                      return (
+                        <div
+                          key={day.toISOString()}
+                          className="flex-1 min-w-[28px] relative"
+                          style={{
+                            borderRight: '1px solid var(--border-subtle)',
+                            backgroundColor: booking
+                              ? `${STATUS_COLORS[booking.status] || '#a8a29e'}18`
+                              : isToday(day)
+                              ? 'var(--accent-glow)'
+                              : 'transparent',
+                            backgroundImage: blockedDay
+                              ? 'repeating-linear-gradient(45deg, var(--text-tertiary) 0, var(--text-tertiary) 1px, transparent 0, transparent 50%)'
+                              : undefined,
+                            backgroundSize: blockedDay ? '6px 6px' : undefined,
+                            opacity: blockedDay ? 0.3 : 1,
+                          }}
+                          onClick={() => booking && navigate(`/bookings/${booking.id}`)}
+                          title={blockedDay ? 'Blocked' : booking ? `${booking.booking_code} — ${booking.customers?.first_name}` : undefined}
+                        >
+                          {isStart && (
+                            <div
+                              className="absolute inset-y-1 left-0.5 right-0 rounded flex items-center px-1.5 cursor-pointer overflow-hidden"
+                              style={{ backgroundColor: `${STATUS_COLORS[booking.status] || '#a8a29e'}cc` }}
+                            >
+                              <span className="text-white text-[9px] font-bold truncate">
+                                {booking.customers?.first_name || booking.booking_code}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-
-          {/* Vehicle rows */}
-          {vehicles.map(v => {
-            const vBookings = getBookingsForVehicle(v.id);
-            const vBlocked = getBlockedForVehicle(v.id);
-            return (
-              <div key={v.id} className="flex border-b border-stone-50 hover:bg-stone-50 transition-colors min-h-[44px]">
-                {/* Vehicle label */}
-                <div className="w-40 shrink-0 px-3 py-2 border-r border-stone-100 flex flex-col justify-center">
-                  <p className="text-xs font-medium text-stone-800 truncate">{v.year} {v.make} {v.model}</p>
-                  <p className="text-xs text-stone-400 font-mono">{v.vehicle_code}</p>
-                </div>
-
-                {/* Day cells */}
-                <div className="flex flex-1">
-                  {days.map(day => {
-                    const booking = vBookings.find(b => isCovered(b, day));
-                    const blocked = !booking && isBlocked(vBlocked, day);
-                    const isStart = booking && format(day, 'yyyy-MM-dd') === booking.pickup_date;
-
-                    return (
-                      <div
-                        key={day.toISOString()}
-                        className={`flex-1 border-r border-stone-50 min-w-[28px] relative
-                          ${isToday(day) ? 'bg-amber-50/40' : ''}`}
-                        style={{
-                          backgroundColor: booking
-                            ? `${STATUS_COLORS[booking.status]}22`
-                            : blocked
-                            ? undefined
-                            : undefined,
-                          backgroundImage: blocked
-                            ? 'repeating-linear-gradient(45deg, #d1d5db 0, #d1d5db 1px, transparent 0, transparent 50%)'
-                            : undefined,
-                          backgroundSize: blocked ? '6px 6px' : undefined,
-                        }}
-                        onClick={() => booking && navigate(`/bookings/${booking.id}`)}
-                        title={blocked ? 'Blocked' : undefined}
-                      >
-                        {isStart && (
-                          <div
-                            className="absolute inset-y-1 left-0.5 right-0 rounded-sm flex items-center px-1 cursor-pointer overflow-hidden"
-                            style={{ backgroundColor: STATUS_COLORS[booking.status] + 'cc' }}
-                            title={`${booking.booking_code} — ${booking.customers?.first_name || ''}`}
-                          >
-                            <span className="text-white text-[9px] font-medium truncate">
-                              {booking.customers?.first_name || booking.booking_code}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
         </div>
-      </div>
+      )}
     </div>
   );
 }

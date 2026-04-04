@@ -1,6 +1,7 @@
 import { useState, useEffect, createContext, useContext } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Menu, Bell, Sun, Moon } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from './Sidebar';
 import { useAuth } from '../../auth/AuthProvider';
 import { api } from '../../api/client';
@@ -17,7 +18,6 @@ export default function DashboardLayout() {
     try { return localStorage.getItem('dash-theme') === 'dark'; } catch { return false; }
   });
 
-  // Apply both .dark and .light classes so CSS vars resolve correctly
   useEffect(() => {
     const html = document.documentElement;
     if (dark) {
@@ -29,10 +29,7 @@ export default function DashboardLayout() {
       html.classList.remove('dark');
       localStorage.setItem('dash-theme', 'light');
     }
-    // Cleanup on unmount — remove dashboard theme classes
-    return () => {
-      html.classList.remove('dark', 'light');
-    };
+    return () => { html.classList.remove('dark', 'light'); };
   }, [dark]);
 
   useEffect(() => {
@@ -44,6 +41,8 @@ export default function DashboardLayout() {
       .catch(() => {});
   }, []);
 
+  const totalAlerts = alerts.pending_approvals + alerts.pending_agreements;
+
   return (
     <ThemeContext.Provider value={{ dark, toggle: () => setDark(d => !d) }}>
       <div
@@ -53,60 +52,84 @@ export default function DashboardLayout() {
         <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} alerts={alerts} />
 
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Top bar */}
+          {/* Header — clean, minimal line like frontend nav */}
           <header
-            className="px-4 sm:px-6 py-3 flex items-center justify-between shrink-0 border-b"
+            className="px-4 sm:px-6 h-14 flex items-center justify-between shrink-0"
             style={{
+              borderBottom: '1px solid var(--border-subtle)',
               backgroundColor: 'var(--header-bg)',
-              borderColor: 'var(--border-subtle)',
-              backdropFilter: 'blur(16px)',
-              WebkitBackdropFilter: 'blur(16px)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
             }}
           >
+            {/* Left — hamburger (mobile) */}
             <button
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 rounded-xl -ml-2 transition-colors"
-              style={{ color: 'var(--text-secondary)' }}
-              onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-card)'}
+              className="lg:hidden p-2 rounded-full -ml-2 transition-colors"
+              style={{ color: 'var(--text-secondary)', minWidth: 44, minHeight: 44 }}
+              onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-card-hover)'}
               onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
               aria-label="Open menu"
             >
-              <Menu size={20} />
+              <Menu size={18} />
             </button>
 
             <div className="hidden lg:block" />
 
-            <div className="flex items-center gap-1.5">
-              {/* Dark mode toggle */}
+            {/* Right controls */}
+            <div className="flex items-center gap-1">
+              {/* Theme toggle */}
               <button
                 onClick={() => setDark(d => !d)}
-                className="p-2 rounded-xl transition-all duration-200"
+                className="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
                 style={{ color: 'var(--text-secondary)' }}
-                onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-card)'}
+                onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-card-hover)'}
                 onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                 aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
               >
-                {dark ? <Sun size={17} /> : <Moon size={17} />}
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={dark ? 'sun' : 'moon'}
+                    initial={{ y: -14, opacity: 0, rotate: -60 }}
+                    animate={{ y: 0, opacity: 1, rotate: 0 }}
+                    exit={{ y: 14, opacity: 0, rotate: 60 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                  >
+                    {dark ? (
+                      <Sun size={16} style={{ color: 'var(--accent-color)' }} />
+                    ) : (
+                      <Moon size={16} />
+                    )}
+                  </motion.div>
+                </AnimatePresence>
               </button>
 
+              {/* Notifications */}
               <button
-                className="p-2 rounded-xl transition-all duration-200"
+                className="w-9 h-9 rounded-full flex items-center justify-center transition-colors relative"
                 style={{ color: 'var(--text-secondary)' }}
-                onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-card)'}
+                onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-card-hover)'}
                 onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                 aria-label="Notifications"
               >
-                <Bell size={17} />
+                <Bell size={16} />
+                {totalAlerts > 0 && (
+                  <span
+                    className="absolute top-1 right-1 w-2 h-2 rounded-full pulse-dot"
+                    style={{ backgroundColor: 'var(--danger-color)' }}
+                  />
+                )}
               </button>
 
+              {/* User */}
               <div
-                className="flex items-center gap-2.5 pl-2 ml-1 border-l"
-                style={{ borderColor: 'var(--border-subtle)' }}
+                className="flex items-center gap-2.5 pl-3 ml-2"
+                style={{ borderLeft: '1px solid var(--border-subtle)' }}
               >
                 <div
-                  className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold"
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold"
                   style={{
-                    backgroundColor: 'var(--accent-color)',
+                    background: 'linear-gradient(135deg, var(--accent-color), #B8941E)',
                     color: 'var(--accent-fg)',
                   }}
                 >
@@ -123,7 +146,7 @@ export default function DashboardLayout() {
           </header>
 
           {/* Page content */}
-          <main className="flex-1 overflow-y-auto">
+          <main className="flex-1 overflow-y-auto glass-scroll">
             <Outlet />
           </main>
         </div>

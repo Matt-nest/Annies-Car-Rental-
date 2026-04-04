@@ -24,14 +24,27 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-stone-50 flex items-center justify-center p-4">
+    <div
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{ backgroundColor: 'var(--bg-primary)' }}
+    >
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-amber-100 rounded-2xl mb-4">
-            <Car className="w-7 h-7 text-amber-600" />
+          <div
+            className="inline-flex items-center justify-center w-12 h-12 rounded-xl mb-4"
+            style={{ backgroundColor: 'var(--accent-color)' }}
+          >
+            <Car className="w-6 h-6 text-white" />
           </div>
-          <h1 className="text-2xl font-semibold text-stone-900">Annie's Car Rental</h1>
-          <p className="text-stone-500 text-sm mt-1">Admin Dashboard</p>
+          <h1
+            className="text-2xl font-semibold tracking-tight"
+            style={{ color: 'var(--text-primary)' }}
+          >
+            Annie's <span className="serif-accent">&</span> Co
+          </h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+            Admin Dashboard
+          </p>
         </div>
 
         <div className="card p-6">
@@ -61,8 +74,15 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 p-3 rounded-lg">
-                <AlertCircle size={15} />
+              <div
+                className="flex items-center gap-2 text-sm p-3 rounded-lg"
+                style={{
+                  color: 'var(--danger-color)',
+                  backgroundColor: 'var(--danger-glow)',
+                  border: '1px solid rgba(244,63,94,0.2)',
+                }}
+              >
+                <AlertCircle size={14} />
                 {error}
               </div>
             )}
@@ -70,7 +90,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary w-full justify-center py-2.5"
+              className="btn-primary w-full justify-center"
             >
               {loading ? 'Signing in…' : 'Sign in'}
             </button>

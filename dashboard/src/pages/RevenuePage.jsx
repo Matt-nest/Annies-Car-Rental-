@@ -1,8 +1,29 @@
 import { useEffect, useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
-import { Download } from 'lucide-react';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { Download, DollarSign, TrendingUp, CreditCard } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { api } from '../api/client';
-import LoadingSpinner from '../components/shared/LoadingSpinner';
+import { SkeletonKpi, SkeletonChartCard, SkeletonTable } from '../components/shared/Skeleton';
+import EmptyState from '../components/shared/EmptyState';
+import { format } from 'date-fns';
+
+const EASE = [0.25, 1, 0.5, 1];
+
+const PIE_COLORS = ['#D4AF37', '#22c55e', '#818cf8', '#63b3ed', '#f87171'];
+
+function GlassTooltip({ active, payload, label, prefix = '' }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="glass-tooltip">
+      <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>{label}</p>
+      {payload.map((p, i) => (
+        <p key={i} className="text-xs" style={{ color: p.color || 'var(--text-secondary)' }}>
+          {p.name}: {prefix}{Number(p.value).toLocaleString()}
+        </p>
+      ))}
+    </div>
+  );
+}
 
 function exportCSV(transactions) {
   const headers = ['Date', 'Booking Code', 'Vehicle', 'Subtotal', 'Tax', 'Total', 'Source'];
@@ -25,14 +46,24 @@ function exportCSV(transactions) {
   URL.revokeObjectURL(url);
 }
 
-const PIE_COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#8b5cf6', '#f43f5e'];
-
-function StatCard({ label, value, sub }) {
+function StatCard({ label, value, sub, icon: Icon, accentColor }) {
   return (
     <div className="card p-5">
-      <p className="text-2xl font-semibold text-stone-900">{value}</p>
-      <p className="text-sm text-stone-500 mt-0.5">{label}</p>
-      {sub && <p className="text-xs text-stone-400 mt-0.5">{sub}</p>}
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-2xl font-bold display-num" style={{ color: accentColor || 'var(--text-primary)' }}>{value}</p>
+          <p className="text-sm mt-1.5 font-medium" style={{ color: 'var(--text-secondary)' }}>{label}</p>
+          {sub && <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>{sub}</p>}
+        </div>
+        {Icon && (
+          <div className="p-2.5 rounded-xl" style={{
+            backgroundColor: accentColor ? `${accentColor}18` : 'var(--bg-card-hover)',
+            color: accentColor || 'var(--text-secondary)',
+          }}>
+            <Icon size={18} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -48,131 +79,182 @@ export default function RevenuePage() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <LoadingSpinner className="min-h-screen" />;
+  if (loading) {
+    return (
+      <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-5">
+        <div className="space-y-2">
+          <div className="skeleton skeleton-text" style={{ width: 120, height: 28 }} />
+          <div className="skeleton skeleton-text" style={{ width: 200, height: 14 }} />
+        </div>
+        <SkeletonKpi count={4} />
+        <SkeletonChartCard height={300} />
+        <div className="grid lg:grid-cols-2 gap-4">
+          <SkeletonChartCard height={260} />
+          <SkeletonChartCard height={260} />
+        </div>
+        <SkeletonTable rows={5} cols={6} />
+      </div>
+    );
+  }
 
   const monthData = Object.entries(revenue?.by_month || {})
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, total]) => ({ month, total: Number(total).toFixed(0) }));
+    .map(([month, total]) => ({ month, total: Number(Number(total).toFixed(0)) }));
 
   const vehicleData = Object.entries(revenue?.by_vehicle || {})
     .sort(([, a], [, b]) => b - a)
     .slice(0, 8)
-    .map(([name, total]) => ({ name: name.length > 20 ? name.slice(0, 20) + '…' : name, total: Number(total).toFixed(0) }));
+    .map(([name, total]) => ({ name: name.length > 20 ? name.slice(0, 20) + '…' : name, total: Number(Number(total).toFixed(0)) }));
 
   const sourceData = Object.entries(revenue?.by_source || {})
-    .map(([name, value]) => ({ name, value: Number(value).toFixed(0) }));
+    .map(([name, value]) => ({ name, value: Number(Number(value).toFixed(0)) }));
 
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-stone-900">Revenue</h1>
-        <button
-          onClick={() => exportCSV(revenue?.transactions)}
-          className="btn-secondary text-xs flex items-center gap-1.5"
-        >
-          <Download size={13} /> Export CSV
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-5">
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: EASE }}
+        className="flex items-center justify-between"
+      >
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight display-num" style={{ color: 'var(--text-primary)' }}>Revenue</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-tertiary)' }}>Financial overview and analytics</p>
+        </div>
+        <button onClick={() => exportCSV(revenue?.transactions)} className="btn-secondary">
+          <Download size={14} /> Export CSV
         </button>
-      </div>
+      </motion.div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Revenue" value={`$${Number(revenue?.total || 0).toLocaleString()}`} sub="All time" />
-        <StatCard label="Transactions" value={revenue?.transactions?.length || 0} />
-        <StatCard
-          label="Avg per Booking"
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatCard label="Total Revenue" value={`$${Number(revenue?.total || 0).toLocaleString()}`} sub="All time" icon={DollarSign} accentColor="#22c55e" />
+        <StatCard label="Transactions" value={revenue?.transactions?.length || 0} icon={TrendingUp} />
+        <StatCard label="Avg per Booking" icon={CreditCard} accentColor="#D4AF37"
           value={revenue?.transactions?.length
             ? `$${(Number(revenue.total) / revenue.transactions.length).toFixed(0)}`
             : '$0'}
         />
-        <StatCard
-          label="FL Sales Tax Collected"
-          value={`$${Number(revenue?.total_tax || 0).toLocaleString()}`}
-          sub="7% of subtotal"
-        />
+        <StatCard label="FL Sales Tax" value={`$${Number(revenue?.total_tax || 0).toLocaleString()}`} sub="7% of subtotal" icon={DollarSign} />
       </div>
 
-      {/* Monthly revenue chart */}
-      <div className="card p-5">
-        <h2 className="text-sm font-semibold text-stone-700 mb-4">Monthly Revenue</h2>
-        {monthData.length === 0 ? (
-          <p className="text-sm text-stone-400 text-center py-8">No data yet</p>
-        ) : (
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={monthData} margin={{ top: 0, right: 0, left: -10, bottom: 0 }}>
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#78716c' }} />
-              <YAxis tick={{ fontSize: 11, fill: '#78716c' }} tickFormatter={v => `$${v}`} />
-              <Tooltip formatter={v => [`$${Number(v).toLocaleString()}`, 'Revenue']} />
-              <Bar dataKey="total" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        )}
-      </div>
-
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Revenue by vehicle */}
-        <div className="card p-5">
-          <h2 className="text-sm font-semibold text-stone-700 mb-4">Revenue by Vehicle</h2>
-          {vehicleData.length === 0 ? (
-            <p className="text-sm text-stone-400 text-center py-8">No data yet</p>
+      {/* Monthly chart */}
+      <div className="card overflow-hidden">
+        <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+          <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Monthly Revenue</h2>
+        </div>
+        <div className="p-5" style={{ height: 280 }}>
+          {monthData.length === 0 ? (
+            <EmptyState icon={TrendingUp} title="No revenue data yet" description="Revenue will appear once bookings are completed." />
           ) : (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={vehicleData} layout="vertical" margin={{ top: 0, right: 20, left: 10, bottom: 0 }}>
-                <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={v => `$${v}`} />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#78716c' }} width={120} />
-                <Tooltip formatter={v => [`$${Number(v).toLocaleString()}`, 'Revenue']} />
-                <Bar dataKey="total" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={monthData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-subtle)" />
+                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-tertiary)', fontSize: 11 }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-tertiary)', fontSize: 11 }} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
+                <Tooltip content={<GlassTooltip prefix="$" />} />
+                <Bar dataKey="total" fill="#D4AF37" radius={[6, 6, 0, 0]} barSize={32} name="Revenue" />
               </BarChart>
             </ResponsiveContainer>
           )}
         </div>
+      </div>
 
-        {/* Revenue by source */}
-        <div className="card p-5">
-          <h2 className="text-sm font-semibold text-stone-700 mb-4">Bookings by Source</h2>
-          {sourceData.length === 0 ? (
-            <p className="text-sm text-stone-400 text-center py-8">No data yet</p>
-          ) : (
-            <ResponsiveContainer width="100%" height={220}>
-              <PieChart>
-                <Pie data={sourceData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                  {sourceData.map((_, i) => (
-                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+      <div className="grid lg:grid-cols-2 gap-4">
+        {/* By vehicle */}
+        <div className="card overflow-hidden">
+          <div className="px-5 py-4" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+            <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Revenue by Vehicle</h2>
+          </div>
+          <div className="p-5" style={{ height: 260 }}>
+            {vehicleData.length === 0 ? (
+              <EmptyState icon={TrendingUp} title="No vehicle data" />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={vehicleData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border-subtle)" />
+                  <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-tertiary)', fontSize: 10 }} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
+                  <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} width={130} />
+                  <Tooltip content={<GlassTooltip prefix="$" />} />
+                  <Bar dataKey="total" fill="#818cf8" radius={[0, 6, 6, 0]} barSize={20} name="Revenue" />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+
+        {/* By source */}
+        <div className="card overflow-hidden">
+          <div className="px-5 py-4" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+            <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Bookings by Source</h2>
+          </div>
+          <div className="p-5" style={{ height: 260 }}>
+            {sourceData.length === 0 ? (
+              <EmptyState icon={TrendingUp} title="No source data" />
+            ) : (
+              <div className="flex items-center h-full">
+                <ResponsiveContainer width="55%" height="100%">
+                  <PieChart>
+                    <Pie data={sourceData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={5}>
+                      {sourceData.map((_, i) => (
+                        <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} stroke="none" />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<GlassTooltip prefix="$" />} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="flex-1 space-y-3 pl-2">
+                  {sourceData.map((item, i) => (
+                    <div key={item.name} className="flex items-center gap-2.5">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
+                      <span className="text-xs capitalize flex-1" style={{ color: 'var(--text-secondary)' }}>{item.name}</span>
+                      <span className="text-xs font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>${Number(item.value).toLocaleString()}</span>
+                    </div>
                   ))}
-                </Pie>
-                <Tooltip formatter={v => [`$${Number(v).toLocaleString()}`, 'Revenue']} />
-              </PieChart>
-            </ResponsiveContainer>
-          )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Transaction log */}
-      <div className="card">
-        <div className="px-5 py-4 border-b border-stone-100 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-stone-700">Transactions</h2>
-          <span className="text-xs text-stone-400">{revenue?.transactions?.length || 0} total</span>
+      {/* Transactions */}
+      <div className="card overflow-hidden">
+        <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+          <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Transactions</h2>
+          <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{revenue?.transactions?.length || 0} total</span>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto glass-scroll">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-stone-100">
+              <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                 {['Date', 'Booking', 'Vehicle', 'Subtotal', 'Tax', 'Total', 'Source'].map(h => (
-                  <th key={h} className="text-left text-xs font-medium text-stone-400 px-4 py-3">{h}</th>
+                  <th key={h} className="text-left px-5 py-4 font-bold uppercase" style={{ color: 'var(--text-tertiary)', fontSize: '10px', letterSpacing: '0.08em' }}>{h}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-stone-50">
-              {(revenue?.transactions || []).map((t, i) => (
-                <tr key={i} className="hover:bg-stone-50">
-                  <td className="px-4 py-3 text-stone-500">{t.pickup_date}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-stone-600">{t.booking_code}</td>
-                  <td className="px-4 py-3 text-stone-700">{t.vehicles ? `${t.vehicles.year} ${t.vehicles.make} ${t.vehicles.model}` : '—'}</td>
-                  <td className="px-4 py-3 text-stone-600">${Number(t.total_cost - (t.tax_amount || 0)).toFixed(2)}</td>
-                  <td className="px-4 py-3 text-stone-400">${Number(t.tax_amount || 0).toFixed(2)}</td>
-                  <td className="px-4 py-3 font-medium text-green-700">${Number(t.total_cost).toLocaleString()}</td>
-                  <td className="px-4 py-3 text-stone-500 capitalize">{t.source}</td>
-                </tr>
-              ))}
+            <tbody>
+              {(revenue?.transactions || []).length === 0 ? (
+                <tr><td colSpan="7"><EmptyState icon={DollarSign} title="No transactions yet" /></td></tr>
+              ) : (
+                (revenue?.transactions || []).map((t, i) => (
+                  <tr
+                    key={i}
+                    className="transition-colors"
+                    style={{ borderBottom: '1px solid var(--border-subtle)' }}
+                    onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-card-hover)'}
+                    onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <td className="px-5 py-4 mono-code text-xs" style={{ color: 'var(--text-tertiary)' }}>{t.pickup_date}</td>
+                    <td className="px-5 py-4 mono-code text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{t.booking_code}</td>
+                    <td className="px-5 py-4" style={{ color: 'var(--text-secondary)' }}>{t.vehicles ? `${t.vehicles.year} ${t.vehicles.make} ${t.vehicles.model}` : '—'}</td>
+                    <td className="px-5 py-4 tabular-nums" style={{ color: 'var(--text-secondary)' }}>${Number(t.total_cost - (t.tax_amount || 0)).toFixed(2)}</td>
+                    <td className="px-5 py-4 tabular-nums" style={{ color: 'var(--text-tertiary)' }}>${Number(t.tax_amount || 0).toFixed(2)}</td>
+                    <td className="px-5 py-4 font-bold display-num" style={{ color: '#22c55e' }}>${Number(t.total_cost).toLocaleString()}</td>
+                    <td className="px-5 py-4 capitalize" style={{ color: 'var(--text-secondary)' }}>{t.source}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
