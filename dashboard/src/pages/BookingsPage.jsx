@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, Filter, CheckCircle, XCircle, RefreshCw, BookOpen } from 'lucide-react';
+import { Search, Filter, CheckCircle, XCircle, RefreshCw, BookOpen, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { api } from '../api/client';
 import StatusBadge from '../components/shared/StatusBadge';
@@ -16,6 +16,7 @@ export default function BookingsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [actionModal, setActionModal] = useState(null);
   const [declineReason, setDeclineReason] = useState('');
   const [actioning, setActioning] = useState(false);
@@ -31,7 +32,8 @@ export default function BookingsPage() {
       if (q) params.q = q;
       const res = await api.getBookings(params);
       setBookings(res.data || res);
-    } catch (e) { console.error(e); }
+      setError(null);
+    } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   }, [status, q]);
 
@@ -120,6 +122,14 @@ export default function BookingsPage() {
           <RefreshCw size={14} /> Refresh
         </button>
       </motion.div>
+
+      {error && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm"
+          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: 'var(--danger)' }}>
+          <AlertCircle size={16} className="shrink-0" />
+          {error}
+        </div>
+      )}
 
       {/* Filter bar */}
       <div className="card p-4 flex flex-wrap items-center gap-3">
