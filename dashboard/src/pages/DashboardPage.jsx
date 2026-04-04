@@ -567,20 +567,24 @@ export default function DashboardPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Critical data — must all succeed for the page to be useful
     Promise.all([
       api.getOverview(),
       api.getUpcoming(),
       api.getActivity(10),
-      api.getVehicles(),
     ])
-      .then(([ov, up, act, veh]) => {
+      .then(([ov, up, act]) => {
         setOverview(ov);
         setUpcoming(up);
         setActivity(act);
-        setVehicles(veh || []);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
+
+    // Fleet data — non-critical, fails silently, donut just shows empty
+    api.getVehicles()
+      .then(veh => setVehicles(veh || []))
+      .catch(() => {});
   }, []);
 
   const greeting = useCallback(() => {
