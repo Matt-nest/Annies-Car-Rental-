@@ -135,7 +135,6 @@ export async function createBooking(payload) {
       pickup_location,
       return_location: pickup_location,
       delivery_requested: deliveryRequested,
-      delivery_type,
       delivery_address: deliveryRequested ? delivery_address : null,
       ...pricing,
       deposit_amount: vehicle.deposit_amount || 0,
@@ -143,7 +142,10 @@ export async function createBooking(payload) {
       insurance_status: insurance_status || 'pending',
       bonzah_policy_id,
       status: 'pending_approval',
-      special_requests,
+      special_requests: [
+        delivery_type && delivery_type !== 'pickup' ? `Delivery type: ${delivery_type}` : '',
+        special_requests || '',
+      ].filter(Boolean).join(' | ') || null,
       source,
     })
     .select()
