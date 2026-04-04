@@ -25,31 +25,48 @@ export default function Sidebar({ open, onClose, alerts = {} }) {
       {/* Mobile overlay */}
       {open && (
         <div
-          className="fixed inset-0 bg-black/40 z-30 lg:hidden"
+          className="fixed inset-0 z-30 lg:hidden"
+          style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
           onClick={onClose}
         />
       )}
 
-      <aside className={`
-        fixed inset-y-0 left-0 z-40 w-60
-        bg-white dark:bg-stone-900
-        border-r border-stone-200 dark:border-stone-800
-        flex flex-col transition-transform duration-200
-        ${open ? 'translate-x-0' : '-translate-x-full'}
-        lg:relative lg:translate-x-0 lg:flex
-      `}>
+      <aside
+        className={`
+          fixed inset-y-0 left-0 z-40 w-60 flex flex-col transition-transform duration-300
+          ${open ? 'translate-x-0' : '-translate-x-full'}
+          lg:relative lg:translate-x-0 lg:flex
+        `}
+        style={{
+          backgroundColor: 'var(--sidebar-bg)',
+          borderRight: '1px solid var(--border-subtle)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+        }}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-stone-100 dark:border-stone-800">
+        <div
+          className="flex items-center justify-between px-5 py-4"
+          style={{ borderBottom: '1px solid var(--border-subtle)' }}
+        >
           <div>
-            <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">Annie's Rentals</p>
-            <p className="text-xs text-stone-400 dark:text-stone-500">Admin</p>
+            <p
+              className="text-sm font-semibold tracking-tight"
+              style={{ color: 'var(--text-primary)', fontFamily: 'Playfair Display, Georgia, serif' }}
+            >
+              Annie's Rentals
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>Admin</p>
           </div>
           <button
             onClick={onClose}
-            className="lg:hidden p-1 rounded-md hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-500"
+            className="lg:hidden p-1.5 rounded-lg transition-colors"
+            style={{ color: 'var(--text-secondary)' }}
+            onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-card)'}
+            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
             aria-label="Close menu"
           >
-            <X size={18} />
+            <X size={16} />
           </button>
         </div>
 
@@ -63,18 +80,31 @@ export default function Sidebar({ open, onClose, alerts = {} }) {
                 to={to}
                 end={end}
                 onClick={onClose}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                      : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100'
-                  }`
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group"
+                style={({ isActive }) => isActive
+                  ? { backgroundColor: 'var(--accent-glow)', color: 'var(--accent-color)' }
+                  : { color: 'var(--text-secondary)' }
                 }
+                onMouseEnter={e => {
+                  if (!e.currentTarget.getAttribute('aria-current')) {
+                    e.currentTarget.style.backgroundColor = 'var(--bg-card)';
+                    e.currentTarget.style.color = 'var(--text-primary)';
+                  }
+                }}
+                onMouseLeave={e => {
+                  if (!e.currentTarget.getAttribute('aria-current')) {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                  }
+                }}
               >
-                <Icon size={17} />
+                <Icon size={16} />
                 <span className="flex-1">{label}</span>
                 {count > 0 && (
-                  <span className="bg-amber-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                  <span
+                    className="text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1"
+                    style={{ backgroundColor: 'var(--accent-color)', color: 'var(--accent-fg)' }}
+                  >
                     {count}
                   </span>
                 )}
@@ -84,12 +114,21 @@ export default function Sidebar({ open, onClose, alerts = {} }) {
         </nav>
 
         {/* Sign out */}
-        <div className="px-3 py-4 border-t border-stone-100 dark:border-stone-800">
+        <div className="px-3 py-4" style={{ borderTop: '1px solid var(--border-subtle)' }}>
           <button
             onClick={signOut}
-            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-stone-500 hover:bg-stone-50 hover:text-stone-900 dark:hover:bg-stone-800 dark:hover:text-stone-100 w-full transition-colors"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium w-full transition-all duration-150"
+            style={{ color: 'var(--text-tertiary)' }}
+            onMouseEnter={e => {
+              e.currentTarget.style.backgroundColor = 'var(--bg-card)';
+              e.currentTarget.style.color = 'var(--text-primary)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = 'var(--text-tertiary)';
+            }}
           >
-            <LogOut size={17} />
+            <LogOut size={16} />
             Sign out
           </button>
         </div>
