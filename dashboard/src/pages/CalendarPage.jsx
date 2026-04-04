@@ -76,8 +76,8 @@ export default function CalendarPage() {
         className="flex items-center justify-between"
       >
         <div>
-          <h1 className="text-2xl font-bold tracking-tight display-num" style={{ color: 'var(--text-primary)' }}>Fleet Calendar</h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--text-tertiary)' }}>Vehicle availability at a glance</p>
+          <h1 className="text-2xl font-bold tracking-tight tabular-nums" style={{ color: 'var(--text-primary)' }}>Fleet Calendar</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>Vehicle availability at a glance</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setMonth(subMonths(month, 1))} className="btn-ghost p-2.5 rounded-xl" style={{ minWidth: 44, minHeight: 44 }}>

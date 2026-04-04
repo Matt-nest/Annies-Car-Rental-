@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Eye, EyeOff, ExternalLink, Info } from 'lucide-react';
+import DashboardLayoutSettings from '../components/settings/DashboardLayoutSettings';
 
 function Section({ title, description, children }) {
   return (
@@ -59,7 +60,7 @@ export default function SettingsPage() {
   return (
     <div className="p-4 sm:p-6 max-w-2xl mx-auto space-y-5">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight display-num">Settings</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
         <p className="text-sm text-[var(--text-secondary)] mt-1">Configuration reference — all settings are managed via Vercel environment variables.</p>
       </div>
 
@@ -140,6 +141,8 @@ export default function SettingsPage() {
           Currently using test mode keys. Switch to live keys when ready to take real payments.
         </p>
       </Section>
+
+      <DashboardLayoutSettings />
     </div>
   );
 }

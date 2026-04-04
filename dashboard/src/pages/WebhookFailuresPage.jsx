@@ -25,7 +25,7 @@ export default function WebhookFailuresPage() {
     <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight display-num">Webhook Failures</h1>
+          <h1 className="text-2xl font-bold tracking-tight tabular-nums">Webhook Failures</h1>
           <p className="text-sm text-[var(--text-secondary)] mt-0.5">GHL notifications that failed to deliver</p>
         </div>
         <button onClick={load} className="btn-secondary flex items-center gap-1.5">

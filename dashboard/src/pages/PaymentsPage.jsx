@@ -76,8 +76,8 @@ export default function PaymentsPage() {
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
       >
         <div>
-          <h1 className="text-2xl font-bold tracking-tight display-num" style={{ color: 'var(--text-primary)' }}>Payments Ledger</h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--text-tertiary)' }}>Review all transactions and manage refunds</p>
+          <h1 className="text-2xl font-bold tracking-tight tabular-nums" style={{ color: 'var(--text-primary)' }}>Payments Ledger</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>Review all transactions and manage refunds</p>
         </div>
         <button className="btn-secondary" onClick={loadData}>
           <RefreshCw size={14} /> Sync
@@ -159,7 +159,7 @@ export default function PaymentsPage() {
                           <span className="text-xs">{payment.method}</span>
                         </div>
                       </td>
-                      <td className={`px-5 py-4 text-right font-bold tabular-nums display-num`} style={{ color: isRefund ? 'var(--danger-color)' : '#22c55e' }}>
+                      <td className={`px-5 py-4 text-right font-bold tabular-nums tabular-nums`} style={{ color: isRefund ? 'var(--danger-color)' : '#22c55e' }}>
                         {displayAmount}
                       </td>
                       <td className="px-5 py-4 text-right">

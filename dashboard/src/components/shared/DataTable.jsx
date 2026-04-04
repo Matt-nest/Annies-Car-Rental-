@@ -23,11 +23,12 @@ export default function DataTable({ columns, data, loading, emptyMessage = 'No r
             {columns.map(col => (
               <th
                 key={col.key}
-                className="text-left px-5 py-4 whitespace-nowrap font-bold uppercase"
+                className="text-left px-5 py-3.5 whitespace-nowrap font-semibold uppercase"
                 style={{
                   color: 'var(--text-tertiary)',
                   fontSize: '10px',
                   letterSpacing: '0.08em',
+                  backgroundColor: 'var(--bg-card-hover)',
                 }}
               >
                 {col.label}

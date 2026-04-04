@@ -35,7 +35,7 @@ router.post('/bookings/:bookingId/damage', requireAuth, asyncHandler(async (req,
 }));
 
 /** GET /damage-reports — list all (admin) */
-router.get('/', requireAuth, asyncHandler(async (req, res) => {
+router.get('/damage-reports', requireAuth, asyncHandler(async (req, res) => {
   let query = supabase
     .from('damage_reports')
     .select('*, bookings(booking_code), vehicles(year, make, model)')

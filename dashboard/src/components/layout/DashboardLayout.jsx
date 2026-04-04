@@ -42,6 +42,7 @@ export default function DashboardLayout() {
   }, []);
 
   const totalAlerts = alerts.pending_approvals + alerts.pending_agreements;
+  const initials = user?.email?.[0]?.toUpperCase() || 'A';
 
   return (
     <ThemeContext.Provider value={{ dark, toggle: () => setDark(d => !d) }}>
@@ -51,24 +52,28 @@ export default function DashboardLayout() {
       >
         <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} alerts={alerts} />
 
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Header — clean, minimal line like frontend nav */}
+        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+          {/* Header */}
           <header
-            className="px-4 sm:px-6 h-14 flex items-center justify-between shrink-0"
+            className="flex items-center justify-between px-5 sm:px-6 shrink-0"
             style={{
+              height: '56px',
               borderBottom: '1px solid var(--border-subtle)',
               backgroundColor: 'var(--header-bg)',
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
             }}
           >
-            {/* Left — hamburger (mobile) */}
+            {/* Mobile hamburger */}
             <button
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 rounded-full -ml-2 transition-colors"
-              style={{ color: 'var(--text-secondary)', minWidth: 44, minHeight: 44 }}
-              onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-card-hover)'}
-              onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+              className="lg:hidden flex items-center justify-center rounded-lg transition-colors -ml-1"
+              style={{
+                width: 36, height: 36,
+                color: 'var(--text-secondary)',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-card-hover)')}
+              onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
               aria-label="Open menu"
             >
               <Menu size={18} />
@@ -81,62 +86,61 @@ export default function DashboardLayout() {
               {/* Theme toggle */}
               <button
                 onClick={() => setDark(d => !d)}
-                className="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
-                style={{ color: 'var(--text-secondary)' }}
-                onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-card-hover)'}
-                onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                className="flex items-center justify-center rounded-lg transition-colors"
+                style={{ width: 36, height: 36, color: 'var(--text-secondary)' }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-card-hover)')}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
                 aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
               >
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={dark ? 'sun' : 'moon'}
-                    initial={{ y: -14, opacity: 0, rotate: -60 }}
+                    initial={{ y: -12, opacity: 0, rotate: -45 }}
                     animate={{ y: 0, opacity: 1, rotate: 0 }}
-                    exit={{ y: 14, opacity: 0, rotate: 60 }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                    exit={{ y: 12, opacity: 0, rotate: 45 }}
+                    transition={{ type: 'spring', stiffness: 320, damping: 28 }}
                   >
-                    {dark ? (
-                      <Sun size={16} style={{ color: 'var(--accent-color)' }} />
-                    ) : (
-                      <Moon size={16} />
-                    )}
+                    {dark
+                      ? <Sun size={16} style={{ color: 'var(--accent-color)' }} />
+                      : <Moon size={16} />
+                    }
                   </motion.div>
                 </AnimatePresence>
               </button>
 
               {/* Notifications */}
               <button
-                className="w-9 h-9 rounded-full flex items-center justify-center transition-colors relative"
-                style={{ color: 'var(--text-secondary)' }}
-                onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-card-hover)'}
-                onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                className="flex items-center justify-center rounded-lg transition-colors relative"
+                style={{ width: 36, height: 36, color: 'var(--text-secondary)' }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-card-hover)')}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
                 aria-label="Notifications"
               >
                 <Bell size={16} />
                 {totalAlerts > 0 && (
                   <span
-                    className="absolute top-1 right-1 w-2 h-2 rounded-full pulse-dot"
-                    style={{ backgroundColor: 'var(--danger-color)' }}
+                    className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full pulse-dot"
+                    style={{ backgroundColor: '#ef4444' }}
                   />
                 )}
               </button>
 
               {/* User */}
               <div
-                className="flex items-center gap-2.5 pl-3 ml-2"
+                className="flex items-center gap-2.5 pl-3 ml-1"
                 style={{ borderLeft: '1px solid var(--border-subtle)' }}
               >
                 <div
-                  className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold"
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0"
                   style={{
-                    background: 'linear-gradient(135deg, var(--accent-color), #B8941E)',
+                    background: 'linear-gradient(135deg, var(--accent-color), color-mix(in srgb, var(--accent-color) 70%, #000))',
                     color: 'var(--accent-fg)',
                   }}
                 >
-                  {user?.email?.[0]?.toUpperCase() || 'A'}
+                  {initials}
                 </div>
                 <span
-                  className="hidden sm:block text-sm"
+                  className="hidden sm:block text-sm font-medium truncate max-w-[160px]"
                   style={{ color: 'var(--text-secondary)' }}
                 >
                   {user?.email}

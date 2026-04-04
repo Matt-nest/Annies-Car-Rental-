@@ -6,6 +6,7 @@ import { api } from '../api/client';
 import { SkeletonKpi, SkeletonChartCard, SkeletonTable } from '../components/shared/Skeleton';
 import EmptyState from '../components/shared/EmptyState';
 import { format } from 'date-fns';
+import RevenueHeatmapWidget from '../components/dashboard/widgets/RevenueHeatmapWidget';
 
 const EASE = [0.25, 1, 0.5, 1];
 
@@ -51,7 +52,7 @@ function StatCard({ label, value, sub, icon: Icon, accentColor }) {
     <div className="card p-5">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-2xl font-bold display-num" style={{ color: accentColor || 'var(--text-primary)' }}>{value}</p>
+          <p className="text-2xl font-bold tabular-nums" style={{ color: accentColor || 'var(--text-primary)' }}>{value}</p>
           <p className="text-sm mt-1.5 font-medium" style={{ color: 'var(--text-secondary)' }}>{label}</p>
           {sub && <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>{sub}</p>}
         </div>
@@ -118,8 +119,8 @@ export default function RevenuePage() {
         className="flex items-center justify-between"
       >
         <div>
-          <h1 className="text-2xl font-bold tracking-tight display-num" style={{ color: 'var(--text-primary)' }}>Revenue</h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--text-tertiary)' }}>Financial overview and analytics</p>
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Revenue</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>Financial overview and analytics</p>
         </div>
         <button onClick={() => exportCSV(revenue?.transactions)} className="btn-secondary">
           <Download size={14} /> Export CSV
@@ -250,7 +251,7 @@ export default function RevenuePage() {
                     <td className="px-5 py-4" style={{ color: 'var(--text-secondary)' }}>{t.vehicles ? `${t.vehicles.year} ${t.vehicles.make} ${t.vehicles.model}` : '—'}</td>
                     <td className="px-5 py-4 tabular-nums" style={{ color: 'var(--text-secondary)' }}>${Number(t.total_cost - (t.tax_amount || 0)).toFixed(2)}</td>
                     <td className="px-5 py-4 tabular-nums" style={{ color: 'var(--text-tertiary)' }}>${Number(t.tax_amount || 0).toFixed(2)}</td>
-                    <td className="px-5 py-4 font-bold display-num" style={{ color: '#22c55e' }}>${Number(t.total_cost).toLocaleString()}</td>
+                    <td className="px-5 py-4 font-bold tabular-nums" style={{ color: '#22c55e' }}>${Number(t.total_cost).toLocaleString()}</td>
                     <td className="px-5 py-4 capitalize" style={{ color: 'var(--text-secondary)' }}>{t.source}</td>
                   </tr>
                 ))
@@ -259,6 +260,9 @@ export default function RevenuePage() {
           </table>
         </div>
       </div>
+
+      {/* ── Revenue Heatmap ─────────────────────────────────────────── */}
+      <RevenueHeatmapWidget />
     </div>
   );
 }

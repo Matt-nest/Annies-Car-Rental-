@@ -82,7 +82,7 @@ export default function BookingDetailPage() {
           </button>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold display-num mono-code tracking-tight">{booking.booking_code}</h1>
+              <h1 className="text-xl font-bold tabular-nums mono-code tracking-tight">{booking.booking_code}</h1>
               <StatusBadge status={status} />
             </div>
             <p className="text-xs text-[var(--text-tertiary)] mt-0.5">

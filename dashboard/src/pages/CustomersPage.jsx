@@ -35,8 +35,8 @@ export default function CustomersPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: EASE }}
       >
-        <h1 className="text-2xl font-bold tracking-tight display-num" style={{ color: 'var(--text-primary)' }}>Customers</h1>
-        <p className="text-sm mt-0.5" style={{ color: 'var(--text-tertiary)' }}>Your customer relationships</p>
+        <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Customers</h1>
+        <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>Your customer relationships</p>
       </motion.div>
 
       {/* Search */}
@@ -120,11 +120,11 @@ export default function CustomersPage() {
                   style={{ borderTop: '1px solid var(--border-subtle)' }}
                 >
                   <div>
-                    <p className="text-lg font-bold display-num" style={{ color: 'var(--text-primary)' }}>{c.total_rentals || 0}</p>
+                    <p className="text-lg font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>{c.total_rentals || 0}</p>
                     <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>Rentals</p>
                   </div>
                   <div>
-                    <p className="text-lg font-bold display-num" style={{ color: '#22c55e' }}>${Number(c.total_revenue || 0).toLocaleString()}</p>
+                    <p className="text-lg font-bold tabular-nums" style={{ color: '#22c55e' }}>${Number(c.total_revenue || 0).toLocaleString()}</p>
                     <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>Spent</p>
                   </div>
                   <div>

@@ -26,34 +26,56 @@ export default function LoginPage() {
   return (
     <div
       className="min-h-screen flex items-center justify-center p-4"
-      style={{ backgroundColor: 'var(--bg-primary)' }}
+      style={{ backgroundColor: 'var(--sidebar-bg)' }}
     >
-      <div className="w-full max-w-sm">
+      {/* Subtle background texture */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage: 'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(212,175,55,0.08) 0%, transparent 60%)',
+        }}
+      />
+
+      <div className="w-full max-w-sm relative z-10">
+        {/* Logo */}
         <div className="text-center mb-8">
           <div
-            className="inline-flex items-center justify-center w-12 h-12 rounded-xl mb-4"
-            style={{ backgroundColor: 'var(--accent-color)' }}
+            className="inline-flex items-center justify-center w-12 h-12 rounded-2xl mb-4"
+            style={{ backgroundColor: '#D4AF37' }}
           >
-            <Car className="w-6 h-6 text-white" />
+            <Car size={22} color="#0F172A" strokeWidth={2.2} />
           </div>
           <h1
-            className="text-2xl font-semibold tracking-tight"
-            style={{ color: 'var(--text-primary)' }}
+            className="text-2xl font-bold tracking-tight"
+            style={{ color: 'rgba(255,255,255,0.92)' }}
           >
-            Annie's <span className="serif-accent">&</span> Co
+            Annie's &amp; Co
           </h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+          <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.40)' }}>
             Admin Dashboard
           </p>
         </div>
 
-        <div className="card p-6">
+        {/* Card */}
+        <div
+          className="rounded-2xl p-6"
+          style={{
+            backgroundColor: 'rgba(255,255,255,0.05)',
+            border: '1px solid rgba(255,255,255,0.10)',
+            boxShadow: '0 24px 64px rgba(0,0,0,0.4)',
+          }}
+        >
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="label">Email</label>
+              <label className="label" style={{ color: 'rgba(255,255,255,0.45)' }}>Email</label>
               <input
                 type="email"
                 className="input"
+                style={{
+                  backgroundColor: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  color: 'rgba(255,255,255,0.88)',
+                }}
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="annie@example.com"
@@ -62,10 +84,15 @@ export default function LoginPage() {
               />
             </div>
             <div>
-              <label className="label">Password</label>
+              <label className="label" style={{ color: 'rgba(255,255,255,0.45)' }}>Password</label>
               <input
                 type="password"
                 className="input"
+                style={{
+                  backgroundColor: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  color: 'rgba(255,255,255,0.88)',
+                }}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="••••••••"
@@ -75,11 +102,11 @@ export default function LoginPage() {
 
             {error && (
               <div
-                className="flex items-center gap-2 text-sm p-3 rounded-lg"
+                className="flex items-center gap-2 text-sm p-3 rounded-xl"
                 style={{
-                  color: 'var(--danger-color)',
-                  backgroundColor: 'var(--danger-glow)',
-                  border: '1px solid rgba(244,63,94,0.2)',
+                  color: '#fca5a5',
+                  backgroundColor: 'rgba(239,68,68,0.10)',
+                  border: '1px solid rgba(239,68,68,0.20)',
                 }}
               >
                 <AlertCircle size={14} />
@@ -90,7 +117,15 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary w-full justify-center"
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-sm transition-all"
+              style={{
+                backgroundColor: '#D4AF37',
+                color: '#0F172A',
+                minHeight: 44,
+                opacity: loading ? 0.7 : 1,
+              }}
+              onMouseEnter={e => !loading && (e.currentTarget.style.filter = 'brightness(1.08)')}
+              onMouseLeave={e => (e.currentTarget.style.filter = 'none')}
             >
               {loading ? 'Signing in…' : 'Sign in'}
             </button>

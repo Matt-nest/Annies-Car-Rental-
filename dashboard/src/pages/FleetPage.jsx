@@ -7,6 +7,7 @@ import StatusBadge from '../components/shared/StatusBadge';
 import { SkeletonFleetGrid, SkeletonKpi } from '../components/shared/Skeleton';
 import EmptyState from '../components/shared/EmptyState';
 import Modal from '../components/shared/Modal';
+import DamageSummaryWidget from '../components/dashboard/widgets/DamageSummaryWidget';
 
 const EASE = [0.25, 1, 0.5, 1];
 
@@ -107,8 +108,8 @@ export default function FleetPage() {
         className="flex items-center justify-between"
       >
         <div>
-          <h1 className="text-2xl font-bold tracking-tight display-num" style={{ color: 'var(--text-primary)' }}>Fleet</h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--text-tertiary)' }}>Manage your vehicle inventory</p>
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Fleet</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>Manage your vehicle inventory</p>
         </div>
         <button onClick={() => setAddModal(true)} className="btn-primary">
           <Plus size={16} /> Add Vehicle
@@ -157,7 +158,7 @@ export default function FleetPage() {
                 minHeight: 64,
               }}
             >
-              <p className="text-2xl font-bold display-num" style={{ color: 'var(--text-primary)' }}>
+              <p className="text-2xl font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>
                 {vehicles.filter(v => v.status === s).length}
               </p>
               <p className="text-[10px] uppercase tracking-wider font-semibold capitalize" style={{ color: 'var(--text-tertiary)' }}>{s}</p>
@@ -226,7 +227,7 @@ export default function FleetPage() {
                             onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-card-hover)'}
                             onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                           >
-                            {s === 'available' ? '✓ Available' : s === 'turo' ? '🚗 On Turo' : s === 'maintenance' ? '🔧 Maintenance' : '🚫 Retired'}
+                            {s === 'available' ? 'Available' : s === 'turo' ? 'On Turo' : s === 'maintenance' ? 'Maintenance' : 'Retired'}
                           </button>
                         ))}
                       </div>
@@ -240,7 +241,7 @@ export default function FleetPage() {
                   <p className="font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>{v.year} {v.make} {v.model}</p>
                   <p className="text-xs mono-code mt-0.5" style={{ color: 'var(--text-tertiary)' }}>{v.vehicle_code}</p>
                   <div className="flex items-center justify-between mt-4 pt-3" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-                    <p className="text-lg font-bold display-num" style={{ color: 'var(--accent-color)' }}>${v.daily_rate}</p>
+                    <p className="text-lg font-bold tabular-nums" style={{ color: 'var(--accent-color)' }}>${v.daily_rate}</p>
                     <p className="text-[10px] uppercase font-semibold tracking-wider" style={{ color: 'var(--text-tertiary)' }}>per day</p>
                   </div>
                 </div>
@@ -390,6 +391,9 @@ export default function FleetPage() {
           </div>
         </div>
       </Modal>
+
+      {/* ── Damage Reports ──────────────────────────────────────────── */}
+      <DamageSummaryWidget />
     </div>
   );
 }

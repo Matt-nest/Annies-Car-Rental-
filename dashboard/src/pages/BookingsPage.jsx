@@ -86,7 +86,7 @@ export default function BookingsPage() {
     )},
     { key: 'status', label: 'Status', render: b => <StatusBadge status={b.status} /> },
     { key: 'total_cost', label: 'Total', render: b => (
-      <span className="font-bold display-num" style={{ color: 'var(--text-primary)' }}>${Number(b.total_cost).toLocaleString()}</span>
+      <span className="font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>${Number(b.total_cost).toLocaleString()}</span>
     )},
     { key: 'actions', label: '', render: b => (
       <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
@@ -113,8 +113,8 @@ export default function BookingsPage() {
         className="flex items-center justify-between"
       >
         <div>
-          <h1 className="text-2xl font-bold tracking-tight display-num" style={{ color: 'var(--text-primary)' }}>Bookings</h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--text-tertiary)' }}>Manage rentals and reservations</p>
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Bookings</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>Manage rentals and reservations</p>
         </div>
         <button onClick={fetchBookings} className="btn-ghost py-2 px-3">
           <RefreshCw size={14} /> Refresh
