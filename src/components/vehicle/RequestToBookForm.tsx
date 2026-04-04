@@ -11,9 +11,11 @@ const GHL_FALLBACK_URL = 'https://services.leadconnectorhq.com/hooks/kP7owzBOHxX
 
 function generateFallbackRefCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
-  for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
-  return code;
+  const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const suffix = Array.from({ length: 4 }, () =>
+    chars[Math.floor(Math.random() * chars.length)]
+  ).join('');
+  return `BK-${date}-${suffix}`;
 }
 
 interface RequestToBookFormProps {
