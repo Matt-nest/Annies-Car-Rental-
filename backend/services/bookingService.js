@@ -31,7 +31,8 @@ export async function getBookingDetail(bookingId) {
       customers (*),
       vehicles (*),
       payments (*),
-      booking_status_log (*)
+      booking_status_log (*),
+      rental_agreements (*)
     `)
     .eq('id', bookingId)
     .single();

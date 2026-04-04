@@ -7,10 +7,29 @@ import Modal from './Modal';
 export default function BookingModals({
   modal, setModal, modalInput, setModalInput,
   conditionForm, setConditionForm, damageForm, setDamageForm,
-  paymentForm, setPaymentForm, actioning, doAction,
+  paymentForm, setPaymentForm, actioning, doAction, booking,
 }) {
   return (
     <>
+      <Modal open={modal === 'approve'} onClose={() => setModal(null)} title="Approve Booking">
+        <div className="space-y-4">
+          <p className="text-sm text-stone-600">
+            You're about to approve{' '}
+            <span className="font-mono text-sm font-semibold text-stone-900 bg-stone-100 px-2 py-0.5 rounded">
+              {booking?.booking_code}
+            </span>{' '}
+            for {booking?.customers?.first_name} {booking?.customers?.last_name}.
+            The customer will be notified via SMS/email.
+          </p>
+          <div className="flex gap-3">
+            <button onClick={() => setModal(null)} className="btn-secondary flex-1 justify-center">Cancel</button>
+            <button onClick={() => doAction('approve')} disabled={actioning} className="btn-primary flex-1 justify-center">
+              {actioning ? 'Approving…' : 'Approve Booking'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
       <Modal open={modal === 'decline'} onClose={() => setModal(null)} title="Decline Booking">
         <div className="space-y-4">
           <div>

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { FileText, PenLine, CheckCircle2, Clock, RotateCcw } from 'lucide-react';
+import { FileText, PenLine, CheckCircle2, Clock, RotateCcw, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { api } from '../../api/client';
 import Modal from './Modal';
@@ -86,6 +86,7 @@ export default function AgreementSection({ bookingId }) {
   const [showModal, setShowModal] = useState(false);
   const [hasDrawn, setHasDrawn] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const canvasRef = useRef(null);
 
   const load = useCallback(async () => {
@@ -124,6 +125,26 @@ export default function AgreementSection({ bookingId }) {
       console.error('Counter-sign failed:', e);
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleDownloadPdf() {
+    try {
+      setDownloading(true);
+      const blob = await api.downloadAgreementPdf(bookingId);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Rental_Agreement.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (e) {
+      console.error('Failed to download PDF:', e);
+      alert('Failed to download PDF. Please try again later.');
+    } finally {
+      setDownloading(false);
     }
   }
 
@@ -218,10 +239,20 @@ export default function AgreementSection({ bookingId }) {
           <div className="pt-3 border-t border-stone-100">
             {fullyExecuted ? (
               <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm text-green-700">
-                  <CheckCircle2 size={15} />
-                  Counter-signed by {agreement.owner_signed_by}{' '}
-                  {format(new Date(agreement.owner_signed_at), 'MMM d, yyyy \'at\' h:mm a')}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm text-green-700">
+                    <CheckCircle2 size={15} />
+                    Counter-signed by {agreement.owner_signed_by}{' '}
+                    {format(new Date(agreement.owner_signed_at), 'MMM d, yyyy \'at\' h:mm a')}
+                  </div>
+                  <button 
+                    onClick={handleDownloadPdf}
+                    disabled={downloading}
+                    className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1.5"
+                  >
+                    <Download size={14} />
+                    {downloading ? 'Generating...' : 'Download PDF'}
+                  </button>
                 </div>
                 {agreement.owner_signature_data && (
                   <div>

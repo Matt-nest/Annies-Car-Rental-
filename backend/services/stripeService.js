@@ -1,5 +1,6 @@
 import { getStripe } from '../utils/stripe.js';
 import { supabase } from '../db/supabase.js';
+import { transitionBooking, getBookingDetail } from './bookingService.js';
 
 const stripe = getStripe();
 
@@ -25,10 +26,13 @@ export async function createPaymentIntent(bookingCode) {
     throw Object.assign(new Error('This booking has been ' + booking.status), { status: 400 });
   }
 
-  // Check if there's already a PaymentIntent in Stripe for this booking
-  const existingIntents = await stripe.paymentIntents.search({
-    query: `metadata["booking_id"]:"${booking.id}"`,
-  });
+  // Check if there's already a PaymentIntent in Stripe for this booking.
+  // Use list() instead of search() — search requires special account activation
+  // and is unreliable on new/test accounts.
+  const allIntents = await stripe.paymentIntents.list({ limit: 100 });
+  const existingIntents = {
+    data: allIntents.data.filter(pi => pi.metadata?.booking_id === booking.id),
+  };
 
   const activeIntent = existingIntents.data.find(
     pi => !['canceled', 'succeeded'].includes(pi.status)
@@ -114,6 +118,24 @@ export async function handleWebhookEvent(event) {
         .eq('id', bookingId);
 
       console.log(`[Stripe] Payment succeeded for booking ${pi.metadata.booking_code}: $${pi.amount / 100}`);
+
+      // Check for auto-confirm
+      const booking = await getBookingDetail(bookingId).catch(() => null);
+      if (booking && booking.status === 'approved') {
+        const { data: agreement } = await supabase
+          .from('rental_agreements')
+          .select('id')
+          .eq('booking_id', bookingId)
+          .maybeSingle();
+        
+        if (agreement) {
+          await transitionBooking(bookingId, 'confirmed', {
+            changedBy: 'system',
+            reason: 'Payment completed and agreement already signed'
+          }).catch(e => console.error('[Auto-Confirm Error]', e));
+        }
+      }
+
       break;
     }
 
@@ -197,6 +219,24 @@ export async function confirmPayment(paymentIntentId) {
     .eq('id', bookingId);
 
   console.log(`[Stripe] Payment confirmed for booking ${pi.metadata.booking_code}: $${pi.amount / 100}`);
+
+  // Check for auto-confirm
+  const booking = await getBookingDetail(bookingId).catch(() => null);
+  if (booking && booking.status === 'approved') {
+    const { data: agreement } = await supabase
+      .from('rental_agreements')
+      .select('id')
+      .eq('booking_id', bookingId)
+      .maybeSingle();
+    
+    if (agreement) {
+      await transitionBooking(bookingId, 'confirmed', {
+        changedBy: 'system',
+        reason: 'Payment completed and agreement already signed'
+      }).catch(e => console.error('[Auto-Confirm Error]', e));
+    }
+  }
+
   return { success: true };
 }
 

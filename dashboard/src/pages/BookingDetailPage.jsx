@@ -95,7 +95,7 @@ export default function BookingDetailPage() {
         <div className="flex flex-wrap gap-2 shrink-0">
           {status === 'pending_approval' && (
             <>
-              <button onClick={() => doAction('approve')} className="btn-primary">
+              <button onClick={() => setModal('approve')} className="btn-primary">
                 <CheckCircle size={15} /> Approve
               </button>
               <button onClick={() => setModal('decline')} className="btn-danger">
@@ -256,6 +256,24 @@ export default function BookingDetailPage() {
               />
             </div>
           </div>
+          
+          {booking.rental_agreements?.length > 0 && 
+            booking.rental_agreements[0].insurance_company && (
+            <div className="mt-4 pt-4 border-t border-stone-100">
+              <p className="text-sm font-medium text-stone-800 mb-3">Customer Provided Details</p>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Company" value={booking.rental_agreements[0].insurance_company} />
+                <Field label="Policy #" value={booking.rental_agreements[0].insurance_policy_number} />
+                <Field label="Expiry" value={booking.rental_agreements[0].insurance_expiry} />
+                {booking.rental_agreements[0].insurance_agent_name && (
+                  <Field label="Agent" value={booking.rental_agreements[0].insurance_agent_name} />
+                )}
+                {booking.rental_agreements[0].insurance_agent_phone && (
+                  <Field label="Agent Phone" value={booking.rental_agreements[0].insurance_agent_phone} />
+                )}
+              </div>
+            </div>
+          )}
         </Section>
 
         {/* Payments */}
@@ -342,6 +360,7 @@ export default function BookingDetailPage() {
 
       {/* Action modals */}
       <BookingModals
+        booking={booking}
         modal={modal} setModal={setModal}
         modalInput={modalInput} setModalInput={setModalInput}
         conditionForm={conditionForm} setConditionForm={setConditionForm}

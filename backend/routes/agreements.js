@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { supabase } from '../db/supabase.js';
 import { requireAuth } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
+import { generateRentalAgreementPdf } from '../utils/pdfGenerator.js';
+import { transitionBooking } from '../services/bookingService.js';
 
 const router = Router();
 
@@ -83,7 +85,7 @@ router.get('/:bookingCode', asyncHandler(async (req, res) => {
 router.post('/:bookingCode/sign', asyncHandler(async (req, res) => {
   const { data: booking, error: bErr } = await supabase
     .from('bookings')
-    .select('id, customer_id')
+    .select('id, customer_id, deposit_status, status')
     .eq('booking_code', req.params.bookingCode)
     .single();
 
@@ -166,6 +168,14 @@ router.post('/:bookingCode/sign', asyncHandler(async (req, res) => {
     .update(customerUpdate)
     .eq('id', booking.customer_id);
 
+  // If deposit is already paid, transition to confirmed
+  if (booking.deposit_status === 'paid' && booking.status === 'approved') {
+    await transitionBooking(booking.id, 'confirmed', {
+      changedBy: 'system',
+      reason: 'Agreement signed and payment already completed'
+    }).catch(e => console.error('[Auto-Confirm Error]', e));
+  }
+
   res.json({ success: true, agreementId: agreement.id });
 }));
 
@@ -211,6 +221,45 @@ router.get('/:bookingId/detail', requireAuth, asyncHandler(async (req, res) => {
 
   if (error) throw error;
   res.json(data || { signed: false });
+}));
+
+// ══════════════════════════════════════════════════════════════════════════════
+// GET /agreements/:bookingId/pdf
+// Admin — downloads the signed PDF agreement
+// ══════════════════════════════════════════════════════════════════════════════
+router.get('/:bookingId/pdf', requireAuth, asyncHandler(async (req, res) => {
+  // Fetch agreement
+  const { data: agreement, error: aErr } = await supabase
+    .from('rental_agreements')
+    .select('*')
+    .eq('booking_id', req.params.bookingId)
+    .single();
+
+  if (aErr || !agreement) {
+    return res.status(404).json({ error: 'Agreement not found or not signed' });
+  }
+
+  // Fetch booking details
+  const { data: booking, error: bErr } = await supabase
+    .from('bookings')
+    .select(`
+      *,
+      customers (*),
+      vehicles (*)
+    `)
+    .eq('id', req.params.bookingId)
+    .single();
+
+  if (bErr || !booking) {
+    return res.status(404).json({ error: 'Booking not found' });
+  }
+
+  // Set response headers for PDF download
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="Rental_Agreement_${booking.booking_code}.pdf"`);
+
+  // Generate and send PDF
+  await generateRentalAgreementPdf(agreement, booking, res);
 }));
 
 export default router;

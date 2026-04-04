@@ -58,8 +58,10 @@ export const api = {
   getCustomerBookings: (id) => request(`/customers/${id}/bookings`),
 
   // Payments
+  getAllPayments: (params = {}) => request(`/payments?${new URLSearchParams(params)}`),
   getPayments: (bookingId) => request(`/bookings/${bookingId}/payments`),
   recordPayment: (bookingId, body) => request(`/bookings/${bookingId}/payments`, { method: 'POST', body: JSON.stringify(body) }),
+  issueRefund: (paymentId, body) => request(`/payments/${paymentId}/refund`, { method: 'POST', body: JSON.stringify(body) }),
 
   // Damage
   fileDamageReport: (bookingId, body) => request(`/bookings/${bookingId}/damage`, { method: 'POST', body: JSON.stringify(body) }),
@@ -80,6 +82,14 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ signature_data: signatureData, signature_type: 'drawn' }),
     }),
+  downloadAgreementPdf: async (bookingId) => {
+    const authHeader = await getAuthHeader();
+    const res = await fetch(`${BASE}/agreements/${bookingId}/pdf`, {
+      headers: { ...authHeader }
+    });
+    if (!res.ok) throw new Error('Failed to download PDF');
+    return res.blob();
+  },
 
   // File uploads (multipart — no JSON content-type)
   uploadVehicleImage: async (file) => {

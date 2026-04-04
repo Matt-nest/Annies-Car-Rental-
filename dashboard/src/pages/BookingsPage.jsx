@@ -83,7 +83,7 @@ export default function BookingsPage() {
       <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
         {b.status === 'pending_approval' && (
           <>
-            <button onClick={() => handleApprove(b)} className="btn-primary py-1 px-2.5 text-xs gap-1">
+            <button onClick={() => setActionModal({ type: 'approve', booking: b })} className="btn-primary py-1 px-2.5 text-xs gap-1">
               <CheckCircle size={13} /> Approve
             </button>
             <button onClick={() => setActionModal({ type: 'decline', booking: b })} className="btn-danger py-1 px-2.5 text-xs gap-1">
@@ -139,6 +139,30 @@ export default function BookingsPage() {
           onRowClick={b => navigate(`/bookings/${b.id}`)}
         />
       </div>
+
+      {/* Approve modal */}
+      <Modal
+        open={actionModal?.type === 'approve'}
+        onClose={() => setActionModal(null)}
+        title="Approve Booking"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-stone-600">
+            You're about to approve{' '}
+            <span className="font-mono text-sm font-semibold text-stone-900 bg-stone-100 px-2 py-0.5 rounded">
+              {actionModal?.booking?.booking_code}
+            </span>{' '}
+            for {actionModal?.booking?.customers?.first_name} {actionModal?.booking?.customers?.last_name}.
+            They'll be notified via SMS/email.
+          </p>
+          <div className="flex gap-3">
+            <button onClick={() => setActionModal(null)} className="btn-secondary flex-1 justify-center">Cancel</button>
+            <button onClick={() => handleApprove(actionModal.booking)} disabled={actioning} className="btn-primary flex-1 justify-center">
+              {actioning ? 'Approving…' : 'Approve Booking'}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Decline modal */}
       <Modal

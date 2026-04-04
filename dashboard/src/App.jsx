@@ -11,6 +11,7 @@ import VehicleDetailPage from './pages/VehicleDetailPage';
 import CustomersPage from './pages/CustomersPage';
 import CustomerDetailPage from './pages/CustomerDetailPage';
 import CalendarPage from './pages/CalendarPage';
+import PaymentsPage from './pages/PaymentsPage';
 import RevenuePage from './pages/RevenuePage';
 import SettingsPage from './pages/SettingsPage';
 import WebhookFailuresPage from './pages/WebhookFailuresPage';
@@ -36,6 +37,7 @@ export default function App() {
             <Route path="/customers"  element={<CustomersPage />} />
             <Route path="/customers/:id" element={<CustomerDetailPage />} />
             <Route path="/calendar"   element={<CalendarPage />} />
+            <Route path="/payments"   element={<PaymentsPage />} />
             <Route path="/revenue"    element={<RevenuePage />} />
             <Route path="/settings"   element={<SettingsPage />} />
             <Route path="/webhook-failures" element={<WebhookFailuresPage />} />
