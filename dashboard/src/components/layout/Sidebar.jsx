@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Calendar, Car, Users, BookOpen,
-  TrendingUp, Settings, X, LogOut, AlertTriangle
+  TrendingUp, Settings, X, LogOut, AlertTriangle, CreditCard
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
 
@@ -11,6 +11,7 @@ const NAV = [
   { to: '/fleet',     label: 'Fleet',     icon: Car },
   { to: '/customers', label: 'Customers', icon: Users },
   { to: '/calendar',  label: 'Calendar',  icon: Calendar },
+  { to: '/payments',  label: 'Payments',  icon: CreditCard },
   { to: '/revenue',          label: 'Revenue',          icon: TrendingUp },
   { to: '/settings',         label: 'Settings',         icon: Settings },
   { to: '/webhook-failures', label: 'Webhook Failures', icon: AlertTriangle },
@@ -30,18 +31,24 @@ export default function Sidebar({ open, onClose, alerts = {} }) {
       )}
 
       <aside className={`
-        fixed inset-y-0 left-0 z-40 w-60 bg-white border-r border-stone-200
+        fixed inset-y-0 left-0 z-40 w-60
+        bg-white dark:bg-stone-900
+        border-r border-stone-200 dark:border-stone-800
         flex flex-col transition-transform duration-200
         ${open ? 'translate-x-0' : '-translate-x-full'}
         lg:relative lg:translate-x-0 lg:flex
       `}>
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-stone-100">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-stone-100 dark:border-stone-800">
           <div>
-            <p className="text-sm font-semibold text-stone-900">Annie's Rentals</p>
-            <p className="text-xs text-stone-400">Admin</p>
+            <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">Annie's Rentals</p>
+            <p className="text-xs text-stone-400 dark:text-stone-500">Admin</p>
           </div>
-          <button onClick={onClose} className="lg:hidden p-1 rounded-md hover:bg-stone-100 text-stone-500">
+          <button
+            onClick={onClose}
+            className="lg:hidden p-1 rounded-md hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-500"
+            aria-label="Close menu"
+          >
             <X size={18} />
           </button>
         </div>
@@ -59,8 +66,8 @@ export default function Sidebar({ open, onClose, alerts = {} }) {
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     isActive
-                      ? 'bg-amber-50 text-amber-700'
-                      : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
+                      ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                      : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100'
                   }`
                 }
               >
@@ -77,10 +84,10 @@ export default function Sidebar({ open, onClose, alerts = {} }) {
         </nav>
 
         {/* Sign out */}
-        <div className="px-3 py-4 border-t border-stone-100">
+        <div className="px-3 py-4 border-t border-stone-100 dark:border-stone-800">
           <button
             onClick={signOut}
-            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-stone-500 hover:bg-stone-50 hover:text-stone-900 w-full transition-colors"
+            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-stone-500 hover:bg-stone-50 hover:text-stone-900 dark:hover:bg-stone-800 dark:hover:text-stone-100 w-full transition-colors"
           >
             <LogOut size={17} />
             Sign out

@@ -8,6 +8,9 @@
     @apply bg-stone-50 text-stone-900 antialiased;
     font-family: 'Inter', system-ui, sans-serif;
   }
+  .dark body {
+    @apply bg-stone-950 text-stone-100;
+  }
   * { box-sizing: border-box; }
 }
 
@@ -19,25 +22,47 @@
     @apply btn bg-amber-500 text-white hover:bg-amber-600 focus:ring-amber-400;
   }
   .btn-secondary {
-    @apply btn bg-white text-stone-700 border border-stone-200 hover:bg-stone-50 focus:ring-stone-300;
+    @apply btn bg-white text-stone-700 border border-stone-200 hover:bg-stone-50 focus:ring-stone-300
+           dark:bg-stone-800 dark:text-stone-200 dark:border-stone-700 dark:hover:bg-stone-700;
   }
   .btn-danger {
     @apply btn bg-red-500 text-white hover:bg-red-600 focus:ring-red-400;
   }
   .btn-ghost {
-    @apply btn text-stone-600 hover:bg-stone-100 focus:ring-stone-300;
+    @apply btn text-stone-600 hover:bg-stone-100 focus:ring-stone-300
+           dark:text-stone-400 dark:hover:bg-stone-800;
   }
   .card {
-    @apply bg-white rounded-xl border border-stone-200 shadow-sm;
+    @apply bg-white rounded-xl border border-stone-200 shadow-sm
+           dark:bg-stone-900 dark:border-stone-800;
   }
   .input {
     @apply w-full px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white
-           placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent;
+           placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent
+           dark:bg-stone-800 dark:border-stone-700 dark:text-stone-100 dark:placeholder-stone-500;
   }
   .label {
-    @apply block text-xs font-medium text-stone-500 mb-1;
+    @apply block text-xs font-medium text-stone-500 mb-1 dark:text-stone-400;
   }
   .badge {
     @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
   }
+}
+
+/* Count-up number animation */
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.count-up {
+  animation: countUp 0.4s ease-out forwards;
+}
+
+/* Pulse for alerts */
+@keyframes gentle-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+.pulse-dot {
+  animation: gentle-pulse 2s ease-in-out infinite;
 }
