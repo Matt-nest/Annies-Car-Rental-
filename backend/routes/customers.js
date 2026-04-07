@@ -5,11 +5,11 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 
 const router = Router();
 
-/** GET /customers — list with search */
+/** GET /customers — list with search, includes booking stats */
 router.get('/', requireAuth, asyncHandler(async (req, res) => {
   let query = supabase
     .from('customers')
-    .select('*')
+    .select('*, bookings(id, status, total_cost)')
     .order(req.query.sort || 'created_at', { ascending: false });
 
   if (req.query.q) {
@@ -23,7 +23,21 @@ router.get('/', requireAuth, asyncHandler(async (req, res) => {
 
   const { data, error } = await query;
   if (error) throw error;
-  res.json(data);
+
+  // Compute stats from joined bookings
+  const enriched = (data || []).map(c => {
+    const bks = c.bookings || [];
+    const completedStatuses = ['completed', 'active', 'returned', 'confirmed', 'approved'];
+    const relevantBookings = bks.filter(b => completedStatuses.includes(b.status));
+    return {
+      ...c,
+      total_rentals: bks.length,
+      total_revenue: relevantBookings.reduce((sum, b) => sum + Number(b.total_cost || 0), 0),
+      bookings: undefined, // Don't send full bookings array to list view
+    };
+  });
+
+  res.json(enriched);
 }));
 
 /** GET /customers/:id — detail with booking history */
@@ -39,7 +53,7 @@ router.get('/:id', requireAuth, asyncHandler(async (req, res) => {
 
   const { data: bookings } = await supabase
     .from('bookings')
-    .select('*, vehicles(year, make, model)')
+    .select('*, vehicles(year, make, model), rental_agreements(*)')
     .eq('customer_id', req.params.id)
     .order('created_at', { ascending: false });
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Phone, Mail, User, Calendar, DollarSign } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, User, Calendar, DollarSign, FileText, CreditCard, MapPin, Home } from 'lucide-react';
 import { api } from '../api/client';
 import StatusBadge from '../components/shared/StatusBadge';
 import { SkeletonDashboard } from '../components/shared/Skeleton';
@@ -51,6 +51,11 @@ export default function CustomerDetailPage() {
     }
     load();
   }, [id]);
+
+  // Collect all agreements across bookings for this customer
+  const agreements = customer?.bookings?.flatMap(b => 
+    (b.rental_agreements || []).map(ag => ({ ...ag, booking_code: b.booking_code, booking_id: b.id }))
+  ) || [];
 
   async function saveNotes() {
     if (notes !== (customer.notes || '')) {
@@ -143,6 +148,28 @@ export default function CustomerDetailPage() {
                 <span key={t} className="badge bg-[var(--bg-card)] text-[var(--text-secondary)]">{t}</span>
               ))}
             </div>
+          )}
+        </Section>
+
+        {/* Address & Personal Info */}
+        <Section title="Personal Details" icon={Home}>
+          {(customer.address_line1 || customer.city) ? (
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs text-[var(--text-tertiary)] mb-1">Address</p>
+                <p className="text-sm text-[var(--text-primary)]">
+                  {customer.address_line1}
+                  {customer.city && `, ${customer.city}`}
+                  {customer.state && `, ${customer.state}`}
+                  {' '}{customer.zip}
+                </p>
+              </div>
+              {customer.date_of_birth && (
+                <Field label="Date of Birth" value={customer.date_of_birth} />
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-[var(--text-tertiary)]">Address data will appear once the customer signs a rental agreement.</p>
           )}
         </Section>
 

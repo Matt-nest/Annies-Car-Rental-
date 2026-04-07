@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Phone, Mail, Car, MapPin, CheckCircle, XCircle, Package, RotateCcw, Flag, DollarSign } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, Car, MapPin, CheckCircle, XCircle, Package, RotateCcw, Flag, DollarSign, FileText, Shield, CreditCard, User } from 'lucide-react';
 import { api } from '../api/client';
 import StatusBadge from '../components/shared/StatusBadge';
 import { SkeletonDashboard } from '../components/shared/Skeleton';
@@ -151,6 +151,67 @@ export default function BookingDetailPage() {
             </div>
           )}
         </Section>
+
+        {/* Customer Documents — consolidated from rental agreement + customer record */}
+        {(() => {
+          const ag = booking.rental_agreements?.[0];
+          const hasDL = ag?.driver_license_number || c?.driver_license_number;
+          const hasAddress = ag?.address_line1 || c?.address_line1;
+          const hasIdPhoto = c?.id_photo_url;
+          if (!hasDL && !hasAddress && !hasIdPhoto && !ag) return null;
+          return (
+            <Section title="Customer Documents">
+              {/* Driver's License */}
+              {hasDL && (
+                <div>
+                  <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <CreditCard size={12} /> Driver's License
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="License Number" value={ag?.driver_license_number || c?.driver_license_number} />
+                    <Field label="State" value={ag?.driver_license_state || c?.driver_license_state} />
+                    <Field label="Expiry" value={ag?.driver_license_expiry || c?.driver_license_expiry} />
+                    {(ag?.date_of_birth || c?.date_of_birth) && (
+                      <Field label="Date of Birth" value={ag?.date_of_birth || c?.date_of_birth} />
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Address */}
+              {hasAddress && (
+                <div className={hasDL ? 'pt-3 border-t border-[var(--border-subtle)]' : ''}>
+                  <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <MapPin size={12} /> Address
+                  </p>
+                  <p className="text-sm text-[var(--text-primary)]">
+                    {ag?.address_line1 || c?.address_line1}
+                    {(ag?.city || c?.city) && `, ${ag?.city || c?.city}`}
+                    {(ag?.state || c?.state) && `, ${ag?.state || c?.state}`}
+                    {' '}{ag?.zip || c?.zip}
+                  </p>
+                </div>
+              )}
+
+              {/* Photo ID */}
+              {hasIdPhoto && (
+                <div className={(hasDL || hasAddress) ? 'pt-3 border-t border-[var(--border-subtle)]' : ''}>
+                  <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <User size={12} /> Photo ID
+                  </p>
+                  <a href={c.id_photo_url} target="_blank" rel="noopener noreferrer">
+                    <img
+                      src={c.id_photo_url}
+                      alt="Customer photo ID"
+                      className="h-28 w-auto rounded-lg border border-[var(--border-subtle)] object-cover hover:opacity-90 transition-opacity cursor-pointer"
+                    />
+                  </a>
+                  <p className="text-xs text-[var(--text-tertiary)] mt-1">Click to open full size</p>
+                </div>
+              )}
+            </Section>
+          );
+        })()}
 
         {/* Vehicle */}
         <Section title="Vehicle">
