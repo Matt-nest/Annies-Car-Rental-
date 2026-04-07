@@ -1,6 +1,6 @@
 import { useState, useEffect, createContext, useContext } from 'react';
 import { Outlet } from 'react-router-dom';
-import { Menu, Bell, Sun, Moon, Search } from 'lucide-react';
+import { Menu, Sun, Moon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from './Sidebar';
 import GlobalSearch from './GlobalSearch';
@@ -43,7 +43,7 @@ export default function DashboardLayout() {
       .catch(() => {});
   }, []);
 
-  const totalAlerts = alerts.pending_approvals + alerts.pending_agreements;
+
   const initials = user?.email?.[0]?.toUpperCase() || 'A';
 
   return (

@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { Eye, EyeOff, ExternalLink, Info } from 'lucide-react';
+import { ExternalLink, Info } from 'lucide-react';
 import DashboardLayoutSettings from '../components/settings/DashboardLayoutSettings';
 
 function Section({ title, description, children }) {
@@ -15,7 +14,6 @@ function Section({ title, description, children }) {
 }
 
 function EnvRow({ label, envKey, value, note }) {
-  const [show, setShow] = useState(false);
   return (
     <div className="flex items-start justify-between gap-4 py-2 border-b border-[var(--border-subtle)] last:border-0">
       <div className="min-w-0">
@@ -32,29 +30,6 @@ function EnvRow({ label, envKey, value, note }) {
   );
 }
 
-function WebhookRow({ label, envKey }) {
-  const [show, setShow] = useState(false);
-  const [val, setVal] = useState('');
-  return (
-    <div>
-      <label className="label">{label}</label>
-      <div className="flex gap-2">
-        <input
-          type={show ? 'text' : 'password'}
-          className="input font-mono text-xs flex-1"
-          value={val}
-          onChange={e => setVal(e.target.value)}
-          placeholder="https://services.leadconnectorhq.com/hooks/..."
-          readOnly
-        />
-        <button onClick={() => setShow(s => !s)} className="btn-ghost px-3 py-2 shrink-0">
-          {show ? <EyeOff size={14} /> : <Eye size={14} />}
-        </button>
-      </div>
-      <p className="text-[10px] text-[var(--text-tertiary)] mt-0.5">Env var: {envKey}</p>
-    </div>
-  );
-}
 
 export default function SettingsPage() {
   return (
