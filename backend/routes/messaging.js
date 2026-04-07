@@ -6,6 +6,7 @@ import {
   sendGHLMessage,
   getLocalMessages,
   storeLocalMessage,
+  syncGHLConversations,
 } from '../services/messagingService.js';
 
 const router = Router();
@@ -102,6 +103,14 @@ router.post('/conversations/:customerId/send', requireAuth, asyncHandler(async (
   });
 
   res.json({ success: true, message: stored, ghl: ghlResult });
+}));
+
+// ── GHL Sync ──────────────────────────────────────────────────────────────────
+
+/** POST /sync — pull all GHL conversations into local database */
+router.post('/sync', requireAuth, asyncHandler(async (req, res) => {
+  const result = await syncGHLConversations();
+  res.json(result);
 }));
 
 // ── Email Templates ───────────────────────────────────────────────────────────
