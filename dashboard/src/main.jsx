@@ -8,5 +8,3 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <App />
   </React.StrictMode>
 );
-/* auto-deploy test */
-// auto-deploy verified Tue Apr  7 03:15:18 EDT 2026
