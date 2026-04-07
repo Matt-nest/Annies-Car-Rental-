@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { Menu, Bell, Sun, Moon, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from './Sidebar';
+import GlobalSearch from './GlobalSearch';
 import { useAuth } from '../../auth/AuthProvider';
 import { api } from '../../api/client';
 
@@ -64,19 +65,8 @@ export default function DashboardLayout() {
 
               {/* Right controls */}
               <div className="flex items-center gap-2">
-                {/* Search bar (desktop) — matches template */}
-                <div className="hidden md:flex">
-                  <div className="relative">
-                    <span className="absolute -translate-y-1/2 left-4 top-1/2">
-                      <Search size={20} className="text-gray-500 dark:text-gray-400" />
-                    </span>
-                    <input
-                      type="text"
-                      placeholder="Search bookings, customers…"
-                      className="h-11 w-full rounded-lg border border-gray-200 bg-transparent py-2.5 pl-12 pr-4 text-sm text-gray-800 shadow-xs placeholder:text-gray-400 focus:border-accent-300 focus:outline-none focus:ring-2 focus:ring-accent-500/10 dark:border-gray-800 dark:bg-gray-800 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-accent-800 xl:w-[430px]"
-                    />
-                  </div>
-                </div>
+                {/* Global Search — functional */}
+                <GlobalSearch />
 
                 {/* Theme toggle */}
                 <button

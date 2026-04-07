@@ -75,6 +75,9 @@ export const api = {
   getActivity: (limit = 20) => request(`/stats/activity?limit=${limit}`),
   getWebhookFailures: (limit = 50) => request(`/stats/webhook-failures?limit=${limit}`),
 
+  // Search
+  searchAll: (q) => request(`/search?q=${encodeURIComponent(q)}`),
+
   // Agreements
   getAgreementDetail: (bookingId) => request(`/agreements/${bookingId}/detail`),
   counterSignAgreement: (bookingId, signatureData) =>
