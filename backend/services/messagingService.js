@@ -245,7 +245,9 @@ export async function getGHLMessages(conversationId) {
       return [];
     }
     const data = await res.json();
-    return data.messages || [];
+    // GHL can return { messages: [...] } or { messages: { messages: [...] } }
+    const msgs = data?.messages?.messages || data?.messages;
+    return Array.isArray(msgs) ? msgs : [];
   } catch (err) {
     console.error('[GHL] getMessages error:', err.message);
     return [];
@@ -320,6 +322,7 @@ export async function syncGHLConversations() {
 
       for (const conv of conversations) {
         const messages = await getGHLMessages(conv.id);
+        if (!Array.isArray(messages) || messages.length === 0) continue;
         for (const msg of messages) {
           // Check if already stored
           const { data: existing } = await supabase
