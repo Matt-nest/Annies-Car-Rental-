@@ -24,59 +24,40 @@ function NavItem({ to, label, icon: Icon, end, alertKey, alerts, onClose }) {
   const count = alertKey ? (alerts[alertKey] || 0) : 0;
 
   return (
-    <NavLink
-      to={to}
-      end={end}
-      onClick={onClose}
-      className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 relative group"
-      style={({ isActive }) => isActive
-        ? {
-            backgroundColor: 'var(--sidebar-active-bg)',
-            color: 'var(--sidebar-active-text)',
-          }
-        : {
-            color: 'var(--sidebar-text)',
-          }
-      }
-      onMouseEnter={e => {
-        if (!e.currentTarget.getAttribute('aria-current')) {
-          e.currentTarget.style.backgroundColor = 'var(--sidebar-hover)';
+    <li>
+      <NavLink
+        to={to}
+        end={end}
+        onClick={onClose}
+        className={({ isActive }) =>
+          `group relative flex items-center w-full gap-3 px-3 py-2 font-medium rounded-lg text-sm transition-colors duration-200 ${
+            isActive
+              ? 'bg-brand-50 text-brand-500 dark:bg-[rgba(30,58,95,0.12)] dark:text-[#00D4AA]'
+              : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'
+          }`
         }
-      }}
-      onMouseLeave={e => {
-        if (!e.currentTarget.getAttribute('aria-current')) {
-          e.currentTarget.style.backgroundColor = 'transparent';
-        }
-      }}
-    >
-      {({ isActive }) => (
-        <>
-          {isActive && (
-            <div
-              className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full"
-              style={{ backgroundColor: 'var(--sidebar-active-text)' }}
+      >
+        {({ isActive }) => (
+          <>
+            <Icon
+              size={24}
+              strokeWidth={1.5}
+              className={
+                isActive
+                  ? 'text-brand-500 dark:text-[#00D4AA] shrink-0'
+                  : 'text-gray-500 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-300 shrink-0'
+              }
             />
-          )}
-          <Icon
-            size={18}
-            strokeWidth={isActive ? 2 : 1.7}
-            style={{
-              color: isActive ? 'var(--sidebar-active-icon)' : 'var(--sidebar-text-muted)',
-              flexShrink: 0,
-            }}
-          />
-          <span className="flex-1 truncate">{label}</span>
-          {count > 0 && (
-            <span
-              className="text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shrink-0"
-              style={{ backgroundColor: '#ef4444', color: '#fff' }}
-            >
-              {count}
-            </span>
-          )}
-        </>
-      )}
-    </NavLink>
+            <span className="flex-1 truncate">{label}</span>
+            {count > 0 && (
+              <span className="text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shrink-0 bg-red-500 text-white">
+                {count}
+              </span>
+            )}
+          </>
+        )}
+      </NavLink>
+    </li>
   );
 }
 
@@ -88,112 +69,79 @@ export default function Sidebar({ open, onClose, alerts = {} }) {
       {/* Mobile backdrop */}
       {open && (
         <div
-          className="fixed inset-0 z-30 lg:hidden"
-          style={{ backgroundColor: 'rgba(0,0,0,0.50)', backdropFilter: 'blur(4px)' }}
+          className="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm lg:hidden"
           onClick={onClose}
         />
       )}
 
       <aside
         className={`
-          fixed inset-y-0 left-0 z-40 flex flex-col transition-transform duration-300
+          fixed mt-16 flex flex-col lg:mt-0 top-0 px-5 left-0 h-screen
+          bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800
+          transition-all duration-300 ease-in-out z-[99999] lg:z-[999]
+          w-[290px]
           ${open ? 'translate-x-0' : '-translate-x-full'}
           lg:relative lg:translate-x-0 lg:flex
         `}
-        style={{
-          width: '280px',
-          backgroundColor: 'var(--sidebar-bg)',
-          borderRight: '1px solid var(--sidebar-border)',
-        }}
       >
-        {/* Brand */}
-        <div
-          className="flex items-center justify-between px-5 h-16 shrink-0"
-          style={{ borderBottom: '1px solid var(--sidebar-border)' }}
-        >
+        {/* Logo — matches template py-8 */}
+        <div className="flex items-center justify-between py-8">
           <div className="flex items-center gap-3">
-            <div
-              className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
-              style={{ backgroundColor: '#1E3A5F' }}
-            >
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-brand-500">
               <Car size={16} color="#FFFFFF" strokeWidth={2} />
             </div>
-            <div>
-              <p
-                className="text-[14px] font-semibold tracking-tight leading-tight"
-                style={{ color: 'var(--text-primary)' }}
-              >
-                Annie's &amp; Co
-              </p>
-              <p
-                className="text-[10px] font-semibold uppercase tracking-[0.12em]"
-                style={{ color: 'var(--sidebar-text-muted)' }}
-              >
-                Admin
-              </p>
-            </div>
+            <h1 className="text-2xl font-bold text-brand-500 dark:text-[#00D4AA]">
+              Annie's
+            </h1>
           </div>
 
           <button
             onClick={onClose}
-            className="lg:hidden p-2 rounded-lg transition-colors"
-            style={{ color: 'var(--sidebar-text-muted)', minWidth: 36, minHeight: 36 }}
-            onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--sidebar-hover)')}
-            onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+            className="lg:hidden p-2 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5"
             aria-label="Close menu"
           >
-            <X size={16} />
+            <X size={20} />
           </button>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 overflow-y-auto no-scrollbar">
-          <p
-            className="px-3 text-[10px] font-semibold uppercase tracking-[0.12em] mb-2"
-            style={{ color: 'var(--sidebar-text-muted)' }}
-          >
-            Menu
-          </p>
-          <div className="space-y-0.5">
-            {MAIN_NAV.map(item => (
-              <NavItem key={item.to} {...item} alerts={alerts} onClose={onClose} />
-            ))}
-          </div>
+        {/* Navigation — matches template flex flex-col overflow-y-auto */}
+        <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
+          <nav className="mb-6">
+            <div className="flex flex-col gap-4">
+              {/* Main menu */}
+              <div>
+                <h3 className="mb-4 text-xs uppercase leading-5 text-gray-400 dark:text-gray-500">
+                  Menu
+                </h3>
+                <ul className="flex flex-col gap-1">
+                  {MAIN_NAV.map(item => (
+                    <NavItem key={item.to} {...item} alerts={alerts} onClose={onClose} />
+                  ))}
+                </ul>
+              </div>
 
-          <div
-            className="my-4 mx-3"
-            style={{ height: '1px', backgroundColor: 'var(--sidebar-border)' }}
-          />
+              {/* System */}
+              <div>
+                <h3 className="mb-4 text-xs uppercase leading-5 text-gray-400 dark:text-gray-500">
+                  System
+                </h3>
+                <ul className="flex flex-col gap-1">
+                  {SYSTEM_NAV.map(item => (
+                    <NavItem key={item.to} {...item} alerts={alerts} onClose={onClose} />
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </nav>
+        </div>
 
-          <p
-            className="px-3 text-[10px] font-semibold uppercase tracking-[0.12em] mb-2"
-            style={{ color: 'var(--sidebar-text-muted)' }}
-          >
-            System
-          </p>
-          <div className="space-y-0.5">
-            {SYSTEM_NAV.map(item => (
-              <NavItem key={item.to} {...item} alerts={alerts} onClose={onClose} />
-            ))}
-          </div>
-        </nav>
-
-        {/* Footer */}
-        <div className="px-3 py-3 shrink-0" style={{ borderTop: '1px solid var(--sidebar-border)' }}>
+        {/* Footer — sign out */}
+        <div className="mt-auto py-4 border-t border-gray-200 dark:border-gray-800">
           <button
             onClick={signOut}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium w-full transition-all duration-200"
-            style={{ color: 'var(--sidebar-text)', minHeight: 40 }}
-            onMouseEnter={e => {
-              e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.08)';
-              e.currentTarget.style.color = '#ef4444';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = 'var(--sidebar-text)';
-            }}
+            className="group relative flex items-center w-full gap-3 px-3 py-2 font-medium rounded-lg text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 dark:text-gray-300 dark:hover:bg-red-500/10 dark:hover:text-red-400 transition-colors"
           >
-            <LogOut size={18} strokeWidth={1.7} style={{ color: 'var(--sidebar-text-muted)' }} />
+            <LogOut size={24} strokeWidth={1.5} className="text-gray-500 group-hover:text-red-500 dark:text-gray-400 shrink-0" />
             Sign out
           </button>
         </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect, createContext, useContext } from 'react';
 import { Outlet } from 'react-router-dom';
-import { Menu, Bell, Sun, Moon } from 'lucide-react';
+import { Menu, Bell, Sun, Moon, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from './Sidebar';
 import { useAuth } from '../../auth/AuthProvider';
@@ -46,105 +46,85 @@ export default function DashboardLayout() {
 
   return (
     <ThemeContext.Provider value={{ dark, toggle: () => setDark(d => !d) }}>
-      <div
-        className="flex h-screen overflow-hidden theme-transition"
-        style={{ backgroundColor: 'var(--bg-primary)' }}
-      >
+      <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-900 theme-transition">
         <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} alerts={alerts} />
 
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-          {/* Header */}
-          <header
-            className="flex items-center justify-between px-5 sm:px-6 shrink-0"
-            style={{
-              height: '56px',
-              borderBottom: '1px solid var(--border-subtle)',
-              backgroundColor: 'var(--header-bg)',
-              backdropFilter: 'blur(20px)',
-              WebkitBackdropFilter: 'blur(20px)',
-            }}
-          >
-            {/* Mobile hamburger */}
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="lg:hidden flex items-center justify-center rounded-lg transition-colors -ml-1"
-              style={{
-                width: 36, height: 36,
-                color: 'var(--text-secondary)',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-card-hover)')}
-              onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
-              aria-label="Open menu"
-            >
-              <Menu size={18} />
-            </button>
-
-            <div className="hidden lg:block" />
-
-            {/* Right controls */}
-            <div className="flex items-center gap-1">
-              {/* Theme toggle */}
+          {/* Header — matches template: sticky, white bg, border-b, shadow-theme-xs */}
+          <header className="sticky top-0 flex w-full bg-white border-b border-gray-200 z-[99999] dark:border-gray-800 dark:bg-gray-900">
+            <div className="flex flex-grow items-center justify-between px-4 py-3 shadow-xs dark:shadow-none sm:px-6 md:justify-end">
+              {/* Mobile toggle */}
               <button
-                onClick={() => setDark(d => !d)}
-                className="flex items-center justify-center rounded-lg transition-colors"
-                style={{ width: 36, height: 36, color: 'var(--text-secondary)' }}
-                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-card-hover)')}
-                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
-                aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+                className="z-[99999] flex lg:hidden"
+                onClick={() => setSidebarOpen(true)}
+                aria-label="Toggle sidebar"
               >
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={dark ? 'sun' : 'moon'}
-                    initial={{ y: -12, opacity: 0, rotate: -45 }}
-                    animate={{ y: 0, opacity: 1, rotate: 0 }}
-                    exit={{ y: 12, opacity: 0, rotate: 45 }}
-                    transition={{ type: 'spring', stiffness: 320, damping: 28 }}
-                  >
-                    {dark
-                      ? <Sun size={16} style={{ color: 'var(--accent-color)' }} />
-                      : <Moon size={16} />
-                    }
-                  </motion.div>
-                </AnimatePresence>
+                <Menu size={24} strokeWidth={1.5} />
               </button>
 
-              {/* Notifications */}
-              <button
-                className="flex items-center justify-center rounded-lg transition-colors relative"
-                style={{ width: 36, height: 36, color: 'var(--text-secondary)' }}
-                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-card-hover)')}
-                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
-                aria-label="Notifications"
-              >
-                <Bell size={16} />
-                {totalAlerts > 0 && (
-                  <span
-                    className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full pulse-dot"
-                    style={{ backgroundColor: '#ef4444' }}
-                  />
-                )}
-              </button>
-
-              {/* User */}
-              <div
-                className="flex items-center gap-2.5 pl-3 ml-1"
-                style={{ borderLeft: '1px solid var(--border-subtle)' }}
-              >
-                <div
-                  className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0"
-                  style={{
-                    background: 'linear-gradient(135deg, #1E3A5F, #3f72a2)',
-                    color: '#FFFFFF',
-                  }}
-                >
-                  {initials}
+              {/* Right controls */}
+              <div className="flex items-center gap-2">
+                {/* Search bar (desktop) — matches template */}
+                <div className="hidden md:flex">
+                  <div className="relative">
+                    <span className="absolute -translate-y-1/2 left-4 top-1/2">
+                      <Search size={20} className="text-gray-500 dark:text-gray-400" />
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="Search bookings, customers…"
+                      className="h-11 w-full rounded-lg border border-gray-200 bg-transparent py-2.5 pl-12 pr-4 text-sm text-gray-800 shadow-xs placeholder:text-gray-400 focus:border-accent-300 focus:outline-none focus:ring-2 focus:ring-accent-500/10 dark:border-gray-800 dark:bg-gray-800 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-accent-800 xl:w-[430px]"
+                    />
+                  </div>
                 </div>
-                <span
-                  className="hidden sm:block text-sm font-medium truncate max-w-[160px]"
-                  style={{ color: 'var(--text-secondary)' }}
+
+                {/* Theme toggle */}
+                <button
+                  onClick={() => setDark(d => !d)}
+                  className="relative flex items-center justify-center w-10 h-10 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/5 transition-colors"
+                  aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
                 >
-                  {user?.email}
-                </span>
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={dark ? 'sun' : 'moon'}
+                      initial={{ y: -12, opacity: 0, rotate: -45 }}
+                      animate={{ y: 0, opacity: 1, rotate: 0 }}
+                      exit={{ y: 12, opacity: 0, rotate: 45 }}
+                      transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+                    >
+                      {dark
+                        ? <Sun size={20} className="text-[#00D4AA]" />
+                        : <Moon size={20} />
+                      }
+                    </motion.div>
+                  </AnimatePresence>
+                </button>
+
+                {/* Notifications */}
+                <button
+                  className="relative flex items-center justify-center w-10 h-10 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/5 transition-colors"
+                  aria-label="Notifications"
+                >
+                  <Bell size={20} />
+                  {totalAlerts > 0 && (
+                    <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-500 pulse-dot" />
+                  )}
+                </button>
+
+                {/* User avatar */}
+                <button className="flex items-center gap-3 pl-2">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 bg-brand-500 text-white">
+                    {initials}
+                  </div>
+                  <div className="hidden sm:block text-left">
+                    <p className="text-sm font-medium text-gray-700 dark:text-white/90 truncate max-w-[140px]">
+                      {user?.email?.split('@')[0] || 'Admin'}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Owner
+                    </p>
+                  </div>
+                </button>
               </div>
             </div>
           </header>
