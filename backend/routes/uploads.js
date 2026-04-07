@@ -52,13 +52,13 @@ async function uploadToStorage(bucket, file, folder = '') {
     return urlData.publicUrl;
   }
 
-  // For private buckets, return a signed URL (valid 7 days)
+  // For private buckets, return both the permanent storage path and a temporary signed URL
   const { data: signedData, error: signedError } = await supabase.storage
     .from(bucket)
     .createSignedUrl(data.path, 60 * 60 * 24 * 7); // 7 days
 
   if (signedError) throw signedError;
-  return signedData.signedUrl;
+  return { url: signedData.signedUrl, path: data.path, bucket };
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -71,8 +71,9 @@ router.post('/id-photo', upload.single('file'), asyncHandler(async (req, res) =>
     return res.status(400).json({ error: 'No file uploaded. Field name must be "file".' });
   }
 
-  const url = await uploadToStorage('id-photos', req.file, 'ids');
-  res.json({ url });
+  const result = await uploadToStorage('id-photos', req.file, 'ids');
+  // Return both url (signed, temporary) and path (permanent, for DB storage)
+  res.json({ url: result.url, path: result.path, bucket: result.bucket });
 }));
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -87,6 +88,24 @@ router.post('/vehicle-image', requireAuth, upload.single('file'), asyncHandler(a
 
   const url = await uploadToStorage('vehicle-images', req.file, 'thumbnails');
   res.json({ url });
+}));
+
+// ══════════════════════════════════════════════════════════════════════════════
+// GET /uploads/signed-url?bucket=id-photos&path=ids/abc.jpg
+// Admin only — generates a fresh signed URL for a private storage path
+// ══════════════════════════════════════════════════════════════════════════════
+router.get('/signed-url', requireAuth, asyncHandler(async (req, res) => {
+  const { bucket, path: storagePath } = req.query;
+  if (!bucket || !storagePath) {
+    return res.status(400).json({ error: 'bucket and path query params required' });
+  }
+
+  const { data, error } = await supabase.storage
+    .from(bucket)
+    .createSignedUrl(storagePath, 60 * 60 * 2); // 2 hours
+
+  if (error) throw Object.assign(new Error('Failed to sign URL'), { status: 500 });
+  res.json({ url: data.signedUrl });
 }));
 
 export default router;

@@ -34,6 +34,7 @@ export default function CustomerDetailPage() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notes, setNotes] = useState('');
+  const [lightboxUrl, setLightboxUrl] = useState(null);
 
   useEffect(() => {
     async function load() {
@@ -67,8 +68,9 @@ export default function CustomerDetailPage() {
   if (!customer) return <div className="p-6 text-[var(--text-secondary)]">Customer not found</div>;
 
   const totalSpent = bookings
-    .filter(b => ['completed', 'active', 'returned'].includes(b.status))
+    .filter(b => ['completed', 'active', 'returned', 'confirmed'].includes(b.status))
     .reduce((sum, b) => sum + Number(b.total_cost || 0), 0);
+  const completedCount = bookings.filter(b => b.status === 'completed').length;
 
   return (
     <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-5">
@@ -99,7 +101,7 @@ export default function CustomerDetailPage() {
         </div>
         <div className="card p-4 text-center">
           <p className="text-2xl font-semibold text-[var(--text-primary)]">
-            {customer.total_rentals || bookings.length}
+            {completedCount}
           </p>
           <p className="text-xs text-[var(--text-secondary)]">Completed</p>
         </div>
@@ -132,14 +134,14 @@ export default function CustomerDetailPage() {
           {customer.id_photo_url && (
             <div className="pt-3 border-t border-[var(--border-subtle)]">
               <p className="text-xs text-[var(--text-tertiary)] mb-2">Photo ID</p>
-              <a href={customer.id_photo_url} target="_blank" rel="noopener noreferrer">
+              <button onClick={() => setLightboxUrl(customer.id_photo_url)} className="cursor-pointer">
                 <img
                   src={customer.id_photo_url}
                   alt="Customer photo ID"
-                  className="h-28 w-auto rounded-lg border border-stone-200 object-cover hover:opacity-90 transition-opacity cursor-pointer"
+                  className="h-28 w-auto rounded-lg border border-[var(--border-subtle)] object-cover hover:opacity-80 hover:shadow-md transition-all"
                 />
-              </a>
-              <p className="text-xs text-[var(--text-tertiary)] mt-1">Click to open full size</p>
+              </button>
+              <p className="text-xs text-[var(--text-tertiary)] mt-1">Click to enlarge</p>
             </div>
           )}
           {customer.tags?.length > 0 && (
@@ -169,7 +171,10 @@ export default function CustomerDetailPage() {
               )}
             </div>
           ) : (
-            <p className="text-sm text-[var(--text-tertiary)]">Address data will appear once the customer signs a rental agreement.</p>
+            <div className="flex items-center gap-2">
+              <MapPin size={14} className="text-[var(--text-tertiary)]" />
+              <p className="text-sm text-[var(--text-tertiary)]">Address will appear once the customer completes a rental agreement.</p>
+            </div>
           )}
         </Section>
 
@@ -224,6 +229,32 @@ export default function CustomerDetailPage() {
           </div>
         )}
       </Section>
+
+      {/* Photo Lightbox */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm cursor-zoom-out"
+          onClick={() => setLightboxUrl(null)}
+          onKeyDown={e => e.key === 'Escape' && setLightboxUrl(null)}
+          role="dialog"
+          aria-label="Photo viewer"
+          tabIndex={-1}
+        >
+          <img
+            src={lightboxUrl}
+            alt="Customer photo ID — full size"
+            className="max-h-[85vh] max-w-[90vw] rounded-2xl shadow-2xl object-contain"
+            onClick={e => e.stopPropagation()}
+          />
+          <button
+            className="absolute top-6 right-6 text-white/70 hover:text-white text-2xl font-bold transition-colors"
+            onClick={() => setLightboxUrl(null)}
+            aria-label="Close photo viewer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
     </div>
   );
 }

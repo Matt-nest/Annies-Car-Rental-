@@ -25,6 +25,7 @@ export default function BookingDetailPage() {
   const [paymentForm, setPaymentForm] = useState({ payment_type: 'rental', amount: '', method: 'cash', reference_id: '', notes: '' });
   const [conditionForm, setConditionForm] = useState({ fuel: 'full', notes: '', photoUrl: '' });
   const [damageForm, setDamageForm] = useState({ description: '', severity: 'minor', estimated_cost: '', photo_url: '' });
+  const [lightboxUrl, setLightboxUrl] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -199,14 +200,14 @@ export default function BookingDetailPage() {
                   <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2 flex items-center gap-1.5">
                     <User size={12} /> Photo ID
                   </p>
-                  <a href={c.id_photo_url} target="_blank" rel="noopener noreferrer">
+                  <button onClick={() => setLightboxUrl(c.id_photo_url)} className="cursor-pointer">
                     <img
                       src={c.id_photo_url}
                       alt="Customer photo ID"
-                      className="h-28 w-auto rounded-lg border border-[var(--border-subtle)] object-cover hover:opacity-90 transition-opacity cursor-pointer"
+                      className="h-28 w-auto rounded-lg border border-[var(--border-subtle)] object-cover hover:opacity-80 hover:shadow-md transition-all"
                     />
-                  </a>
-                  <p className="text-xs text-[var(--text-tertiary)] mt-1">Click to open full size</p>
+                  </button>
+                  <p className="text-xs text-[var(--text-tertiary)] mt-1">Click to enlarge</p>
                 </div>
               )}
             </Section>
@@ -351,7 +352,7 @@ export default function BookingDetailPage() {
                     </div>
                   </div>
                   <span className={`font-semibold tabular-nums ${p.payment_type === 'refund' ? 'text-[var(--danger-color)]' : 'text-[#22c55e]'}`}>
-                    {p.payment_type === 'refund' ? '-' : '+'}${p.amount}
+                    {p.payment_type === 'refund' ? '-' : '+'}${Math.abs(Number(p.amount)).toFixed(2)}
                   </span>
                 </div>
               ))}
@@ -447,6 +448,32 @@ export default function BookingDetailPage() {
         paymentForm={paymentForm} setPaymentForm={setPaymentForm}
         actioning={actioning} doAction={doAction}
       />
+
+      {/* Photo Lightbox */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm cursor-zoom-out"
+          onClick={() => setLightboxUrl(null)}
+          onKeyDown={e => e.key === 'Escape' && setLightboxUrl(null)}
+          role="dialog"
+          aria-label="Photo viewer"
+          tabIndex={-1}
+        >
+          <img
+            src={lightboxUrl}
+            alt="Customer photo ID — full size"
+            className="max-h-[85vh] max-w-[90vw] rounded-2xl shadow-2xl object-contain"
+            onClick={e => e.stopPropagation()}
+          />
+          <button
+            className="absolute top-6 right-6 text-white/70 hover:text-white text-2xl font-bold transition-colors"
+            onClick={() => setLightboxUrl(null)}
+            aria-label="Close photo viewer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
     </div>
   );
 }

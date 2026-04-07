@@ -78,8 +78,8 @@ export default function DashboardPage() {
 
   const greeting = useCallback(() => {
     const h = new Date().getHours();
-    if (h < 12) return 'Good morning';
-    if (h < 17) return 'Good afternoon';
+    if (h >= 5 && h < 12) return 'Good morning';
+    if (h >= 12 && h < 18) return 'Good afternoon';
     return 'Good evening';
   }, []);
 

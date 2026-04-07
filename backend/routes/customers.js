@@ -9,7 +9,7 @@ const router = Router();
 router.get('/', requireAuth, asyncHandler(async (req, res) => {
   let query = supabase
     .from('customers')
-    .select('*, bookings(id, status, total_cost)')
+    .select('*')
     .order(req.query.sort || 'created_at', { ascending: false });
 
   if (req.query.q) {
@@ -24,16 +24,31 @@ router.get('/', requireAuth, asyncHandler(async (req, res) => {
   const { data, error } = await query;
   if (error) throw error;
 
-  // Compute stats from joined bookings
+  // Fetch booking stats for each customer via explicit query (not join)
+  const customerIds = (data || []).map(c => c.id);
+
+  let bookingsByCustomer = {};
+  if (customerIds.length > 0) {
+    const { data: allBookings } = await supabase
+      .from('bookings')
+      .select('id, customer_id, status, total_cost')
+      .in('customer_id', customerIds);
+
+    for (const b of (allBookings || [])) {
+      if (!bookingsByCustomer[b.customer_id]) bookingsByCustomer[b.customer_id] = [];
+      bookingsByCustomer[b.customer_id].push(b);
+    }
+  }
+
+  const revenueStatuses = ['completed', 'active', 'returned', 'confirmed', 'approved'];
+
   const enriched = (data || []).map(c => {
-    const bks = c.bookings || [];
-    const completedStatuses = ['completed', 'active', 'returned', 'confirmed', 'approved'];
-    const relevantBookings = bks.filter(b => completedStatuses.includes(b.status));
+    const bks = bookingsByCustomer[c.id] || [];
+    const revBookings = bks.filter(b => revenueStatuses.includes(b.status));
     return {
       ...c,
       total_rentals: bks.length,
-      total_revenue: relevantBookings.reduce((sum, b) => sum + Number(b.total_cost || 0), 0),
-      bookings: undefined, // Don't send full bookings array to list view
+      total_revenue: revBookings.reduce((sum, b) => sum + Number(b.total_cost || 0), 0),
     };
   });
 
