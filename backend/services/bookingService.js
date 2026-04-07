@@ -4,6 +4,7 @@ import { checkAvailability } from './availabilityService.js';
 import { calcRentalDays, calcPricing, DELIVERY_FEES } from './pricingService.js';
 import { fireGHLWebhook, buildBookingPayload } from './ghlWebhook.js';
 import { sendBookingConfirmation } from './emailService.js';
+import { createNotification } from './notificationService.js';
 
 // Valid one-way status transitions
 const TRANSITIONS = {
@@ -193,6 +194,15 @@ export async function createBooking(payload) {
     vehicle: vehicle.year && vehicle.make ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : null,
   }).catch(err => console.error('[Email] Confirmation email failed:', err));
 
+  // 10. Dashboard notification
+  createNotification(
+    'new_booking',
+    `New booking: ${booking_code}`,
+    `${customer.first_name} ${customer.last_name} — ${vehicle.year} ${vehicle.make} ${vehicle.model}`,
+    `/bookings/${booking.id}`,
+    { booking_id: booking.id, booking_code }
+  ).catch(() => {});
+
   return booking;
 }
 
@@ -242,6 +252,20 @@ export async function transitionBooking(bookingId, newStatus, { changedBy = 'own
   if (ghlEventMap[newStatus]) {
     const updated = await getBookingDetail(bookingId);
     fireGHLWebhook(ghlEventMap[newStatus], buildBookingPayload(updated));
+  }
+
+  // Dashboard notification for status changes
+  const statusLabels = { approved: 'approved', declined: 'declined', cancelled: 'cancelled', active: 'picked up', returned: 'returned', completed: 'completed' };
+  if (statusLabels[newStatus]) {
+    const label = statusLabels[newStatus];
+    const cName = `${booking.customers?.first_name || ''} ${booking.customers?.last_name || ''}`.trim();
+    createNotification(
+      'status_change',
+      `Booking ${booking.booking_code} ${label}`,
+      cName ? `${cName}'s booking has been ${label}` : undefined,
+      `/bookings/${bookingId}`,
+      { booking_id: bookingId, new_status: newStatus }
+    ).catch(() => {});
   }
 
   return { success: true, booking_code: booking.booking_code, new_status: newStatus };

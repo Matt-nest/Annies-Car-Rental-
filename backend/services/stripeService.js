@@ -1,6 +1,7 @@
 import { getStripe } from '../utils/stripe.js';
 import { supabase } from '../db/supabase.js';
 import { transitionBooking, getBookingDetail } from './bookingService.js';
+import { createNotification } from './notificationService.js';
 
 const stripe = getStripe();
 
@@ -118,6 +119,15 @@ export async function handleWebhookEvent(event) {
         .eq('id', bookingId);
 
       console.log(`[Stripe] Payment succeeded for booking ${pi.metadata.booking_code}: $${pi.amount / 100}`);
+
+      // Dashboard notification
+      createNotification(
+        'payment_received',
+        `Payment received: $${(pi.amount / 100).toFixed(2)}`,
+        `Booking ${pi.metadata.booking_code} — ${pi.metadata.customer_name || ''}`,
+        `/bookings/${bookingId}`,
+        { booking_id: bookingId, amount: pi.amount / 100 }
+      ).catch(() => {});
 
       // Check for auto-confirm
       const booking = await getBookingDetail(bookingId).catch(() => null);

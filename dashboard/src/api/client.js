@@ -78,6 +78,12 @@ export const api = {
   // Search
   searchAll: (q) => request(`/search?q=${encodeURIComponent(q)}`),
 
+  // Notifications
+  getNotifications: (limit = 50) => request(`/notifications?limit=${limit}`),
+  getUnreadCount: () => request('/notifications/unread-count'),
+  markNotificationRead: (id) => request(`/notifications/${id}/read`, { method: 'PATCH' }),
+  markAllNotificationsRead: () => request('/notifications/read-all', { method: 'PATCH' }),
+
   // Agreements
   getAgreementDetail: (bookingId) => request(`/agreements/${bookingId}/detail`),
   counterSignAgreement: (bookingId, signatureData) =>

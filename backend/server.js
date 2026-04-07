@@ -14,6 +14,7 @@ import uploadRoutes from './routes/uploads.js';
 import agreementRoutes from './routes/agreements.js';
 import statsRoutes from './routes/stats.js';
 import searchRoutes from './routes/search.js';
+import notificationRoutes from './routes/notifications.js';
 import cronRoutes from './routes/cron.js';
 import { startCronJobs } from './services/cronJobs.js';
 
@@ -49,6 +50,7 @@ app.use('/api/v1/bookings',   bookingRoutes);
 app.use('/api/v1/customers',  customerRoutes);
 app.use('/api/v1/stats',      statsRoutes);
 app.use('/api/v1/search',     searchRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
 
 // Payment routes share /bookings/:id prefix and standalone /payments/:id
 app.use('/api/v1', paymentRoutes);

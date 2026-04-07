@@ -4,6 +4,7 @@ import { Menu, Bell, Sun, Moon, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from './Sidebar';
 import GlobalSearch from './GlobalSearch';
+import NotificationDropdown from './NotificationDropdown';
 import { useAuth } from '../../auth/AuthProvider';
 import { api } from '../../api/client';
 
@@ -91,15 +92,7 @@ export default function DashboardLayout() {
                 </button>
 
                 {/* Notifications */}
-                <button
-                  className="relative flex items-center justify-center w-10 h-10 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/5 transition-colors"
-                  aria-label="Notifications"
-                >
-                  <Bell size={20} />
-                  {totalAlerts > 0 && (
-                    <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-500 pulse-dot" />
-                  )}
-                </button>
+                <NotificationDropdown />
 
                 {/* User avatar */}
                 <button className="flex items-center gap-3 pl-2">
