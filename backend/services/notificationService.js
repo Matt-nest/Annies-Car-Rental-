@@ -5,20 +5,26 @@ import { supabase } from '../db/supabase.js';
  * Called from various services when events occur.
  */
 export async function createNotification(type, title, message, link = null, metadata = {}) {
-  const { data, error } = await supabase.from('notifications').insert({
-    type,
-    title,
-    message,
-    link,
-    metadata,
-  }).select().single();
+  try {
+    const { error } = await supabase.from('notifications').insert({
+      type,
+      title,
+      message,
+      link,
+      metadata,
+    });
 
-  if (error) {
-    console.error('[Notification] Failed to create:', error.message);
+    if (error) {
+      console.error('[Notification] Insert failed:', error.message, error.details, error.hint);
+      return null;
+    }
+
+    console.log(`[Notification] Created: ${type} — ${title}`);
+    return { success: true };
+  } catch (e) {
+    console.error('[Notification] Exception:', e.message);
     return null;
   }
-
-  return data;
 }
 
 /**
