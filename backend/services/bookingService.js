@@ -135,6 +135,11 @@ export async function createBooking(payload) {
     booking_code = generateBookingCode();
     attempts++;
   }
+  if (attempts >= 5) {
+    const err = new Error('Unable to generate a unique booking code. Please try again.');
+    err.status = 500;
+    throw err;
+  }
 
   // 6. Insert booking
   const { data: booking, error: bErr } = await supabase
