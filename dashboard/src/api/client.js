@@ -89,6 +89,17 @@ export const api = {
   getStripeBalance: () => request('/stripe/balance'),
   getStripeTransactions: (params = {}) => request(`/stripe/transactions?${new URLSearchParams(params)}`),
 
+  // Messaging
+  getConversations: () => request('/messaging/conversations'),
+  getMessages: (customerId) => request(`/messaging/conversations/${customerId}/messages`),
+  sendMessage: (customerId, payload) => request(`/messaging/conversations/${customerId}/send`, { method: 'POST', body: JSON.stringify(payload) }),
+
+  // Email Templates
+  getEmailTemplates: () => request('/messaging/email-templates'),
+  createEmailTemplate: (template) => request('/messaging/email-templates', { method: 'POST', body: JSON.stringify(template) }),
+  updateEmailTemplate: (id, template) => request(`/messaging/email-templates/${id}`, { method: 'PUT', body: JSON.stringify(template) }),
+  deleteEmailTemplate: (id) => request(`/messaging/email-templates/${id}`, { method: 'DELETE' }),
+
   // Agreements
   getAgreementDetail: (bookingId) => request(`/agreements/${bookingId}/detail`),
   counterSignAgreement: (bookingId, signatureData) =>
