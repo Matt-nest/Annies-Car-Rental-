@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { AnimatePresence, motion } from 'motion/react';
 import { Vehicle } from './types';
 import { EASE } from './utils/motion';
@@ -83,6 +84,7 @@ export default function App() {
   const handleBrowseFleet = () => scrollToSection('fleet');
 
   return (
+    <ErrorBoundary>
     <ThemeProvider>
       <AnimatePresence mode="wait">
         {currentPage === 'booking-status' ? (
@@ -162,5 +164,6 @@ export default function App() {
         )}
       </AnimatePresence>
     </ThemeProvider>
+    </ErrorBoundary>
   );
 }

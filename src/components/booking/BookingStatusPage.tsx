@@ -110,8 +110,8 @@ export default function BookingStatusPage({ onBack }: Props) {
             <input
               value={code}
               onChange={e => setCode(e.target.value.toUpperCase())}
-              placeholder="e.g. AB7X"
-              maxLength={8}
+              placeholder="e.g. BK-20260404-XXXX"
+              maxLength={20}
               className="flex-1 px-4 h-12 rounded-xl border text-sm font-mono tracking-widest focus:outline-none transition-all uppercase"
               style={inputStyle}
             />

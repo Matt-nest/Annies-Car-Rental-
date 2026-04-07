@@ -8,7 +8,8 @@ export function calcRentalDays(pickupDate, returnDate) {
   const msPerDay = 1000 * 60 * 60 * 24;
   const pickup = new Date(pickupDate);
   const ret = new Date(returnDate);
-  return Math.max(1, Math.ceil((ret - pickup) / msPerDay));
+  // +1 makes it inclusive: pickup day counts as day 1
+  return Math.max(1, Math.ceil((ret - pickup) / msPerDay) + 1);
 }
 
 // Fee schedule for delivery options

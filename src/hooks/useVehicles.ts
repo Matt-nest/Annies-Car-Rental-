@@ -27,8 +27,7 @@ export function useVehicles() {
           setVehicles(data);
         }
       } catch {
-        // Silently fall back to hardcoded data
-        console.warn('[useVehicles] Backend unreachable, using local fleet data.');
+        // Silently fall back to hardcoded data — API unreachable
       } finally {
         if (!cancelled) setLoading(false);
       }

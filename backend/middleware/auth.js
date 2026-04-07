@@ -1,6 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 import 'dotenv/config';
 
+// Shared client for JWT verification (uses anon key intentionally — verifies against public key)
+const authClient = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
+
 // Verify Supabase JWT from Authorization header
 export async function requireAuth(req, res, next) {
   const header = req.headers.authorization;
@@ -9,12 +15,7 @@ export async function requireAuth(req, res, next) {
   }
 
   const token = header.slice(7);
-  const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_ANON_KEY
-  );
-
-  const { data: { user }, error } = await supabase.auth.getUser(token);
+  const { data: { user }, error } = await authClient.auth.getUser(token);
   if (error || !user) {
     return res.status(401).json({ error: 'Invalid or expired token' });
   }

@@ -87,17 +87,31 @@ export async function createBooking(payload) {
     throw err;
   }
 
-  // 3. Upsert customer (include ID photo if provided)
-  const customerData = { first_name, last_name, email, phone };
-  if (id_photo_url) customerData.id_photo_url = id_photo_url;
-
-  const { data: customer, error: cErr } = await supabase
+  // 3. Find or create customer (don't overwrite existing customer data)
+  let customer;
+  const { data: existingCustomer } = await supabase
     .from('customers')
-    .upsert(customerData, { onConflict: 'email', ignoreDuplicates: false })
-    .select()
-    .single();
+    .select('*')
+    .eq('email', email)
+    .maybeSingle();
 
-  if (cErr) throw cErr;
+  if (existingCustomer) {
+    customer = existingCustomer;
+    // Only update id_photo_url if newly provided
+    if (id_photo_url && id_photo_url !== existingCustomer.id_photo_url) {
+      await supabase.from('customers').update({ id_photo_url }).eq('id', customer.id);
+    }
+  } else {
+    const customerData = { first_name, last_name, email, phone };
+    if (id_photo_url) customerData.id_photo_url = id_photo_url;
+    const { data: newCustomer, error: cErr } = await supabase
+      .from('customers')
+      .insert(customerData)
+      .select()
+      .single();
+    if (cErr) throw cErr;
+    customer = newCustomer;
+  }
 
   // 4. Pricing
   const rentalDays = calcRentalDays(pickup_date, return_date);

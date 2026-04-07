@@ -33,7 +33,11 @@ app.use(cors({
 }));
 
 // ── Body parsing ──────────────────────────────────────────────────────────────
-app.use(express.json({ limit: '2mb' }));
+// Skip JSON parsing for Stripe webhook (needs raw body for signature verification)
+app.use((req, res, next) => {
+  if (req.path === '/api/v1/stripe/webhook') return next();
+  express.json({ limit: '2mb' })(req, res, next);
+});
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
@@ -51,7 +55,7 @@ app.use('/api/v1', paymentRoutes);
 app.use('/api/v1', damageRoutes);
 app.delete('/api/v1/blocked-dates/:id', damageRoutes);
 
-// Stripe — webhook needs raw body for signature verification
+// Stripe — webhook raw body handler + routes
 app.use('/api/v1/stripe/webhook', express.raw({ type: 'application/json' }));
 app.use('/api/v1/stripe', stripeRoutes);
 

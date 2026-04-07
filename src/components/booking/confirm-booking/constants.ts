@@ -18,6 +18,7 @@ export const STEPS = [
 ] as const;
 
 export const stripePromise = loadStripe(
+  import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ||
   'pk_test_51THqNVBDLBS4aYcfqHPZnNGlwL6E8lGdzFOxYoSmd37DjxD3ofbWe6AsrEkL90LqnHfp8fEFDfAmrqfkDgcNYYqE009CXY3fGT'
 );
 
@@ -26,7 +27,7 @@ export const stripePromise = loadStripe(
    ──────────────────────────────────────────────────────── */
 export function getRefCode(): string | null {
   const params = new URLSearchParams(window.location.search);
-  return params.get('ref');
+  return params.get('ref') || params.get('code');
 }
 
 export function isValidEmail(email: string): boolean {
