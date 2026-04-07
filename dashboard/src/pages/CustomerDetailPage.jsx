@@ -40,23 +40,25 @@ export default function CustomerDetailPage() {
     async function load() {
       setLoading(true);
       try {
-        const [c, b] = await Promise.all([
-          api.getCustomer(id),
-          api.getCustomerBookings(id),
-        ]);
+        const c = await api.getCustomer(id);
         setCustomer(c);
-        setBookings(b || []);
         setNotes(c.notes || '');
-      } catch (e) { console.error(e); }
+      } catch (e) { console.error('[CustomerDetail] Failed to load customer:', e); }
+      try {
+        const b = await api.getCustomerBookings(id);
+        setBookings(b || []);
+      } catch (e) { console.error('[CustomerDetail] Failed to load bookings:', e); }
       setLoading(false);
     }
     load();
   }, [id]);
 
   // Collect all agreements across bookings for this customer
-  const agreements = customer?.bookings?.flatMap(b => 
-    (b.rental_agreements || []).map(ag => ({ ...ag, booking_code: b.booking_code, booking_id: b.id }))
-  ) || [];
+  const agreements = customer?.bookings?.flatMap(b => {
+    const ra = b.rental_agreements;
+    const arr = Array.isArray(ra) ? ra : ra ? [ra] : [];
+    return arr.map(ag => ({ ...ag, booking_code: b.booking_code, booking_id: b.id }));
+  }) || [];
 
   async function saveNotes() {
     if (notes !== (customer.notes || '')) {
