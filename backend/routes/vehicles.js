@@ -174,4 +174,31 @@ router.patch('/:id/status', requireAuth, asyncHandler(async (req, res) => {
   res.json(data);
 }));
 
+/** DELETE /vehicles/:id — remove vehicle (admin) */
+router.delete('/:id', requireAuth, asyncHandler(async (req, res) => {
+  // Safety check: prevent deleting vehicles with active bookings
+  const { data: activeBookings, error: bookingErr } = await supabase
+    .from('bookings')
+    .select('id')
+    .eq('vehicle_id', req.params.id)
+    .in('status', ['pending_approval', 'approved', 'rented'])
+    .limit(1);
+
+  if (bookingErr) throw bookingErr;
+
+  if (activeBookings && activeBookings.length > 0) {
+    return res.status(409).json({
+      error: 'Cannot delete a vehicle with active bookings. Set status to "retired" instead.',
+    });
+  }
+
+  const { error } = await supabase
+    .from('vehicles')
+    .delete()
+    .eq('id', req.params.id);
+
+  if (error) throw error;
+  res.json({ success: true });
+}));
+
 export default router;

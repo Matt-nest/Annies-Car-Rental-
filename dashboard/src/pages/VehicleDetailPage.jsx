@@ -29,6 +29,7 @@ export default function VehicleDetailPage() {
   const [blocked, setBlocked] = useState([]);
   const [blockModal, setBlockModal] = useState(false);
   const [blockForm, setBlockForm] = useState({ start_date: '', end_date: '', reason: 'personal_use', notes: '' });
+  const [deleting, setDeleting] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -84,6 +85,20 @@ export default function VehicleDetailPage() {
       await api.deleteBlockedDate(blockId);
       setBlocked(b => b.filter(x => x.id !== blockId));
     } catch (e) { console.error(e); }
+  }
+
+  async function handleDeleteVehicle() {
+    const name = `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
+    if (!confirm(`Are you sure you want to permanently delete ${name}? This cannot be undone.`)) return;
+    setDeleting(true);
+    try {
+      await api.deleteVehicle(id);
+      navigate('/fleet');
+    } catch (e) {
+      const msg = e?.message || 'Failed to delete vehicle';
+      alert(msg);
+    }
+    setDeleting(false);
   }
 
   if (loading) return <SkeletonDashboard />;
@@ -331,6 +346,25 @@ export default function VehicleDetailPage() {
           </div>
         </div>
       </Modal>
+
+      {/* Danger zone */}
+      <div className="card p-5 border border-red-200 dark:border-red-500/20">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold text-red-600 dark:text-red-400">Delete Vehicle</p>
+            <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
+              Permanently remove this vehicle from the fleet. Vehicles with active bookings cannot be deleted.
+            </p>
+          </div>
+          <button
+            onClick={handleDeleteVehicle}
+            disabled={deleting}
+            className="text-xs font-medium px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
+          >
+            {deleting ? 'Deleting…' : 'Delete Vehicle'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

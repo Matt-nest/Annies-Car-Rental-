@@ -32,6 +32,7 @@ export const api = {
   getVehicle: (id) => request(`/vehicles/${id}`),
   createVehicle: (body) => request('/vehicles', { method: 'POST', body: JSON.stringify(body) }),
   updateVehicle: (id, body) => request(`/vehicles/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteVehicle: (id) => request(`/vehicles/${id}`, { method: 'DELETE' }),
   updateVehicleStatus: (id, status) => request(`/vehicles/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   getVehicleAvailability: (id, start, end) => request(`/vehicles/${id}/availability?start=${start}&end=${end}`),
   getBlockedDates: (vehicleId) => request(`/vehicles/${vehicleId}/blocked-dates`),
