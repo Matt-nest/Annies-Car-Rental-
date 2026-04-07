@@ -86,3 +86,110 @@ export function buildBookingPayload(booking) {
     special_requests:   booking.special_requests,
   };
 }
+
+// ── Template Interpolation ──────────────────────────────────────────────────
+
+/**
+ * Build a flat merge-field map from a booking payload.
+ * This converts nested booking data into flat {{key}} → value pairs.
+ */
+export function buildMergeFields(bookingPayload) {
+  const bp = bookingPayload;
+  const v = bp.vehicle || {};
+  const c = bp.customer || {};
+
+  return {
+    first_name:     c.first_name || 'Guest',
+    last_name:      c.last_name || '',
+    email:          c.email || '',
+    phone:          c.phone || '',
+    booking_code:   bp.booking_code || '',
+    vehicle:        [v.year, v.make, v.model].filter(Boolean).join(' ') || 'your vehicle',
+    pickup_date:    formatDate(bp.pickup_date),
+    pickup_time:    formatTime(bp.pickup_time),
+    return_date:    formatDate(bp.return_date),
+    return_time:    formatTime(bp.return_time),
+    total_cost:     bp.total_cost ? Number(bp.total_cost).toFixed(2) : '0.00',
+    rental_days:    bp.rental_days || '',
+    lockbox_code:   bp.lockbox_code || '2580',
+    decline_reason: bp.decline_reason || 'The vehicle is not available for your selected dates.',
+    // Payment fields
+    amount:         bp.amount || bp.total_cost || '',
+    payment_method: bp.payment_method || 'Card',
+    payment_date:   formatDate(bp.payment_date || new Date().toISOString()),
+    refund_amount:  bp.refund_amount || '',
+    // Damage fields
+    damage_description: bp.damage_description || '',
+    damage_fee:     bp.damage_fee || '',
+    damage_type:    bp.damage_type || 'repairs',
+    // Review
+    review_link:    bp.review_link || 'https://g.page/annies-car-rental/review',
+  };
+}
+
+/**
+ * Interpolate a template string with merge fields.
+ * Replaces all {{key}} placeholders with values from the fields map.
+ */
+export function interpolateTemplate(template, fields) {
+  if (!template) return '';
+  return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
+    return fields[key] !== undefined && fields[key] !== '' ? fields[key] : match;
+  });
+}
+
+/**
+ * Get a rendered template by stage, interpolated with booking data.
+ * Returns { subject, body, sms_body, channel } or null if not found.
+ */
+export async function getRenderedTemplate(stage, bookingPayload) {
+  const { data: template, error } = await supabase
+    .from('email_templates')
+    .select('*')
+    .eq('stage', stage)
+    .eq('is_active', true)
+    .single();
+
+  if (error || !template) {
+    console.log(`[Templates] No template found for stage: ${stage}`);
+    return null;
+  }
+
+  const fields = buildMergeFields(bookingPayload);
+
+  return {
+    name:     template.name,
+    stage:    template.stage,
+    channel:  template.channel || 'email',
+    subject:  interpolateTemplate(template.subject, fields),
+    body:     interpolateTemplate(template.body, fields),
+    sms_body: interpolateTemplate(template.sms_body, fields),
+    trigger_type: template.trigger_type,
+  };
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  try {
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+    });
+  } catch { return dateStr; }
+}
+
+function formatTime(timeStr) {
+  if (!timeStr) return '';
+  try {
+    // Handle HH:MM format
+    if (typeof timeStr === 'string' && timeStr.includes(':')) {
+      const [h, m] = timeStr.split(':').map(Number);
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const hour = h % 12 || 12;
+      return `${hour}:${String(m).padStart(2, '0')} ${ampm}`;
+    }
+    return timeStr;
+  } catch { return timeStr; }
+}
+

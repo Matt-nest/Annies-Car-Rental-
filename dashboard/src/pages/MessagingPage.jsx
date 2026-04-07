@@ -12,13 +12,33 @@ const EASE = [0.25, 1, 0.5, 1];
 const SPRING = { type: 'spring', stiffness: 500, damping: 30 };
 
 const TEMPLATE_STAGES = [
-  { value: 'new_booking', label: 'New Booking', color: '#22c55e' },
-  { value: 'approval', label: 'Approval', color: '#3b82f6' },
-  { value: 'pickup_reminder', label: 'Pickup Reminder', color: '#f59e0b' },
-  { value: 'return_reminder', label: 'Return Reminder', color: '#ef4444' },
-  { value: 'completion', label: 'Completion', color: '#8b5cf6' },
-  { value: 'review_request', label: 'Review Request', color: '#ec4899' },
-  { value: 'custom', label: 'Custom', color: '#6b7280' },
+  // Booking flow
+  { value: 'booking_submitted', label: 'Booking Submitted', color: '#22c55e' },
+  { value: 'booking_approved', label: 'Booking Approved', color: '#10b981' },
+  { value: 'booking_declined', label: 'Booking Declined', color: '#ef4444' },
+  { value: 'booking_cancelled', label: 'Booking Cancelled', color: '#f97316' },
+  // Payment
+  { value: 'payment_confirmed', label: 'Payment Confirmed', color: '#3b82f6' },
+  { value: 'refund_processed', label: 'Refund Processed', color: '#6366f1' },
+  // Pickup flow
+  { value: 'pickup_reminder', label: 'Pre-Pickup (24h)', color: '#f59e0b' },
+  { value: 'day_of_pickup', label: 'Day-of Pickup', color: '#eab308' },
+  { value: 'delivery_offer', label: 'Delivery Offer', color: '#d97706' },
+  // During rental
+  { value: 'mid_rental_checkin', label: 'Mid-Rental Check-in', color: '#8b5cf6' },
+  { value: 'extension_offer', label: 'Extension Offer', color: '#a78bfa' },
+  // Return flow
+  { value: 'return_reminder', label: 'Pre-Return (24h)', color: '#ec4899' },
+  { value: 'day_of_return', label: 'Day-of Return', color: '#f472b6' },
+  { value: 'return_confirmed', label: 'Return Confirmed', color: '#14b8a6' },
+  // Post-rental
+  { value: 'rental_completed', label: 'Review Request', color: '#06b6d4' },
+  { value: 'repeat_customer', label: 'Loyalty / Repeat', color: '#D4AF37' },
+  // Alerts
+  { value: 'late_return_warning', label: 'Late Warning (1h)', color: '#f97316' },
+  { value: 'late_return_escalation', label: 'Late Escalation (4h)', color: '#dc2626' },
+  // Other
+  { value: 'damage_notification', label: 'Damage Report', color: '#991b1b' },
 ];
 
 function timeAgo(dateStr) {
@@ -938,7 +958,7 @@ function EmailTemplatesTab() {
       ) : (
         <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
           {templates.map((t, i) => {
-            const stage = TEMPLATE_STAGES.find(s => s.value === t.stage) || TEMPLATE_STAGES[6];
+            const stage = TEMPLATE_STAGES.find(s => s.value === t.stage) || { value: t.stage, label: t.stage?.replace(/_/g, ' ') || 'Custom', color: '#6b7280' };
             return (
               <motion.div
                 key={t.id}
@@ -956,11 +976,29 @@ function EmailTemplatesTab() {
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
                   <div>
                     <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>{t.name}</p>
-                    <span style={{
-                      fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: 6,
-                      background: `${stage.color}15`, color: stage.color,
-                      letterSpacing: '0.03em', textTransform: 'capitalize',
-                    }}>{t.stage.replace(/_/g, ' ')}</span>
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                      <span style={{
+                        fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: 6,
+                        background: `${stage.color}15`, color: stage.color,
+                        letterSpacing: '0.03em', textTransform: 'capitalize',
+                      }}>{stage.label}</span>
+                      {/* Channel badge */}
+                      <span style={{
+                        fontSize: '10px', fontWeight: 600, padding: '2px 6px', borderRadius: 6,
+                        background: t.channel === 'sms' ? 'rgba(34,197,94,0.1)' : t.channel === 'both' ? 'rgba(99,102,241,0.1)' : 'rgba(59,130,246,0.1)',
+                        color: t.channel === 'sms' ? '#22c55e' : t.channel === 'both' ? '#6366f1' : '#3b82f6',
+                      }}>
+                        {t.channel === 'both' ? '📱✉️ Both' : t.channel === 'sms' ? '📱 SMS' : '✉️ Email'}
+                      </span>
+                      {/* Trigger badge */}
+                      <span style={{
+                        fontSize: '10px', fontWeight: 500, padding: '2px 6px', borderRadius: 6,
+                        background: t.trigger_type === 'manual' ? 'rgba(245,158,11,0.1)' : 'rgba(20,184,166,0.1)',
+                        color: t.trigger_type === 'manual' ? '#f59e0b' : '#14b8a6',
+                      }}>
+                        {t.trigger_type === 'manual' ? '👤 Manual' : '⚡ Auto'}
+                      </span>
+                    </div>
                   </div>
                   <div style={{ display: 'flex', gap: 2 }}>
                     <button onClick={() => setPreview(t)} style={{ padding: 6, borderRadius: 8, background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer' }} title="Preview"><Eye size={14} /></button>
@@ -968,9 +1006,16 @@ function EmailTemplatesTab() {
                     <button onClick={() => handleDelete(t.id)} style={{ padding: 6, borderRadius: 8, background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer' }} title="Delete"><Trash2 size={14} /></button>
                   </div>
                 </div>
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {t.subject}
-                </p>
+                {t.subject && (
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 4 }}>
+                    {t.subject}
+                  </p>
+                )}
+                {t.description && (
+                  <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {t.description}
+                  </p>
+                )}
               </motion.div>
             );
           })}

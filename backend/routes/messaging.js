@@ -177,15 +177,28 @@ router.get('/email-templates', requireAuth, asyncHandler(async (req, res) => {
   res.json(data);
 }));
 
+/** GET /email-templates/stage/:stage — get template by stage */
+router.get('/email-templates/stage/:stage', requireAuth, asyncHandler(async (req, res) => {
+  const { data, error } = await supabase
+    .from('email_templates')
+    .select('*')
+    .eq('stage', req.params.stage)
+    .eq('is_active', true)
+    .single();
+  if (error && error.code !== 'PGRST116') throw error;
+  if (!data) return res.status(404).json({ error: 'Template not found' });
+  res.json(data);
+}));
+
 /** POST /email-templates — create a template */
 router.post('/email-templates', requireAuth, asyncHandler(async (req, res) => {
-  const { name, stage, subject, body } = req.body;
-  if (!name || !stage || !subject || !body) {
-    return res.status(400).json({ error: 'name, stage, subject, body are required' });
+  const { name, stage, subject, body, channel, sms_body, trigger_type, description } = req.body;
+  if (!name || !stage) {
+    return res.status(400).json({ error: 'name and stage are required' });
   }
   const { data, error } = await supabase
     .from('email_templates')
-    .insert({ name, stage, subject, body })
+    .insert({ name, stage, subject: subject || '', body: body || '', channel, sms_body, trigger_type, description })
     .select()
     .single();
   if (error) throw error;
@@ -194,13 +207,17 @@ router.post('/email-templates', requireAuth, asyncHandler(async (req, res) => {
 
 /** PUT /email-templates/:id — update a template */
 router.put('/email-templates/:id', requireAuth, asyncHandler(async (req, res) => {
-  const { name, stage, subject, body, is_active } = req.body;
+  const { name, stage, subject, body, is_active, channel, sms_body, trigger_type, description } = req.body;
   const updates = {};
   if (name !== undefined) updates.name = name;
   if (stage !== undefined) updates.stage = stage;
   if (subject !== undefined) updates.subject = subject;
   if (body !== undefined) updates.body = body;
   if (is_active !== undefined) updates.is_active = is_active;
+  if (channel !== undefined) updates.channel = channel;
+  if (sms_body !== undefined) updates.sms_body = sms_body;
+  if (trigger_type !== undefined) updates.trigger_type = trigger_type;
+  if (description !== undefined) updates.description = description;
   updates.updated_at = new Date().toISOString();
 
   const { data, error } = await supabase
