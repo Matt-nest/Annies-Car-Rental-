@@ -28,8 +28,14 @@ export async function fireGHLWebhook(event, data) {
     ...data,
   };
 
+  // Flatten nested data into query params for GHL "Create Contact" compatibility.
+  // GHL workflows read from queryParameters, so we send data both ways.
+  const flat = flattenForGHL(data);
+  const qs = new URLSearchParams(flat).toString();
+  const fullUrl = qs ? `${url}?${qs}` : url;
+
   try {
-    const res = await fetch(url, {
+    const res = await fetch(fullUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -53,6 +59,50 @@ export async function fireGHLWebhook(event, data) {
       if (error) console.error('[GHL] Could not log webhook failure:', error.message);
     });
   }
+}
+
+/**
+ * Flatten a nested booking payload into simple key-value pairs
+ * that GHL can read as queryParameters.
+ */
+function flattenForGHL(data) {
+  const c = data.customer || {};
+  const v = data.vehicle || {};
+  const params = {};
+
+  // Contact fields (critical — GHL needs these to create/find the contact)
+  if (c.first_name)  params.first_name = c.first_name;
+  if (c.last_name)   params.last_name = c.last_name;
+  if (c.email)       params.email = c.email;
+  if (c.phone)       params.phone = c.phone;
+  if (c.ghl_contact_id) params.contact_id = c.ghl_contact_id;
+
+  // Full name for GHL's "Full Name" field
+  const fullName = [c.first_name, c.last_name].filter(Boolean).join(' ');
+  if (fullName) params.full_name = fullName;
+
+  // Booking fields
+  if (data.booking_code)    params.booking_code = data.booking_code;
+  if (data.status)          params.status = data.status;
+  if (data.pickup_date)     params.pickup_date = data.pickup_date;
+  if (data.return_date)     params.return_date = data.return_date;
+  if (data.pickup_time)     params.pickup_time = data.pickup_time;
+  if (data.return_time)     params.return_time = data.return_time;
+  if (data.pickup_location) params.pickup_location = data.pickup_location;
+  if (data.total_cost)      params.total_cost = String(data.total_cost);
+  if (data.rental_days)     params.rental_days = String(data.rental_days);
+
+  // Vehicle — combined string
+  const vehicleName = [v.year, v.make, v.model].filter(Boolean).join(' ');
+  if (vehicleName) params.vehicle_name = vehicleName;
+  if (v.vehicle_code) params.vehicle_code = v.vehicle_code;
+
+  // Optional fields
+  if (data.insurance_provider) params.insurance_provider = data.insurance_provider;
+  if (data.special_requests)   params.special_requests = data.special_requests;
+  if (data.decline_reason)     params.decline_reason = data.decline_reason;
+
+  return params;
 }
 
 /**
