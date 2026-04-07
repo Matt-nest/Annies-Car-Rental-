@@ -58,7 +58,7 @@ router.get('/revenue', requireAuth, asyncHandler(async (req, res) => {
 
   const { data, error } = await supabase
     .from('bookings')
-    .select('booking_code, pickup_date, total_cost, tax_amount, source, vehicle_id, vehicles(year, make, model)')
+    .select('booking_code, pickup_date, total_cost, tax_amount, source, vehicle_id, vehicles(year, make, model, category)')
     .in('status', ['confirmed', 'active', 'returned', 'completed'])
     .gte('pickup_date', from || new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10))
     .lte('pickup_date', to || new Date().toISOString().slice(0, 10))
@@ -86,15 +86,38 @@ router.get('/revenue', requireAuth, asyncHandler(async (req, res) => {
     byVehicle[key] = (byVehicle[key] || 0) + parseFloat(b.total_cost);
   }
 
+  // Group by vehicle category
+  const byCategory = {};
+  for (const b of data || []) {
+    const cat = b.vehicles?.category || 'uncategorized';
+    byCategory[cat] = (byCategory[cat] || 0) + parseFloat(b.total_cost);
+  }
+
+  // Group by day (for heatmap and daily trend)
+  const byDay = {};
+  for (const b of data || []) {
+    byDay[b.pickup_date] = (byDay[b.pickup_date] || 0) + parseFloat(b.total_cost);
+  }
+
   const total = (data || []).reduce((s, b) => s + parseFloat(b.total_cost), 0);
   const totalTax = (data || []).reduce((s, b) => s + parseFloat(b.tax_amount || 0), 0);
+
+  // Current month stats
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const thisMonthRevenue = byMonth[currentMonthKey] || 0;
+  const thisMonthBookings = (data || []).filter(b => b.pickup_date.startsWith(currentMonthKey)).length;
 
   res.json({
     total: total.toFixed(2),
     total_tax: totalTax.toFixed(2),
+    this_month_revenue: thisMonthRevenue.toFixed(2),
+    this_month_bookings: thisMonthBookings,
     by_month: byMonth,
     by_source: bySource,
     by_vehicle: byVehicle,
+    by_category: byCategory,
+    by_day: byDay,
     transactions: data,
   });
 }));
