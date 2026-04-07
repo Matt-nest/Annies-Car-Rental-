@@ -17,7 +17,7 @@ export default function DashboardLayout() {
   const [alerts, setAlerts] = useState({ pending_approvals: 0, pending_agreements: 0 });
 
   const [dark, setDark] = useState(() => {
-    try { return localStorage.getItem('dash-theme') === 'dark'; } catch { return false; }
+    try { const t = localStorage.getItem('dash-theme'); return t ? t === 'dark' : true; } catch { return true; }
   });
 
   useEffect(() => {
