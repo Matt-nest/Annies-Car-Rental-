@@ -342,16 +342,34 @@ export default function BookingDetailPage() {
           {booking.payments?.length > 0 ? (
             <div className="space-y-2">
               {booking.payments.map(p => (
-                <div key={p.id} className="flex justify-between text-sm">
+                <div key={p.id} className="flex justify-between text-sm py-1.5 border-b border-[var(--border-subtle)] last:border-0">
                   <div>
                     <p className="font-medium text-[var(--text-primary)] capitalize">{p.payment_type} ({p.method})</p>
-                    <p className="text-xs text-[var(--text-tertiary)]">{p.reference_id}</p>
+                    <div className="flex items-center gap-2 text-xs text-[var(--text-tertiary)]">
+                      {p.created_at && <span>{new Date(p.created_at).toLocaleDateString()}</span>}
+                      {p.reference_id && <span className="mono-code">{p.reference_id}</span>}
+                    </div>
                   </div>
-                  <span className={`font-medium ${p.payment_type === 'refund' ? 'text-[var(--danger-color)]' : 'text-[#22c55e]'}`}>
-                    ${p.amount}
+                  <span className={`font-semibold tabular-nums ${p.payment_type === 'refund' ? 'text-[var(--danger-color)]' : 'text-[#22c55e]'}`}>
+                    {p.payment_type === 'refund' ? '-' : '+'}${p.amount}
                   </span>
                 </div>
               ))}
+              {/* Payment summary */}
+              <div className="flex justify-between pt-2 text-sm font-semibold text-[var(--text-primary)]">
+                <span>Total Paid</span>
+                <span className="tabular-nums">
+                  ${booking.payments.reduce((sum, p) => sum + (p.payment_type === 'refund' ? -Number(p.amount) : Number(p.amount)), 0).toFixed(2)}
+                </span>
+              </div>
+              {booking.total_cost && (
+                <div className="flex justify-between text-xs text-[var(--text-tertiary)]">
+                  <span>Balance remaining</span>
+                  <span className="tabular-nums">
+                    ${(Number(booking.total_cost) - booking.payments.reduce((sum, p) => sum + (p.payment_type === 'refund' ? -Number(p.amount) : Number(p.amount)), 0)).toFixed(2)}
+                  </span>
+                </div>
+              )}
             </div>
           ) : (
             <p className="text-sm text-[var(--text-tertiary)]">No payments recorded</p>

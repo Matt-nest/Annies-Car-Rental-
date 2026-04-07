@@ -75,7 +75,7 @@ function SignaturePad({ canvasRef, onDrawn }) {
       onTouchStart={startDraw}
       onTouchMove={draw}
       onTouchEnd={stopDraw}
-      className="w-full border border-stone-200 rounded-lg bg-white cursor-crosshair touch-none"
+      className="w-full border border-[var(--border-subtle)] rounded-lg bg-[var(--bg-card)] cursor-crosshair touch-none"
     />
   );
 }
@@ -157,8 +157,8 @@ export default function AgreementSection({ bookingId }) {
     <div className="card p-5 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-stone-700 uppercase tracking-wide flex items-center gap-2">
-          <FileText size={15} className="text-stone-400" />
+        <h3 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wide flex items-center gap-2">
+          <FileText size={15} className="text-[var(--text-tertiary)]" />
           Rental Agreement
         </h3>
         {agreement && (
@@ -170,7 +170,7 @@ export default function AgreementSection({ bookingId }) {
 
       {/* Not signed yet */}
       {!agreement && (
-        <div className="flex items-center gap-2 py-2 text-stone-400 text-sm">
+        <div className="flex items-center gap-2 py-2 text-[var(--text-tertiary)] text-sm">
           <Clock size={15} />
           Customer hasn't signed the rental agreement yet.
         </div>
@@ -187,33 +187,33 @@ export default function AgreementSection({ bookingId }) {
           </div>
 
           {/* Agreement details grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 bg-stone-50 rounded-lg p-4 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 bg-[var(--bg-secondary)] rounded-lg p-4 text-sm">
             {agreement.address_line1 && (
               <div>
-                <p className="text-xs text-stone-400 mb-0.5">Address</p>
-                <p className="text-stone-800 font-medium">
+                <p className="text-xs text-[var(--text-tertiary)] mb-0.5">Address</p>
+                <p className="text-[var(--text-primary)] font-medium">
                   {agreement.address_line1}, {agreement.city}, {agreement.state} {agreement.zip}
                 </p>
               </div>
             )}
             {agreement.date_of_birth && (
               <div>
-                <p className="text-xs text-stone-400 mb-0.5">Date of Birth</p>
-                <p className="text-stone-800 font-medium">{agreement.date_of_birth}</p>
+                <p className="text-xs text-[var(--text-tertiary)] mb-0.5">Date of Birth</p>
+                <p className="text-[var(--text-primary)] font-medium">{agreement.date_of_birth}</p>
               </div>
             )}
             {agreement.driver_license_number && (
               <div>
-                <p className="text-xs text-stone-400 mb-0.5">Driver's License</p>
-                <p className="text-stone-800 font-medium">
+                <p className="text-xs text-[var(--text-tertiary)] mb-0.5">Driver's License</p>
+                <p className="text-[var(--text-primary)] font-medium">
                   {agreement.driver_license_number} · {agreement.driver_license_state} · exp {agreement.driver_license_expiry}
                 </p>
               </div>
             )}
             {agreement.insurance_company && (
               <div>
-                <p className="text-xs text-stone-400 mb-0.5">Insurance</p>
-                <p className="text-stone-800 font-medium">
+                <p className="text-xs text-[var(--text-tertiary)] mb-0.5">Insurance</p>
+                <p className="text-[var(--text-primary)] font-medium">
                   {agreement.insurance_company}
                   {agreement.insurance_policy_number && ` — ${agreement.insurance_policy_number}`}
                 </p>
@@ -224,8 +224,8 @@ export default function AgreementSection({ bookingId }) {
           {/* Customer signature image */}
           {agreement.customer_signature_data && (
             <div>
-              <p className="text-xs text-stone-400 mb-1.5">Customer Signature</p>
-              <div className="inline-block border border-stone-200 rounded-lg p-3 bg-stone-50">
+              <p className="text-xs text-[var(--text-tertiary)] mb-1.5">Customer Signature</p>
+              <div className="inline-block border border-[var(--border-subtle)] rounded-lg p-3 bg-[var(--bg-secondary)]">
                 <img
                   src={agreement.customer_signature_data}
                   alt="Customer signature"
@@ -236,7 +236,7 @@ export default function AgreementSection({ bookingId }) {
           )}
 
           {/* Counter-sign status */}
-          <div className="pt-3 border-t border-stone-100">
+          <div className="pt-3 border-t border-[var(--border-subtle)]">
             {fullyExecuted ? (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -256,8 +256,8 @@ export default function AgreementSection({ bookingId }) {
                 </div>
                 {agreement.owner_signature_data && (
                   <div>
-                    <p className="text-xs text-stone-400 mb-1.5">Your Signature</p>
-                    <div className="inline-block border border-stone-200 rounded-lg p-3 bg-stone-50">
+                    <p className="text-xs text-[var(--text-tertiary)] mb-1.5">Your Signature</p>
+                    <div className="inline-block border border-[var(--border-subtle)] rounded-lg p-3 bg-[var(--bg-secondary)]">
                       <img
                         src={agreement.owner_signature_data}
                         alt="Owner signature"
@@ -290,7 +290,7 @@ export default function AgreementSection({ bookingId }) {
         maxWidth="max-w-lg"
       >
         <div className="space-y-4">
-          <p className="text-sm text-stone-600">
+          <p className="text-sm text-[var(--text-secondary)]">
             Draw your signature below to counter-sign and fully execute this rental agreement.
           </p>
 
@@ -299,14 +299,14 @@ export default function AgreementSection({ bookingId }) {
             <button
               onClick={clearCanvas}
               title="Clear signature"
-              className="absolute top-2 right-2 p-1.5 rounded-lg bg-white border border-stone-200 hover:bg-stone-50 text-stone-400 hover:text-stone-600 transition-colors"
+              className="absolute top-2 right-2 p-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:bg-[var(--bg-secondary)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
             >
               <RotateCcw size={14} />
             </button>
           </div>
 
           {!hasDrawn && (
-            <p className="text-xs text-stone-400 text-center">Draw your signature in the box above</p>
+            <p className="text-xs text-[var(--text-tertiary)] text-center">Draw your signature in the box above</p>
           )}
 
           <div className="flex gap-3 pt-1">
