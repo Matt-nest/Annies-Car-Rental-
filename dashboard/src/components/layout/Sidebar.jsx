@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Calendar, Car, Users, BookOpen,
-  TrendingUp, Settings, X, LogOut, AlertTriangle, CreditCard,
+  TrendingUp, Settings, X, LogOut, AlertTriangle, CreditCard, Landmark,
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
 
@@ -16,7 +16,8 @@ const MAIN_NAV = [
 ];
 
 const SYSTEM_NAV = [
-  { to: '/settings',         label: 'Settings', icon: Settings },
+  { to: '/stripe',          label: 'Stripe',   icon: Landmark },
+  { to: '/settings',        label: 'Settings',  icon: Settings },
   { to: '/webhook-failures', label: 'Webhooks', icon: AlertTriangle },
 ];
 

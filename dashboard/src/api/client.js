@@ -84,6 +84,11 @@ export const api = {
   markNotificationRead: (id) => request(`/notifications/${id}/read`, { method: 'PATCH' }),
   markAllNotificationsRead: () => request('/notifications/read-all', { method: 'PATCH' }),
 
+  // Stripe Admin
+  getStripeAccount: () => request('/stripe/account'),
+  getStripeBalance: () => request('/stripe/balance'),
+  getStripeTransactions: (params = {}) => request(`/stripe/transactions?${new URLSearchParams(params)}`),
+
   // Agreements
   getAgreementDetail: (bookingId) => request(`/agreements/${bookingId}/detail`),
   counterSignAgreement: (bookingId, signatureData) =>
