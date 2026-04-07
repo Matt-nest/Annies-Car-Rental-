@@ -335,7 +335,7 @@ export async function syncGHLConversations() {
             await storeLocalMessage({
               customerId: customer.id,
               direction: msg.direction === 1 ? 'inbound' : 'outbound',
-              channel: (msg.type || 'email').toLowerCase() === 'sms' ? 'sms' : 'email',
+              channel: String(msg.type || 'email').toLowerCase() === 'sms' || msg.type === 1 ? 'sms' : 'email',
               subject: msg.subject || null,
               body: msg.body || msg.message || '',
               externalId: msg.id,

@@ -151,7 +151,7 @@ router.post('/webhook/inbound', asyncHandler(async (req, res) => {
   const stored = await storeLocalMessage({
     customerId: customer.id,
     direction: direction === 'outbound' ? 'outbound' : 'inbound',
-    channel: (type || messageType || 'email').toLowerCase() === 'sms' ? 'sms' : 'email',
+    channel: String(type || messageType || 'email').toLowerCase() === 'sms' || type === 1 ? 'sms' : 'email',
     subject: req.body.subject || null,
     body: msgBody || message || '',
     externalId: req.body.messageId || req.body.id || null,
