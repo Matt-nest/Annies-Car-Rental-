@@ -230,6 +230,15 @@ export async function confirmPayment(paymentIntentId) {
 
   console.log(`[Stripe] Payment confirmed for booking ${pi.metadata.booking_code}: $${pi.amount / 100}`);
 
+  // Dashboard notification
+  createNotification(
+    'payment_received',
+    `Payment received: $${(pi.amount / 100).toFixed(2)}`,
+    `Booking ${pi.metadata.booking_code} — ${pi.metadata.customer_name || ''}`,
+    `/bookings/${bookingId}`,
+    { booking_id: bookingId, amount: pi.amount / 100 }
+  ).catch(() => {});
+
   // Check for auto-confirm
   const booking = await getBookingDetail(bookingId).catch(() => null);
   if (booking && booking.status === 'approved') {

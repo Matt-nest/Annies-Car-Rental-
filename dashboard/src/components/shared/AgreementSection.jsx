@@ -154,7 +154,7 @@ export default function AgreementSection({ bookingId }) {
   const fullyExecuted = agreement?.owner_signed_at;
 
   return (
-    <div className="card p-5 space-y-4">
+    <div className="card p-5 space-y-4" data-section="agreement">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wide flex items-center gap-2">

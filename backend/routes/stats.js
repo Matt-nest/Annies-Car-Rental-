@@ -27,7 +27,7 @@ router.get('/overview', requireAuth, asyncHandler(async (req, res) => {
       .eq('pickup_date', todayStr).in('status', ['approved', 'confirmed']),
     supabase.from('bookings').select('id, booking_code, return_time, customers(first_name, last_name), vehicles(year, make, model)')
       .eq('return_date', todayStr).eq('status', 'active'),
-    supabase.from('bookings').select('total_cost').gte('pickup_date', startOfMonth).in('status', ['confirmed', 'active', 'returned', 'completed']),
+    supabase.from('bookings').select('total_cost').gte('created_at', `${startOfMonth}T00:00:00`).in('status', ['approved', 'confirmed', 'active', 'returned', 'completed']),
     supabase.from('reviews').select('rating'),
     supabase.from('bookings').select('*', { count: 'exact', head: true }).gte('created_at', `${startOfMonth}T00:00:00`),
     supabase.from('rental_agreements').select('*', { count: 'exact', head: true })
@@ -58,11 +58,11 @@ router.get('/revenue', requireAuth, asyncHandler(async (req, res) => {
 
   const { data, error } = await supabase
     .from('bookings')
-    .select('booking_code, pickup_date, total_cost, tax_amount, source, vehicle_id, vehicles(year, make, model, category)')
-    .in('status', ['confirmed', 'active', 'returned', 'completed'])
-    .gte('pickup_date', from || new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10))
-    .lte('pickup_date', to || new Date().toISOString().slice(0, 10))
-    .order('pickup_date', { ascending: false });
+    .select('booking_code, pickup_date, total_cost, tax_amount, source, vehicle_id, created_at, deposit_status, vehicles(year, make, model, category)')
+    .in('status', ['approved', 'confirmed', 'active', 'returned', 'completed'])
+    .gte('created_at', (from || new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)) + 'T00:00:00')
+    .lte('created_at', (to || new Date().toISOString().slice(0, 10)) + 'T23:59:59')
+    .order('created_at', { ascending: false });
 
   if (error) throw error;
 

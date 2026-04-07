@@ -205,6 +205,47 @@ router.post('/:bookingId/counter-sign', requireAuth, asyncHandler(async (req, re
   if (error) throw error;
   if (!data) return res.status(404).json({ error: 'Agreement not found' });
 
+  // Create notification for counter-sign
+  const { createNotification } = await import('../services/notificationService.js');
+
+  // Get booking info for notification
+  const { data: booking } = await supabase
+    .from('bookings')
+    .select('id, booking_code, status, vehicle_id, customers(first_name, last_name)')
+    .eq('id', req.params.bookingId)
+    .single();
+
+  if (booking) {
+    const cName = `${booking.customers?.first_name || ''} ${booking.customers?.last_name || ''}`.trim();
+    createNotification(
+      'agreement_pending',
+      `Agreement fully executed: ${booking.booking_code}`,
+      cName ? `${cName}'s rental agreement has been counter-signed` : undefined,
+      `/bookings/${booking.id}`,
+      { booking_id: booking.id }
+    ).catch(() => {});
+
+    // Transition booking to active if it's confirmed (agreement + payment both done)
+    if (['confirmed', 'approved'].includes(booking.status)) {
+      try {
+        await transitionBooking(booking.id, 'active', {
+          changedBy: req.user?.email || 'admin',
+          reason: 'Rental agreement counter-signed — rental is now active',
+        });
+
+        // Set vehicle status to rented
+        if (booking.vehicle_id) {
+          await supabase
+            .from('vehicles')
+            .update({ status: 'rented' })
+            .eq('id', booking.vehicle_id);
+        }
+      } catch (e) {
+        console.error('[Counter-Sign] Auto-activate failed:', e.message);
+      }
+    }
+  }
+
   res.json({ success: true });
 }));
 

@@ -132,6 +132,53 @@ export default function BookingDetailPage() {
         </div>
       </div>
 
+      {/* Action-needed banner */}
+      {(() => {
+        const ag = booking.rental_agreements?.[0];
+        const needsCounterSign = ag?.customer_signed_at && !ag?.owner_signed_at;
+        const needsPayment = status === 'approved' && booking.deposit_status !== 'paid';
+        
+        if (needsCounterSign) {
+          return (
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-center gap-3">
+              <div className="w-10 h-10 bg-amber-500/20 rounded-full flex items-center justify-center shrink-0">
+                <FileText size={18} className="text-amber-500" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-amber-600 dark:text-amber-400">Your Counter-Signature Is Needed</p>
+                <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                  The customer has signed the rental agreement. Scroll down to the Rental Agreement section to counter-sign and activate this rental.
+                </p>
+              </div>
+              <button
+                onClick={() => document.querySelector('[data-section="agreement"]')?.scrollIntoView({ behavior: 'smooth' })}
+                className="btn-primary text-xs shrink-0"
+              >
+                <FileText size={14} /> Counter-Sign Now
+              </button>
+            </div>
+          );
+        }
+
+        if (needsPayment) {
+          return (
+            <div className="bg-[rgba(99,179,237,0.07)] border border-[rgba(99,179,237,0.15)] rounded-xl p-4 flex items-center gap-3">
+              <div className="w-10 h-10 bg-[rgba(99,179,237,0.15)] rounded-full flex items-center justify-center shrink-0">
+                <CreditCard size={18} className="text-[#63b3ed]" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-[#63b3ed]">Waiting for Customer Payment</p>
+                <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                  Booking has been approved. The customer needs to complete payment of ${booking.total_cost} to proceed.
+                </p>
+              </div>
+            </div>
+          );
+        }
+
+        return null;
+      })()}
+
       <div className="grid md:grid-cols-2 gap-5">
         {/* Customer */}
         <Section title="Customer">
