@@ -79,11 +79,11 @@ router.post('/conversations/:customerId/send', requireAuth, asyncHandler(async (
     return res.status(404).json({ error: 'Customer not found' });
   }
 
-  // Send via GHL if configured
+  // Send via GHL — auto-links contact by email/phone if not already linked
   let ghlResult = null;
-  if (process.env.GHL_PRIVATE_INTEGRATION_TOKEN && customer.ghl_contact_id) {
+  if (process.env.GHL_PRIVATE_INTEGRATION_TOKEN) {
     ghlResult = await sendGHLMessage({
-      contactId: customer.ghl_contact_id,
+      customer,
       type: channel === 'sms' ? 'SMS' : 'Email',
       message: body,
       subject,
@@ -111,6 +111,58 @@ router.post('/conversations/:customerId/send', requireAuth, asyncHandler(async (
 router.post('/sync', requireAuth, asyncHandler(async (req, res) => {
   const result = await syncGHLConversations();
   res.json(result);
+}));
+
+// ── GHL Inbound Webhook ──────────────────────────────────────────────────────
+
+/**
+ * POST /webhook/inbound — receive inbound messages from GHL
+ * No auth required — GHL sends webhooks server-to-server
+ */
+router.post('/webhook/inbound', asyncHandler(async (req, res) => {
+  const { type, contactId, body: msgBody, message, conversationId, direction, messageType } = req.body;
+
+  console.log('[GHL Webhook] Inbound message received:', {
+    type: type || messageType,
+    contactId,
+    conversationId,
+    direction,
+    bodyLength: (msgBody || message || '').length,
+  });
+
+  if (!contactId) {
+    return res.status(400).json({ error: 'contactId is required' });
+  }
+
+  // Find local customer by ghl_contact_id
+  const { data: customer } = await supabase
+    .from('customers')
+    .select('id')
+    .eq('ghl_contact_id', contactId)
+    .single();
+
+  if (!customer) {
+    console.warn(`[GHL Webhook] No local customer found for GHL contact ${contactId}`);
+    // Still return 200 so GHL doesn't retry
+    return res.json({ received: true, matched: false });
+  }
+
+  // Store the message locally
+  const stored = await storeLocalMessage({
+    customerId: customer.id,
+    direction: direction === 'outbound' ? 'outbound' : 'inbound',
+    channel: (type || messageType || 'email').toLowerCase() === 'sms' ? 'sms' : 'email',
+    subject: req.body.subject || null,
+    body: msgBody || message || '',
+    externalId: req.body.messageId || req.body.id || null,
+    metadata: {
+      ghl_conversation_id: conversationId,
+      ghl_contact_id: contactId,
+      webhook: true,
+    },
+  });
+
+  res.json({ received: true, matched: true, stored: !!stored });
 }));
 
 // ── Email Templates ───────────────────────────────────────────────────────────

@@ -988,6 +988,7 @@ export default function MessagingPage() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState(null);
 
   useEffect(() => {
     api.getConversations()
@@ -998,20 +999,58 @@ export default function MessagingPage() {
 
   const handleSync = async () => {
     setSyncing(true);
+    setSyncResult(null);
     try {
       const result = await api.syncGHLConversations();
       console.log('[GHL Sync]', result);
+      setSyncResult(result);
+      // Auto-dismiss after 5s
+      setTimeout(() => setSyncResult(null), 5000);
       // Refresh conversations after sync
       const data = await api.getConversations().catch(() => []);
       setConversations(data || []);
     } catch (err) {
       console.error('Sync failed:', err);
+      setSyncResult({ error: err.message || 'Sync failed' });
+      setTimeout(() => setSyncResult(null), 5000);
     }
     setSyncing(false);
   };
 
   return (
-    <div style={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div style={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+      {/* Sync result toast */}
+      <AnimatePresence>
+        {syncResult && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: -20, x: '-50%' }}
+            style={{
+              position: 'absolute', top: 60, left: '50%', zIndex: 100,
+              padding: '10px 20px', borderRadius: 12,
+              background: syncResult.error ? '#ef4444' : 'linear-gradient(135deg, #D4AF37 0%, #B8941E 100%)',
+              color: '#fff', fontSize: '12px', fontWeight: 600,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+              display: 'flex', alignItems: 'center', gap: 8,
+              letterSpacing: '-0.005em',
+            }}
+          >
+            {syncResult.error ? (
+              <span>⚠️ {syncResult.error}</span>
+            ) : (
+              <span>
+                ✓ Synced — {syncResult.linked || 0} contacts linked, {syncResult.synced || 0} messages imported
+                {syncResult.totalGHLContacts ? ` (${syncResult.totalGHLContacts} GHL contacts)` : ''}
+              </span>
+            )}
+            <button
+              onClick={() => setSyncResult(null)}
+              style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '14px', marginLeft: 4 }}
+            >✕</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Page header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
