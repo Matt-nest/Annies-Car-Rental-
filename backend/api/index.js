@@ -17,6 +17,7 @@ import uploadRoutes from '../routes/uploads.js';
 import agreementRoutes from '../routes/agreements.js';
 import statsRoutes from '../routes/stats.js';
 import cronRoutes from '../routes/cron.js';
+import notificationRoutes from '../routes/notifications.js';
 
 const app = express();
 
@@ -39,6 +40,7 @@ app.use(express.json({ limit: '2mb' }));
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
+app.get('/api/v1/health', (req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use('/api/v1/vehicles',   vehicleRoutes);
@@ -53,6 +55,7 @@ app.use('/api/v1/stripe', stripeRoutes);
 app.use('/api/v1/uploads', uploadRoutes);
 app.use('/api/v1/agreements', agreementRoutes);
 app.use('/api/v1/cron', cronRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ error: `${req.method} ${req.path} not found` }));

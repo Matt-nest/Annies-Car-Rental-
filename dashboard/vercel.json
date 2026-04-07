@@ -1,5 +1,18 @@
 {
+  "installCommand": "npm install && cd ../backend && npm install",
+  "functions": {
+    "api/**/*.js": {
+      "includeFiles": "../backend/**"
+    }
+  },
   "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/[...path]" },
     { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "crons": [
+    {
+      "path": "/api/v1/cron/daily",
+      "schedule": "0 13 * * *"
+    }
   ]
 }
