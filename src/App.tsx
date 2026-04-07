@@ -1,3 +1,4 @@
+// SPA routing: vercel.json rewrites all paths to index.html
 import { useState } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AnimatePresence, motion } from 'motion/react';
