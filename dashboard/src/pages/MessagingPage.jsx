@@ -793,6 +793,17 @@ function EmailTemplatesTab() {
     fetchTemplates();
   };
 
+  const handleToggle = async (template) => {
+    const newActive = template.is_active === false ? true : false;
+    setTemplates(prev => prev.map(t => t.id === template.id ? { ...t, is_active: newActive } : t));
+    try {
+      await api.updateEmailTemplate(template.id, { is_active: newActive });
+    } catch (err) {
+      setTemplates(prev => prev.map(t => t.id === template.id ? { ...t, is_active: !newActive } : t));
+      console.error('Toggle failed:', err);
+    }
+  };
+
   const startEdit = (template) => {
     setEditing(template);
     setForm({ name: template.name, stage: template.stage, subject: template.subject, body: template.body });
@@ -968,13 +979,14 @@ function EmailTemplatesTab() {
                 style={{
                   padding: 16, borderRadius: 14,
                   background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
-                  transition: 'box-shadow 0.3s, border-color 0.3s',
+                  transition: 'box-shadow 0.3s, border-color 0.3s, opacity 0.3s',
+                  opacity: t.is_active === false ? 0.5 : 1,
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--border-medium)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.06)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.boxShadow = 'none'; }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--border-medium)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.06)'; e.currentTarget.style.opacity = '1'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.opacity = t.is_active === false ? '0.5' : '1'; }}
               >
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>{t.name}</p>
                     <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                       <span style={{
@@ -1000,7 +1012,31 @@ function EmailTemplatesTab() {
                       </span>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 2 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                    {/* Toggle switch */}
+                    <button
+                      onClick={() => handleToggle(t)}
+                      title={t.is_active === false ? 'Enable template' : 'Disable template'}
+                      style={{
+                        position: 'relative', width: 36, height: 20, borderRadius: 10,
+                        border: 'none', cursor: 'pointer', padding: 0,
+                        background: t.is_active === false
+                          ? 'var(--bg-card, rgba(255,255,255,0.06))'
+                          : 'linear-gradient(135deg, #D4AF37, #B8941E)',
+                        boxShadow: t.is_active === false
+                          ? 'inset 0 1px 3px rgba(0,0,0,0.15)'
+                          : '0 2px 8px rgba(212,175,55,0.3)',
+                        transition: 'background 0.25s, box-shadow 0.25s',
+                      }}
+                    >
+                      <span style={{
+                        position: 'absolute', top: 2, width: 16, height: 16,
+                        borderRadius: '50%', background: '#fff',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                        transition: 'left 0.25s cubic-bezier(0.4,0,0.2,1)',
+                        left: t.is_active === false ? 2 : 18,
+                      }} />
+                    </button>
                     <button onClick={() => setPreview(t)} style={{ padding: 6, borderRadius: 8, background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer' }} title="Preview"><Eye size={14} /></button>
                     <button onClick={() => startEdit(t)} style={{ padding: 6, borderRadius: 8, background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer' }} title="Edit"><FileText size={14} /></button>
                     <button onClick={() => handleDelete(t.id)} style={{ padding: 6, borderRadius: 8, background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer' }} title="Delete"><Trash2 size={14} /></button>
