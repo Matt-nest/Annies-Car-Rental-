@@ -94,11 +94,19 @@ export default function BookingsPage() {
       <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
         {b.status === 'pending_approval' && (
           <>
-            <button onClick={() => setActionModal({ type: 'approve', booking: b })} className="btn-primary py-1.5 px-3 text-xs gap-1">
-              <CheckCircle size={13} /> Approve
+            <button
+              onClick={() => setActionModal({ type: 'approve', booking: b })}
+              title="Approve"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-white bg-emerald-500 hover:bg-emerald-600 transition-colors shadow-sm"
+            >
+              <CheckCircle size={15} />
             </button>
-            <button onClick={() => setActionModal({ type: 'decline', booking: b })} className="btn-danger py-1.5 px-3 text-xs gap-1">
-              <XCircle size={13} /> Decline
+            <button
+              onClick={() => setActionModal({ type: 'decline', booking: b })}
+              title="Decline"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-white bg-red-500 hover:bg-red-600 transition-colors shadow-sm"
+            >
+              <XCircle size={15} />
             </button>
           </>
         )}

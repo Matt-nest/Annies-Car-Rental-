@@ -56,13 +56,16 @@ router.get('/overview', requireAuth, asyncHandler(async (req, res) => {
 router.get('/revenue', requireAuth, asyncHandler(async (req, res) => {
   const { from, to, period = 'month' } = req.query;
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('bookings')
     .select('booking_code, pickup_date, total_cost, tax_amount, source, vehicle_id, created_at, deposit_status, vehicles(year, make, model, category)')
-    .in('status', ['approved', 'confirmed', 'active', 'returned', 'completed'])
-    .gte('created_at', (from || new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)) + 'T00:00:00')
-    .lte('created_at', (to || new Date().toISOString().slice(0, 10)) + 'T23:59:59')
-    .order('created_at', { ascending: false });
+    .in('status', ['approved', 'confirmed', 'active', 'returned', 'completed']);
+
+  // Only apply date filters if explicitly provided
+  if (from) query = query.gte('created_at', `${from}T00:00:00`);
+  if (to)   query = query.lte('created_at', `${to}T23:59:59`);
+
+  const { data, error } = await query.order('created_at', { ascending: false });
 
   if (error) throw error;
 
