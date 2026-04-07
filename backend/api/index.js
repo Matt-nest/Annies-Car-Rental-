@@ -18,6 +18,7 @@ import agreementRoutes from '../routes/agreements.js';
 import statsRoutes from '../routes/stats.js';
 import cronRoutes from '../routes/cron.js';
 import notificationRoutes from '../routes/notifications.js';
+import messagingRoutes from '../routes/messaging.js';
 
 const app = express();
 
@@ -56,6 +57,7 @@ app.use('/api/v1/uploads', uploadRoutes);
 app.use('/api/v1/agreements', agreementRoutes);
 app.use('/api/v1/cron', cronRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/messaging', messagingRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ error: `${req.method} ${req.path} not found` }));
