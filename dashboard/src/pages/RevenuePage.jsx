@@ -10,7 +10,7 @@ import RevenueHeatmapWidget from '../components/dashboard/widgets/RevenueHeatmap
 
 const EASE = [0.25, 1, 0.5, 1];
 
-const PIE_COLORS = ['#D4AF37', '#22c55e', '#818cf8', '#63b3ed', '#f87171'];
+const PIE_COLORS = ['#00D4AA', '#1E3A5F', '#818cf8', '#63b3ed', '#f87171'];
 
 function GlassTooltip({ active, payload, label, prefix = '' }) {
   if (!active || !payload?.length) return null;
@@ -131,7 +131,7 @@ export default function RevenuePage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard label="Total Revenue" value={`$${Number(revenue?.total || 0).toLocaleString()}`} sub="All time" icon={DollarSign} accentColor="#22c55e" />
         <StatCard label="Transactions" value={revenue?.transactions?.length || 0} icon={TrendingUp} />
-        <StatCard label="Avg per Booking" icon={CreditCard} accentColor="#D4AF37"
+        <StatCard label="Avg per Booking" icon={CreditCard} accentColor="#1E3A5F"
           value={revenue?.transactions?.length
             ? `$${(Number(revenue.total) / revenue.transactions.length).toFixed(0)}`
             : '$0'}
@@ -154,7 +154,7 @@ export default function RevenuePage() {
                 <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-tertiary)', fontSize: 11 }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-tertiary)', fontSize: 11 }} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
                 <Tooltip content={<GlassTooltip prefix="$" />} />
-                <Bar dataKey="total" fill="#D4AF37" radius={[6, 6, 0, 0]} barSize={32} name="Revenue" />
+                <Bar dataKey="total" fill="#1E3A5F" radius={[6, 6, 0, 0]} barSize={32} name="Revenue" />
               </BarChart>
             </ResponsiveContainer>
           )}

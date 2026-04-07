@@ -80,7 +80,7 @@ export default class ErrorBoundary extends React.Component {
                 onClick={this.handleReload}
                 className="px-4 py-2.5 text-sm font-medium rounded-xl flex items-center gap-2 transition-all hover:opacity-90"
                 style={{
-                  backgroundColor: 'var(--accent-color, #D4AF37)',
+                  backgroundColor: 'var(--accent-color, #00D4AA)',
                   color: 'var(--accent-fg, #000)',
                 }}
               >

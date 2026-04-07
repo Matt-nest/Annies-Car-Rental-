@@ -41,13 +41,11 @@ function NavItem({ to, label, icon: Icon, end, alertKey, alerts, onClose }) {
       onMouseEnter={e => {
         if (!e.currentTarget.getAttribute('aria-current')) {
           e.currentTarget.style.backgroundColor = 'var(--sidebar-hover)';
-          e.currentTarget.style.color = 'rgba(255,255,255,0.85)';
         }
       }}
       onMouseLeave={e => {
         if (!e.currentTarget.getAttribute('aria-current')) {
           e.currentTarget.style.backgroundColor = 'transparent';
-          e.currentTarget.style.color = 'var(--sidebar-text)';
         }
       }}
     >
@@ -60,9 +58,12 @@ function NavItem({ to, label, icon: Icon, end, alertKey, alerts, onClose }) {
             />
           )}
           <Icon
-            size={15}
-            strokeWidth={isActive ? 2.2 : 1.8}
-            style={{ opacity: isActive ? 1 : 0.7, flexShrink: 0 }}
+            size={18}
+            strokeWidth={isActive ? 2 : 1.7}
+            style={{
+              color: isActive ? 'var(--sidebar-active-icon)' : 'var(--sidebar-text-muted)',
+              flexShrink: 0,
+            }}
           />
           <span className="flex-1 truncate">{label}</span>
           {count > 0 && (
@@ -88,7 +89,7 @@ export default function Sidebar({ open, onClose, alerts = {} }) {
       {open && (
         <div
           className="fixed inset-0 z-30 lg:hidden"
-          style={{ backgroundColor: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)' }}
+          style={{ backgroundColor: 'rgba(0,0,0,0.50)', backdropFilter: 'blur(4px)' }}
           onClick={onClose}
         />
       )}
@@ -107,26 +108,26 @@ export default function Sidebar({ open, onClose, alerts = {} }) {
       >
         {/* Brand */}
         <div
-          className="flex items-center justify-between px-5 h-14 shrink-0"
+          className="flex items-center justify-between px-5 h-16 shrink-0"
           style={{ borderBottom: '1px solid var(--sidebar-border)' }}
         >
           <div className="flex items-center gap-3">
             <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-              style={{ backgroundColor: '#D4AF37' }}
+              className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+              style={{ backgroundColor: '#1E3A5F' }}
             >
-              <Car size={15} color="#0F172A" strokeWidth={2.2} />
+              <Car size={16} color="#FFFFFF" strokeWidth={2} />
             </div>
             <div>
               <p
-                className="text-[13px] font-semibold tracking-tight leading-tight"
-                style={{ color: 'rgba(255,255,255,0.92)' }}
+                className="text-[14px] font-semibold tracking-tight leading-tight"
+                style={{ color: 'var(--text-primary)' }}
               >
                 Annie's &amp; Co
               </p>
               <p
-                className="text-[9px] font-bold uppercase tracking-[0.18em]"
-                style={{ color: 'rgba(255,255,255,0.30)' }}
+                className="text-[10px] font-semibold uppercase tracking-[0.12em]"
+                style={{ color: 'var(--sidebar-text-muted)' }}
               >
                 Admin
               </p>
@@ -136,8 +137,8 @@ export default function Sidebar({ open, onClose, alerts = {} }) {
           <button
             onClick={onClose}
             className="lg:hidden p-2 rounded-lg transition-colors"
-            style={{ color: 'rgba(255,255,255,0.40)', minWidth: 36, minHeight: 36 }}
-            onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.08)')}
+            style={{ color: 'var(--sidebar-text-muted)', minWidth: 36, minHeight: 36 }}
+            onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--sidebar-hover)')}
             onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
             aria-label="Close menu"
           >
@@ -148,10 +149,10 @@ export default function Sidebar({ open, onClose, alerts = {} }) {
         {/* Navigation */}
         <nav className="flex-1 px-3 py-4 overflow-y-auto no-scrollbar">
           <p
-            className="px-3 text-[9px] font-bold uppercase tracking-[0.18em] mb-2"
+            className="px-3 text-[10px] font-semibold uppercase tracking-[0.12em] mb-2"
             style={{ color: 'var(--sidebar-text-muted)' }}
           >
-            Main Menu
+            Menu
           </p>
           <div className="space-y-0.5">
             {MAIN_NAV.map(item => (
@@ -165,7 +166,7 @@ export default function Sidebar({ open, onClose, alerts = {} }) {
           />
 
           <p
-            className="px-3 text-[9px] font-bold uppercase tracking-[0.18em] mb-2"
+            className="px-3 text-[10px] font-semibold uppercase tracking-[0.12em] mb-2"
             style={{ color: 'var(--sidebar-text-muted)' }}
           >
             System
@@ -184,15 +185,15 @@ export default function Sidebar({ open, onClose, alerts = {} }) {
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium w-full transition-all duration-200"
             style={{ color: 'var(--sidebar-text)', minHeight: 40 }}
             onMouseEnter={e => {
-              e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.12)';
-              e.currentTarget.style.color = '#fca5a5';
+              e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.08)';
+              e.currentTarget.style.color = '#ef4444';
             }}
             onMouseLeave={e => {
               e.currentTarget.style.backgroundColor = 'transparent';
               e.currentTarget.style.color = 'var(--sidebar-text)';
             }}
           >
-            <LogOut size={15} style={{ opacity: 0.7 }} />
+            <LogOut size={18} strokeWidth={1.7} style={{ color: 'var(--sidebar-text-muted)' }} />
             Sign out
           </button>
         </div>

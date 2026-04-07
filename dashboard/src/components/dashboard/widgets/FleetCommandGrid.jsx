@@ -8,7 +8,7 @@ import WidgetWrapper from '../WidgetWrapper';
 
 const STATUS_CONFIG = {
   available:   { color: '#22c55e', label: 'Available',    bg: 'rgba(34,197,94,0.1)' },
-  rented:      { color: '#D4AF37', label: 'Rented',       bg: 'rgba(212,175,55,0.1)' },
+  rented:      { color: '#00D4AA', label: 'Rented',       bg: 'rgba(0,212,170,0.1)' },
   turo:        { color: '#818cf8', label: 'On Turo',      bg: 'rgba(129,140,248,0.1)' },
   maintenance: { color: '#f87171', label: 'Maintenance',  bg: 'rgba(248,113,113,0.1)' },
   retired:     { color: '#737373', label: 'Retired',      bg: 'rgba(115,115,115,0.1)' },
@@ -53,7 +53,7 @@ function SummaryChips({ vehicles }) {
   const chips = [
     { label: 'Total', value: total, color: 'var(--text-secondary)', bg: 'var(--bg-card-hover)' },
     { label: 'Available', value: available, color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
-    { label: 'Earning', value: earning, color: '#D4AF37', bg: 'rgba(212,175,55,0.1)' },
+    { label: 'Earning', value: earning, color: '#00D4AA', bg: 'rgba(0,212,170,0.1)' },
     ...(attention > 0 ? [{ label: 'Attention', value: attention, color: '#f87171', bg: 'rgba(248,113,113,0.08)' }] : []),
   ];
 

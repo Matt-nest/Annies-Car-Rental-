@@ -20,7 +20,7 @@ function urgencyConfig(hours) {
   if (hours >= 24) return { color: '#ef4444', bg: 'rgba(239,68,68,0.08)', pulse: true, label: 'Critical' };
   if (hours >= 4)  return { color: '#f97316', bg: 'rgba(249,115,22,0.08)', pulse: false, label: 'Overdue' };
   if (hours >= 1)  return { color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', pulse: false, label: 'Late' };
-  return { color: '#D4AF37', bg: 'rgba(212,175,55,0.08)', pulse: false, label: 'Pending' };
+  return { color: '#F59E0B', bg: 'rgba(245,158,11,0.08)', pulse: false, label: 'Pending' };
 }
 
 function formatOverdue(hours) {

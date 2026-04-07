@@ -170,7 +170,7 @@ export default function PaymentsPage() {
                             style={{
                               backgroundColor: 'var(--accent-glow)',
                               color: 'var(--accent-color)',
-                              border: '1px solid rgba(212,175,55,0.2)',
+                              border: '1px solid rgba(30,58,95,0.2)',
                             }}
                             onMouseEnter={e => {
                               e.currentTarget.style.backgroundColor = 'var(--accent-color)';

@@ -69,14 +69,14 @@ function KpiCard({ label, rawValue, icon: Icon, hero, sub, onClick, alert, prefi
         className="relative overflow-hidden rounded-2xl p-5 cursor-pointer group col-span-2 lg:col-span-1"
         style={{
           backgroundColor: 'var(--hero-bg)',
-          border: '1px solid rgba(212,175,55,0.18)',
+          border: '1px solid rgba(30,58,95,0.18)',
           boxShadow: 'var(--shadow-md)',
           minHeight: 110,
         }}
         whileHover={{ scale: 1.01, transition: { duration: 0.2, ease: EASE } }}
       >
         <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-xl"
-          style={{ boxShadow: 'inset 0 0 60px rgba(212,175,55,0.06)' }} />
+          style={{ boxShadow: 'inset 0 0 60px rgba(30,58,95,0.06)' }} />
         {alert && <span className="absolute top-3.5 right-3.5 w-2.5 h-2.5 rounded-full pulse-dot" style={{ backgroundColor: 'var(--danger-color)' }} />}
         <div className="flex items-start justify-between gap-3 relative z-10">
           <div className="flex-1 min-w-0">
@@ -87,7 +87,7 @@ function KpiCard({ label, rawValue, icon: Icon, hero, sub, onClick, alert, prefi
             {sub && <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>{sub}</p>}
           </div>
           <div className="flex flex-col items-end gap-2">
-            <div className="p-2.5 rounded-xl shrink-0" style={{ backgroundColor: 'rgba(212,175,55,0.12)', color: 'var(--accent-color)' }}>
+            <div className="p-2.5 rounded-xl shrink-0" style={{ backgroundColor: 'rgba(30,58,95,0.12)', color: 'var(--accent-color)' }}>
               <Icon size={20} />
             </div>
             {sparkData && <Sparkline data={sparkData} color="var(--accent-color)" />}
@@ -148,8 +148,8 @@ function StarRating({ value }) {
       <div className="flex gap-0.5">
         {[1, 2, 3, 4, 5].map((i) => (
           <Star key={i} size={13}
-            style={{ color: i <= Math.round(num) ? '#D4AF37' : 'var(--border-medium)' }}
-            fill={i <= Math.round(num) ? '#D4AF37' : 'none'} />
+            style={{ color: i <= Math.round(num) ? '#00D4AA' : 'var(--border-medium)' }}
+            fill={i <= Math.round(num) ? '#00D4AA' : 'none'} />
         ))}
       </div>
       <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{num.toFixed(1)}</span>

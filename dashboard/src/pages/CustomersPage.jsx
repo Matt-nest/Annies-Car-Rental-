@@ -83,7 +83,7 @@ export default function CustomersPage() {
                   <div
                     className="w-11 h-11 rounded-xl flex items-center justify-center text-sm font-bold shrink-0"
                     style={{
-                      background: 'linear-gradient(135deg, var(--accent-color), #B8941E)',
+                      background: 'linear-gradient(135deg, #1E3A5F, #3f72a2)',
                       color: 'var(--accent-fg)',
                     }}
                   >

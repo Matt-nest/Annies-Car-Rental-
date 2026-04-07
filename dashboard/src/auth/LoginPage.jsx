@@ -32,7 +32,7 @@ export default function LoginPage() {
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          backgroundImage: 'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(212,175,55,0.08) 0%, transparent 60%)',
+          backgroundImage: 'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(30,58,95,0.08) 0%, transparent 60%)',
         }}
       />
 
@@ -41,9 +41,9 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <div
             className="inline-flex items-center justify-center w-12 h-12 rounded-2xl mb-4"
-            style={{ backgroundColor: '#D4AF37' }}
+            style={{ backgroundColor: '#1E3A5F' }}
           >
-            <Car size={22} color="#0F172A" strokeWidth={2.2} />
+            <Car size={22} color="#FFFFFF" strokeWidth={2.2} />
           </div>
           <h1
             className="text-2xl font-bold tracking-tight"
@@ -119,8 +119,8 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-sm transition-all"
               style={{
-                backgroundColor: '#D4AF37',
-                color: '#0F172A',
+                backgroundColor: '#00D4AA',
+                color: '#FFFFFF',
                 minHeight: 44,
                 opacity: loading ? 0.7 : 1,
               }}

@@ -8,11 +8,11 @@ import WidgetWrapper from '../WidgetWrapper';
 function heatColor(revenue, maxRevenue) {
   if (!revenue || revenue <= 0) return 'var(--bg-card-hover)';
   const t = Math.min(revenue / maxRevenue, 1);
-  if (t < 0.15) return 'rgba(212,175,55,0.18)';
-  if (t < 0.35) return 'rgba(212,175,55,0.36)';
-  if (t < 0.55) return 'rgba(212,175,55,0.55)';
-  if (t < 0.75) return 'rgba(212,175,55,0.74)';
-  return 'rgba(212,175,55,0.95)';
+  if (t < 0.15) return 'rgba(30,58,95,0.18)';
+  if (t < 0.35) return 'rgba(30,58,95,0.36)';
+  if (t < 0.55) return 'rgba(30,58,95,0.55)';
+  if (t < 0.75) return 'rgba(30,58,95,0.74)';
+  return 'rgba(30,58,95,0.95)';
 }
 
 // ─── Build the 52-week grid data structure ─────────────────────────────────────
@@ -221,7 +221,7 @@ export default function RevenueHeatmapWidget() {
         <div className="flex items-center gap-2">
           <span className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>Less</span>
           {[0.1, 0.3, 0.5, 0.7, 0.95].map((t, i) => (
-            <div key={i} style={{ width: CELL, height: CELL, borderRadius: 2, backgroundColor: `rgba(212,175,55,${t})` }} />
+            <div key={i} style={{ width: CELL, height: CELL, borderRadius: 2, backgroundColor: `rgba(30,58,95,${t})` }} />
           ))}
           <span className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>More</span>
           <span className="ml-auto text-[10px]" style={{ color: 'var(--text-tertiary)' }}>

@@ -60,10 +60,10 @@ const STATUS_STYLES = {
     darkColor: '#22c55e',
   },
   rented: {
-    bg: 'rgba(212,175,55,0.10)',
-    border: 'rgba(212,175,55,0.22)',
-    color: '#a16207',
-    darkColor: '#D4AF37',
+    bg: 'rgba(0,212,170,0.10)',
+    border: 'rgba(0,212,170,0.22)',
+    color: '#009c7e',
+    darkColor: '#00D4AA',
   },
   turo: {
     bg: 'rgba(129,140,248,0.10)',

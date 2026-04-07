@@ -14,7 +14,7 @@ function RevenueBar({ vehicle, maxRevenue, rank }) {
     ? 'var(--border-medium)'
     : isTop
     ? 'var(--accent-color)'
-    : 'rgba(212,175,55,0.5)';
+    : 'rgba(30,58,95,0.5)';
 
   return (
     <div className="flex items-center gap-3 py-2.5 group"

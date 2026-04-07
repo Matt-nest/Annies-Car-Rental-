@@ -133,8 +133,8 @@ export default function DashboardLayout() {
                 <div
                   className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0"
                   style={{
-                    background: 'linear-gradient(135deg, var(--accent-color), color-mix(in srgb, var(--accent-color) 70%, #000))',
-                    color: 'var(--accent-fg)',
+                    background: 'linear-gradient(135deg, #1E3A5F, #3f72a2)',
+                    color: '#FFFFFF',
                   }}
                 >
                   {initials}

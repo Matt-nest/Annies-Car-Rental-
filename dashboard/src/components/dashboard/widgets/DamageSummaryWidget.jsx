@@ -6,7 +6,7 @@ import { api } from '../../../api/client';
 import WidgetWrapper from '../WidgetWrapper';
 
 const SEVERITY_CONFIG = {
-  minor:    { color: '#D4AF37', bg: 'rgba(212,175,55,0.12)',  label: 'Minor' },
+  minor:    { color: '#F59E0B', bg: 'rgba(245,158,11,0.12)',  label: 'Minor' },
   moderate: { color: '#f97316', bg: 'rgba(249,115,22,0.12)',  label: 'Moderate' },
   major:    { color: '#ef4444', bg: 'rgba(239,68,68,0.12)',   label: 'Major' },
   totaled:  { color: '#7f1d1d', bg: 'rgba(127,29,29,0.20)',   label: 'Totaled' },

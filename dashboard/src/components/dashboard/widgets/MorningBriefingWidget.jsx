@@ -52,7 +52,7 @@ export default function MorningBriefingWidget() {
 
   if (loading) {
     return (
-      <div className="rounded-2xl p-5 space-y-3 animate-pulse" style={{ backgroundColor: 'var(--hero-bg)', border: '1px solid rgba(212,175,55,0.12)', minHeight: 80 }}>
+      <div className="rounded-2xl p-5 space-y-3 animate-pulse" style={{ backgroundColor: 'var(--hero-bg)', border: '1px solid rgba(30,58,95,0.12)', minHeight: 80 }}>
         <div className="h-5 w-48 rounded-lg" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }} />
         <div className="h-4 w-64 rounded-lg" style={{ backgroundColor: 'rgba(255,255,255,0.04)' }} />
       </div>
@@ -80,19 +80,19 @@ export default function MorningBriefingWidget() {
       className="relative rounded-2xl overflow-hidden"
       style={{
         backgroundColor: 'var(--hero-bg)',
-        border: `1px solid ${hasUrgency ? 'rgba(212,175,55,0.28)' : 'rgba(212,175,55,0.12)'}`,
-        boxShadow: hasUrgency ? 'var(--shadow-md), 0 0 0 1px rgba(212,175,55,0.08)' : 'var(--shadow-sm)',
+        border: `1px solid ${hasUrgency ? 'rgba(30,58,95,0.28)' : 'rgba(30,58,95,0.12)'}`,
+        boxShadow: hasUrgency ? 'var(--shadow-md), 0 0 0 1px rgba(30,58,95,0.08)' : 'var(--shadow-sm)',
       }}
     >
       {/* Subtle ambient glow when urgency */}
       {hasUrgency && (
-        <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 60% 40% at 50% 0%, rgba(212,175,55,0.06) 0%, transparent 70%)' }} />
+        <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 60% 40% at 50% 0%, rgba(30,58,95,0.06) 0%, transparent 70%)' }} />
       )}
 
       <div className="relative px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-4">
         {/* Left — greeting + date */}
         <div className="flex items-center gap-3 sm:w-52 shrink-0">
-          <div className="p-2 rounded-xl" style={{ backgroundColor: 'rgba(212,175,55,0.12)' }}>
+          <div className="p-2 rounded-xl" style={{ backgroundColor: 'rgba(30,58,95,0.12)' }}>
             <TimeIcon size={18} style={{ color: 'var(--accent-color)' }} />
           </div>
           <div>
