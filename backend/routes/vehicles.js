@@ -9,7 +9,7 @@ const router = Router();
 
 /** GET /vehicles — list all (admin) */
 router.get('/', requireAuth, asyncHandler(async (req, res) => {
-  let query = supabase.from('vehicles').select('*').order('make');
+  let query = supabase.from('vehicles').select('*').neq('status', 'deleted').order('make');
 
   if (req.query.status) query = query.eq('status', req.query.status);
   if (req.query.category) query = query.eq('category', req.query.category);
@@ -192,6 +192,27 @@ router.delete('/:id', requireAuth, asyncHandler(async (req, res) => {
     });
   }
 
+  // Check if vehicle has ANY bookings (including past) — FK constraint would block hard delete
+  const { data: allBookings, error: allErr } = await supabase
+    .from('bookings')
+    .select('id')
+    .eq('vehicle_id', req.params.id)
+    .limit(1);
+
+  if (allErr) throw allErr;
+
+  if (allBookings && allBookings.length > 0) {
+    // Soft delete — set status to 'deleted' so it's hidden from fleet but preserves booking history
+    const { error } = await supabase
+      .from('vehicles')
+      .update({ status: 'deleted' })
+      .eq('id', req.params.id);
+
+    if (error) throw error;
+    return res.json({ success: true, soft_deleted: true });
+  }
+
+  // Hard delete — no bookings reference this vehicle
   const { error } = await supabase
     .from('vehicles')
     .delete()
