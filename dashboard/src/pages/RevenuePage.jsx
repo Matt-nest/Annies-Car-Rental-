@@ -208,8 +208,8 @@ export default function RevenuePage() {
                 <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-tertiary)', fontSize: 11 }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-tertiary)', fontSize: 11 }} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
                 <Tooltip content={<GlassTooltip prefix="$" />} />
-                <Bar dataKey="total" fill="#465FFF" radius={[6, 6, 0, 0]} barSize={32} name="Revenue" />
-                <Line type="monotone" dataKey="total" stroke="#8B5CF6" strokeWidth={2} dot={false} name="Trend" />
+                <Bar dataKey="total" fill="#465FFF" radius={[6, 6, 0, 0]} barSize={32} name="Revenue" isAnimationActive={true} animationDuration={1200} animationBegin={200} animationEasing="ease-out" />
+                <Line type="monotone" dataKey="total" stroke="#8B5CF6" strokeWidth={2} dot={false} name="Trend" isAnimationActive={true} animationDuration={1500} animationBegin={600} animationEasing="ease-out" />
               </ComposedChart>
             </ResponsiveContainer>
           )}
@@ -232,7 +232,7 @@ export default function RevenuePage() {
                   <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-tertiary)', fontSize: 10 }} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
                   <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} width={130} />
                   <Tooltip content={<GlassTooltip prefix="$" />} />
-                  <Bar dataKey="total" fill="#818cf8" radius={[0, 6, 6, 0]} barSize={20} name="Revenue" />
+                  <Bar dataKey="total" fill="#818cf8" radius={[0, 6, 6, 0]} barSize={20} name="Revenue" isAnimationActive={true} animationDuration={1200} animationBegin={300} animationEasing="ease-out" />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -251,7 +251,7 @@ export default function RevenuePage() {
               <div className="flex items-center h-full">
                 <ResponsiveContainer width="55%" height="100%">
                   <PieChart>
-                    <Pie data={categoryData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={4}>
+                    <Pie data={categoryData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={4} isAnimationActive={true} animationDuration={1000} animationBegin={200} animationEasing="ease-out">
                       {categoryData.map((entry, i) => (
                         <Cell key={i} fill={CATEGORY_COLORS[entry.name] || PIE_COLORS[i % PIE_COLORS.length]} stroke="none" />
                       ))}
@@ -286,7 +286,7 @@ export default function RevenuePage() {
             <div className="flex items-center h-full">
               <ResponsiveContainer width="55%" height="100%">
                 <PieChart>
-                  <Pie data={sourceData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={5}>
+                  <Pie data={sourceData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={5} isAnimationActive={true} animationDuration={1000} animationBegin={200} animationEasing="ease-out">
                     {sourceData.map((_, i) => (
                       <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} stroke="none" />
                     ))}
