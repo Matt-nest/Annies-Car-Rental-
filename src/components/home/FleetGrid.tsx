@@ -28,7 +28,7 @@ export default function FleetGrid({ onSelectVehicle }: FleetGridProps) {
 
   const filteredAndSorted = useMemo(() => {
     let result = [...vehicles];
-    if (filterCategory !== 'all') result = result.filter((v) => v.category === filterCategory);
+    if (filterCategory !== 'all') result = result.filter((v) => v.tags.includes(filterCategory));
     switch (sortBy) {
       case 'price-asc': result.sort((a, b) => a.dailyRate - b.dailyRate); break;
       case 'price-desc': result.sort((a, b) => b.dailyRate - a.dailyRate); break;

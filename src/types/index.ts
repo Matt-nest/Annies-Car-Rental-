@@ -8,6 +8,7 @@ export interface Vehicle {
   year: number;
   trim?: string;
   category: VehicleCategory;
+  tags: VehicleCategory[];
   dailyRate: number;
   weeklyRate: number;
   seats: number;
