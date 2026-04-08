@@ -31,6 +31,10 @@ export default function BookingDetailPage() {
     setLoading(true);
     try {
       const b = await api.getBooking(id);
+      // Normalize rental_agreements — Supabase returns object for 1:1, array for 1:many
+      if (b && b.rental_agreements && !Array.isArray(b.rental_agreements)) {
+        b.rental_agreements = [b.rental_agreements];
+      }
       setBooking(b);
     } catch (e) { console.error(e); }
     setLoading(false);
