@@ -10,6 +10,18 @@
 
 export const WIDGET_REGISTRY = [
   {
+    id: 'morning-briefing',
+    label: 'Morning Briefing',
+    description: 'Time-aware ops summary — pickups, returns, revenue at a glance',
+    defaultVisible: true,
+  },
+  {
+    id: 'kpi-cards',
+    label: 'KPI Summary Cards',
+    description: 'Active rentals, pending, pickups today, returns today, monthly revenue',
+    defaultVisible: true,
+  },
+  {
     id: 'overdue-alerts',
     label: 'Overdue Return Alerts',
     description: 'Active rentals that have passed their scheduled return time',
@@ -25,18 +37,6 @@ export const WIDGET_REGISTRY = [
     id: 'pending-counter-sign',
     label: 'Pending Counter-Signatures',
     description: 'Agreements awaiting your counter-signature to confirm the booking',
-    defaultVisible: true,
-  },
-  {
-    id: 'morning-briefing',
-    label: 'Morning Briefing',
-    description: 'Time-aware ops summary — pickups, returns, revenue at a glance',
-    defaultVisible: true,
-  },
-  {
-    id: 'kpi-cards',
-    label: 'KPI Summary Cards',
-    description: 'Active rentals, pending, pickups today, returns today, monthly revenue',
     defaultVisible: true,
   },
   {
