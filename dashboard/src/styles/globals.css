@@ -554,6 +554,11 @@ html.dark {
   animation: urgencyPulse 2s ease-in-out infinite;
 }
 
+@keyframes pulseBlue {
+  0%, 100% { box-shadow: 0 0 8px rgba(0,122,255,0.2), inset 0 0 0 1px rgba(0,122,255,0.2); }
+  50%      { box-shadow: 0 0 18px rgba(0,122,255,0.35), inset 0 0 0 1px rgba(0,122,255,0.3); }
+}
+
 /* ─── Sidebar Nav Items (TailAdmin match) ─────────────────────────────────── */
 .nav-item {
   @apply flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium;

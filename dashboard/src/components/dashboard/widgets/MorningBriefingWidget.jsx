@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Sun, Sunset, Moon, ArrowUpFromLine, ArrowDownToLine,
-  CheckCircle2, AlertTriangle, DollarSign, ChevronRight,
+  CheckCircle2, AlertTriangle, DollarSign, ChevronRight, PenLine,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
@@ -60,6 +60,7 @@ export default function MorningBriefingWidget() {
   }
 
   const pending = overview?.pending_approvals || 0;
+  const pendingAgreements = overview?.pending_agreements || 0;
   const activeRentals = overview?.active_rentals || 0;
   const pickupsToday = overview?.pickups_today?.length || 0;
   const returnsToday = overview?.returns_today?.length || 0;
@@ -70,7 +71,7 @@ export default function MorningBriefingWidget() {
     return d.toDateString() === tomorrow.toDateString();
   }).length || 0;
 
-  const hasUrgency = pending > 0;
+  const hasUrgency = pending > 0 || pendingAgreements > 0;
 
   return (
     <motion.div
@@ -109,6 +110,24 @@ export default function MorningBriefingWidget() {
               {pending > 0 && (
                 <StatChip icon={CheckCircle2} value={pending} label="pending" color="var(--danger-color)" onClick={() => navigate('/bookings?status=pending_approval')} />
               )}
+              {pendingAgreements > 0 && (
+                <div
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl cursor-pointer transition-all"
+                  style={{
+                    background: 'rgba(0,122,255,0.12)',
+                    boxShadow: '0 0 12px rgba(0,122,255,0.25), inset 0 0 0 1px rgba(0,122,255,0.2)',
+                    animation: 'pulseBlue 2s ease-in-out infinite',
+                  }}
+                  onClick={() => {
+                    const el = document.querySelector('[data-widget="pending-counter-sign"]');
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }}
+                >
+                  <PenLine size={13} style={{ color: '#007AFF', flexShrink: 0 }} />
+                  <span className="text-base font-bold display-num" style={{ color: '#007AFF' }}>{pendingAgreements}</span>
+                  <span className="text-xs hidden sm:inline" style={{ color: '#007AFF', opacity: 0.8 }}>counter-sign</span>
+                </div>
+              )}
               <StatChip icon={DollarSign} value={activeRentals} label="active" color="#22c55e" />
             </>
           ) : (
@@ -118,6 +137,24 @@ export default function MorningBriefingWidget() {
                 <StatChip icon={ArrowUpFromLine} value={tomorrowPickups} label="tomorrow" color="#63b3ed" onClick={() => navigate('/calendar')} />
               )}
               <StatChip icon={DollarSign} value={activeRentals} label="active" color="#22c55e" />
+              {pendingAgreements > 0 && (
+                <div
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl cursor-pointer transition-all"
+                  style={{
+                    background: 'rgba(0,122,255,0.12)',
+                    boxShadow: '0 0 12px rgba(0,122,255,0.25), inset 0 0 0 1px rgba(0,122,255,0.2)',
+                    animation: 'pulseBlue 2s ease-in-out infinite',
+                  }}
+                  onClick={() => {
+                    const el = document.querySelector('[data-widget="pending-counter-sign"]');
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }}
+                >
+                  <PenLine size={13} style={{ color: '#007AFF', flexShrink: 0 }} />
+                  <span className="text-base font-bold display-num" style={{ color: '#007AFF' }}>{pendingAgreements}</span>
+                  <span className="text-xs hidden sm:inline" style={{ color: '#007AFF', opacity: 0.8 }}>counter-sign</span>
+                </div>
+              )}
             </>
           )}
         </div>
