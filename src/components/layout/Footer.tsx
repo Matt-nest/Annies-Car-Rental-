@@ -107,7 +107,7 @@ export default function Footer() {
           <div className="flex items-center gap-4">
             <p>Port St. Lucie, FL · Treasure Coast</p>
             <a
-              href="https://dashboard-two-gilt-51.vercel.app"
+              href="https://admin.dashboard.anniescarrental.com"
               target="_blank"
               rel="noopener noreferrer"
               className="transition-opacity hover:opacity-70"
