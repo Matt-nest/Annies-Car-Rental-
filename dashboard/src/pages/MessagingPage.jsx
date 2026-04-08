@@ -84,7 +84,7 @@ function getAvatarColor(name) {
 }
 
 /* ── Conversation List ── */
-function ConversationList({ conversations, selected, onSelect, search, onSearch, onRefresh }) {
+function ConversationList({ conversations, selected, onSelect, search, onSearch, onSync, syncing }) {
   const filtered = useMemo(() => conversations.filter(c => {
     if (!search) return true;
     const name = `${c.customer?.first_name || ''} ${c.customer?.last_name || ''}`.toLowerCase();
@@ -102,19 +102,20 @@ function ConversationList({ conversations, selected, onSelect, search, onSearch,
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={onRefresh}
-            title="Refresh conversations"
+            onClick={onSync}
+            disabled={syncing}
+            title="Sync GHL conversations"
             style={{
               width: 32, height: 32, borderRadius: 8,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               background: 'var(--bg-card, rgba(0,0,0,0.03))',
               border: '1px solid var(--border-subtle, rgba(0,0,0,0.06))',
-              cursor: 'pointer',
+              cursor: syncing ? 'wait' : 'pointer',
               color: 'var(--text-secondary)',
               transition: 'all 0.2s ease',
             }}
           >
-            <RefreshCw size={14} />
+            <RefreshCw size={14} style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }} />
           </motion.button>
         </div>
         <div style={{ position: 'relative' }}>
@@ -156,7 +157,7 @@ function ConversationList({ conversations, selected, onSelect, search, onSearch,
               </p>
               {!search && (
                 <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: 4 }}>
-                  Send a message to get started
+                  Send a message or sync from GHL
                 </p>
               )}
             </motion.div>
@@ -1067,7 +1068,8 @@ export default function MessagingPage() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
-
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState(null);
 
   const loadConversations = useCallback(() => {
     return api.getConversations()
@@ -1080,7 +1082,16 @@ export default function MessagingPage() {
     loadConversations().finally(() => setLoading(false));
   }, [loadConversations]);
 
-
+  // Auto-sync from GHL on first mount
+  const hasSynced = useRef(false);
+  useEffect(() => {
+    if (hasSynced.current) return;
+    hasSynced.current = true;
+    // Fire a background sync — don't show loading spinner for this
+    api.syncGHLConversations()
+      .then(() => loadConversations())
+      .catch(() => {});
+  }, [loadConversations]);
 
   // Poll for new messages every 30 seconds
   useEffect(() => {
@@ -1090,11 +1101,59 @@ export default function MessagingPage() {
     return () => clearInterval(interval);
   }, [loadConversations]);
 
-
+  const handleSync = async () => {
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const result = await api.syncGHLConversations();
+      console.log('[GHL Sync]', result);
+      setSyncResult(result);
+      // Auto-dismiss after 5s
+      setTimeout(() => setSyncResult(null), 5000);
+      // Refresh conversations after sync
+      await loadConversations();
+    } catch (err) {
+      console.error('Sync failed:', err);
+      setSyncResult({ error: err.message || 'Sync failed' });
+      setTimeout(() => setSyncResult(null), 5000);
+    }
+    setSyncing(false);
+  };
 
   return (
     <div style={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
-
+      {/* Sync result toast */}
+      <AnimatePresence>
+        {syncResult && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: -20, x: '-50%' }}
+            style={{
+              position: 'absolute', top: 60, left: '50%', zIndex: 100,
+              padding: '10px 20px', borderRadius: 12,
+              background: syncResult.error ? '#ef4444' : 'linear-gradient(135deg, #D4AF37 0%, #B8941E 100%)',
+              color: '#fff', fontSize: '12px', fontWeight: 600,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+              display: 'flex', alignItems: 'center', gap: 8,
+              letterSpacing: '-0.005em',
+            }}
+          >
+            {syncResult.error ? (
+              <span>⚠️ {syncResult.error}</span>
+            ) : (
+              <span>
+                ✓ Synced — {syncResult.linked || 0} contacts linked, {syncResult.synced || 0} messages imported
+                {syncResult.totalGHLContacts ? ` (${syncResult.totalGHLContacts} GHL contacts)` : ''}
+              </span>
+            )}
+            <button
+              onClick={() => setSyncResult(null)}
+              style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '14px', marginLeft: 4 }}
+            >✕</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Page header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
@@ -1114,7 +1173,7 @@ export default function MessagingPage() {
             color: 'var(--text-primary)',
           }}>Messaging</h1>
           <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: 2 }}>
-            Two-way SMS & email — powered by Resend + Twilio
+            Two-way SMS & email — synced with GoHighLevel
           </p>
         </div>
 
@@ -1164,7 +1223,8 @@ export default function MessagingPage() {
               onSelect={setSelectedCustomer}
               search={search}
               onSearch={setSearch}
-              onRefresh={loadConversations}
+              onSync={handleSync}
+              syncing={syncing}
             />
           </div>
           <ChatPanel customerId={selectedCustomer} conversations={conversations} />

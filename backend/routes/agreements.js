@@ -4,7 +4,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { generateRentalAgreementPdf } from '../utils/pdfGenerator.js';
 import { transitionBooking } from '../services/bookingService.js';
-import { sendEmail } from '../services/outboundService.js';
+import { sendCounterSignNotification } from '../services/emailService.js';
 import { createNotification } from '../services/notificationService.js';
 
 const router = Router();
@@ -231,32 +231,11 @@ router.post('/:bookingCode/sign', asyncHandler(async (req, res) => {
     ? `${fullBooking.vehicles.year} ${fullBooking.vehicles.make} ${fullBooking.vehicles.model}` : null;
 
   // Email notification to owner (fire-and-forget)
-  const ownerEmail = process.env.OWNER_EMAIL;
-  if (ownerEmail) {
-    const dashboardUrl = process.env.DASHBOARD_URL || 'https://admin.dashboard.anniescarrental.com';
-    const customerName = `${customer?.first_name || ''} ${customer?.last_name || ''}`.trim() || 'Customer';
-    const bookingLink = `${dashboardUrl}/bookings/${booking.id}`;
-    const html = `
-<div style="font-family:-apple-system,sans-serif;max-width:560px;margin:40px auto;background:#fff;border-radius:16px;border:1px solid #e7e5e4;overflow:hidden;">
-  <div style="background:#1c1917;padding:28px 32px;">
-    <p style="margin:0;color:#d6d3d1;font-size:13px;letter-spacing:0.1em;text-transform:uppercase;">Annie's Car Rental</p>
-    <h1 style="margin:8px 0 0;color:#fff;font-size:22px;font-weight:600;">⚡ Counter-Signature Needed</h1>
-  </div>
-  <div style="padding:32px;">
-    <p style="color:#44403c;font-size:15px;"><strong>${customerName}</strong> has signed the rental agreement for <strong>${fullBooking?.booking_code || ''}</strong>.</p>
-    <p style="color:#44403c;font-size:15px;">Your counter-signature is needed to confirm this rental.</p>
-    <a href="${bookingLink}" style="display:block;text-align:center;background:linear-gradient(135deg, #D4AF37 0%, #B8941E 100%);color:#fff;font-size:14px;font-weight:600;padding:14px 24px;border-radius:10px;text-decoration:none;margin-top:24px;">Counter-Sign Now →</a>
-  </div>
-  <div style="padding:20px 32px;border-top:1px solid #e7e5e4;background:#fafaf9;">
-    <p style="margin:0;font-size:12px;color:#a8a29e;text-align:center;">Annie's Car Rental · Port St. Lucie, FL · (772) 985-6667</p>
-  </div>
-</div>`;
-    sendEmail({
-      to: ownerEmail,
-      subject: `⚡ Counter-Sign Needed — ${fullBooking?.booking_code || ''} — ${customerName}`,
-      html,
-    }).catch(e => console.error('[Email] Counter-sign notification failed:', e));
-  }
+  sendCounterSignNotification({
+    booking: fullBooking || booking,
+    customer: customer || { first_name: 'Customer', last_name: '' },
+    vehicle: vehicleLabel,
+  }).catch(e => console.error('[Email] Counter-sign notification failed:', e));
 
   // Dashboard notification
   createNotification(

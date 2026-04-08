@@ -2,7 +2,8 @@ import { supabase } from '../db/supabase.js';
 import { generateBookingCode } from '../utils/generateBookingCode.js';
 import { checkAvailability } from './availabilityService.js';
 import { calcRentalDays, calcPricing, DELIVERY_FEES } from './pricingService.js';
-import { sendNotification, buildBookingPayload } from './outboundService.js';
+import { fireGHLWebhook, buildBookingPayload } from './ghlWebhook.js';
+import { sendBookingConfirmation } from './emailService.js';
 import { createNotification } from './notificationService.js';
 
 // Valid one-way status transitions
@@ -182,10 +183,16 @@ export async function createBooking(payload) {
     reason: 'Booking submitted via website',
   });
 
-  // 8. Send notifications (email + SMS via Resend + Twilio)
+  // 8. GHL webhooks (fire-and-forget)
   const fullBooking = { ...booking, customers: customer, vehicles: vehicle };
-  sendNotification('booking.created', buildBookingPayload(fullBooking))
-    .catch(err => console.error('[Notify] booking.created failed:', err));
+  fireGHLWebhook('booking.created', buildBookingPayload(fullBooking));
+
+  // 9. Confirmation email to customer (fire-and-forget)
+  sendBookingConfirmation({
+    customer,
+    booking,
+    vehicle: vehicle.year && vehicle.make ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : null,
+  }).catch(err => console.error('[Email] Confirmation email failed:', err));
 
   // 10. Dashboard notification
   createNotification(
@@ -234,18 +241,17 @@ export async function transitionBooking(bookingId, newStatus, { changedBy = 'own
     reason,
   });
 
-  // Send notifications for status changes
-  const notifyEvents = {
+  // GHL event map
+  const ghlEventMap = {
     approved:  'booking.approved',
     declined:  'booking.declined',
     cancelled: 'booking.cancelled',
     completed: 'booking.completed',
   };
 
-  if (notifyEvents[newStatus]) {
+  if (ghlEventMap[newStatus]) {
     const updated = await getBookingDetail(bookingId);
-    sendNotification(notifyEvents[newStatus], buildBookingPayload(updated))
-      .catch(err => console.error(`[Notify] ${notifyEvents[newStatus]} failed:`, err));
+    fireGHLWebhook(ghlEventMap[newStatus], buildBookingPayload(updated));
   }
 
   // Dashboard notification for status changes

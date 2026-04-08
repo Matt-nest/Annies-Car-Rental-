@@ -94,7 +94,7 @@ export const api = {
   getConversations: () => request('/messaging/conversations'),
   getMessages: (customerId) => request(`/messaging/conversations/${customerId}/messages`),
   sendMessage: (customerId, payload) => request(`/messaging/conversations/${customerId}/send`, { method: 'POST', body: JSON.stringify(payload) }),
-
+  syncGHLConversations: () => request('/messaging/sync', { method: 'POST' }),
 
   // Email Templates
   getEmailTemplates: () => request('/messaging/email-templates'),

@@ -82,15 +82,19 @@ export default function SettingsPage() {
       </Section>
 
       <Section
-        title="SMS (Twilio)"
-        description="SMS notifications to customers — set these in Vercel backend environment variables"
+        title="GoHighLevel Webhooks"
+        description="SMS/email automation triggers — set these in Vercel backend environment variables"
       >
         <div className="space-y-0">
-          <EnvRow label="Account SID" envKey="TWILIO_ACCOUNT_SID" note="From twilio.com/console" />
-          <EnvRow label="Auth Token" envKey="TWILIO_AUTH_TOKEN" note="From twilio.com/console" />
-          <EnvRow label="Phone Number" envKey="TWILIO_PHONE_NUMBER" note="Your Twilio number e.g. +17725551234" />
+          <EnvRow label="New Booking" envKey="GHL_WEBHOOK_BOOKING_CREATED" note="Notifies Annie of new request" />
+          <EnvRow label="Booking Approved" envKey="GHL_WEBHOOK_BOOKING_APPROVED" note="Notifies customer" />
+          <EnvRow label="Booking Declined" envKey="GHL_WEBHOOK_BOOKING_DECLINED" note="Notifies customer" />
+          <EnvRow label="Booking Cancelled" envKey="GHL_WEBHOOK_BOOKING_CANCELLED" />
+          <EnvRow label="Pickup Reminder" envKey="GHL_WEBHOOK_PICKUP_REMINDER" note="Day before pickup" />
+          <EnvRow label="Return Reminder" envKey="GHL_WEBHOOK_RETURN_REMINDER" note="Day before return" />
+          <EnvRow label="Overdue" envKey="GHL_WEBHOOK_BOOKING_OVERDUE" />
+          <EnvRow label="Completed + Review Request" envKey="GHL_WEBHOOK_COMPLETED" />
         </div>
-        <p className="text-xs text-[var(--text-tertiary)]">Without Twilio keys, SMS notifications are skipped but email notifications still work normally.</p>
       </Section>
 
       <Section title="Email" description="Transactional emails via Resend (resend.com — free tier available)">
