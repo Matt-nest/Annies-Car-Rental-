@@ -151,23 +151,23 @@ export default function PendingCounterSignWidget() {
         style={{
           background: 'var(--bg-card, #fff)',
           borderRadius: 16,
-          border: '1.5px solid rgba(212, 175, 55, 0.25)',
+          border: '1.5px solid rgba(99, 102, 241, 0.25)',
           overflow: 'hidden',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 0 0 1px rgba(212,175,55,0.05)',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 0 0 1px rgba(99,102,241,0.05)',
         }}
       >
         {/* Header */}
         <div style={{
           padding: '16px 20px',
-          background: 'linear-gradient(135deg, rgba(212,175,55,0.06) 0%, rgba(180,140,20,0.03) 100%)',
-          borderBottom: '1px solid rgba(212,175,55,0.1)',
+          background: 'linear-gradient(135deg, rgba(99,102,241,0.06) 0%, rgba(79,70,229,0.03) 100%)',
+          borderBottom: '1px solid rgba(99,102,241,0.1)',
           display: 'flex', alignItems: 'center', gap: 10,
         }}>
           <div style={{
             width: 32, height: 32, borderRadius: 10,
-            background: 'linear-gradient(135deg, #D4AF37 0%, #B8941E 100%)',
+            background: 'linear-gradient(135deg, var(--accent-color) 0%, var(--accent-hover) 100%)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 2px 8px rgba(212,175,55,0.3)',
+            boxShadow: '0 2px 8px rgba(99,102,241,0.3)',
           }}>
             <PenLine size={15} color="#fff" />
           </div>
@@ -205,7 +205,7 @@ export default function PendingCounterSignWidget() {
                     cursor: 'pointer',
                     transition: 'background 0.15s',
                   }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(212,175,55,0.03)'}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.03)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -213,7 +213,7 @@ export default function PendingCounterSignWidget() {
                       <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
                         {ag.booking_code}
                       </span>
-                      <span style={{ fontSize: '10px', color: '#D4AF37', fontWeight: 500, background: 'rgba(212,175,55,0.08)', padding: '1px 6px', borderRadius: 4 }}>
+                      <span style={{ fontSize: '10px', color: 'var(--accent-color)', fontWeight: 500, background: 'rgba(99,102,241,0.08)', padding: '1px 6px', borderRadius: 4 }}>
                         {ag.booking_status}
                       </span>
                     </div>
@@ -237,10 +237,10 @@ export default function PendingCounterSignWidget() {
                       onClick={(e) => { e.stopPropagation(); setSigningId(ag.booking_id); }}
                       style={{
                         padding: '6px 14px', borderRadius: 8, border: 'none',
-                        background: 'linear-gradient(135deg, #D4AF37 0%, #B8941E 100%)',
+                        background: 'linear-gradient(135deg, var(--accent-color) 0%, var(--accent-hover) 100%)',
                         color: '#fff', fontSize: '11px', fontWeight: 600,
                         cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
-                        boxShadow: '0 2px 6px rgba(212,175,55,0.25)',
+                        boxShadow: '0 2px 6px rgba(99,102,241,0.25)',
                       }}
                     >
                       <PenLine size={11} /> Sign
@@ -351,9 +351,9 @@ export default function PendingCounterSignWidget() {
                       style={{
                         flex: 2, padding: '10px', borderRadius: 10,
                         border: 'none', cursor: submitting ? 'wait' : 'pointer',
-                        background: 'linear-gradient(135deg, #D4AF37 0%, #B8941E 100%)',
+                        background: 'linear-gradient(135deg, var(--accent-color) 0%, var(--accent-hover) 100%)',
                         color: '#fff', fontSize: '12px', fontWeight: 700,
-                        boxShadow: '0 4px 12px rgba(212,175,55,0.3)',
+                        boxShadow: '0 4px 12px rgba(99,102,241,0.3)',
                       }}
                     >
                       {submitting ? 'Signing...' : 'Confirm Counter-Sign'}
