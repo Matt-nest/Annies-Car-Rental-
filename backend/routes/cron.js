@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { supabase } from '../db/supabase.js';
-import { fireGHLWebhook, buildBookingPayload } from '../services/ghlWebhook.js';
+import { sendNotification, buildBookingPayload } from '../services/outboundService.js';
 
 const router = Router();
 
@@ -52,7 +52,7 @@ router.get('/daily', async (req, res) => {
       .in('status', ['approved', 'confirmed']);
 
     for (const b of pickups || []) {
-      fireGHLWebhook('booking.pickup_reminder', buildBookingPayload(b));
+      sendNotification('booking.pickup_reminder', buildBookingPayload(b));
       results.pickupReminders++;
     }
 
@@ -64,7 +64,7 @@ router.get('/daily', async (req, res) => {
       .eq('status', 'active');
 
     for (const b of returns || []) {
-      fireGHLWebhook('booking.return_reminder', buildBookingPayload(b));
+      sendNotification('booking.return_reminder', buildBookingPayload(b));
       results.returnReminders++;
     }
 
@@ -76,7 +76,7 @@ router.get('/daily', async (req, res) => {
       .eq('status', 'active');
 
     for (const b of overdue || []) {
-      fireGHLWebhook('booking.overdue', buildBookingPayload(b));
+      sendNotification('booking.overdue', buildBookingPayload(b));
       results.overdueFlags++;
     }
 
@@ -105,7 +105,7 @@ router.get('/daily', async (req, res) => {
         reason: 'Auto-expired after 48 hours with no owner response',
       });
 
-      fireGHLWebhook('booking.declined', buildBookingPayload({ ...b, status: 'declined' }));
+      sendNotification('booking.declined', buildBookingPayload({ ...b, status: 'declined' }));
       results.autoDeclined++;
     }
 
@@ -117,7 +117,7 @@ router.get('/daily', async (req, res) => {
       .gte('created_at', cutoff48h);
 
     for (const b of toRemind || []) {
-      fireGHLWebhook('booking.approval_reminder', buildBookingPayload(b));
+      sendNotification('booking.approval_reminder', buildBookingPayload(b));
       results.approvalReminders++;
     }
 

@@ -26,7 +26,7 @@ export default function WebhookFailuresPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight tabular-nums">Webhook Failures</h1>
-          <p className="text-sm text-[var(--text-secondary)] mt-0.5">GHL notifications that failed to deliver</p>
+          <p className="text-sm text-[var(--text-secondary)] mt-0.5">Notifications that failed to deliver</p>
         </div>
         <button onClick={load} className="btn-secondary flex items-center gap-1.5">
           <RefreshCw size={14} /> Refresh
@@ -43,7 +43,7 @@ export default function WebhookFailuresPage() {
           <div className="px-5 py-3 bg-[var(--danger-glow)] border-b border-[rgba(244,63,94,0.2)] flex items-center gap-2">
             <AlertTriangle size={15} className="text-[var(--danger-color)]" />
             <p className="text-sm font-medium text-[var(--danger-color)]">{failures.length} failed webhook{failures.length !== 1 ? 's' : ''}</p>
-            <p className="text-xs text-[var(--danger-color)] ml-1">— GHL may not have received these notifications</p>
+            <p className="text-xs text-[var(--danger-color)] ml-1">— customers may not have received these notifications</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

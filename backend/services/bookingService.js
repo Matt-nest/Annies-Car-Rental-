@@ -2,8 +2,7 @@ import { supabase } from '../db/supabase.js';
 import { generateBookingCode } from '../utils/generateBookingCode.js';
 import { checkAvailability } from './availabilityService.js';
 import { calcRentalDays, calcPricing, DELIVERY_FEES } from './pricingService.js';
-import { fireGHLWebhook, buildBookingPayload } from './ghlWebhook.js';
-import { sendBookingConfirmation } from './emailService.js';
+import { sendNotification, buildBookingPayload } from './outboundService.js';
 import { createNotification } from './notificationService.js';
 
 // Valid one-way status transitions
@@ -183,16 +182,10 @@ export async function createBooking(payload) {
     reason: 'Booking submitted via website',
   });
 
-  // 8. GHL webhooks (fire-and-forget)
+  // 8. Send notifications (email + SMS via Resend + Twilio)
   const fullBooking = { ...booking, customers: customer, vehicles: vehicle };
-  fireGHLWebhook('booking.created', buildBookingPayload(fullBooking));
-
-  // 9. Confirmation email to customer (fire-and-forget)
-  sendBookingConfirmation({
-    customer,
-    booking,
-    vehicle: vehicle.year && vehicle.make ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : null,
-  }).catch(err => console.error('[Email] Confirmation email failed:', err));
+  sendNotification('booking.created', buildBookingPayload(fullBooking))
+    .catch(err => console.error('[Notify] booking.created failed:', err));
 
   // 10. Dashboard notification
   createNotification(
@@ -241,17 +234,18 @@ export async function transitionBooking(bookingId, newStatus, { changedBy = 'own
     reason,
   });
 
-  // GHL event map
-  const ghlEventMap = {
+  // Send notifications for status changes
+  const notifyEvents = {
     approved:  'booking.approved',
     declined:  'booking.declined',
     cancelled: 'booking.cancelled',
     completed: 'booking.completed',
   };
 
-  if (ghlEventMap[newStatus]) {
+  if (notifyEvents[newStatus]) {
     const updated = await getBookingDetail(bookingId);
-    fireGHLWebhook(ghlEventMap[newStatus], buildBookingPayload(updated));
+    sendNotification(notifyEvents[newStatus], buildBookingPayload(updated))
+      .catch(err => console.error(`[Notify] ${notifyEvents[newStatus]} failed:`, err));
   }
 
   // Dashboard notification for status changes

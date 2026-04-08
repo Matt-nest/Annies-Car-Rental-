@@ -1,6 +1,6 @@
 import cron from 'node-cron';
 import { supabase } from '../db/supabase.js';
-import { fireGHLWebhook, buildBookingPayload } from './ghlWebhook.js';
+import { sendNotification, buildBookingPayload } from './outboundService.js';
 
 const TZ = process.env.CRON_TIMEZONE || 'America/New_York';
 
@@ -26,7 +26,7 @@ async function sendPickupReminders() {
   if (error) { console.error('[CRON] pickupReminders error:', error); return; }
 
   for (const b of data || []) {
-    fireGHLWebhook('booking.pickup_reminder', buildBookingPayload(b));
+    sendNotification('booking.pickup_reminder', buildBookingPayload(b));
   }
   console.log(`[CRON] Sent ${data?.length || 0} pickup reminders`);
 }
@@ -43,7 +43,7 @@ async function sendReturnReminders() {
   if (error) { console.error('[CRON] returnReminders error:', error); return; }
 
   for (const b of data || []) {
-    fireGHLWebhook('booking.return_reminder', buildBookingPayload(b));
+    sendNotification('booking.return_reminder', buildBookingPayload(b));
   }
   console.log(`[CRON] Sent ${data?.length || 0} return reminders`);
 }
@@ -61,7 +61,7 @@ async function flagOverdueReturns() {
 
   for (const b of data || []) {
     console.warn(`[CRON] OVERDUE: ${b.booking_code} — ${b.customers?.first_name} ${b.customers?.last_name}`);
-    fireGHLWebhook('booking.overdue', buildBookingPayload(b));
+    sendNotification('booking.overdue', buildBookingPayload(b));
   }
   console.log(`[CRON] Flagged ${data?.length || 0} overdue returns`);
 }
@@ -94,7 +94,7 @@ async function autoExpireUnapproved() {
       reason: 'Auto-expired after 48 hours with no owner response',
     });
 
-    fireGHLWebhook('booking.declined', buildBookingPayload({ ...b, status: 'declined' }));
+    sendNotification('booking.declined', buildBookingPayload({ ...b, status: 'declined' }));
     console.log(`[CRON] Auto-declined: ${b.booking_code}`);
   }
 
@@ -107,7 +107,7 @@ async function autoExpireUnapproved() {
     .gte('created_at', cutoff48h);
 
   for (const b of toRemind || []) {
-    fireGHLWebhook('booking.approval_reminder', buildBookingPayload(b));
+    sendNotification('booking.approval_reminder', buildBookingPayload(b));
     console.log(`[CRON] Reminded owner to approve: ${b.booking_code}`);
   }
 }
