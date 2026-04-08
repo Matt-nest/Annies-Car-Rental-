@@ -7,7 +7,7 @@ import OverdueAlertsWidget     from './widgets/OverdueAlertsWidget';
 import PendingApprovalsWidget  from './widgets/PendingApprovalsWidget';
 import PendingCounterSignWidget from './widgets/PendingCounterSignWidget';
 import KPICardsWidget          from './widgets/KPICardsWidget';
-import FleetCommandGrid        from './widgets/FleetCommandGrid';
+
 import RevenueTrendWidget      from './widgets/RevenueTrendWidget';
 import TodayScheduleWidget     from './widgets/TodayScheduleWidget';
 import WeekScheduleWidget      from './widgets/WeekScheduleWidget';
@@ -22,7 +22,7 @@ const WIDGET_COMPONENTS = {
   'pending-approvals': PendingApprovalsWidget,
   'pending-counter-sign': PendingCounterSignWidget,
   'kpi-cards':         KPICardsWidget,
-  'fleet-grid':        FleetCommandGrid,
+
   'revenue-trend':     RevenueTrendWidget,
   'today-schedule':    TodayScheduleWidget,
   'week-schedule':     WeekScheduleWidget,

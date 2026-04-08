@@ -39,12 +39,7 @@ export const WIDGET_REGISTRY = [
     description: 'Agreements awaiting your counter-signature to confirm the booking',
     defaultVisible: true,
   },
-  {
-    id: 'fleet-grid',
-    label: 'Fleet Command Grid',
-    description: 'Live tile view of every vehicle with status, renter, and return countdown',
-    defaultVisible: true,
-  },
+
   {
     id: 'revenue-trend',
     label: 'Revenue Trend',
