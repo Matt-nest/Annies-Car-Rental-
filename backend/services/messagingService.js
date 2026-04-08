@@ -324,29 +324,49 @@ export async function syncGHLConversations() {
         const messages = await getGHLMessages(conv.id);
         if (!Array.isArray(messages) || messages.length === 0) continue;
         for (const msg of messages) {
-          // Check if already stored
+          // Check if already stored by external_id
           const { data: existing } = await supabase
             .from('messages')
             .select('id')
             .eq('external_id', msg.id)
-            .single();
+            .maybeSingle();
 
-          if (!existing) {
-            await storeLocalMessage({
-              customerId: customer.id,
-              direction: msg.direction === 1 ? 'inbound' : 'outbound',
-              channel: String(msg.type || 'email').toLowerCase() === 'sms' || msg.type === 1 ? 'sms' : 'email',
-              subject: msg.subject || null,
-              body: msg.body || msg.message || '',
-              externalId: msg.id,
-              metadata: {
-                ghl_conversation_id: conv.id,
-                ghl_contact_id: ghlContact.id,
-                ghl_date: msg.dateAdded,
-              },
-            });
-            synced++;
+          if (existing) continue;
+
+          // Detect channel from GHL message data
+          // GHL uses: contentType ("text/plain"), messageType ("SMS"/"Email"), type (integer or string)
+          const msgType = (msg.messageType || msg.contentType || msg.type || '').toString().toLowerCase();
+          const isSMS = msgType.includes('sms') || msg.type === 1 || msgType === '1';
+          const channel = isSMS ? 'sms' : 'email';
+          const msgBody = msg.body || msg.message || '';
+
+          // Content-based dedup: skip if we already stored a near-identical message
+          // (catches duplicates from webhook storeWebhookMessage that have different external_ids)
+          const bodySnippet = msgBody.replace(/\[Auto\]\s*/g, '').trim().slice(0, 80);
+          if (bodySnippet) {
+            const { data: contentMatch } = await supabase
+              .from('messages')
+              .select('id')
+              .eq('customer_id', customer.id)
+              .ilike('body', `%${bodySnippet}%`)
+              .maybeSingle();
+            if (contentMatch) continue;
           }
+
+          await storeLocalMessage({
+            customerId: customer.id,
+            direction: msg.direction === 1 ? 'inbound' : 'outbound',
+            channel,
+            subject: msg.subject || null,
+            body: msgBody,
+            externalId: msg.id,
+            metadata: {
+              ghl_conversation_id: conv.id,
+              ghl_contact_id: ghlContact.id,
+              ghl_date: msg.dateAdded,
+            },
+          });
+          synced++;
         }
       }
     }
@@ -400,3 +420,5 @@ export async function getLocalMessages(customerId) {
   }
   return data || [];
 }
+
+

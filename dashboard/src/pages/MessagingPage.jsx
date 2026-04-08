@@ -262,7 +262,7 @@ function ChatPanel({ customerId, conversations }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
-  const [channel, setChannel] = useState('email');
+  const [channel, setChannel] = useState('all');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [showTemplates, setShowTemplates] = useState(false);
@@ -306,8 +306,10 @@ function ChatPanel({ customerId, conversations }) {
     if (!body.trim()) return;
     setSending(true);
     try {
-      const payload = { channel, body: body.trim() };
-      if (channel === 'email' && subject.trim()) payload.subject = subject.trim();
+      // Use 'email' as default when 'all' is selected for composing
+      const sendChannel = channel === 'all' ? 'email' : channel;
+      const payload = { channel: sendChannel, body: body.trim() };
+      if (sendChannel === 'email' && subject.trim()) payload.subject = subject.trim();
       const result = await api.sendMessage(customerId, payload);
       if (result?.message) {
         setMessages(prev => [...prev, result.message]);
@@ -335,11 +337,14 @@ function ChatPanel({ customerId, conversations }) {
     }
   };
 
-  // Group messages by date
+  // Group messages by date, filtered by selected channel
   const groupedMessages = useMemo(() => {
+    const filtered = channel === 'all'
+      ? messages
+      : messages.filter(m => m.channel === channel || m.channel === 'system');
     const groups = [];
     let currentDate = '';
-    for (const msg of messages) {
+    for (const msg of filtered) {
       const date = formatDate(msg.created_at);
       if (date !== currentDate) {
         currentDate = date;
@@ -348,7 +353,7 @@ function ChatPanel({ customerId, conversations }) {
       groups.push({ type: 'message', ...msg, key: msg.id });
     }
     return groups;
-  }, [messages]);
+  }, [messages, channel]);
 
   if (!customerId) {
     return (
@@ -421,6 +426,7 @@ function ChatPanel({ customerId, conversations }) {
             border: '1px solid var(--border-subtle)',
           }}>
             {[
+              { key: 'all', label: 'All', Icon: MessageSquare, color: '#D4AF37' },
               { key: 'email', label: 'Email', Icon: Mail, color: '#2563eb' },
               { key: 'sms', label: 'SMS', Icon: MessageSquare, color: '#16a34a' },
             ].map(({ key, label, Icon, color }) => (
@@ -668,7 +674,7 @@ function ChatPanel({ customerId, conversations }) {
         borderTop: '1px solid var(--border-subtle)',
         background: 'var(--bg-elevated)',
       }}>
-        {channel === 'email' && (
+        {(channel === 'email' || channel === 'all') && (
           <motion.input
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
@@ -690,7 +696,7 @@ function ChatPanel({ customerId, conversations }) {
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
           <div style={{ flex: 1, position: 'relative' }}>
             <textarea
-              placeholder={`Type your ${channel === 'email' ? 'email' : 'SMS message'}...`}
+              placeholder={`Type your ${channel === 'sms' ? 'SMS message' : 'email'}...`}
               value={body}
               onChange={(e) => setBody(e.target.value)}
               rows={2}
@@ -789,7 +795,7 @@ function EmailTemplatesTab() {
 
   const handleDelete = async (id) => {
     if (!confirm('Delete this template?')) return;
-    await api.deleteEmailTemplate(id).catch(() => {});
+    await api.deleteEmailTemplate(id).catch(() => { });
     fetchTemplates();
   };
 
@@ -1074,7 +1080,7 @@ export default function MessagingPage() {
   const loadConversations = useCallback(() => {
     return api.getConversations()
       .then(data => setConversations(data || []))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   // Initial load
@@ -1090,7 +1096,7 @@ export default function MessagingPage() {
     // Fire a background sync — don't show loading spinner for this
     api.syncGHLConversations()
       .then(() => loadConversations())
-      .catch(() => {});
+      .catch(() => { });
   }, [loadConversations]);
 
   // Poll for new messages every 30 seconds

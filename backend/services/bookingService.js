@@ -9,14 +9,14 @@ import { createNotification } from './notificationService.js';
 // Valid one-way status transitions
 const TRANSITIONS = {
   pending_approval: ['approved', 'declined', 'cancelled'],
-  approved:         ['confirmed', 'active', 'cancelled'],
-  confirmed:        ['active', 'cancelled'],
-  active:           ['returned', 'cancelled'],
-  returned:         ['completed'],
-  completed:        [],
-  declined:         [],
-  cancelled:        [],
-  no_show:          [],
+  approved: ['confirmed', 'active', 'cancelled'],
+  confirmed: ['active', 'cancelled'],
+  active: ['returned', 'cancelled'],
+  returned: ['completed'],
+  completed: [],
+  declined: [],
+  cancelled: [],
+  no_show: [],
 };
 
 export function canTransition(from, to) {
@@ -201,7 +201,7 @@ export async function createBooking(payload) {
     `${customer.first_name} ${customer.last_name} — ${vehicle.year} ${vehicle.make} ${vehicle.model}`,
     `/bookings/${booking.id}`,
     { booking_id: booking.id, booking_code }
-  ).catch(() => {});
+  ).catch(() => { });
 
   return booking;
 }
@@ -223,7 +223,7 @@ export async function transitionBooking(bookingId, newStatus, { changedBy = 'own
 
   if (newStatus === 'approved') statusFields.owner_approved_at = new Date().toISOString();
   if (newStatus === 'declined') statusFields.owner_declined_at = new Date().toISOString();
-  if (newStatus === 'active')   statusFields.actual_pickup_at = extraFields.actual_pickup_at || new Date().toISOString();
+  if (newStatus === 'active') statusFields.actual_pickup_at = extraFields.actual_pickup_at || new Date().toISOString();
   if (newStatus === 'returned') statusFields.actual_return_at = extraFields.actual_return_at || new Date().toISOString();
 
   const { error: updateErr } = await supabase
@@ -243,8 +243,8 @@ export async function transitionBooking(bookingId, newStatus, { changedBy = 'own
 
   // GHL event map
   const ghlEventMap = {
-    approved:  'booking.approved',
-    declined:  'booking.declined',
+    approved: 'booking.approved',
+    declined: 'booking.declined',
     cancelled: 'booking.cancelled',
     completed: 'booking.completed',
   };
@@ -265,8 +265,14 @@ export async function transitionBooking(bookingId, newStatus, { changedBy = 'own
       cName ? `${cName}'s booking has been ${label}` : undefined,
       `/bookings/${bookingId}`,
       { booking_id: bookingId, new_status: newStatus }
-    ).catch(() => {});
+    ).catch(() => { });
   }
 
   return { success: true, booking_code: booking.booking_code, new_status: newStatus };
+}
+{ booking_id: bookingId, new_status: newStatus }
+    ).catch (() => { });
+  }
+
+return { success: true, booking_code: booking.booking_code, new_status: newStatus };
 }
