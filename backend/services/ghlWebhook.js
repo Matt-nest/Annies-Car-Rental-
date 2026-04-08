@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { supabase } from '../db/supabase.js';
+import { storeLocalMessage } from './messagingService.js';
 
 const GHL_WEBHOOKS = {
   'booking.created':          process.env.GHL_WEBHOOK_BOOKING_CREATED,
@@ -79,7 +80,10 @@ const EVENT_SUMMARIES = {
 
 async function storeWebhookMessage(event, data) {
   const customerId = data.customer_id;
-  if (!customerId) return; // No customer to link to
+  if (!customerId) {
+    console.warn(`[GHL] storeWebhookMessage: no customer_id for event ${event}`);
+    return;
+  }
 
   const summary = EVENT_SUMMARIES[event] || `Notification: ${event}`;
   const bookingCode = data.booking_code || '';
@@ -87,13 +91,14 @@ async function storeWebhookMessage(event, data) {
     ? `[Auto] ${summary} — ${bookingCode}`
     : `[Auto] ${summary}`;
 
-  await supabase.from('messages').insert({
-    customer_id: customerId,
+  await storeLocalMessage({
+    customerId,
     direction: 'outbound',
     channel: 'system',
     subject: summary,
     body,
-    metadata: { event, automated: true },
+    externalId: `webhook-${event}-${bookingCode}-${Date.now()}`,
+    metadata: { event, automated: true, booking_code: bookingCode },
   });
 }
 
@@ -146,6 +151,8 @@ function flattenForGHL(data) {
  */
 export function buildBookingPayload(booking) {
   return {
+    // customer_id is critical — storeWebhookMessage needs it to link messages
+    customer_id: booking.customer_id,
     booking_code: booking.booking_code,
     status: booking.status,
     customer: {

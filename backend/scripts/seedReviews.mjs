@@ -77,24 +77,9 @@ function parseReviews() {
 async function main() {
   console.log('🔄 Seeding Turo reviews into Supabase...');
   
-  // Step 1: Make FKs nullable if they aren't
-  // We use the Supabase SQL endpoint to alter the columns
-  console.log('📦 Ensuring review table columns are nullable...');
-  const { error: alterError } = await supabase.rpc('exec_sql', {
-    sql: `
-      ALTER TABLE reviews ALTER COLUMN customer_id DROP NOT NULL;
-      ALTER TABLE reviews ALTER COLUMN vehicle_id DROP NOT NULL;
-      ALTER TABLE reviews ADD COLUMN IF NOT EXISTS reviewer_name VARCHAR(100);
-    `
-  }).catch(() => ({ error: { message: 'RPC not available' } }));
-  
-  if (alterError) {
-    console.warn('⚠️  Could not alter table via RPC. Will attempt direct inserts.');
-    console.warn('   If inserts fail, run this SQL in your Supabase SQL Editor:');
-    console.warn('   ALTER TABLE reviews ALTER COLUMN customer_id DROP NOT NULL;');
-    console.warn('   ALTER TABLE reviews ALTER COLUMN vehicle_id DROP NOT NULL;');
-    console.warn('   ALTER TABLE reviews ADD COLUMN IF NOT EXISTS reviewer_name VARCHAR(100);');
-  }
+  // Step 1: The FK columns should already be nullable via Supabase SQL Editor
+  // (ALTER TABLE reviews ALTER COLUMN customer_id DROP NOT NULL; etc.)
+  console.log('📦 Assuming review table columns are already nullable (via SQL Editor)...');
   
   // Step 2: Parse reviews from the TypeScript file
   const reviews = parseReviews();
