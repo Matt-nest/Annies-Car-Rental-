@@ -75,8 +75,8 @@ html, html.light {
   --brand-color:    #465FFF;
   --brand-glow:     rgba(70, 95, 255, 0.08);
   --header-bg:      rgba(248, 250, 252, 0.92);
-  --glass-shadow:   0 4px 24px rgba(0,0,0,0.08);
-  --glass-shadow-hover: 0 8px 32px rgba(0,0,0,0.12);
+  --glass-shadow:   0 8px 32px rgba(0,0,0,0.14);
+  --glass-shadow-hover: 0 14px 44px rgba(0,0,0,0.18);
 }
 
 /* ─── Dark Mode — TailAdmin-matched ────────────────────────────────────────── */
@@ -279,8 +279,10 @@ html.dark {
     -webkit-backdrop-filter: blur(7px) saturate(1.17) brightness(1.029);
     background: rgba(255, 255, 255, 0.039);
     box-shadow: var(--glass-shadow);
+    z-index: 0;
     transition: transform 0.3s var(--ease-out-quart),
-                box-shadow 0.3s var(--ease-out-quart);
+                box-shadow 0.3s var(--ease-out-quart),
+                z-index 0s;
   }
 
   /* Crescent edge highlight (light source: upper-left) */
@@ -325,6 +327,7 @@ html.dark {
     .liquid-glass:hover {
       transform: translateY(-3px);
       box-shadow: var(--glass-shadow-hover);
+      z-index: 2;
     }
   }
 
