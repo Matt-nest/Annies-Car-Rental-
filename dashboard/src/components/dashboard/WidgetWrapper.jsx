@@ -162,12 +162,7 @@ export default function WidgetWrapper({
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: EASE }}
-      className="rounded-2xl overflow-hidden"
-      style={{
-        backgroundColor: 'var(--bg-card)',
-        border: '1px solid var(--border-subtle)',
-        boxShadow: 'var(--shadow-sm)',
-      }}
+      className="glass-card rounded-2xl overflow-hidden"
     >
       {/* Header */}
       <button

@@ -48,20 +48,20 @@ export default function DashboardLayout() {
 
   return (
     <ThemeContext.Provider value={{ dark, toggle: () => setDark(d => !d) }}>
-      <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-900 theme-transition">
+      <div className="flex h-screen overflow-hidden theme-transition" style={{ backgroundColor: 'var(--bg-primary)' }}>
         <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} alerts={alerts} />
 
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
           {/* Header — matches template: sticky, white bg, border-b, shadow-theme-xs */}
-          <header className="sticky top-0 flex w-full bg-white border-b border-gray-200 z-[99999] dark:border-gray-800 dark:bg-gray-900">
-            <div className="flex flex-grow items-center justify-between px-4 py-3 shadow-xs dark:shadow-none sm:px-6 md:justify-end">
+          <header className="sticky top-0 flex w-full z-[99999]" style={{ backgroundColor: 'var(--header-bg)', borderBottom: '1px solid var(--border-subtle)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
+            <div className="flex flex-grow items-center justify-between px-4 py-3 sm:px-6 md:justify-end">
               {/* Mobile toggle */}
               <button
                 className="z-[99999] flex lg:hidden"
                 onClick={() => setSidebarOpen(true)}
                 aria-label="Toggle sidebar"
               >
-                <Menu size={24} strokeWidth={1.5} />
+                <Menu size={24} strokeWidth={1.5} style={{ color: 'var(--text-secondary)' }} />
               </button>
 
               {/* Right controls */}
@@ -72,7 +72,10 @@ export default function DashboardLayout() {
                 {/* Theme toggle */}
                 <button
                   onClick={() => setDark(d => !d)}
-                  className="relative flex items-center justify-center w-10 h-10 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/5 transition-colors"
+                  className="relative flex items-center justify-center w-10 h-10 rounded-full transition-colors"
+                  style={{ color: 'var(--text-secondary)' }}
+                  onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--sidebar-hover)'}
+                  onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                   aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
                 >
                   <AnimatePresence mode="wait">
@@ -84,7 +87,7 @@ export default function DashboardLayout() {
                       transition={{ type: 'spring', stiffness: 320, damping: 28 }}
                     >
                       {dark
-                        ? <Sun size={20} className="text-[#00D4AA]" />
+                        ? <Sun size={20} style={{ color: 'var(--accent-color)' }} />
                         : <Moon size={20} />
                       }
                     </motion.div>
@@ -96,14 +99,14 @@ export default function DashboardLayout() {
 
                 {/* User avatar */}
                 <button className="flex items-center gap-3 pl-2">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 bg-brand-500 text-white">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold shrink-0" style={{ backgroundColor: 'var(--accent-color)', color: '#fff' }}>
                     {initials}
                   </div>
                   <div className="hidden sm:block text-left">
-                    <p className="text-sm font-medium text-gray-700 dark:text-white/90 truncate max-w-[140px]">
+                    <p className="text-sm font-medium truncate max-w-[140px]" style={{ color: 'var(--text-primary)' }}>
                       {user?.email?.split('@')[0] || 'Admin'}
                     </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                    <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
                       Owner
                     </p>
                   </div>

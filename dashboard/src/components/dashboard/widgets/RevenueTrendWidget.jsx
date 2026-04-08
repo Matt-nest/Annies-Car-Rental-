@@ -14,7 +14,7 @@ function GlassTooltip({ active, payload, label }) {
   return (
     <div className="glass-tooltip">
       <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>{label}</p>
-      <p className="text-xs" style={{ color: '#00D4AA' }}>
+      <p className="text-xs" style={{ color: 'var(--accent-color)' }}>
         Revenue: ${Number(payload[0]?.value || 0).toLocaleString()}
       </p>
     </div>
@@ -76,8 +76,8 @@ export default function RevenueTrendWidget() {
             <AreaChart data={data}>
               <defs>
                 <linearGradient id="revGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#1E3A5F" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="#1E3A5F" stopOpacity={0} />
+                  <stop offset="0%" stopColor="var(--chart-primary)" stopOpacity={0.3} />
+                  <stop offset="100%" stopColor="var(--chart-primary)" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-subtle)" />
@@ -88,9 +88,9 @@ export default function RevenueTrendWidget() {
                 tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
               <Tooltip content={<GlassTooltip />} />
               <Area
-                type="monotone" dataKey="total" stroke="#1E3A5F" strokeWidth={2.5}
+                type="monotone" dataKey="total" stroke="var(--chart-primary)" strokeWidth={2.5}
                 fill="url(#revGradient)" dot={false}
-                activeDot={{ r: 5, fill: '#00D4AA', stroke: 'var(--bg-primary)', strokeWidth: 2 }}
+                activeDot={{ r: 5, fill: 'var(--accent-color)', stroke: 'var(--bg-primary)', strokeWidth: 2 }}
               />
             </AreaChart>
           </ResponsiveContainer>

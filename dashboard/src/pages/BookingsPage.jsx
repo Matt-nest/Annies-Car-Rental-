@@ -65,7 +65,7 @@ export default function BookingsPage() {
         <div
           className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shrink-0"
           style={{
-            background: 'linear-gradient(135deg, #1E3A5F, #3f72a2)',
+            background: 'linear-gradient(135deg, #465FFF, #8B5CF6)',
             color: 'var(--accent-fg)',
           }}
         >

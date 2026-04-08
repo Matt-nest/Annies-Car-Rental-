@@ -32,23 +32,25 @@ function NavItem({ to, label, icon: Icon, end, alertKey, alerts, onClose }) {
         end={end}
         onClick={onClose}
         className={({ isActive }) =>
-          `group relative flex items-center w-full gap-3 px-3 py-2 font-medium rounded-lg text-sm transition-colors duration-200 ${
+          `group relative flex items-center w-full gap-3 px-4 py-2.5 font-medium rounded-lg text-sm transition-all duration-150 ${
             isActive
-              ? 'bg-brand-50 text-brand-500 dark:bg-[rgba(30,58,95,0.12)] dark:text-[#00D4AA]'
-              : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'
+              ? 'text-[var(--sidebar-active-text)]'
+              : 'text-[var(--sidebar-text)] hover:text-[var(--text-primary)]'
           }`
         }
+        style={({ isActive }) => isActive ? { backgroundColor: 'var(--sidebar-active-bg)' } : {}}
       >
         {({ isActive }) => (
           <>
             <Icon
-              size={24}
-              strokeWidth={1.5}
+              size={20}
+              strokeWidth={1.8}
               className={
                 isActive
-                  ? 'text-brand-500 dark:text-[#00D4AA] shrink-0'
-                  : 'text-gray-500 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-300 shrink-0'
+                  ? 'shrink-0'
+                  : 'text-[var(--sidebar-text-muted)] group-hover:text-[var(--sidebar-text)] shrink-0'
               }
+              style={isActive ? { color: 'var(--sidebar-active-icon)' } : {}}
             />
             <span className="flex-1 truncate">{label}</span>
             {count > 0 && (
@@ -79,16 +81,19 @@ export default function Sidebar({ open, onClose, alerts = {} }) {
       <aside
         className={`
           fixed mt-16 flex flex-col lg:mt-0 top-0 px-5 left-0 h-screen
-          bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800
-          transition-all duration-300 ease-in-out z-[99999] lg:z-[999]
-          w-[230px]
+          border-r transition-all duration-300 ease-in-out z-[99999] lg:z-[999]
+          w-[260px]
           ${open ? 'translate-x-0' : '-translate-x-full'}
           lg:relative lg:translate-x-0 lg:flex
         `}
+        style={{
+          backgroundColor: 'var(--sidebar-bg)',
+          borderColor: 'var(--sidebar-border)',
+        }}
       >
         {/* Logo — theme-aware, links home */}
-        <div className="flex items-center justify-between py-5">
-          <NavLink to="/" onClick={onClose} className="relative h-[70px] w-full block transition-opacity duration-200 hover:opacity-75">
+        <div className="flex items-center justify-between py-6">
+          <NavLink to="/" onClick={onClose} className="relative h-[76px] w-full block transition-opacity duration-200 hover:opacity-75">
             {/* Light mode: black text logo */}
             <img
               src="/logo-dark.png"
@@ -105,23 +110,24 @@ export default function Sidebar({ open, onClose, alerts = {} }) {
 
           <button
             onClick={onClose}
-            className="lg:hidden p-2 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5"
+            className="lg:hidden p-2 rounded-lg transition-colors"
+            style={{ color: 'var(--sidebar-text-muted)' }}
             aria-label="Close menu"
           >
             <X size={20} />
           </button>
         </div>
 
-        {/* Navigation — matches template flex flex-col overflow-y-auto */}
+        {/* Navigation */}
         <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
           <nav className="mb-6">
             <div className="flex flex-col gap-4">
               {/* Main menu */}
               <div>
-                <h3 className="mb-4 text-xs uppercase leading-5 text-gray-400 dark:text-gray-500">
+                <h3 className="section-label mb-4 ml-4">
                   Menu
                 </h3>
-                <ul className="flex flex-col gap-1">
+                <ul className="flex flex-col gap-0.5">
                   {MAIN_NAV.map(item => (
                     <NavItem key={item.to} {...item} alerts={alerts} onClose={onClose} />
                   ))}
@@ -130,10 +136,10 @@ export default function Sidebar({ open, onClose, alerts = {} }) {
 
               {/* System */}
               <div>
-                <h3 className="mb-4 text-xs uppercase leading-5 text-gray-400 dark:text-gray-500">
+                <h3 className="section-label mb-4 ml-4">
                   System
                 </h3>
-                <ul className="flex flex-col gap-1">
+                <ul className="flex flex-col gap-0.5">
                   {SYSTEM_NAV.map(item => (
                     <NavItem key={item.to} {...item} alerts={alerts} onClose={onClose} />
                   ))}
@@ -144,12 +150,21 @@ export default function Sidebar({ open, onClose, alerts = {} }) {
         </div>
 
         {/* Footer — sign out */}
-        <div className="mt-auto py-4 border-t border-gray-200 dark:border-gray-800">
+        <div className="mt-auto py-4" style={{ borderTop: '1px solid var(--sidebar-border)' }}>
           <button
             onClick={signOut}
-            className="group relative flex items-center w-full gap-3 px-3 py-2 font-medium rounded-lg text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 dark:text-gray-300 dark:hover:bg-red-500/10 dark:hover:text-red-400 transition-colors"
+            className="group relative flex items-center w-full gap-3 px-4 py-2.5 font-medium rounded-lg text-sm transition-colors"
+            style={{ color: 'var(--sidebar-text)' }}
+            onMouseEnter={e => {
+              e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.08)';
+              e.currentTarget.style.color = '#EF4444';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = 'var(--sidebar-text)';
+            }}
           >
-            <LogOut size={24} strokeWidth={1.5} className="text-gray-500 group-hover:text-red-500 dark:text-gray-400 shrink-0" />
+            <LogOut size={20} strokeWidth={1.8} className="shrink-0" />
             Sign out
           </button>
         </div>

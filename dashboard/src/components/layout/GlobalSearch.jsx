@@ -6,7 +6,7 @@ import { api } from '../../api/client';
 
 const CATEGORY_CONFIG = {
   bookings: { icon: BookOpen, label: 'Bookings', color: '#818cf8' },
-  customers: { icon: Users, label: 'Customers', color: '#00D4AA' },
+  customers: { icon: Users, label: 'Customers', color: '#465FFF' },
   vehicles: { icon: Car, label: 'Vehicles', color: '#63b3ed' },
   payments: { icon: CreditCard, label: 'Payments', color: '#f59e0b' },
 };

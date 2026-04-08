@@ -8,8 +8,8 @@ import EmptyState from '../components/shared/EmptyState';
 import RevenueHeatmapWidget from '../components/dashboard/widgets/RevenueHeatmapWidget';
 
 const EASE = [0.25, 1, 0.5, 1];
-const PIE_COLORS = ['#00D4AA', '#1E3A5F', '#818cf8', '#63b3ed', '#f87171', '#f59e0b', '#ec4899'];
-const CATEGORY_COLORS = { sedan: '#818cf8', suv: '#00D4AA', truck: '#1E3A5F', luxury: '#f59e0b', electric: '#63b3ed', uncategorized: '#94a3b8' };
+const PIE_COLORS = ['#465FFF', '#8B5CF6', '#818cf8', '#63b3ed', '#f87171', '#f59e0b', '#ec4899'];
+const CATEGORY_COLORS = { sedan: '#818cf8', suv: '#465FFF', truck: '#8B5CF6', luxury: '#f59e0b', electric: '#63b3ed', uncategorized: '#94a3b8' };
 
 function GlassTooltip({ active, payload, label, prefix = '' }) {
   if (!active || !payload?.length) return null;
@@ -177,7 +177,7 @@ export default function RevenuePage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard label="Total Revenue" value={`$${Number(revenue?.total || 0).toLocaleString()}`} sub="Selected period" icon={DollarSign} accentColor="#22c55e" />
         <StatCard label="This Month" value={`$${Number(revenue?.this_month_revenue || 0).toLocaleString()}`} sub={`${revenue?.this_month_bookings || 0} bookings`} icon={Calendar} accentColor="#818cf8" />
-        <StatCard label="Avg per Booking" icon={CreditCard} accentColor="#1E3A5F"
+        <StatCard label="Avg per Booking" icon={CreditCard} accentColor="#465FFF"
           value={revenue?.transactions?.length
             ? `$${(Number(revenue.total) / revenue.transactions.length).toFixed(0)}`
             : '$0'}
@@ -190,8 +190,8 @@ export default function RevenuePage() {
         <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
           <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Monthly Revenue</h2>
           <div className="flex items-center gap-4 text-[10px] text-gray-400">
-            <span className="flex items-center gap-1.5"><span className="w-3 h-2 rounded-sm bg-[#1E3A5F] inline-block" /> Revenue</span>
-            <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-[#00D4AA] inline-block" /> Trend</span>
+            <span className="flex items-center gap-1.5"><span className="w-3 h-2 rounded-sm bg-[#465FFF] inline-block" /> Revenue</span>
+            <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-[#8B5CF6] inline-block" /> Trend</span>
           </div>
         </div>
         <div className="p-5" style={{ height: 300 }}>
@@ -204,8 +204,8 @@ export default function RevenuePage() {
                 <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-tertiary)', fontSize: 11 }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-tertiary)', fontSize: 11 }} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
                 <Tooltip content={<GlassTooltip prefix="$" />} />
-                <Bar dataKey="total" fill="#1E3A5F" radius={[6, 6, 0, 0]} barSize={32} name="Revenue" />
-                <Line type="monotone" dataKey="total" stroke="#00D4AA" strokeWidth={2} dot={false} name="Trend" />
+                <Bar dataKey="total" fill="#465FFF" radius={[6, 6, 0, 0]} barSize={32} name="Revenue" />
+                <Line type="monotone" dataKey="total" stroke="#8B5CF6" strokeWidth={2} dot={false} name="Trend" />
               </ComposedChart>
             </ResponsiveContainer>
           )}

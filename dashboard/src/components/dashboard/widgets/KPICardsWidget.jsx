@@ -66,10 +66,10 @@ function KpiCard({ label, rawValue, icon: Icon, hero, sub, onClick, alert, prefi
         role={onClick ? 'button' : undefined}
         tabIndex={onClick ? 0 : undefined}
         onKeyDown={onClick ? (e) => e.key === 'Enter' && onClick() : undefined}
-        className="relative overflow-hidden rounded-2xl p-5 cursor-pointer group col-span-2 lg:col-span-1"
+        className="glass-card relative overflow-hidden rounded-2xl p-5 cursor-pointer group col-span-2 lg:col-span-1"
         style={{
-          backgroundColor: 'var(--hero-bg)',
-          border: '1px solid rgba(30,58,95,0.18)',
+          backgroundColor: 'var(--bg-card)',
+          border: '1px solid var(--border-subtle)',
           boxShadow: 'var(--shadow-md)',
           minHeight: 110,
         }}
@@ -80,14 +80,14 @@ function KpiCard({ label, rawValue, icon: Icon, hero, sub, onClick, alert, prefi
         {alert && <span className="absolute top-3.5 right-3.5 w-2.5 h-2.5 rounded-full pulse-dot" style={{ backgroundColor: 'var(--danger-color)' }} />}
         <div className="flex items-start justify-between gap-3 relative z-10">
           <div className="flex-1 min-w-0">
-            <p className="display-num" style={{ fontSize: '2.5rem', color: 'var(--accent-color)', lineHeight: 1 }}>
+            <p className="display-num-xl" style={{ color: 'var(--accent-color)', lineHeight: 1 }}>
               {displayValue}
             </p>
-            <p className="text-sm font-medium mt-2" style={{ color: 'rgba(255,255,255,0.65)' }}>{label}</p>
-            {sub && <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>{sub}</p>}
+            <p className="kpi-label mt-2">{label}</p>
+            {sub && <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>{sub}</p>}
           </div>
           <div className="flex flex-col items-end gap-2">
-            <div className="p-2.5 rounded-xl shrink-0" style={{ backgroundColor: 'rgba(30,58,95,0.12)', color: 'var(--accent-color)' }}>
+            <div className="p-2.5 rounded-xl shrink-0" style={{ backgroundColor: 'var(--accent-glow)', color: 'var(--accent-color)' }}>
               <Icon size={20} />
             </div>
             {sparkData && <Sparkline data={sparkData} color="var(--accent-color)" />}
@@ -105,11 +105,8 @@ function KpiCard({ label, rawValue, icon: Icon, hero, sub, onClick, alert, prefi
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={onClick ? (e) => e.key === 'Enter' && onClick() : undefined}
-      className="relative rounded-2xl p-5 group"
+      className="glass-card relative rounded-2xl p-5 group"
       style={{
-        backgroundColor: 'var(--bg-card)',
-        border: '1px solid var(--border-subtle)',
-        boxShadow: 'var(--shadow-sm)',
         cursor: onClick ? 'pointer' : 'default',
         minHeight: 110,
       }}
@@ -148,8 +145,8 @@ function StarRating({ value }) {
       <div className="flex gap-0.5">
         {[1, 2, 3, 4, 5].map((i) => (
           <Star key={i} size={13}
-            style={{ color: i <= Math.round(num) ? '#00D4AA' : 'var(--border-medium)' }}
-            fill={i <= Math.round(num) ? '#00D4AA' : 'none'} />
+            style={{ color: i <= Math.round(num) ? '#F59E0B' : 'var(--border-medium)' }}
+            fill={i <= Math.round(num) ? '#F59E0B' : 'none'} />
         ))}
       </div>
       <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{num.toFixed(1)}</span>

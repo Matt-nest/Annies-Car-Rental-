@@ -63,7 +63,7 @@ const STATUS_STYLES = {
     bg: 'rgba(0,212,170,0.10)',
     border: 'rgba(0,212,170,0.22)',
     color: '#009c7e',
-    darkColor: '#00D4AA',
+    darkColor: '#465FFF',
   },
   turo: {
     bg: 'rgba(129,140,248,0.10)',
