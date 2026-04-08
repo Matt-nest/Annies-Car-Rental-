@@ -1,9 +1,98 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PenLine, FileCheck2, Clock, Car, User, ChevronRight, X, CheckCircle } from 'lucide-react';
+import { PenLine, Clock, Car, User, ChevronRight, X, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import api from '../../api/client';
-import SignatureCanvas from 'react-signature-canvas';
+import { api } from '../../api/client';
+
+/* ── Simple native Canvas signature pad (replaces react-signature-canvas) ── */
+function SignaturePad({ sigRef }) {
+  const canvasRef = useRef(null);
+  const isDrawing = useRef(false);
+  const lastPos = useRef({ x: 0, y: 0 });
+
+  useEffect(() => {
+    if (sigRef) {
+      sigRef.current = {
+        isEmpty: () => {
+          const canvas = canvasRef.current;
+          if (!canvas) return true;
+          const ctx = canvas.getContext('2d');
+          const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+          for (let i = 3; i < pixels.length; i += 4) {
+            if (pixels[i] > 0) return false;
+          }
+          return true;
+        },
+        toDataURL: (type) => canvasRef.current?.toDataURL(type || 'image/png') || '',
+        clear: () => {
+          const canvas = canvasRef.current;
+          if (canvas) {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+          }
+        },
+      };
+    }
+  }, [sigRef]);
+
+  const getPos = (e) => {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    if (e.touches) {
+      return {
+        x: (e.touches[0].clientX - rect.left) * scaleX,
+        y: (e.touches[0].clientY - rect.top) * scaleY,
+      };
+    }
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY,
+    };
+  };
+
+  const startDraw = (e) => {
+    e.preventDefault();
+    isDrawing.current = true;
+    lastPos.current = getPos(e);
+  };
+
+  const draw = (e) => {
+    e.preventDefault();
+    if (!isDrawing.current) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    const pos = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(lastPos.current.x, lastPos.current.y);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.strokeStyle = '#1a1a2e';
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+    lastPos.current = pos;
+  };
+
+  const endDraw = () => { isDrawing.current = false; };
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={420}
+      height={160}
+      style={{ width: '100%', height: 160, cursor: 'crosshair', touchAction: 'none' }}
+      onMouseDown={startDraw}
+      onMouseMove={draw}
+      onMouseUp={endDraw}
+      onMouseLeave={endDraw}
+      onTouchStart={startDraw}
+      onTouchMove={draw}
+      onTouchEnd={endDraw}
+    />
+  );
+}
 
 export default function PendingCounterSignWidget() {
   const [pending, setPending] = useState([]);
@@ -52,7 +141,7 @@ export default function PendingCounterSignWidget() {
     );
   }
 
-  if (pending.length === 0) return null; // Don't render if nothing to sign
+  if (pending.length === 0) return null;
 
   return (
     <>
@@ -119,7 +208,6 @@ export default function PendingCounterSignWidget() {
                   onMouseEnter={e => e.currentTarget.style.background = 'rgba(212,175,55,0.03)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
-                  {/* Info */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
                       <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
@@ -142,7 +230,6 @@ export default function PendingCounterSignWidget() {
                     </div>
                   </div>
 
-                  {/* Actions */}
                   <div style={{ display: 'flex', gap: 6 }}>
                     <motion.button
                       whileHover={{ scale: 1.05 }}
@@ -245,11 +332,7 @@ export default function PendingCounterSignWidget() {
                     borderRadius: 12, overflow: 'hidden', marginBottom: 16,
                     background: '#fafafa',
                   }}>
-                    <SignatureCanvas
-                      ref={sigRef}
-                      penColor="#1a1a2e"
-                      canvasProps={{ width: 420, height: 160, style: { width: '100%', height: 160 } }}
-                    />
+                    <SignaturePad sigRef={sigRef} />
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button
