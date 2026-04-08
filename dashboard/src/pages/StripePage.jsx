@@ -222,7 +222,7 @@ export default function StripePage() {
                     </td>
                     <td className="px-5 py-4">
                       {t.booking_code ? (
-                        <a href={`/bookings/${t.booking_id}`} className="text-xs font-mono font-semibold text-brand-500 hover:underline">
+                        <a href={`/bookings/${t.booking_id}`} className="text-xs font-mono font-semibold hover:underline" style={{ color: '#FFFFFF' }}>
                           {t.booking_code}
                         </a>
                       ) : (
