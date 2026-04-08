@@ -136,24 +136,16 @@ export default function RevenuePage() {
     .map(([name, value]) => ({ name, value: Number(Number(value).toFixed(0)) }))
     .sort((a, b) => b.value - a.value);
 
-  const stagger = {
-    hidden: {},
-    show: { transition: { staggerChildren: 0.12 } },
-  };
-  const fadeUp = {
-    hidden: { opacity: 0, y: 18 },
-    show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: EASE } },
-  };
+  const fadeUp = (i = 0) => ({
+    initial: { opacity: 0, y: 20 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.5, delay: i * 0.12, ease: [0.25, 1, 0.5, 1] },
+  });
 
   return (
-    <motion.div
-      className="p-4 sm:p-6 max-w-7xl mx-auto space-y-5"
-      variants={stagger}
-      initial="hidden"
-      animate="show"
-    >
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-5">
       <motion.div
-        variants={fadeUp}
+        {...fadeUp(0)}
         className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
       >
         <div>
@@ -168,7 +160,7 @@ export default function RevenuePage() {
       </motion.div>
 
       {/* Date range filter */}
-      <motion.div variants={fadeUp} className="flex items-center gap-1.5 flex-wrap">
+      <motion.div {...fadeUp(1)} className="flex items-center gap-1.5 flex-wrap">
         <Calendar size={14} className="text-gray-400 mr-1" />
         {RANGE_PRESETS.map((preset, i) => (
           <button
@@ -186,7 +178,7 @@ export default function RevenuePage() {
       </motion.div>
 
       {/* Summary cards */}
-      <motion.div variants={fadeUp} className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <motion.div {...fadeUp(2)} className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard label="Total Revenue" value={`$${Number(revenue?.total || 0).toLocaleString()}`} sub="Selected period" icon={DollarSign} accentColor="#22c55e" />
         <StatCard label="This Month" value={`$${Number(revenue?.this_month_revenue || 0).toLocaleString()}`} sub={`${revenue?.this_month_bookings || 0} bookings`} icon={Calendar} accentColor="#818cf8" />
         <StatCard label="Avg per Booking" icon={CreditCard} accentColor="#465FFF"
@@ -198,7 +190,7 @@ export default function RevenuePage() {
       </motion.div>
 
       {/* Monthly chart with trend line overlay */}
-      <motion.div variants={fadeUp} className="card overflow-hidden">
+      <motion.div {...fadeUp(3)} className="card overflow-hidden">
         <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
           <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Monthly Revenue</h2>
           <div className="flex items-center gap-4 text-[10px] text-gray-400">
@@ -224,7 +216,7 @@ export default function RevenuePage() {
         </div>
       </motion.div>
 
-      <motion.div variants={fadeUp} className="grid lg:grid-cols-2 gap-4">
+      <motion.div {...fadeUp(4)} className="grid lg:grid-cols-2 gap-4">
         {/* By vehicle */}
         <div className="card overflow-hidden">
           <div className="px-5 py-4" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
@@ -283,7 +275,7 @@ export default function RevenuePage() {
       </motion.div>
 
       {/* By source */}
-      <motion.div variants={fadeUp} className="card overflow-hidden">
+      <motion.div {...fadeUp(5)} className="card overflow-hidden">
         <div className="px-5 py-4" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
           <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Bookings by Source</h2>
         </div>
@@ -317,7 +309,7 @@ export default function RevenuePage() {
       </motion.div>
 
       {/* Transactions */}
-      <motion.div variants={fadeUp} className="card overflow-hidden">
+      <motion.div {...fadeUp(6)} className="card overflow-hidden">
         <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
           <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Transactions</h2>
           <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{revenue?.transactions?.length || 0} total</span>
@@ -359,9 +351,9 @@ export default function RevenuePage() {
       </motion.div>
 
       {/* Revenue Heatmap */}
-      <motion.div variants={fadeUp}>
+      <motion.div {...fadeUp(7)}>
         <RevenueHeatmapWidget />
       </motion.div>
-    </motion.div>
+    </div>
   );
 }

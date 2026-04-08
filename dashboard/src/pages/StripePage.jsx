@@ -112,7 +112,7 @@ export default function StripePage() {
       {/* Connection & Balance Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {/* Connection Status */}
-        <div className="card p-5">
+        <div className="liquid-glass p-5">
           <div className="flex items-start justify-between">
             <div>
               <div className="flex items-center gap-2 mb-1.5">
@@ -144,7 +144,7 @@ export default function StripePage() {
         </div>
 
         {/* Available Balance */}
-        <div className="card p-5">
+        <div className="liquid-glass p-5">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-2xl font-bold tabular-nums" style={{ color: '#22c55e' }}>
@@ -160,7 +160,7 @@ export default function StripePage() {
         </div>
 
         {/* Pending Balance */}
-        <div className="card p-5">
+        <div className="liquid-glass p-5">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-2xl font-bold tabular-nums" style={{ color: '#f59e0b' }}>
