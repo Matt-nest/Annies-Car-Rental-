@@ -33,7 +33,7 @@ const TEMPLATE_STAGES = [
   { value: 'return_confirmed', label: 'Return Confirmed', color: '#14b8a6' },
   // Post-rental
   { value: 'rental_completed', label: 'Review Request', color: '#06b6d4' },
-  { value: 'repeat_customer', label: 'Loyalty / Repeat', color: '#8B5CF6' },
+  { value: 'repeat_customer', label: 'Loyalty / Repeat', color: '#007AFF' },
   // Alerts
   { value: 'late_return_warning', label: 'Late Warning (1h)', color: '#f97316' },
   { value: 'late_return_escalation', label: 'Late Escalation (4h)', color: '#dc2626' },
@@ -131,7 +131,7 @@ function ConversationList({ conversations, selected, onSelect, search, onSearch,
               background: 'var(--bg-elevated, #fff)', color: 'var(--text-primary)',
               outline: 'none', transition: 'border-color 0.2s, box-shadow 0.2s',
             }}
-            onFocus={(e) => { e.target.style.borderColor = '#8B5CF6'; e.target.style.boxShadow = '0 0 0 3px rgba(139,92,246,0.1)'; }}
+            onFocus={(e) => { e.target.style.borderColor = '#007AFF'; e.target.style.boxShadow = '0 0 0 3px rgba(0,122,255,0.1)'; }}
             onBlur={(e) => { e.target.style.borderColor = 'var(--border-subtle)'; e.target.style.boxShadow = 'none'; }}
           />
         </div>
@@ -181,7 +181,7 @@ function ConversationList({ conversations, selected, onSelect, search, onSearch,
                     padding: '14px 16px', textAlign: 'left', border: 'none',
                     cursor: 'pointer', position: 'relative',
                     background: isActive
-                      ? 'linear-gradient(135deg, rgba(139,92,246,0.08) 0%, rgba(139,92,246,0.04) 100%)'
+                      ? 'linear-gradient(135deg, rgba(0,122,255,0.08) 0%, rgba(0,122,255,0.04) 100%)'
                       : 'transparent',
                     borderBottom: '1px solid var(--border-subtle, rgba(0,0,0,0.04))',
                     transition: 'background 0.2s ease',
@@ -196,7 +196,7 @@ function ConversationList({ conversations, selected, onSelect, search, onSearch,
                       style={{
                         position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)',
                         width: 3, height: 32, borderRadius: '0 4px 4px 0',
-                        background: 'linear-gradient(180deg, #8B5CF6 0%, #7C3AED 100%)',
+                        background: 'linear-gradient(180deg, #007AFF 0%, #0066DD 100%)',
                       }}
                       transition={SPRING}
                     />
@@ -207,7 +207,7 @@ function ConversationList({ conversations, selected, onSelect, search, onSearch,
                     width: 42, height: 42, borderRadius: 13, flexShrink: 0,
                     background: avatarBg, display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: '13px', fontWeight: 700, color: '#fff', letterSpacing: '0.02em',
-                    boxShadow: isActive ? '0 4px 12px rgba(139,92,246,0.2)' : '0 2px 8px rgba(0,0,0,0.08)',
+                    boxShadow: isActive ? '0 4px 12px rgba(0,122,255,0.2)' : '0 2px 8px rgba(0,0,0,0.08)',
                     transition: 'box-shadow 0.3s ease',
                   }}>
                     {initials}
@@ -426,7 +426,7 @@ function ChatPanel({ customerId, conversations }) {
             border: '1px solid var(--border-subtle)',
           }}>
             {[
-              { key: 'all', label: 'All', Icon: MessageSquare, color: '#8B5CF6' },
+              { key: 'all', label: 'All', Icon: MessageSquare, color: '#007AFF' },
               { key: 'email', label: 'Email', Icon: Mail, color: '#2563eb' },
               { key: 'sms', label: 'SMS', Icon: MessageSquare, color: '#16a34a' },
             ].map(({ key, label, Icon, color }) => (
@@ -458,8 +458,8 @@ function ChatPanel({ customerId, conversations }) {
             style={{
               display: 'flex', alignItems: 'center', gap: 4,
               padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border-subtle)',
-              background: showTemplates ? 'rgba(139,92,246,0.1)' : 'var(--bg-card)',
-              color: showTemplates ? '#8B5CF6' : 'var(--text-secondary)',
+              background: showTemplates ? 'rgba(0,122,255,0.1)' : 'var(--bg-card)',
+              color: showTemplates ? '#007AFF' : 'var(--text-secondary)',
               fontSize: '11px', fontWeight: 600, cursor: 'pointer',
               transition: 'all 0.2s ease',
             }}
@@ -533,7 +533,7 @@ function ChatPanel({ customerId, conversations }) {
           <div style={{ display: 'flex', justifyContent: 'center', padding: '40px 0' }}>
             <div style={{
               width: 32, height: 32, borderRadius: '50%',
-              border: '3px solid var(--border-subtle)', borderTopColor: '#8B5CF6',
+              border: '3px solid var(--border-subtle)', borderTopColor: '#007AFF',
               animation: 'spin 0.8s linear infinite',
             }} />
           </div>
@@ -639,7 +639,7 @@ function ChatPanel({ customerId, conversations }) {
                     {msg.channel}
                   </span>
                   {isOutbound && (
-                    <CheckCheck size={12} style={{ color: '#8B5CF6' }} />
+                    <CheckCheck size={12} style={{ color: '#007AFF' }} />
                   )}
                 </div>
               </div>
@@ -692,7 +692,7 @@ function ChatPanel({ customerId, conversations }) {
               background: 'var(--bg-primary)', color: 'var(--text-primary)',
               outline: 'none', transition: 'border-color 0.2s',
             }}
-            onFocus={(e) => e.target.style.borderColor = '#8B5CF6'}
+            onFocus={(e) => e.target.style.borderColor = '#007AFF'}
             onBlur={(e) => e.target.style.borderColor = 'var(--border-subtle)'}
           />
         )}
@@ -710,7 +710,7 @@ function ChatPanel({ customerId, conversations }) {
                 outline: 'none', resize: 'none', lineHeight: '1.5',
                 transition: 'border-color 0.2s, box-shadow 0.2s',
               }}
-              onFocus={(e) => { e.target.style.borderColor = '#8B5CF6'; e.target.style.boxShadow = '0 0 0 3px rgba(139,92,246,0.08)'; }}
+              onFocus={(e) => { e.target.style.borderColor = '#007AFF'; e.target.style.boxShadow = '0 0 0 3px rgba(0,122,255,0.08)'; }}
               onBlur={(e) => { e.target.style.borderColor = 'var(--border-subtle)'; e.target.style.boxShadow = 'none'; }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
@@ -730,10 +730,10 @@ function ChatPanel({ customerId, conversations }) {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               border: 'none', cursor: !body.trim() || sending ? 'not-allowed' : 'pointer',
               background: body.trim()
-                ? 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)'
+                ? 'linear-gradient(135deg, #007AFF 0%, #0066DD 100%)'
                 : 'var(--bg-card)',
               color: body.trim() ? '#fff' : 'var(--text-tertiary)',
-              boxShadow: body.trim() ? '0 4px 14px rgba(139,92,246,0.3)' : 'none',
+              boxShadow: body.trim() ? '0 4px 14px rgba(0,122,255,0.3)' : 'none',
               transition: 'all 0.3s ease',
               opacity: sending ? 0.7 : 1,
             }}
@@ -897,10 +897,10 @@ function EmailTemplatesTab() {
               style={{
                 display: 'flex', alignItems: 'center', gap: 4,
                 padding: '8px 16px', borderRadius: 10, border: 'none',
-                background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+                background: 'linear-gradient(135deg, #007AFF 0%, #0066DD 100%)',
                 color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
                 opacity: saving || !form.name || !form.subject || !form.body ? 0.5 : 1,
-                boxShadow: '0 4px 14px rgba(139,92,246,0.25)',
+                boxShadow: '0 4px 14px rgba(0,122,255,0.25)',
               }}
             >{saving ? 'Saving...' : editing.id ? 'Update Template' : 'Create Template'}</button>
           </div>
@@ -953,16 +953,16 @@ function EmailTemplatesTab() {
           style={{
             display: 'flex', alignItems: 'center', gap: 4,
             padding: '8px 14px', borderRadius: 10, border: 'none',
-            background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+            background: 'linear-gradient(135deg, #007AFF 0%, #0066DD 100%)',
             color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
-            boxShadow: '0 4px 14px rgba(139,92,246,0.25)',
+            boxShadow: '0 4px 14px rgba(0,122,255,0.25)',
           }}
         ><Plus size={12} /> New Template</motion.button>
       </div>
 
       {loading ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '48px 0' }}>
-          <div style={{ width: 32, height: 32, borderRadius: '50%', border: '3px solid var(--border-subtle)', borderTopColor: '#8B5CF6', animation: 'spin 0.8s linear infinite' }} />
+          <div style={{ width: 32, height: 32, borderRadius: '50%', border: '3px solid var(--border-subtle)', borderTopColor: '#007AFF', animation: 'spin 0.8s linear infinite' }} />
         </div>
       ) : templates.length === 0 ? (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ textAlign: 'center', padding: '48px 0' }}>
@@ -972,7 +972,7 @@ function EmailTemplatesTab() {
           <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>No templates yet</p>
           <button
             onClick={() => setEditing({})}
-            style={{ padding: '8px 16px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer', boxShadow: '0 4px 14px rgba(139,92,246,0.25)' }}
+            style={{ padding: '8px 16px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #007AFF 0%, #0066DD 100%)', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer', boxShadow: '0 4px 14px rgba(0,122,255,0.25)' }}
           >Create your first template</button>
         </motion.div>
       ) : (
@@ -1031,10 +1031,10 @@ function EmailTemplatesTab() {
                         border: 'none', cursor: 'pointer', padding: 0,
                         background: t.is_active === false
                           ? 'var(--bg-card, rgba(255,255,255,0.06))'
-                          : 'linear-gradient(135deg, #8B5CF6, #7C3AED)',
+                          : 'linear-gradient(135deg, #007AFF, #0066DD)',
                         boxShadow: t.is_active === false
                           ? 'inset 0 1px 3px rgba(0,0,0,0.15)'
-                          : '0 2px 8px rgba(139,92,246,0.3)',
+                          : '0 2px 8px rgba(0,122,255,0.3)',
                         transition: 'background 0.25s, box-shadow 0.25s',
                       }}
                     >
@@ -1141,7 +1141,7 @@ export default function MessagingPage() {
             style={{
               position: 'absolute', top: 60, left: '50%', zIndex: 100,
               padding: '10px 20px', borderRadius: 12,
-              background: syncResult.error ? '#ef4444' : 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+              background: syncResult.error ? '#ef4444' : 'linear-gradient(135deg, #007AFF 0%, #0066DD 100%)',
               color: '#fff', fontSize: '12px', fontWeight: 600,
               boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
               display: 'flex', alignItems: 'center', gap: 8,
@@ -1206,7 +1206,7 @@ export default function MessagingPage() {
                 cursor: 'pointer', fontSize: '12px', fontWeight: 600,
                 letterSpacing: '-0.005em',
                 background: tab === key ? 'var(--bg-elevated, #fff)' : 'transparent',
-                color: tab === key ? '#8B5CF6' : 'var(--text-secondary)',
+                color: tab === key ? '#007AFF' : 'var(--text-secondary)',
                 boxShadow: tab === key ? '0 1px 4px rgba(0,0,0,0.06)' : 'none',
                 transition: 'all 0.2s ease',
               }}
