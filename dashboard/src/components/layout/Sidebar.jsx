@@ -81,14 +81,14 @@ export default function Sidebar({ open, onClose, alerts = {} }) {
           fixed mt-16 flex flex-col lg:mt-0 top-0 px-5 left-0 h-screen
           bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800
           transition-all duration-300 ease-in-out z-[99999] lg:z-[999]
-          w-[290px]
+          w-[230px]
           ${open ? 'translate-x-0' : '-translate-x-full'}
           lg:relative lg:translate-x-0 lg:flex
         `}
       >
         {/* Logo — theme-aware, links home */}
         <div className="flex items-center justify-between py-8">
-          <NavLink to="/" onClick={onClose} className="relative h-[48px] w-[180px] block transition-opacity duration-200 hover:opacity-75">
+          <NavLink to="/" onClick={onClose} className="relative h-[64px] w-full block transition-opacity duration-200 hover:opacity-75">
             {/* Light mode: black text logo */}
             <img
               src="/logo-dark.png"

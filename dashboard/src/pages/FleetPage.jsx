@@ -9,7 +9,7 @@ import EmptyState from '../components/shared/EmptyState';
 import Modal from '../components/shared/Modal';
 import DamageSummaryWidget from '../components/dashboard/widgets/DamageSummaryWidget';
 
-const MAIN_SITE = 'https://anniescarrental.com';
+const MAIN_SITE = 'https://www.anniescarrental.com';
 function resolveThumb(url) {
   if (!url) return '';
   return url.startsWith('/fleet/') ? `${MAIN_SITE}${url}` : url;

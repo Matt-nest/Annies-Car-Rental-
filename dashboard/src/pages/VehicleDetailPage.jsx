@@ -9,7 +9,7 @@ import Section from '../components/shared/Section';
 import Field from '../components/shared/Field';
 import { format } from 'date-fns';
 
-const MAIN_SITE = 'https://anniescarrental.com';
+const MAIN_SITE = 'https://www.anniescarrental.com';
 function resolveThumb(url) {
   if (!url) return '';
   return url.startsWith('/fleet/') ? `${MAIN_SITE}${url}` : url;
