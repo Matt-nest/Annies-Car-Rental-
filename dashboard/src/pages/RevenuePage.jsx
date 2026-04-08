@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { BarChart, Bar, ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Download, DollarSign, TrendingUp, CreditCard, Calendar, Car } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { api } from '../api/client';
@@ -189,28 +189,62 @@ export default function RevenuePage() {
         <StatCard label="FL Sales Tax" value={`$${Number(revenue?.total_tax || 0).toLocaleString()}`} sub="7% of subtotal" icon={DollarSign} />
       </motion.div>
 
-      {/* Monthly chart with trend line overlay */}
+      {/* Monthly revenue — glowing area chart */}
       <motion.div {...fadeUp(3)} className="card overflow-hidden">
         <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
           <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Monthly Revenue</h2>
-          <div className="flex items-center gap-4 text-[10px] text-gray-400">
-            <span className="flex items-center gap-1.5"><span className="w-3 h-2 rounded-sm bg-[#465FFF] inline-block" /> Revenue</span>
-            <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-[#8B5CF6] inline-block" /> Trend</span>
-          </div>
         </div>
-        <div className="p-5" style={{ height: 300 }}>
+        <div className="p-5" style={{ height: 320 }}>
           {monthData.length === 0 ? (
             <EmptyState icon={TrendingUp} title="No revenue data yet" description="Revenue will appear once bookings are completed." />
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={monthData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-subtle)" />
+              <AreaChart data={monthData}>
+                <defs>
+                  <linearGradient id="revMonthGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#22c55e" stopOpacity={0.35} />
+                    <stop offset="50%" stopColor="#22c55e" stopOpacity={0.1} />
+                    <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
+                  </linearGradient>
+                  <filter id="glowMonth">
+                    <feGaussianBlur stdDeviation="3" result="blur" />
+                    <feMerge>
+                      <feMergeNode in="blur" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-subtle)" opacity={0.5} />
                 <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-tertiary)', fontSize: 11 }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-tertiary)', fontSize: 11 }} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
                 <Tooltip content={<GlassTooltip prefix="$" />} />
-                <Bar dataKey="total" fill="#465FFF" radius={[6, 6, 0, 0]} barSize={32} name="Revenue" isAnimationActive={true} animationDuration={1200} animationBegin={200} animationEasing="ease-out" />
-                <Line type="monotone" dataKey="total" stroke="#8B5CF6" strokeWidth={2} dot={false} name="Trend" isAnimationActive={true} animationDuration={1500} animationBegin={600} animationEasing="ease-out" />
-              </ComposedChart>
+                <Area
+                  type="monotone"
+                  dataKey="total"
+                  stroke="#22c55e"
+                  strokeWidth={2.5}
+                  fill="url(#revMonthGrad)"
+                  filter="url(#glowMonth)"
+                  isAnimationActive={true}
+                  animationDuration={1800}
+                  animationBegin={200}
+                  animationEasing="ease-out"
+                  dot={(props) => {
+                    const { cx, cy, index } = props;
+                    if (index !== monthData.length - 1 || !cx || !cy) return null;
+                    return (
+                      <g key={`pulse-${index}`}>
+                        <circle cx={cx} cy={cy} r={6} fill="#22c55e" opacity={0.25}>
+                          <animate attributeName="r" values="6;14;6" dur="2s" repeatCount="indefinite" />
+                          <animate attributeName="opacity" values="0.35;0.08;0.35" dur="2s" repeatCount="indefinite" />
+                        </circle>
+                        <circle cx={cx} cy={cy} r={4} fill="#22c55e" stroke="var(--bg-primary)" strokeWidth={2} />
+                      </g>
+                    );
+                  }}
+                  activeDot={{ r: 5, fill: '#22c55e', stroke: 'var(--bg-primary)', strokeWidth: 2 }}
+                />
+              </AreaChart>
             </ResponsiveContainer>
           )}
         </div>
