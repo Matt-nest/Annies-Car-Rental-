@@ -52,7 +52,7 @@ export default function MorningBriefingWidget() {
 
   if (loading) {
     return (
-      <div className="glass-card rounded-2xl p-5 space-y-3 animate-pulse" style={{ minHeight: 80 }}>
+      <div className="liquid-glass p-5 space-y-3 animate-pulse" style={{ minHeight: 80 }}>
         <div className="h-5 w-48 rounded-lg" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }} />
         <div className="h-4 w-64 rounded-lg" style={{ backgroundColor: 'rgba(255,255,255,0.04)' }} />
       </div>
@@ -77,14 +77,14 @@ export default function MorningBriefingWidget() {
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: [0.25, 1, 0.5, 1] }}
-      className="glass-card relative rounded-2xl overflow-hidden"
+      className="liquid-glass relative overflow-hidden"
     >
       {/* Subtle ambient glow when urgency */}
       {hasUrgency && (
         <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 60% 40% at 50% 0%, rgba(70,95,255,0.06) 0%, transparent 70%)' }} />
       )}
 
-      <div className="relative px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-4">
+      <div className="relative z-10 px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-4">
         {/* Left — greeting + date */}
         <div className="flex items-center gap-3 sm:w-52 shrink-0">
           <div className="p-2 rounded-xl" style={{ backgroundColor: 'var(--accent-glow)' }}>

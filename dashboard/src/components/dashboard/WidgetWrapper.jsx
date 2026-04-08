@@ -162,12 +162,12 @@ export default function WidgetWrapper({
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: EASE }}
-      className="glass-card rounded-2xl overflow-hidden"
+      className="liquid-glass overflow-hidden"
     >
       {/* Header */}
       <button
         onClick={() => setCollapsed(c => !c)}
-        className="w-full px-5 py-4 flex items-center justify-between gap-3 text-left transition-colors"
+        className="w-full px-5 py-4 flex items-center justify-between gap-3 text-left transition-colors relative z-10"
         style={{ borderBottom: collapsed ? 'none' : '1px solid var(--border-subtle)' }}
         onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-card-hover)')}
         onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
@@ -178,7 +178,7 @@ export default function WidgetWrapper({
             <Icon size={14} style={{ color: 'var(--accent-color)', flexShrink: 0 }} />
           )}
           <span
-            className="text-sm font-semibold truncate"
+            className="text-base font-semibold truncate relative z-10"
             style={{ color: 'var(--text-primary)' }}
           >
             {title}
@@ -206,7 +206,7 @@ export default function WidgetWrapper({
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2, ease: EASE }}
-            className="overflow-hidden"
+            className="overflow-hidden relative z-10"
           >
             {error ? (
               <div className="flex items-center justify-between gap-3 px-5 py-4">

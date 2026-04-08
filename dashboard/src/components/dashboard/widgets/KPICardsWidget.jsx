@@ -36,67 +36,38 @@ function Sparkline({ data, color = 'var(--accent-color)' }) {
   );
 }
 
-// ─── Trend delta badge ────────────────────────────────────────────────────────
+// ─── Trend Badge — TailAdmin style with pill + "Vs last month" ────────────────
 function TrendBadge({ pct }) {
-  if (pct === null || isNaN(pct)) return null;
+  if (pct === null || pct === undefined || isNaN(pct)) return null;
   const up = pct >= 0;
   const Icon = up ? TrendingUp : TrendingDown;
   return (
-    <div className="flex items-center gap-1" style={{ color: up ? '#22c55e' : '#ef4444' }}>
-      <Icon size={10} />
-      <span className="text-[10px] font-semibold tabular-nums">
-        {up ? '+' : ''}{pct.toFixed(0)}%
+    <div className="flex items-center gap-1.5 mt-1">
+      <span
+        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold"
+        style={{
+          backgroundColor: up ? 'var(--kpi-positive-bg)' : 'var(--kpi-negative-bg)',
+          color: up ? 'var(--kpi-positive-text)' : 'var(--kpi-negative-text)',
+        }}
+      >
+        <Icon size={12} />
+        {up ? '+' : ''}{pct.toFixed(1)}%
       </span>
+      <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Vs last month</span>
     </div>
   );
 }
 
-// ─── KPI Card ─────────────────────────────────────────────────────────────────
-function KpiCard({ label, rawValue, icon: Icon, hero, sub, onClick, alert, prefix = '', suffix = '', accentColor, sparkData, trendPct }) {
+// ─── KPI Card — TailAdmin reference layout ────────────────────────────────────
+// Layout: icon (top-left in colored square) → label → big number → trend badge
+function KpiCard({ label, rawValue, icon: Icon, sub, onClick, alert, prefix = '', suffix = '', accentColor, sparkData, trendPct }) {
   const animated = useCountUp(typeof rawValue === 'number' ? rawValue : null);
   const displayValue = typeof rawValue === 'number'
     ? `${prefix}${animated.toLocaleString()}${suffix}`
     : (rawValue ?? '—');
 
-  if (hero) {
-    return (
-      <motion.div
-        variants={fadeUp}
-        onClick={onClick}
-        role={onClick ? 'button' : undefined}
-        tabIndex={onClick ? 0 : undefined}
-        onKeyDown={onClick ? (e) => e.key === 'Enter' && onClick() : undefined}
-        className="glass-card relative overflow-hidden rounded-2xl p-5 cursor-pointer group col-span-2 lg:col-span-1"
-        style={{
-          backgroundColor: 'var(--bg-card)',
-          border: '1px solid var(--border-subtle)',
-          boxShadow: 'var(--shadow-md)',
-          minHeight: 110,
-        }}
-        whileHover={{ scale: 1.01, transition: { duration: 0.2, ease: EASE } }}
-      >
-        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-xl"
-          style={{ boxShadow: 'inset 0 0 60px rgba(30,58,95,0.06)' }} />
-        {alert && <span className="absolute top-3.5 right-3.5 w-2.5 h-2.5 rounded-full pulse-dot" style={{ backgroundColor: 'var(--danger-color)' }} />}
-        <div className="flex items-start justify-between gap-3 relative z-10">
-          <div className="flex-1 min-w-0">
-            <p className="display-num-xl" style={{ color: 'var(--accent-color)', lineHeight: 1 }}>
-              {displayValue}
-            </p>
-            <p className="kpi-label mt-2">{label}</p>
-            {sub && <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>{sub}</p>}
-          </div>
-          <div className="flex flex-col items-end gap-2">
-            <div className="p-2.5 rounded-xl shrink-0" style={{ backgroundColor: 'var(--accent-glow)', color: 'var(--accent-color)' }}>
-              <Icon size={20} />
-            </div>
-            {sparkData && <Sparkline data={sparkData} color="var(--accent-color)" />}
-            <TrendBadge pct={trendPct} />
-          </div>
-        </div>
-      </motion.div>
-    );
-  }
+  const iconBg = accentColor ? `${accentColor}18` : 'var(--accent-glow)';
+  const iconColor = accentColor || 'var(--accent-color)';
 
   return (
     <motion.div
@@ -105,32 +76,38 @@ function KpiCard({ label, rawValue, icon: Icon, hero, sub, onClick, alert, prefi
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={onClick ? (e) => e.key === 'Enter' && onClick() : undefined}
-      className="glass-card relative rounded-2xl p-5 group"
+      className="liquid-glass relative p-6 group"
       style={{
         cursor: onClick ? 'pointer' : 'default',
-        minHeight: 110,
+        minHeight: 160,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
       }}
-      whileHover={onClick ? { borderColor: 'var(--border-medium)', transition: { duration: 0.2 } } : undefined}
     >
-      {alert && <span className="absolute top-3.5 right-3.5 w-2 h-2 rounded-full pulse-dot" style={{ backgroundColor: 'var(--danger-color)' }} />}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <p className="display-num" style={{ fontSize: '2rem', color: accentColor || 'var(--text-primary)', lineHeight: 1 }}>
-            {displayValue}
-          </p>
-          <p className="text-sm mt-2 font-medium" style={{ color: 'var(--text-secondary)' }}>{label}</p>
-          {sub && <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>{sub}</p>}
+      {alert && <span className="absolute top-4 right-4 w-2.5 h-2.5 rounded-full pulse-dot" style={{ backgroundColor: 'var(--danger-color)' }} />}
+
+      {/* Top — icon + label + big number */}
+      <div className="relative z-10">
+        <div
+          className="w-10 h-10 rounded-xl flex items-center justify-center mb-4"
+          style={{ backgroundColor: iconBg, color: iconColor }}
+        >
+          <Icon size={20} strokeWidth={1.8} />
         </div>
-        <div className="flex flex-col items-end gap-2">
-          <div className="p-2.5 rounded-xl shrink-0" style={{
-            backgroundColor: accentColor ? `${accentColor}18` : 'var(--bg-card-hover)',
-            color: accentColor || 'var(--text-secondary)',
-          }}>
-            <Icon size={18} />
-          </div>
-          {sparkData && <Sparkline data={sparkData} color={accentColor || 'var(--accent-color)'} />}
-          <TrendBadge pct={trendPct} />
-        </div>
+
+        <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>{label}</p>
+
+        <p className="display-num" style={{ color: 'var(--text-primary)' }}>
+          {displayValue}
+        </p>
+        {sub && <p className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>{sub}</p>}
+      </div>
+
+      {/* Bottom — trend badge + sparkline */}
+      <div className="flex items-end justify-between relative z-10">
+        <TrendBadge pct={trendPct} />
+        {sparkData && <Sparkline data={sparkData} color={iconColor} />}
       </div>
     </motion.div>
   );
@@ -178,12 +155,13 @@ export default function KPICardsWidget() {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className={`rounded-xl p-5 animate-pulse ${i === 0 ? 'col-span-2 lg:col-span-1' : ''}`}
-            style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)', minHeight: 120 }}>
-            <div className="h-8 w-16 rounded mb-3 animate-pulse" style={{ backgroundColor: 'var(--bg-card-hover)' }} />
-            <div className="h-3 w-24 rounded animate-pulse" style={{ backgroundColor: 'var(--bg-card-hover)' }} />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="rounded-2xl p-6 animate-pulse"
+            style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)', minHeight: 160 }}>
+            <div className="w-10 h-10 rounded-xl mb-4 skeleton" />
+            <div className="h-3 w-20 rounded mb-2 skeleton" />
+            <div className="h-7 w-24 rounded skeleton" />
           </div>
         ))}
       </div>
@@ -207,13 +185,12 @@ export default function KPICardsWidget() {
         variants={stagger}
         initial="hidden"
         animate="show"
-        className="grid grid-cols-2 lg:grid-cols-5 gap-3"
+        className="grid grid-cols-2 lg:grid-cols-4 gap-4"
       >
         <KpiCard
           label="Active Rentals"
           rawValue={overview?.active_rentals ?? 0}
           icon={Car}
-          hero
           sub="cars currently out"
           onClick={() => navigate('/bookings?status=active')}
         />
@@ -232,12 +209,6 @@ export default function KPICardsWidget() {
           accentColor="#63b3ed"
         />
         <KpiCard
-          label="Returns Today"
-          rawValue={overview?.returns_today?.length ?? 0}
-          icon={ArrowDownToLine}
-          accentColor="#a78bfa"
-        />
-        <KpiCard
           label="Revenue / Month"
           rawValue={Math.round(parseFloat(overview?.revenue_this_month || 0))}
           icon={DollarSign}
@@ -251,11 +222,10 @@ export default function KPICardsWidget() {
       </motion.div>
 
       {/* Performance row */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="flex-1 rounded-2xl px-5 py-4 flex items-center gap-4"
-          style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-sm)' }}>
+      <div className="flex flex-col sm:flex-row gap-4 mt-4">
+        <div className="flex-1 liquid-glass px-5 py-4 flex items-center gap-4">
           <Star size={15} style={{ color: 'var(--accent-color)', flexShrink: 0 }} />
-          <div>
+          <div className="relative z-10">
             <p className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>Avg Rating</p>
             <StarRating value={overview?.average_rating} />
           </div>
@@ -263,26 +233,22 @@ export default function KPICardsWidget() {
 
         {agreements > 0 ? (
           <div
-            className="flex items-center gap-3 flex-1 rounded-xl px-5 py-4 cursor-pointer transition-colors"
-            style={{ backgroundColor: 'rgba(99,179,237,0.07)', border: '1px solid rgba(99,179,237,0.2)' }}
+            className="flex items-center gap-3 flex-1 liquid-glass px-5 py-4 cursor-pointer"
             onClick={() => navigate('/bookings')}
             role="button" tabIndex={0}
             onKeyDown={(e) => e.key === 'Enter' && navigate('/bookings')}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(99,179,237,0.12)')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(99,179,237,0.07)')}
           >
-            <FileSignature size={15} style={{ color: '#63b3ed', flexShrink: 0 }} />
-            <div className="flex-1 min-w-0">
+            <FileSignature size={15} style={{ color: '#63b3ed', flexShrink: 0 }} className="relative z-10" />
+            <div className="flex-1 min-w-0 relative z-10">
               <p className="text-xs font-semibold" style={{ color: '#63b3ed' }}>{agreements} agreement{agreements !== 1 ? 's' : ''} to sign</p>
               <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>Counter-signature needed</p>
             </div>
-            <ChevronRight size={13} style={{ color: '#63b3ed', flexShrink: 0 }} />
+            <ChevronRight size={13} style={{ color: '#63b3ed', flexShrink: 0 }} className="relative z-10" />
           </div>
         ) : (
-          <div className="flex items-center gap-2 flex-1 rounded-2xl px-5 py-4"
-            style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-sm)' }}>
-            <CheckCheck size={14} style={{ color: '#22c55e' }} />
-            <span className="text-xs font-medium" style={{ color: '#22c55e' }}>All agreements signed</span>
+          <div className="flex items-center gap-2 flex-1 liquid-glass px-5 py-4">
+            <CheckCheck size={14} style={{ color: '#22c55e' }} className="relative z-10" />
+            <span className="text-xs font-medium relative z-10" style={{ color: '#22c55e' }}>All agreements signed</span>
           </div>
         )}
       </div>
