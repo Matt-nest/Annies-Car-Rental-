@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Car, BookOpen, CheckCircle2 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Car, BookOpen, CheckCircle2, PenLine } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
 import { api } from '../api/client';
 import { cachedQuery } from '../lib/queryCache';
@@ -10,7 +10,7 @@ import DashboardLayoutEngine from '../components/dashboard/DashboardLayoutEngine
 const EASE = [0.25, 1, 0.5, 1];
 
 // ─── Mobile quick-action bar ──────────────────────────────────────────────────
-function MobileQuickActions({ pendingApprovals, navigate }) {
+function MobileQuickActions({ pendingApprovals, pendingAgreements, navigate }) {
   return (
     <div
       className="lg:hidden fixed bottom-0 inset-x-0 z-30 px-4 py-3 flex gap-2.5"
@@ -21,26 +21,58 @@ function MobileQuickActions({ pendingApprovals, navigate }) {
         WebkitBackdropFilter: 'blur(24px)',
       }}
     >
-      <button
-        onClick={() => navigate('/bookings?status=pending_approval')}
-        className="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl transition-colors relative"
-        style={{
-          backgroundColor: pendingApprovals > 0 ? 'var(--accent-glow)' : 'var(--bg-card)',
-          color: pendingApprovals > 0 ? 'var(--accent-color)' : 'var(--text-secondary)',
-          minHeight: 54,
-        }}
-      >
-        {pendingApprovals > 0 && (
+      {pendingApprovals > 0 && (
+        <button
+          onClick={() => {
+            const el = document.querySelector('[data-widget="pending-approvals"]');
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            else navigate('/bookings?status=pending_approval');
+          }}
+          className="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl transition-colors relative"
+          style={{
+            backgroundColor: 'rgba(245,158,11,0.1)',
+            color: '#F59E0B',
+            boxShadow: '0 0 12px rgba(245,158,11,0.2), inset 0 0 0 1px rgba(245,158,11,0.2)',
+            animation: 'pulseYellow 2s ease-in-out infinite',
+            minHeight: 54,
+          }}
+        >
           <span
             className="absolute top-1.5 right-1.5 text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center"
-            style={{ backgroundColor: 'var(--danger-color)', color: '#fff' }}
+            style={{ backgroundColor: '#F59E0B', color: '#fff' }}
           >
             {pendingApprovals}
           </span>
-        )}
-        <CheckCircle2 size={19} />
-        <span className="text-[11px] font-medium">Approve</span>
-      </button>
+          <CheckCircle2 size={19} />
+          <span className="text-[11px] font-medium">Approve</span>
+        </button>
+      )}
+
+      {pendingAgreements > 0 && (
+        <button
+          onClick={() => {
+            const el = document.querySelector('[data-widget="pending-counter-sign"]');
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }}
+          className="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl transition-colors relative"
+          style={{
+            backgroundColor: 'rgba(0,122,255,0.1)',
+            color: '#007AFF',
+            boxShadow: '0 0 12px rgba(0,122,255,0.2), inset 0 0 0 1px rgba(0,122,255,0.2)',
+            animation: 'pulseBlue 2s ease-in-out infinite',
+            minHeight: 54,
+          }}
+        >
+          <span
+            className="absolute top-1.5 right-1.5 text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center"
+            style={{ backgroundColor: '#007AFF', color: '#fff' }}
+          >
+            {pendingAgreements}
+          </span>
+          <PenLine size={19} />
+          <span className="text-[11px] font-medium">Sign</span>
+        </button>
+      )}
 
       <button
         onClick={() => navigate('/bookings')}
@@ -66,13 +98,17 @@ function MobileQuickActions({ pendingApprovals, navigate }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const [pending, setPending] = useState(0);
+  const [pendingAgreements, setPendingAgreements] = useState(0);
   const navigate = useNavigate();
 
   // Lightweight fetch of pending count for the header button + mobile bar.
   // Uses the same cache key as KPICardsWidget / MorningBriefingWidget — no extra network request.
   useEffect(() => {
     cachedQuery('overview', () => api.getOverview())
-      .then((ov) => setPending(ov?.pending_approvals || 0))
+      .then((ov) => {
+        setPending(ov?.pending_approvals || 0);
+        setPendingAgreements(ov?.pending_agreements || 0);
+      })
       .catch(() => {});
   }, []);
 
@@ -109,19 +145,59 @@ export default function DashboardPage() {
 
           {/* Desktop header actions */}
           <div className="hidden lg:flex items-center gap-2 shrink-0 pb-1">
-            {pending > 0 && (
-              <button
-                onClick={() => navigate('/bookings?status=pending_approval')}
-                className="btn btn-primary flex items-center gap-2"
-              >
-                <CheckCircle2 size={14} />
-                Approve
-                <span className="text-[10px] font-bold rounded-full px-1.5 py-0.5"
-                  style={{ backgroundColor: 'rgba(0,0,0,0.2)' }}>
-                  {pending}
-                </span>
-              </button>
-            )}
+            <AnimatePresence>
+              {pending > 0 && (
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.85 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.85 }}
+                  onClick={() => {
+                    const el = document.querySelector('[data-widget="pending-approvals"]');
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    else navigate('/bookings?status=pending_approval');
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold cursor-pointer"
+                  style={{
+                    background: 'rgba(245,158,11,0.12)',
+                    border: '1px solid rgba(245,158,11,0.25)',
+                    color: '#F59E0B',
+                    animation: 'pulseYellow 2s ease-in-out infinite',
+                  }}
+                >
+                  <CheckCircle2 size={14} />
+                  Approve
+                  <span className="text-[10px] font-bold rounded-full px-1.5 py-0.5"
+                    style={{ backgroundColor: '#F59E0B', color: '#fff' }}>
+                    {pending}
+                  </span>
+                </motion.button>
+              )}
+              {pendingAgreements > 0 && (
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.85 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.85 }}
+                  onClick={() => {
+                    const el = document.querySelector('[data-widget="pending-counter-sign"]');
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold cursor-pointer"
+                  style={{
+                    background: 'rgba(0,122,255,0.12)',
+                    border: '1px solid rgba(0,122,255,0.25)',
+                    color: '#007AFF',
+                    animation: 'pulseBlue 2s ease-in-out infinite',
+                  }}
+                >
+                  <PenLine size={14} />
+                  Counter-Sign
+                  <span className="text-[10px] font-bold rounded-full px-1.5 py-0.5"
+                    style={{ backgroundColor: '#007AFF', color: '#fff' }}>
+                    {pendingAgreements}
+                  </span>
+                </motion.button>
+              )}
+            </AnimatePresence>
             <button onClick={() => navigate('/bookings')} className="btn btn-secondary">
               <BookOpen size={14} /> Bookings
             </button>
@@ -136,7 +212,7 @@ export default function DashboardPage() {
 
       </div>
 
-      <MobileQuickActions pendingApprovals={pending} navigate={navigate} />
+      <MobileQuickActions pendingApprovals={pending} pendingAgreements={pendingAgreements} navigate={navigate} />
     </>
   );
 }

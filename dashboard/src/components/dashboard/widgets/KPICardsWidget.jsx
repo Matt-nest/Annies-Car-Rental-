@@ -178,6 +178,7 @@ export default function KPICardsWidget() {
 
   const pending = overview?.pending_approvals || 0;
   const agreements = overview?.pending_agreements || 0;
+  const totalPending = pending + agreements;
 
   return (
     <>
@@ -196,11 +197,16 @@ export default function KPICardsWidget() {
         />
         <KpiCard
           label="Pending"
-          rawValue={pending}
+          rawValue={totalPending}
           icon={CheckCircle2}
-          alert={pending > 0}
-          accentColor={pending > 0 ? 'var(--danger-color)' : undefined}
-          onClick={() => navigate('/bookings?status=pending_approval')}
+          alert={totalPending > 0}
+          accentColor={totalPending > 0 ? 'var(--danger-color)' : undefined}
+          sub={totalPending > 0 ? `${pending} approval${pending !== 1 ? 's' : ''} · ${agreements} sign${agreements !== 1 ? 's' : ''}` : undefined}
+          onClick={() => {
+            const el = document.querySelector('[data-widget="pending-approvals"]') || document.querySelector('[data-widget="pending-counter-sign"]');
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            else navigate('/bookings?status=pending_approval');
+          }}
         />
         <KpiCard
           label="Pickups Today"

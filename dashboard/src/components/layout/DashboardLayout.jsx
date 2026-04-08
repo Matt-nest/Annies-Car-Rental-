@@ -1,6 +1,6 @@
 import { useState, useEffect, createContext, useContext } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
-import { Menu, Sun, Moon, CheckCircle2, PenLine } from 'lucide-react';
+import { Outlet } from 'react-router-dom';
+import { Menu, Sun, Moon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from './Sidebar';
 import GlobalSearch from './GlobalSearch';
@@ -15,7 +15,6 @@ export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user } = useAuth();
   const [alerts, setAlerts] = useState({ pending_approvals: 0, pending_agreements: 0 });
-  const navigate = useNavigate();
 
   const [dark, setDark] = useState(() => {
     try { const t = localStorage.getItem('dash-theme'); return t ? t === 'dark' : true; } catch { return true; }
@@ -75,60 +74,6 @@ export default function DashboardLayout() {
               <div className="flex items-center gap-2">
                 {/* Global Search — functional */}
                 <GlobalSearch />
-
-                {/* Glowing action buttons */}
-                <AnimatePresence>
-                  {alerts.pending_approvals > 0 && (
-                    <motion.button
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer"
-                      style={{
-                        background: 'rgba(245,158,11,0.12)',
-                        border: '1px solid rgba(245,158,11,0.2)',
-                        color: '#F59E0B',
-                        animation: 'pulseYellow 2s ease-in-out infinite',
-                      }}
-                      onClick={() => {
-                        navigate('/');
-                        setTimeout(() => {
-                          const el = document.querySelector('[data-widget="pending-approvals"]');
-                          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        }, 300);
-                      }}
-                    >
-                      <CheckCircle2 size={12} />
-                      <span className="font-bold">{alerts.pending_approvals}</span>
-                      <span className="hidden sm:inline">Approve</span>
-                    </motion.button>
-                  )}
-                  {alerts.pending_agreements > 0 && (
-                    <motion.button
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer"
-                      style={{
-                        background: 'rgba(0,122,255,0.12)',
-                        border: '1px solid rgba(0,122,255,0.2)',
-                        color: '#007AFF',
-                        animation: 'pulseBlue 2s ease-in-out infinite',
-                      }}
-                      onClick={() => {
-                        navigate('/');
-                        setTimeout(() => {
-                          const el = document.querySelector('[data-widget="pending-counter-sign"]');
-                          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        }, 300);
-                      }}
-                    >
-                      <PenLine size={12} />
-                      <span className="font-bold">{alerts.pending_agreements}</span>
-                      <span className="hidden sm:inline">Counter-Sign</span>
-                    </motion.button>
-                  )}
-                </AnimatePresence>
 
                 {/* Theme toggle */}
                 <button
