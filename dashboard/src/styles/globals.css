@@ -75,6 +75,8 @@ html, html.light {
   --brand-color:    #465FFF;
   --brand-glow:     rgba(70, 95, 255, 0.08);
   --header-bg:      rgba(248, 250, 252, 0.92);
+  --glass-shadow:   0 4px 24px rgba(0,0,0,0.08);
+  --glass-shadow-hover: 0 8px 32px rgba(0,0,0,0.12);
 }
 
 /* ─── Dark Mode — TailAdmin-matched ────────────────────────────────────────── */
@@ -97,6 +99,8 @@ html.dark {
   --brand-color:    #465FFF;
   --brand-glow:     rgba(70, 95, 255, 0.12);
   --header-bg:      rgba(17, 25, 40, 0.96);
+  --glass-shadow:   11px 22px 54px rgba(0,0,0,0.39);
+  --glass-shadow-hover: 14px 28px 64px rgba(0,0,0,0.45);
 
   /* Dark sidebar */
   --sidebar-bg:          #111928;
@@ -274,7 +278,7 @@ html.dark {
     backdrop-filter: blur(7px) saturate(1.17) brightness(1.029);
     -webkit-backdrop-filter: blur(7px) saturate(1.17) brightness(1.029);
     background: rgba(255, 255, 255, 0.039);
-    box-shadow: 11px 22px 54px rgba(0,0,0,0.39);
+    box-shadow: var(--glass-shadow);
     transition: transform 0.3s var(--ease-out-quart),
                 box-shadow 0.3s var(--ease-out-quart);
   }
@@ -320,7 +324,7 @@ html.dark {
   @media (hover: hover) and (pointer: fine) {
     .liquid-glass:hover {
       transform: translateY(-3px);
-      box-shadow: 14px 28px 64px rgba(0,0,0,0.45);
+      box-shadow: var(--glass-shadow-hover);
     }
   }
 
