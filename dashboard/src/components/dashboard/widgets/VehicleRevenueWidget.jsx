@@ -31,7 +31,7 @@ function RevenueBar({ vehicle, maxRevenue, rank }) {
       {/* Vehicle label */}
       <div className="w-28 shrink-0 min-w-0">
         <p className="text-xs font-semibold truncate" style={{ color: isBottom ? 'var(--text-tertiary)' : 'var(--text-primary)' }}>
-          {vehicle.label || vehicle.vehicle_code || vehicle.name || `Vehicle ${rank}`}
+          {vehicle.label}
         </p>
       </div>
 
@@ -65,13 +65,26 @@ export default function VehicleRevenueWidget() {
     setError(null);
     cachedQuery('revenue-full', () => api.getRevenue())
       .then((data) => {
-        const byVehicle = data?.by_vehicle || [];
-        // Normalize and sort descending
-        const normalized = byVehicle.map((v) => ({
-          ...v,
-          revenue: Number(v.total || v.revenue || v.amount || 0),
-          label: v.label || v.vehicle_code || v.name || '',
-        })).sort((a, b) => b.revenue - a.revenue);
+        const raw = data?.by_vehicle;
+
+        let normalized = [];
+
+        if (Array.isArray(raw)) {
+          // Already an array — legacy format
+          normalized = raw.map((v) => ({
+            ...v,
+            revenue: Number(v.total || v.revenue || v.amount || 0),
+            label: v.label || v.vehicle_code || v.name || '',
+          }));
+        } else if (raw && typeof raw === 'object') {
+          // Object format: { "2025 Nissan Altima": 12345.67, ... }
+          normalized = Object.entries(raw).map(([name, total]) => ({
+            label: name,
+            revenue: Number(total || 0),
+          }));
+        }
+
+        normalized.sort((a, b) => b.revenue - a.revenue);
         setVehicles(normalized);
       })
       .catch((e) => setError(e))
@@ -118,7 +131,7 @@ export default function VehicleRevenueWidget() {
           </div>
 
           {vehicles.map((v, i) => (
-            <RevenueBar key={v.id || v.vehicle_code || i} vehicle={v} maxRevenue={maxRevenue} rank={i + 1} />
+            <RevenueBar key={v.label || i} vehicle={v} maxRevenue={maxRevenue} rank={i + 1} />
           ))}
 
           {vehicles[vehicles.length - 1]?.revenue === 0 && (
