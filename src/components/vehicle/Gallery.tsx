@@ -33,7 +33,7 @@ export default function Gallery({ images, alt }: GalleryProps) {
               src={images[0]}
               alt={alt}
               className="relative w-full h-full object-contain transition-transform duration-700 group-hover:scale-105"
-              referrerPolicy="no-referrer"
+              style={{ filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.3))' }}
               fetchPriority="high"
               decoding="async"
             />
@@ -54,7 +54,7 @@ export default function Gallery({ images, alt }: GalleryProps) {
                 src={img}
                 alt={`${alt} view ${i + 2}`}
                 className="relative w-full h-full object-contain transition-transform duration-500 group-hover:scale-110"
-                referrerPolicy="no-referrer"
+                style={{ filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.25))' }}
                 loading="lazy"
                 decoding="async"
               />
@@ -116,7 +116,7 @@ export default function Gallery({ images, alt }: GalleryProps) {
                 src={images[currentIndex]}
                 alt={`${alt} ${currentIndex + 1}`}
                 className="max-w-full max-h-full object-contain rounded-2xl"
-                referrerPolicy="no-referrer"
+                style={{ filter: 'drop-shadow(0 12px 24px rgba(0,0,0,0.4))' }}
               />
 
               <button
@@ -137,7 +137,7 @@ export default function Gallery({ images, alt }: GalleryProps) {
                     i === currentIndex ? 'ring-2 ring-white scale-110' : 'opacity-40 hover:opacity-80'
                   }`}
                 >
-                  <img src={img} alt="" className="w-full h-full object-contain" style={{ backgroundColor: '#111' }} referrerPolicy="no-referrer" loading="lazy" decoding="async" />
+                  <img src={img} alt="" className="w-full h-full object-contain" style={{ backgroundColor: '#111' }} loading="lazy" decoding="async" />
                 </button>
               ))}
             </div>

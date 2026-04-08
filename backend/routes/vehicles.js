@@ -32,26 +32,37 @@ router.get('/catalog', asyncHandler(async (req, res) => {
   if (error) throw error;
 
   // Map to frontend-friendly format
-  const catalog = (data || []).map(v => ({
-    id: v.vehicle_code,
-    vin: v.vin,
-    make: v.make,
-    model: v.model,
-    year: v.year,
-    trim: v.trim || '',
-    category: v.category === 'suv' ? 'SUV' : v.category === 'luxury' ? 'Premium' : v.category.charAt(0).toUpperCase() + v.category.slice(1),
-    dailyRate: parseFloat(v.daily_rate),
-    weeklyRate: v.weekly_rate ? parseFloat(v.weekly_rate) : undefined,
-    seats: v.seats,
-    fuel: v.fuel_type === 'gasoline' ? 'Gas' : v.fuel_type,
-    mpg: 30,
-    transmission: v.transmission ? v.transmission.charAt(0).toUpperCase() + v.transmission.slice(1) : 'Automatic',
-    image: v.thumbnail_url,
-    images: v.photo_urls || [v.thumbnail_url],
-    description: v.notes || '',
-    features: v.features || [],
-    included: [`${v.mileage_limit_per_day || 150} miles per day included`, 'Professionally cleaned before each rental', '24/7 roadside assistance'],
-  }));
+  const catalog = (data || []).map(v => {
+    // Build multi-angle image paths from VIN
+    const vin = v.vin;
+    const heroImage = vin ? `/fleet/${vin}/hero.png` : v.thumbnail_url;
+    const sideImage = vin ? `/fleet/${vin}/side.png` : null;
+    const rearImage = vin ? `/fleet/${vin}/rear.png` : null;
+
+    return {
+      id: v.vehicle_code,
+      vin: vin || '',
+      make: v.make,
+      model: v.model,
+      year: v.year,
+      trim: v.trim || '',
+      category: v.category === 'suv' ? 'SUV' : v.category === 'luxury' ? 'Premium' : v.category.charAt(0).toUpperCase() + v.category.slice(1),
+      dailyRate: parseFloat(v.daily_rate),
+      weeklyRate: v.weekly_rate ? parseFloat(v.weekly_rate) : undefined,
+      seats: v.seats,
+      fuel: v.fuel_type === 'gasoline' ? 'Gas' : v.fuel_type,
+      mpg: 30,
+      transmission: v.transmission ? v.transmission.charAt(0).toUpperCase() + v.transmission.slice(1) : 'Automatic',
+      image: heroImage,
+      images: [heroImage, sideImage, rearImage].filter(Boolean),
+      heroImage,
+      sideImage,
+      rearImage,
+      description: v.notes || '',
+      features: v.features || [],
+      included: [`${v.mileage_limit_per_day || 150} miles per day included`, 'Professionally cleaned before each rental', '24/7 roadside assistance'],
+    };
+  });
 
   res.json(catalog);
 }));

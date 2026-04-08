@@ -2,10 +2,11 @@ export type VehicleCategory = 'Economy' | 'Sedan' | 'SUV' | 'Premium';
 
 export interface Vehicle {
   id: string;
-  vin?: string;
+  vin: string;
   make: string;
   model: string;
   year: number;
+  trim?: string;
   category: VehicleCategory;
   dailyRate: number;
   weeklyRate: number;
@@ -15,6 +16,9 @@ export interface Vehicle {
   transmission: string;
   image: string;
   images: string[];
+  heroImage: string;
+  sideImage: string | null;
+  rearImage: string | null;
   description: string;
   features: string[];
   included: string[];

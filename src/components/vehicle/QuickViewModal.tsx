@@ -88,8 +88,7 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
               src={vehicle.images[imgIndex]}
               alt={`${displayName} — angle ${imgIndex + 1}`}
               className="w-full h-full object-contain"
-              style={{ backgroundColor: theme === 'dark' ? '#0a0a0a' : '#f0f0f0' }}
-              referrerPolicy="no-referrer"
+              style={{ backgroundColor: theme === 'dark' ? '#0a0a0a' : '#f0f0f0', filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.3))' }}
             />
           </AnimatePresence>
 

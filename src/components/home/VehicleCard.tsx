@@ -38,7 +38,7 @@ const VehicleCard = memo(function VehicleCard({ vehicle, onClick, index = 0 }: V
           src={vehicle.image}
           alt={getVehicleDisplayName(vehicle)}
           className="w-full h-full object-contain transition-transform duration-700 group-hover:scale-105"
-          referrerPolicy="no-referrer"
+          style={{ filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.3))' }}
           loading="lazy"
           decoding="async"
         />

@@ -1,7 +1,12 @@
+/**
+ * @deprecated — This script used IMAGIN.studio external URLs. It has been superseded by
+ * backend/migrations/update_fleet_images.sql which uses local multi-angle PNGs.
+ * Kept for historical reference only. DO NOT RUN.
+ */
 import 'dotenv/config';
 import { supabase } from './supabase.js';
 
-// Map VIN → stock photo URLs from imagin.studio (the original curated images)
+// DEPRECATED: Map VIN → stock photo URLs from imagin.studio (replaced with local PNGs)
 const PHOTO_MAP = {
   '1N4BL4DV7PN338432': { // Altima 2023
     thumb: 'https://cdn.imagin.studio/getimage?customer=img&make=Nissan&modelFamily=Altima&modelYear=2023&angle=01&paintDescription=black&zoomType=fullscreen',
