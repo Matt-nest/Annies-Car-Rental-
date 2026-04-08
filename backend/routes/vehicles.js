@@ -31,6 +31,13 @@ router.get('/catalog', asyncHandler(async (req, res) => {
 
   if (error) throw error;
 
+  // Premium is a tier, not a type. These VINs get the 'Premium' tag in addition to their physical category.
+  const PREMIUM_VINS = new Set([
+    '1FMJK1KT1JEA47064', // Ford Expedition Max
+    '5N1AZ2BJ3MC123044', // Nissan Murano
+    'WAUB8GFF7G1059702', // Audi A3
+  ]);
+
   // Map to frontend-friendly format
   const catalog = (data || []).map(v => {
     // Build multi-angle image paths from VIN
@@ -39,6 +46,11 @@ router.get('/catalog', asyncHandler(async (req, res) => {
     const sideImage = vin ? `/fleet/${vin}/side.png` : null;
     const rearImage = vin ? `/fleet/${vin}/rear.png` : null;
 
+    // Physical category: what the vehicle IS
+    const category = v.category === 'suv' ? 'SUV' : v.category.charAt(0).toUpperCase() + v.category.slice(1);
+    const tags = [category];
+    if (PREMIUM_VINS.has(vin)) tags.push('Premium');
+
     return {
       id: v.vehicle_code,
       vin: vin || '',
@@ -46,8 +58,8 @@ router.get('/catalog', asyncHandler(async (req, res) => {
       model: v.model,
       year: v.year,
       trim: v.trim || '',
-      category: v.category === 'luxury' ? 'SUV' : v.category === 'premium' ? 'Premium' : v.category === 'suv' ? 'SUV' : v.category.charAt(0).toUpperCase() + v.category.slice(1),
-      tags: v.category === 'luxury' ? ['SUV', 'Premium'] : v.category === 'premium' ? ['Premium'] : v.category === 'suv' ? ['SUV'] : [v.category === 'economy' ? 'Economy' : v.category === 'sedan' ? 'Sedan' : v.category.charAt(0).toUpperCase() + v.category.slice(1)],
+      category,
+      tags,
       dailyRate: parseFloat(v.daily_rate),
       weeklyRate: v.weekly_rate ? parseFloat(v.weekly_rate) : undefined,
       seats: v.seats,
