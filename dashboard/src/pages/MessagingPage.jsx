@@ -604,12 +604,12 @@ function ChatPanel({ customerId, conversations }) {
                   backdropFilter: 'blur(7px) saturate(1.17) brightness(1.029)',
                   WebkitBackdropFilter: 'blur(7px) saturate(1.17) brightness(1.029)',
                   background: isOutbound
-                    ? 'rgba(139, 92, 246, 0.18)'
+                    ? 'rgba(0, 122, 255, 0.22)'
                     : 'rgba(255, 255, 255, 0.039)',
                   color: isOutbound ? '#fff' : 'var(--text-primary)',
-                  border: `1px solid ${isOutbound ? 'rgba(139,92,246,0.25)' : 'rgba(255,255,255,0.12)'}`,
+                  border: `1px solid ${isOutbound ? 'rgba(0,122,255,0.3)' : 'rgba(255,255,255,0.12)'}`,
                   boxShadow: isOutbound
-                    ? '0 4px 20px rgba(139,92,246,0.2), inset 0 0.5px 0 rgba(255,255,255,0.2)'
+                    ? '0 4px 20px rgba(0,122,255,0.22), inset 0 0.5px 0 rgba(255,255,255,0.2)'
                     : '0 2px 12px rgba(0,0,0,0.12), inset 0 0.5px 0 rgba(255,255,255,0.15)',
                 }}>
                   {msg.subject && (
