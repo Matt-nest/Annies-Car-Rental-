@@ -73,7 +73,7 @@ export default function CustomersPage() {
               transition={{ delay: i * 0.04, duration: 0.4, ease: EASE }}
             >
               <div
-                className="card p-5 cursor-pointer transition-all duration-200"
+                className="liquid-glass p-5 cursor-pointer transition-all duration-200"
                 onClick={() => navigate(`/customers/${c.id}`)}
                 onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--border-medium)'}
                 onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-subtle)'}

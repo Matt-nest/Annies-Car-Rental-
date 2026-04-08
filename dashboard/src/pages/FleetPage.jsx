@@ -157,7 +157,7 @@ export default function FleetPage() {
           {['available', 'rented', 'turo', 'maintenance', 'retired'].map(s => (
             <button
               key={s}
-              className="card p-3 text-center transition-all duration-200"
+              className="liquid-glass p-3 text-center transition-all duration-200"
               onClick={() => setFilter(f => ({ ...f, status: f.status === s ? '' : s }))}
               style={{
                 borderColor: filter.status === s ? 'var(--accent-color)' : undefined,

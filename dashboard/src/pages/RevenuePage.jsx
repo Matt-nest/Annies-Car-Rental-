@@ -48,7 +48,7 @@ function exportCSV(transactions) {
 
 function StatCard({ label, value, sub, icon: Icon, accentColor }) {
   return (
-    <div className="card p-5">
+    <div className="liquid-glass p-5">
       <div className="flex items-start justify-between">
         <div>
           <p className="text-2xl font-bold tabular-nums" style={{ color: accentColor || 'var(--text-primary)' }}>{value}</p>
