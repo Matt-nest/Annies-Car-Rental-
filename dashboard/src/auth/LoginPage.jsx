@@ -46,11 +46,6 @@ export default function LoginPage() {
         <div className="max-w-[380px] w-full mx-auto">
           {/* Logo */}
           <div className="mb-8">
-            <img
-              src="/logo-light.png"
-              alt="Annie's & Co"
-              className="h-16 w-auto mb-6"
-            />
             <h1
               className="text-3xl font-bold tracking-tight"
               style={{ color: '#F1F5F9' }}
