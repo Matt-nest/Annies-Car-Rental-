@@ -22,6 +22,12 @@ export const WIDGET_REGISTRY = [
     defaultVisible: true,
   },
   {
+    id: 'pending-counter-sign',
+    label: 'Pending Counter-Signatures',
+    description: 'Agreements awaiting your counter-signature to confirm the booking',
+    defaultVisible: true,
+  },
+  {
     id: 'morning-briefing',
     label: 'Morning Briefing',
     description: 'Time-aware ops summary — pickups, returns, revenue at a glance',

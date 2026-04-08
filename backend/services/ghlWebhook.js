@@ -59,6 +59,42 @@ export async function fireGHLWebhook(event, data) {
       if (error) console.error('[GHL] Could not log webhook failure:', error.message);
     });
   }
+
+  // Store a local copy of the outbound notification so it shows in the messaging portal
+  storeWebhookMessage(event, data).catch(e =>
+    console.error('[GHL] Failed to store local message copy:', e.message)
+  );
+}
+
+/** Human-readable summaries for each GHL event */
+const EVENT_SUMMARIES = {
+  'booking.created':          'New booking request submitted',
+  'booking.approved':         'Booking approved — awaiting agreement & payment',
+  'booking.declined':         'Booking request declined',
+  'booking.cancelled':        'Booking cancelled',
+  'booking.pickup_reminder':  'Pickup reminder sent',
+  'booking.return_reminder':  'Return reminder sent',
+  'booking.completed':        'Rental completed — review request sent',
+};
+
+async function storeWebhookMessage(event, data) {
+  const customerId = data.customer_id;
+  if (!customerId) return; // No customer to link to
+
+  const summary = EVENT_SUMMARIES[event] || `Notification: ${event}`;
+  const bookingCode = data.booking_code || '';
+  const body = bookingCode
+    ? `[Auto] ${summary} — ${bookingCode}`
+    : `[Auto] ${summary}`;
+
+  await supabase.from('messages').insert({
+    customer_id: customerId,
+    direction: 'outbound',
+    channel: 'system',
+    subject: summary,
+    body,
+    metadata: { event, automated: true },
+  });
 }
 
 /**

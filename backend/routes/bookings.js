@@ -162,6 +162,14 @@ router.post('/:id/cancel', requireAuth, asyncHandler(async (req, res) => {
 /** POST /bookings/:id/pickup */
 router.post('/:id/pickup', requireAuth, asyncHandler(async (req, res) => {
   const { mileage, fuel_level, condition_notes, photos = [] } = req.body;
+
+  // Get the booking first to know the vehicle_id
+  const { data: booking } = await supabase
+    .from('bookings')
+    .select('vehicle_id')
+    .eq('id', req.params.id)
+    .single();
+
   const result = await transitionBooking(req.params.id, 'active', {
     changedBy: req.user?.email || 'owner',
     reason: 'Vehicle picked up',
@@ -172,6 +180,15 @@ router.post('/:id/pickup', requireAuth, asyncHandler(async (req, res) => {
       pickup_photos: photos,
     },
   });
+
+  // Set vehicle status to rented — this is the ONLY place this should happen
+  if (booking?.vehicle_id) {
+    await supabase
+      .from('vehicles')
+      .update({ status: 'rented' })
+      .eq('id', booking.vehicle_id);
+  }
+
   res.json(result);
 }));
 
@@ -215,6 +232,15 @@ router.post('/:id/return', requireAuth, asyncHandler(async (req, res) => {
       : 'Vehicle returned',
     extraFields,
   });
+
+  // Set vehicle back to available
+  if (booking.vehicle_id) {
+    await supabase
+      .from('vehicles')
+      .update({ status: 'available' })
+      .eq('id', booking.vehicle_id);
+  }
+
   res.json(result);
 }));
 

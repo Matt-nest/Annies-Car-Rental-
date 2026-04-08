@@ -5,6 +5,7 @@ import { useWidgetLayout } from '../../hooks/useWidgetLayout';
 import MorningBriefingWidget   from './widgets/MorningBriefingWidget';
 import OverdueAlertsWidget     from './widgets/OverdueAlertsWidget';
 import PendingApprovalsWidget  from './widgets/PendingApprovalsWidget';
+import PendingCounterSignWidget from './widgets/PendingCounterSignWidget';
 import KPICardsWidget          from './widgets/KPICardsWidget';
 import FleetCommandGrid        from './widgets/FleetCommandGrid';
 import RevenueTrendWidget      from './widgets/RevenueTrendWidget';
@@ -19,6 +20,7 @@ const WIDGET_COMPONENTS = {
   'morning-briefing':  MorningBriefingWidget,
   'overdue-alerts':    OverdueAlertsWidget,
   'pending-approvals': PendingApprovalsWidget,
+  'pending-counter-sign': PendingCounterSignWidget,
   'kpi-cards':         KPICardsWidget,
   'fleet-grid':        FleetCommandGrid,
   'revenue-trend':     RevenueTrendWidget,

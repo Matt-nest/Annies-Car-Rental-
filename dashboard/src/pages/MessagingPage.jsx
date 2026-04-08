@@ -1071,12 +1071,35 @@ export default function MessagingPage() {
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
 
-  useEffect(() => {
-    api.getConversations()
+  const loadConversations = useCallback(() => {
+    return api.getConversations()
       .then(data => setConversations(data || []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .catch(() => {});
   }, []);
+
+  // Initial load
+  useEffect(() => {
+    loadConversations().finally(() => setLoading(false));
+  }, [loadConversations]);
+
+  // Auto-sync from GHL on first mount
+  const hasSynced = useRef(false);
+  useEffect(() => {
+    if (hasSynced.current) return;
+    hasSynced.current = true;
+    // Fire a background sync — don't show loading spinner for this
+    api.syncGHLConversations()
+      .then(() => loadConversations())
+      .catch(() => {});
+  }, [loadConversations]);
+
+  // Poll for new messages every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadConversations();
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, [loadConversations]);
 
   const handleSync = async () => {
     setSyncing(true);
@@ -1088,8 +1111,7 @@ export default function MessagingPage() {
       // Auto-dismiss after 5s
       setTimeout(() => setSyncResult(null), 5000);
       // Refresh conversations after sync
-      const data = await api.getConversations().catch(() => []);
-      setConversations(data || []);
+      await loadConversations();
     } catch (err) {
       console.error('Sync failed:', err);
       setSyncResult({ error: err.message || 'Sync failed' });

@@ -103,6 +103,7 @@ export const api = {
   deleteEmailTemplate: (id) => request(`/messaging/email-templates/${id}`, { method: 'DELETE' }),
 
   // Agreements
+  getPendingCounterSign: () => request('/agreements/pending-counter-sign'),
   getAgreementDetail: (bookingId) => request(`/agreements/${bookingId}/detail`),
   counterSignAgreement: (bookingId, signatureData) =>
     request(`/agreements/${bookingId}/counter-sign`, {

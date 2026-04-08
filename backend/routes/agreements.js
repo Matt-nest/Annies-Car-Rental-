@@ -4,8 +4,46 @@ import { requireAuth } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { generateRentalAgreementPdf } from '../utils/pdfGenerator.js';
 import { transitionBooking } from '../services/bookingService.js';
+import { sendCounterSignNotification } from '../services/emailService.js';
+import { createNotification } from '../services/notificationService.js';
 
 const router = Router();
+
+// ══════════════════════════════════════════════════════════════════════════════
+// GET /agreements/pending-counter-sign   (MUST be BEFORE /:bookingCode wildcard)
+// Admin — lists agreements where customer signed but owner hasn't counter-signed
+// ══════════════════════════════════════════════════════════════════════════════
+router.get('/pending-counter-sign', requireAuth, asyncHandler(async (req, res) => {
+  const { data, error } = await supabase
+    .from('rental_agreements')
+    .select(`
+      id, booking_id, customer_signed_at, owner_signed_at,
+      bookings!inner (
+        booking_code, pickup_date, return_date, status,
+        customers ( first_name, last_name, email, phone ),
+        vehicles ( year, make, model, vehicle_code )
+      )
+    `)
+    .not('customer_signed_at', 'is', null)
+    .is('owner_signed_at', null)
+    .order('customer_signed_at', { ascending: false });
+
+  if (error) throw error;
+
+  const formatted = (data || []).map(ag => ({
+    id: ag.id,
+    booking_id: ag.booking_id,
+    booking_code: ag.bookings?.booking_code,
+    customer_signed_at: ag.customer_signed_at,
+    pickup_date: ag.bookings?.pickup_date,
+    return_date: ag.bookings?.return_date,
+    booking_status: ag.bookings?.status,
+    customer: ag.bookings?.customers,
+    vehicle: ag.bookings?.vehicles,
+  }));
+
+  res.json(formatted);
+}));
 
 // ══════════════════════════════════════════════════════════════════════════════
 // GET /agreements/:bookingCode
@@ -176,6 +214,38 @@ router.post('/:bookingCode/sign', asyncHandler(async (req, res) => {
     }).catch(e => console.error('[Auto-Confirm Error]', e));
   }
 
+  // Notify the owner that counter-signature is needed
+  const { data: customer } = await supabase
+    .from('customers')
+    .select('first_name, last_name, email, phone')
+    .eq('id', booking.customer_id)
+    .single();
+
+  const { data: fullBooking } = await supabase
+    .from('bookings')
+    .select('*, vehicles(year, make, model)')
+    .eq('id', booking.id)
+    .single();
+
+  const vehicleLabel = fullBooking?.vehicles
+    ? `${fullBooking.vehicles.year} ${fullBooking.vehicles.make} ${fullBooking.vehicles.model}` : null;
+
+  // Email notification to owner (fire-and-forget)
+  sendCounterSignNotification({
+    booking: fullBooking || booking,
+    customer: customer || { first_name: 'Customer', last_name: '' },
+    vehicle: vehicleLabel,
+  }).catch(e => console.error('[Email] Counter-sign notification failed:', e));
+
+  // Dashboard notification
+  createNotification(
+    'agreement_pending',
+    `Agreement signed — counter-sign needed`,
+    `${customer?.first_name || 'Customer'} ${customer?.last_name || ''} signed for ${fullBooking?.booking_code || ''}`,
+    `/bookings/${booking.id}`,
+    { booking_id: booking.id }
+  ).catch(() => {});
+
   res.json({ success: true, agreementId: agreement.id });
 }));
 
@@ -225,23 +295,16 @@ router.post('/:bookingId/counter-sign', requireAuth, asyncHandler(async (req, re
       { booking_id: booking.id }
     ).catch(() => {});
 
-    // Transition booking to active if it's confirmed (agreement + payment both done)
-    if (['confirmed', 'approved'].includes(booking.status)) {
+    // Transition booking to confirmed if it's approved (agreement + payment both done, waiting for pickup day)
+    // NOTE: Do NOT auto-transition to 'active' — active should only happen when the owner manually records the pickup
+    if (booking.status === 'approved') {
       try {
-        await transitionBooking(booking.id, 'active', {
+        await transitionBooking(booking.id, 'confirmed', {
           changedBy: req.user?.email || 'admin',
-          reason: 'Rental agreement counter-signed — rental is now active',
+          reason: 'Rental agreement counter-signed — booking confirmed, awaiting pickup',
         });
-
-        // Set vehicle status to rented
-        if (booking.vehicle_id) {
-          await supabase
-            .from('vehicles')
-            .update({ status: 'rented' })
-            .eq('id', booking.vehicle_id);
-        }
       } catch (e) {
-        console.error('[Counter-Sign] Auto-activate failed:', e.message);
+        console.error('[Counter-Sign] Auto-confirm failed:', e.message);
       }
     }
   }
