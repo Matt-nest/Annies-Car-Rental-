@@ -234,27 +234,64 @@ export default function PendingApprovalsWidget() {
     setBookings((prev) => prev.filter((b) => b.id !== id));
   }
 
-  const headerAction = (
-    <span
-      className="text-xs font-bold px-2 py-0.5 rounded-full"
-      style={{ backgroundColor: 'var(--danger-color)', color: '#fff' }}
-    >
-      {bookings.length}
-    </span>
-  );
+  if (loading) {
+    return (
+      <div data-widget="pending-approvals" style={{
+        background: 'var(--bg-card, #fff)', borderRadius: 16,
+        padding: '24px', border: '1px solid var(--border-subtle, rgba(0,0,0,0.06))',
+        minHeight: 120, display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Loading approvals...</div>
+      </div>
+    );
+  }
 
   return (
     <>
-      <WidgetWrapper
-        title="Pending Approvals"
-        icon={CheckCircle2}
-        loading={loading}
-        error={error}
-        onRetry={load}
-        skeletonType="list"
-        headerAction={headerAction}
-        noPadding
+      <motion.div
+        data-widget="pending-approvals"
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        style={{
+          background: 'var(--bg-card, #fff)',
+          borderRadius: 16,
+          border: '1.5px solid rgba(245,158,11,0.25)',
+          overflow: 'hidden',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 0 0 1px rgba(245,158,11,0.05)',
+        }}
       >
+        {/* Header */}
+        <div style={{
+          padding: '16px 20px',
+          background: 'linear-gradient(135deg, rgba(245,158,11,0.06) 0%, rgba(217,119,6,0.03) 100%)',
+          borderBottom: '1px solid rgba(245,158,11,0.1)',
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: 10,
+            background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(245,158,11,0.3)',
+          }}>
+            <CheckCircle2 size={15} color="#fff" />
+          </div>
+          <div style={{ flex: 1 }}>
+            <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em', margin: 0 }}>
+              Pending Approvals
+            </h3>
+            <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', margin: 0 }}>
+              {bookings.length} booking{bookings.length !== 1 ? 's' : ''} awaiting your approval
+            </p>
+          </div>
+          <span
+            className="text-xs font-bold px-2.5 py-1 rounded-full"
+            style={{ background: 'rgba(245,158,11,0.12)', color: '#F59E0B', border: '1px solid rgba(245,158,11,0.2)' }}
+          >
+            {bookings.length}
+          </span>
+        </div>
+
+        {/* List */}
         <AnimatePresence mode="popLayout">
           {bookings.map((b, i) => (
             <BookingCard
@@ -273,7 +310,7 @@ export default function PendingApprovalsWidget() {
             <p className="text-sm font-medium" style={{ color: 'var(--text-tertiary)' }}>All clear</p>
           </div>
         )}
-      </WidgetWrapper>
+      </motion.div>
 
       <AnimatePresence>
         {declining && (

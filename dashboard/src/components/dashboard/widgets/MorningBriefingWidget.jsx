@@ -108,7 +108,23 @@ export default function MorningBriefingWidget() {
               <StatChip icon={ArrowUpFromLine} value={pickupsToday} label="pickups" color="#63b3ed" onClick={() => navigate('/calendar')} />
               <StatChip icon={ArrowDownToLine} value={returnsToday} label="returns" color="#a78bfa" onClick={() => navigate('/calendar')} />
               {pending > 0 && (
-                <StatChip icon={CheckCircle2} value={pending} label="pending" color="var(--danger-color)" onClick={() => navigate('/bookings?status=pending_approval')} />
+                <div
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl cursor-pointer transition-all"
+                  style={{
+                    background: 'rgba(245,158,11,0.12)',
+                    boxShadow: '0 0 12px rgba(245,158,11,0.25), inset 0 0 0 1px rgba(245,158,11,0.2)',
+                    animation: 'pulseYellow 2s ease-in-out infinite',
+                  }}
+                  onClick={() => {
+                    const el = document.querySelector('[data-widget="pending-approvals"]');
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    else navigate('/bookings?status=pending_approval');
+                  }}
+                >
+                  <CheckCircle2 size={13} style={{ color: '#F59E0B', flexShrink: 0 }} />
+                  <span className="text-base font-bold display-num" style={{ color: '#F59E0B' }}>{pending}</span>
+                  <span className="text-xs hidden sm:inline" style={{ color: '#F59E0B', opacity: 0.8 }}>approve</span>
+                </div>
               )}
               {pendingAgreements > 0 && (
                 <div
@@ -137,6 +153,25 @@ export default function MorningBriefingWidget() {
                 <StatChip icon={ArrowUpFromLine} value={tomorrowPickups} label="tomorrow" color="#63b3ed" onClick={() => navigate('/calendar')} />
               )}
               <StatChip icon={DollarSign} value={activeRentals} label="active" color="#22c55e" />
+              {pending > 0 && (
+                <div
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl cursor-pointer transition-all"
+                  style={{
+                    background: 'rgba(245,158,11,0.12)',
+                    boxShadow: '0 0 12px rgba(245,158,11,0.25), inset 0 0 0 1px rgba(245,158,11,0.2)',
+                    animation: 'pulseYellow 2s ease-in-out infinite',
+                  }}
+                  onClick={() => {
+                    const el = document.querySelector('[data-widget="pending-approvals"]');
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    else navigate('/bookings?status=pending_approval');
+                  }}
+                >
+                  <CheckCircle2 size={13} style={{ color: '#F59E0B', flexShrink: 0 }} />
+                  <span className="text-base font-bold display-num" style={{ color: '#F59E0B' }}>{pending}</span>
+                  <span className="text-xs hidden sm:inline" style={{ color: '#F59E0B', opacity: 0.8 }}>approve</span>
+                </div>
+              )}
               {pendingAgreements > 0 && (
                 <div
                   className="flex items-center gap-2 px-3 py-2 rounded-xl cursor-pointer transition-all"
