@@ -4,7 +4,7 @@ import { TrendingUp } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
-import { format } from 'date-fns';
+import { format, subDays } from 'date-fns';
 import { api } from '../../../api/client';
 import { cachedQuery } from '../../../lib/queryCache';
 import WidgetWrapper from '../WidgetWrapper';
@@ -48,19 +48,29 @@ export default function RevenueTrendWidget() {
     setLoading(true);
     setError(null);
     setMounted(false);
-    cachedQuery('revenue-daily-14', () => api.getRevenue({ period: 'daily', days: 14 }).catch(() => []))
+    cachedQuery('revenue-full', () => api.getRevenue())
       .then((rev) => {
-        if (Array.isArray(rev)) {
-          setData(rev.map((r) => ({
-            label: r.date ? format(new Date(r.date), 'MMM d') : (r.label || ''),
-            total: Number(r.total || r.amount || 0),
-          })));
+        // Extract last 14 days from by_day object { "2026-04-08": 1234.56, ... }
+        const byDay = rev?.by_day;
+        if (byDay && typeof byDay === 'object') {
+          const today = new Date();
+          const points = [];
+          for (let i = 13; i >= 0; i--) {
+            const d = subDays(today, i);
+            const key = format(d, 'yyyy-MM-dd');
+            points.push({
+              label: format(d, 'MMM d'),
+              total: Number(byDay[key] || 0),
+            });
+          }
+          setData(points);
+        } else {
+          setData([]);
         }
       })
       .catch((e) => setError(e))
       .finally(() => {
         setLoading(false);
-        // Small delay to let ResponsiveContainer measure, then trigger animation
         timerRef.current = setTimeout(() => setMounted(true), 100);
       });
   }, []);

@@ -92,19 +92,21 @@ export default function Sidebar({ open, onClose, alerts = {} }) {
         }}
       >
         {/* Logo — theme-aware, links home */}
-        <div className="flex items-center justify-between py-6">
-          <NavLink to="/" onClick={onClose} className="relative h-[76px] w-full block transition-opacity duration-200 hover:opacity-75">
+        <div className="flex items-center justify-between px-2 py-5">
+          <NavLink to="/" onClick={onClose} className="relative w-full block transition-opacity duration-200 hover:opacity-75">
             {/* Light mode: black text logo */}
             <img
               src="/logo-dark.png"
               alt="Annie's & Co"
-              className="h-full w-auto object-contain dark:hidden"
+              className="w-full h-auto object-contain dark:hidden"
+              style={{ maxHeight: 120 }}
             />
             {/* Dark mode: white text logo */}
             <img
               src="/logo-light.png"
               alt="Annie's & Co"
-              className="h-full w-auto object-contain hidden dark:block"
+              className="w-full h-auto object-contain hidden dark:block"
+              style={{ maxHeight: 120 }}
             />
           </NavLink>
 
