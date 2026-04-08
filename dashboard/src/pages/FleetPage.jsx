@@ -9,6 +9,12 @@ import EmptyState from '../components/shared/EmptyState';
 import Modal from '../components/shared/Modal';
 import DamageSummaryWidget from '../components/dashboard/widgets/DamageSummaryWidget';
 
+const MAIN_SITE = 'https://anniescarrental.com';
+function resolveThumb(url) {
+  if (!url) return '';
+  return url.startsWith('/fleet/') ? `${MAIN_SITE}${url}` : url;
+}
+
 const EASE = [0.25, 1, 0.5, 1];
 
 const EMPTY_VEHICLE = {
@@ -194,7 +200,7 @@ export default function FleetPage() {
                 {/* Photo */}
                 <div className="h-40 flex items-center justify-center relative" style={{ backgroundColor: 'var(--bg-secondary)' }}>
                   {v.thumbnail_url ? (
-                    <img src={v.thumbnail_url} alt={`${v.make} ${v.model}`} className="h-full w-full object-cover" />
+                    <img src={resolveThumb(v.thumbnail_url)} alt={`${v.make} ${v.model}`} className="h-full w-full object-contain p-4" style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.2))' }} />
                   ) : (
                     <Car size={36} style={{ color: 'var(--text-tertiary)', opacity: 0.3 }} />
                   )}

@@ -86,15 +86,21 @@ export default function Sidebar({ open, onClose, alerts = {} }) {
           lg:relative lg:translate-x-0 lg:flex
         `}
       >
-        {/* Logo — matches template py-8 */}
+        {/* Logo — theme-aware */}
         <div className="flex items-center justify-between py-8">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-brand-500">
-              <Car size={16} color="#FFFFFF" strokeWidth={2} />
-            </div>
-            <h1 className="text-2xl font-bold text-brand-500 dark:text-[#00D4AA]">
-              Annie's
-            </h1>
+          <div className="relative h-[48px] w-[180px]">
+            {/* Light mode: black text logo */}
+            <img
+              src="/logo-dark.png"
+              alt="Annie's & Co"
+              className="absolute inset-0 h-full w-auto object-contain dark:hidden"
+            />
+            {/* Dark mode: white text logo */}
+            <img
+              src="/logo-light.png"
+              alt="Annie's & Co"
+              className="absolute inset-0 h-full w-auto object-contain hidden dark:block"
+            />
           </div>
 
           <button

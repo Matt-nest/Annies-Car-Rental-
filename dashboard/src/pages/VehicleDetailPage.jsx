@@ -9,6 +9,12 @@ import Section from '../components/shared/Section';
 import Field from '../components/shared/Field';
 import { format } from 'date-fns';
 
+const MAIN_SITE = 'https://anniescarrental.com';
+function resolveThumb(url) {
+  if (!url) return '';
+  return url.startsWith('/fleet/') ? `${MAIN_SITE}${url}` : url;
+}
+
 const STATUS_OPTIONS = ['available', 'turo', 'maintenance', 'retired'];
 const STATUS_COLORS = {
   available:   'bg-green-500',
@@ -161,7 +167,7 @@ export default function VehicleDetailPage() {
         {/* Photo */}
         <div className="card overflow-hidden">
           {vehicle.thumbnail_url ? (
-            <img src={vehicle.thumbnail_url} alt={`${vehicle.make} ${vehicle.model}`} className="w-full h-56 object-cover" />
+            <img src={resolveThumb(vehicle.thumbnail_url)} alt={`${vehicle.make} ${vehicle.model}`} className="w-full h-56 object-contain p-4" style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.2))' }} />
           ) : (
             <div className="h-56 bg-[var(--bg-card)] flex items-center justify-center">
               <Car size={48} className="text-[var(--text-tertiary)]" />
