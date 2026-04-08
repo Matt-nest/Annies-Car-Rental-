@@ -270,9 +270,3 @@ export async function transitionBooking(bookingId, newStatus, { changedBy = 'own
 
   return { success: true, booking_code: booking.booking_code, new_status: newStatus };
 }
-{ booking_id: bookingId, new_status: newStatus }
-    ).catch (() => { });
-  }
-
-return { success: true, booking_code: booking.booking_code, new_status: newStatus };
-}

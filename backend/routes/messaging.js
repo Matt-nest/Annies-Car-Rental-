@@ -241,28 +241,4 @@ router.delete('/email-templates/:id', requireAuth, asyncHandler(async (req, res)
 }));
 
 export default router;
-if (trigger_type !== undefined) updates.trigger_type = trigger_type;
-if (description !== undefined) updates.description = description;
-updates.updated_at = new Date().toISOString();
 
-const { data, error } = await supabase
-  .from('email_templates')
-  .update(updates)
-  .eq('id', req.params.id)
-  .select()
-  .single();
-if (error) throw error;
-res.json(data);
-}));
-
-/** DELETE /email-templates/:id — delete a template */
-router.delete('/email-templates/:id', requireAuth, asyncHandler(async (req, res) => {
-  const { error } = await supabase
-    .from('email_templates')
-    .delete()
-    .eq('id', req.params.id);
-  if (error) throw error;
-  res.json({ success: true });
-}));
-
-export default router;
