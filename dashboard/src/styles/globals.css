@@ -245,7 +245,7 @@ html.dark {
   .card {
     background-color: var(--bg-card);
     border: 1px solid var(--border-subtle);
-    border-radius: 12px;
+    border-radius: 16px;
     box-shadow: var(--shadow-sm);
     transition: transform 0.25s var(--ease-out-quart),
                 box-shadow 0.25s var(--ease-out-quart),
@@ -266,7 +266,7 @@ html.dark {
   .card-elevated {
     background-color: var(--bg-elevated);
     border: 1px solid var(--border-medium);
-    border-radius: 12px;
+    border-radius: 16px;
     box-shadow: var(--shadow-lg);
   }
 
@@ -334,7 +334,7 @@ html.dark {
   /* ── Glass Card — solid fill variant for widget containers ── */
   .glass-card {
     position: relative;
-    border-radius: 12px;
+    border-radius: 16px;
     overflow: hidden;
     background-color: var(--bg-card);
     border: 1px solid var(--border-subtle);

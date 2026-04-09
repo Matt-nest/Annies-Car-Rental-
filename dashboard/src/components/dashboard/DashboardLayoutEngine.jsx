@@ -42,7 +42,7 @@ export default function DashboardLayoutEngine() {
   const { widgets } = useWidgetLayout();
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {widgets.map(({ id, visible }) => {
         if (!visible) return null;
         const Component = WIDGET_COMPONENTS[id];

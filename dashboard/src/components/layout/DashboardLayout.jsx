@@ -111,7 +111,7 @@ export default function DashboardLayout() {
               WebkitBackdropFilter: 'blur(12px)',
             }}
           >
-            <div className="flex flex-grow items-center gap-3 px-4 py-3 sm:px-6">
+            <div className="flex flex-grow items-center gap-3 px-4 py-4 sm:px-6">
               {/* ── Sidebar toggle button (TailAdmin style) ──────────── */}
               {/* Mobile: opens drawer   •   Desktop: toggles pinned/unpinned */}
               <button
@@ -146,7 +146,7 @@ export default function DashboardLayout() {
               </div>
 
               {/* Right controls */}
-              <div className="flex items-center gap-2 ml-auto shrink-0">
+              <div className="flex items-center gap-3 ml-auto shrink-0">
                 {/* Theme toggle */}
                 <button
                   onClick={() => setDark(d => !d)}

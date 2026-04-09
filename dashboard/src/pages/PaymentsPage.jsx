@@ -68,7 +68,7 @@ export default function PaymentsPage() {
   };
 
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-5">
+    <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -251,7 +251,7 @@ export default function PaymentsPage() {
 
       {/* Refund Modal */}
       <Modal open={!!refundData} onClose={closeRefundModal} title="Issue Stripe Refund">
-        <form onSubmit={handleRefundSubmit} className="space-y-5">
+        <form onSubmit={handleRefundSubmit} className="space-y-6">
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
             Booking: <span className="mono-code font-bold px-2 py-0.5 rounded-lg" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)' }}>
               {refundData?.bookings?.booking_code}

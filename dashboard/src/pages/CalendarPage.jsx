@@ -67,7 +67,7 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 max-w-full space-y-5">
+    <div className="p-6 lg:p-8 max-w-full space-y-6">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}

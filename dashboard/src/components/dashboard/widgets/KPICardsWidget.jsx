@@ -76,7 +76,7 @@ function KpiCard({ label, rawValue, icon: Icon, sub, onClick, alert, prefix = ''
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={onClick ? (e) => e.key === 'Enter' && onClick() : undefined}
-      className="liquid-glass relative p-6 group"
+      className="liquid-glass relative p-7 group"
       style={{
         cursor: onClick ? 'pointer' : 'default',
         minHeight: 160,
@@ -90,7 +90,7 @@ function KpiCard({ label, rawValue, icon: Icon, sub, onClick, alert, prefix = ''
       {/* Top — icon + label + big number */}
       <div className="relative z-10">
         <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center mb-4"
+          className="w-11 h-11 rounded-xl flex items-center justify-center mb-4"
           style={{ backgroundColor: iconBg, color: iconColor }}
         >
           <Icon size={20} strokeWidth={1.8} />
@@ -155,7 +155,7 @@ export default function KPICardsWidget() {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
         {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="rounded-2xl p-6 animate-pulse"
             style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)', minHeight: 160 }}>
@@ -186,7 +186,7 @@ export default function KPICardsWidget() {
         variants={stagger}
         initial="hidden"
         animate="show"
-        className="grid grid-cols-2 lg:grid-cols-4 gap-4"
+        className="grid grid-cols-2 lg:grid-cols-4 gap-6"
       >
         <KpiCard
           label="Active Rentals"
@@ -228,7 +228,7 @@ export default function KPICardsWidget() {
       </motion.div>
 
       {/* Performance row */}
-      <div className="flex flex-col sm:flex-row gap-4 mt-4">
+      <div className="flex flex-col sm:flex-row gap-6 mt-5">
         <div className="flex-1 liquid-glass px-5 py-4 flex items-center gap-4">
           <Star size={15} style={{ color: 'var(--accent-color)', flexShrink: 0 }} />
           <div className="relative z-10">

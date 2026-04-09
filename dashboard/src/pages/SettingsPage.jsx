@@ -329,7 +329,7 @@ function TeamTab() {
   const isOwner = myProfile?.role === 'owner';
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -530,7 +530,7 @@ function TeamTab() {
    ════════════════════════════════════════════════════════ */
 function SystemTab() {
   return (
-    <div className="space-y-5 max-w-2xl">
+    <div className="space-y-6 max-w-2xl">
       <div className="flex items-start gap-2.5 bg-[rgba(99,179,237,0.07)] border border-[rgba(99,179,237,0.15)] rounded-xl p-4 text-sm text-[#63b3ed]">
         <Info size={15} className="mt-0.5 shrink-0 text-[#63b3ed]" />
         <div>
@@ -629,7 +629,7 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-5">
+    <div className="p-6 lg:p-8 max-w-4xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
         <p className="text-sm text-[var(--text-secondary)] mt-1">

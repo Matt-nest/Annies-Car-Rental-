@@ -121,14 +121,14 @@ export default function DashboardPage() {
 
   return (
     <>
-      <div className="p-4 sm:p-6 pb-28 lg:pb-8 max-w-7xl mx-auto space-y-5">
+      <div className="p-6 lg:p-8 pb-28 lg:pb-8 max-w-7xl mx-auto space-y-6">
 
         {/* ── Page header ─────────────────────────────────────────────── */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: EASE }}
-          className="flex items-end justify-between gap-4 pt-1"
+          className="flex items-end justify-between gap-4 pt-2"
         >
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--accent-color)' }}>
