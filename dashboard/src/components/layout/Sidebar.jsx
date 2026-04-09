@@ -166,7 +166,7 @@ export default function Sidebar({ open, onClose, alerts = {}, pinned }) {
         }}
       >
         {/* Logo area */}
-        <div className={`flex items-center justify-between py-5 px-2`}>
+        <div className={`flex items-center justify-between ${isExpanded ? 'py-8 px-3' : 'py-5 px-2'}`}>
           {/* Full logo — show when expanded */}
           <NavLink
             to="/"
@@ -179,13 +179,13 @@ export default function Sidebar({ open, onClose, alerts = {}, pinned }) {
               src="/logo-dark.png"
               alt="Annie's & Co"
               className="w-full h-auto object-contain dark:hidden"
-              style={{ maxHeight: 120 }}
+              style={{ maxHeight: 160 }}
             />
             <img
               src="/logo-light.png"
               alt="Annie's & Co"
               className="w-full h-auto object-contain hidden dark:block"
-              style={{ maxHeight: 120 }}
+              style={{ maxHeight: 160 }}
             />
           </NavLink>
 
@@ -222,7 +222,7 @@ export default function Sidebar({ open, onClose, alerts = {}, pinned }) {
               {/* Main menu */}
               <div>
                 {isExpanded && (
-                  <h3 className="section-label mb-4 ml-4" style={{
+                  <h3 className="section-label mb-3 ml-4" style={{
                     opacity: isExpanded ? 1 : 0,
                     transition: 'opacity 0.2s ease',
                   }}>
