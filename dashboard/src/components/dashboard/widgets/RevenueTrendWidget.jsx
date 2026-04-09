@@ -50,18 +50,31 @@ export default function RevenueTrendWidget() {
     setMounted(false);
     cachedQuery('revenue-full', () => api.getRevenue())
       .then((rev) => {
-        // Extract last 14 days from by_day object { "2026-04-08": 1234.56, ... }
         const byDay = rev?.by_day;
         if (byDay && typeof byDay === 'object') {
+          // Find the earliest date with revenue
+          const allDates = Object.keys(byDay).filter(k => Number(byDay[k]) > 0).sort();
           const today = new Date();
+          const todayStr = format(today, 'yyyy-MM-dd');
+
+          // Start from earliest revenue date or 14 days ago, whichever is earlier
+          let startDate;
+          if (allDates.length > 0 && allDates[0] < format(subDays(today, 13), 'yyyy-MM-dd')) {
+            startDate = new Date(allDates[0] + 'T00:00:00');
+          } else {
+            startDate = subDays(today, 13);
+          }
+
+          // Build points from startDate to today
           const points = [];
-          for (let i = 13; i >= 0; i--) {
-            const d = subDays(today, i);
-            const key = format(d, 'yyyy-MM-dd');
+          const cursor = new Date(startDate);
+          while (cursor <= today) {
+            const key = format(cursor, 'yyyy-MM-dd');
             points.push({
-              label: format(d, 'MMM d'),
+              label: format(cursor, 'MMM d'),
               total: Number(byDay[key] || 0),
             });
+            cursor.setDate(cursor.getDate() + 1);
           }
           setData(points);
         } else {
@@ -92,7 +105,7 @@ export default function RevenueTrendWidget() {
 
   return (
     <WidgetWrapper
-      title="Revenue Trend — 14 days"
+      title={`Revenue Trend — ${data.length} days`}
       icon={TrendingUp}
       loading={loading}
       error={error}
@@ -104,7 +117,7 @@ export default function RevenueTrendWidget() {
       {/* Summary stat bar */}
       <div className="px-5 pt-3 pb-1 flex items-center gap-6">
         <div>
-          <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>14-Day Total</p>
+          <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>Total</p>
           <p className="text-lg font-bold tabular-nums" style={{ color: '#22c55e' }}>${total.toLocaleString()}</p>
         </div>
         <div>
