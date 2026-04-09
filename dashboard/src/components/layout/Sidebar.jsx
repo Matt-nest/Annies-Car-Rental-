@@ -160,12 +160,15 @@ export default function Sidebar({ open, onClose, alerts = {}, pinned }) {
         style={{
           backgroundColor: 'var(--sidebar-bg)',
           borderColor: 'var(--sidebar-border)',
-          transition: 'width 0.3s cubic-bezier(0.4,0,0.2,1), padding 0.3s cubic-bezier(0.4,0,0.2,1), box-shadow 0.3s ease',
+          transition: 'width 0.45s cubic-bezier(0.22, 1, 0.36, 1), padding 0.45s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.4s ease, top 0.3s ease, height 0.3s ease',
+          // When unpinned, position sidebar below the header
+          ...(!pinned ? { top: 72, height: 'calc(100vh - 72px)' } : {}),
           // When hover-expanding, add elevated shadow for overlay feel
           ...(hoverExpanded && !pinned ? { boxShadow: '8px 0 32px rgba(0,0,0,0.3)' } : {}),
         }}
       >
-        {/* Logo area */}
+        {/* Logo area — only show when pinned (full sidebar) or on mobile */}
+        {(pinned || open) && (
         <div className={`flex items-center justify-between ${isExpanded ? 'py-8 px-3' : 'py-5 px-2'}`}>
           {/* Full logo — show when expanded */}
           <NavLink
@@ -214,9 +217,27 @@ export default function Sidebar({ open, onClose, alerts = {}, pinned }) {
             <X size={20} />
           </button>
         </div>
+        )}
+
+        {/* Collapsed icon at top of rail when unpinned */}
+        {!pinned && !hoverExpanded && (
+          <div className="hidden lg:flex items-center justify-center py-4">
+            <NavLink
+              to="/"
+              onClick={onClose}
+              className="flex items-center justify-center transition-all duration-300 hover:opacity-75 hover:scale-110"
+            >
+              <img
+                src="/logo-icon.png"
+                alt="Annie's & Co"
+                className="w-9 h-9 object-contain"
+              />
+            </NavLink>
+          </div>
+        )}
 
         {/* Navigation */}
-        <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
+        <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar flex-1">
           <nav className="mb-6">
             <div className="flex flex-col gap-4">
               {/* Main menu */}
