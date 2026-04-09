@@ -120,11 +120,14 @@ router.post('/sync', requireAuth, asyncHandler(async (req, res) => {
  * Secured via API key header (x-webhook-secret)
  */
 router.post('/webhook/inbound', asyncHandler(async (req, res) => {
-  // Validate webhook secret
+  // Validate webhook secret — check multiple header names + query param
   const secret = process.env.GHL_WEBHOOK_SECRET;
-  const provided = req.headers['x-webhook-secret'];
+  const provided = req.headers['x-webhook-secret']
+    || req.headers['x-api-key']
+    || req.headers['authorization']?.replace('Bearer ', '')
+    || req.query.secret;
   if (secret && provided !== secret) {
-    console.warn('[GHL Webhook] Unauthorized — bad or missing x-webhook-secret');
+    console.warn('[GHL Webhook] Unauthorized — headers:', JSON.stringify(Object.keys(req.headers)));
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
