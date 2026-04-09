@@ -141,4 +141,45 @@ export const api = {
   updateUserRole: (id, role) => request(`/users/${id}/role`, { method: 'PATCH', body: JSON.stringify({ role }) }),
   deactivateUser: (id) => request(`/users/${id}`, { method: 'DELETE' }),
   reactivateUser: (id) => request(`/users/${id}/reactivate`, { method: 'POST' }),
+
+  // ── Rental Operations ──────────────────────────────────────────────────────
+
+  // Deposits
+  getVehicleDeposit: (vehicleId) => request(`/vehicles/${vehicleId}/deposit`),
+  getBookingDeposit: (bookingId) => request(`/bookings/${bookingId}/deposit`),
+  releaseDeposit: (bookingId) => request(`/bookings/${bookingId}/deposit/release`, { method: 'POST' }),
+  settleDeposit: (bookingId, body) => request(`/bookings/${bookingId}/deposit/settle`, { method: 'POST', body: JSON.stringify(body) }),
+
+  // Add-ons
+  getBookingAddons: (bookingId) => request(`/bookings/${bookingId}/addons`),
+  saveBookingAddons: (bookingId, body) => request(`/bookings/${bookingId}/addons`, { method: 'POST', body: JSON.stringify(body) }),
+
+  // Check-in / Check-out
+  recordCheckIn: (bookingId, body) => request(`/bookings/${bookingId}/checkin`, { method: 'POST', body: JSON.stringify(body) }),
+  recordCheckOut: (bookingId, body) => request(`/bookings/${bookingId}/checkout`, { method: 'POST', body: JSON.stringify(body) }),
+  recordInspection: (bookingId, body) => request(`/bookings/${bookingId}/inspection`, { method: 'POST', body: JSON.stringify(body) }),
+  markReadyForPickup: (bookingId) => request(`/bookings/${bookingId}/ready`, { method: 'PATCH' }),
+  getBookingLockbox: (bookingId) => request(`/bookings/${bookingId}/lockbox`),
+  getCheckinRecords: (bookingId) => request(`/bookings/${bookingId}/checkin-records`),
+
+  // Incidentals
+  getIncidentals: (bookingId) => request(`/bookings/${bookingId}/incidentals`),
+  addIncidental: (bookingId, body) => request(`/bookings/${bookingId}/incidentals`, { method: 'POST', body: JSON.stringify(body) }),
+  updateIncidental: (id, body) => request(`/incidentals/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteIncidental: (id) => request(`/incidentals/${id}`, { method: 'DELETE' }),
+
+  // Invoices
+  generateInvoice: (bookingId) => request(`/bookings/${bookingId}/invoice`, { method: 'POST' }),
+  getInvoice: (bookingId) => request(`/bookings/${bookingId}/invoice`),
+  sendInvoice: (invoiceId) => request(`/invoices/${invoiceId}/send`, { method: 'POST' }),
+
+  // Tolls
+  getVehicleTolls: (vehicleId) => request(`/vehicles/${vehicleId}/tolls`),
+  addTollCharge: (vehicleId, body) => request(`/vehicles/${vehicleId}/tolls`, { method: 'POST', body: JSON.stringify(body) }),
+  updateTollCharge: (id, body) => request(`/tolls/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteTollCharge: (id) => request(`/tolls/${id}`, { method: 'DELETE' }),
+
+  // Disputes
+  getDisputes: (params = {}) => request(`/disputes?${new URLSearchParams(params)}`),
+  resolveDispute: (id, body) => request(`/disputes/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
 };

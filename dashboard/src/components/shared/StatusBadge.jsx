@@ -47,6 +47,12 @@ const STATUS_STYLES = {
     color: '#ef4444',
     darkColor: '#fca5a5',
   },
+  ready_for_pickup: {
+    bg: 'rgba(6,182,212,0.10)',
+    border: 'rgba(6,182,212,0.22)',
+    color: '#0891b2',
+    darkColor: '#22d3ee',
+  },
   no_show: {
     bg: 'rgba(249,115,22,0.10)',
     border: 'rgba(249,115,22,0.22)',
@@ -89,8 +95,9 @@ const STATUS_LABELS = {
   pending_approval: 'Pending',
   approved: 'Approved',
   confirmed: 'Confirmed',
+  ready_for_pickup: 'Ready for Pickup',
   active: 'Active',
-  returned: 'Returned',
+  returned: 'Pending Inspection',
   completed: 'Completed',
   declined: 'Declined',
   cancelled: 'Cancelled',

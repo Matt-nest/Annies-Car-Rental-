@@ -10,7 +10,8 @@ import { createNotification } from './notificationService.js';
 const TRANSITIONS = {
   pending_approval: ['approved', 'declined', 'cancelled'],
   approved: ['confirmed', 'active', 'cancelled'],
-  confirmed: ['active', 'cancelled'],
+  confirmed: ['ready_for_pickup', 'active', 'cancelled'],
+  ready_for_pickup: ['active', 'cancelled'],
   active: ['returned', 'cancelled'],
   returned: ['completed'],
   completed: [],
@@ -282,6 +283,7 @@ export async function transitionBooking(bookingId, newStatus, { changedBy = 'own
     approved: 'booking_approved',
     declined: 'booking_declined',
     cancelled: 'booking_cancelled',
+    ready_for_pickup: 'ready_for_pickup',
     returned: 'return_confirmed',
     completed: 'rental_completed',
   };
@@ -292,7 +294,7 @@ export async function transitionBooking(bookingId, newStatus, { changedBy = 'own
   }
 
   // Dashboard notification for status changes
-  const statusLabels = { approved: 'approved', declined: 'declined', cancelled: 'cancelled', active: 'picked up', returned: 'returned', completed: 'completed' };
+  const statusLabels = { approved: 'approved', declined: 'declined', cancelled: 'cancelled', ready_for_pickup: 'marked ready for pickup', active: 'picked up', returned: 'returned', completed: 'completed' };
   if (statusLabels[newStatus]) {
     const label = statusLabels[newStatus];
     const cName = `${booking.customers?.first_name || ''} ${booking.customers?.last_name || ''}`.trim();

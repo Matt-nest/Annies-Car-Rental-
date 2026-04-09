@@ -21,6 +21,14 @@ import notificationRoutes from '../routes/notifications.js';
 import messagingRoutes from '../routes/messaging.js';
 import searchRoutes from '../routes/search.js';
 import userRoutes from '../routes/users.js';
+import depositRoutes from '../routes/deposits.js';
+import addonRoutes from '../routes/addons.js';
+import checkinRoutes from '../routes/checkin.js';
+import incidentalRoutes from '../routes/incidentals.js';
+import invoiceRoutes from '../routes/invoices.js';
+import tollRoutes from '../routes/tolls.js';
+import disputeRoutes from '../routes/disputes.js';
+import portalRoutes from '../routes/portal.js';
 
 const app = express();
 
@@ -62,6 +70,16 @@ app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/messaging', messagingRoutes);
 app.use('/api/v1/search', searchRoutes);
 app.use('/api/v1/users', userRoutes);
+
+// ── New Routes (Rental Operations) ────────────────────────────────────────────
+app.use('/api/v1', depositRoutes);
+app.use('/api/v1', addonRoutes);
+app.use('/api/v1', checkinRoutes);
+app.use('/api/v1', incidentalRoutes);
+app.use('/api/v1', invoiceRoutes);
+app.use('/api/v1', tollRoutes);
+app.use('/api/v1/disputes', disputeRoutes);
+app.use('/api/v1/portal', portalRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ error: `${req.method} ${req.path} not found` }));
