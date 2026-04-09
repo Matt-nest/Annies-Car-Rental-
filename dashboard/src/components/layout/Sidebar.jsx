@@ -103,8 +103,8 @@ export default function Sidebar({ open, onClose, alerts = {}, collapsed }) {
           borderColor: 'var(--sidebar-border)',
         }}
       >
-        {/* Logo area — compact horizontal lockup */}
-        <div className={`flex items-center justify-between ${collapsed ? 'lg:py-4 lg:px-0 py-3.5 px-2' : 'py-3.5 px-2'}`}>
+        {/* Logo area */}
+        <div className={`flex items-center justify-between ${collapsed ? 'lg:py-4 lg:px-0 py-5 px-2' : 'py-5 px-2'}`}>
           {/* Full logo — show when expanded (or always on mobile) */}
           <NavLink
             to="/"
@@ -116,14 +116,14 @@ export default function Sidebar({ open, onClose, alerts = {}, collapsed }) {
             <img
               src="/logo-dark.png"
               alt="Annie's & Co"
-              className="h-auto object-contain object-left dark:hidden"
-              style={{ maxHeight: 40, width: 'auto' }}
+              className="w-full h-auto object-contain dark:hidden"
+              style={{ maxHeight: 120 }}
             />
             <img
               src="/logo-light.png"
               alt="Annie's & Co"
-              className="h-auto object-contain object-left hidden dark:block"
-              style={{ maxHeight: 40, width: 'auto' }}
+              className="w-full h-auto object-contain hidden dark:block"
+              style={{ maxHeight: 120 }}
             />
           </NavLink>
 
