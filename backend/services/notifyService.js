@@ -149,6 +149,18 @@ export function buildMergeFields(bookingPayload) {
     damage_description: bp.damage_description || '',
     damage_fee:     bp.damage_fee || '',
     damage_type:    bp.damage_type || 'repairs',
+    // Deposit fields
+    deposit_amount:  bp.deposit_amount || '',
+    deposit_status:  bp.deposit_status || '',
+    refund_amount:   bp.refund_amount || '',
+    incidental_total: bp.incidental_total || '',
+    // Mileage fields
+    checkin_odometer:  bp.checkin_odometer || '',
+    checkout_odometer: bp.checkout_odometer || '',
+    total_miles:       bp.total_miles || '',
+    // Invoice
+    invoice_total:     bp.invoice_total || '',
+    invoice_link:      bp.invoice_link || '',
     // Review
     review_link:    bp.review_link || 'https://g.page/annies-car-rental/review',
   };
@@ -238,11 +250,16 @@ const EVENT_SUMMARIES = {
   booking_declined:       'Booking request declined',
   booking_cancelled:      'Booking cancelled',
   payment_confirmed:      'Payment received — booking confirmed',
+  ready_for_pickup:       'Vehicle ready for pickup',
   pickup_reminder:        'Pickup reminder sent',
   day_of_pickup:          'Day-of-pickup reminder sent',
   return_reminder:        'Return reminder sent',
   return_confirmed:       'Vehicle returned — thank you sent',
   late_return_warning:    'Late return warning',
+  inspection_complete:    'Inspection completed — settlement pending',
+  invoice_sent:           'Invoice sent to customer',
+  deposit_refunded:       'Security deposit refunded',
+  deposit_settled:        'Security deposit settled against incidentals',
   rental_completed:       'Rental completed — review request sent',
 };
 
