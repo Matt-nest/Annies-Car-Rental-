@@ -21,9 +21,10 @@ import VehicleDetailPage from './components/vehicle/VehicleDetailPage';
 import ConfirmBooking from './components/booking/ConfirmBooking';
 import RentalAgreementPage from './components/booking/RentalAgreementPage';
 import BookingStatusPage from './components/booking/BookingStatusPage';
+import CustomerPortal from './components/portal/CustomerPortal';
 import CustomCursor from './components/home/CustomCursor';
 
-type Page = 'home' | 'detail' | 'confirm' | 'rental-agreement' | 'booking-status';
+type Page = 'home' | 'detail' | 'confirm' | 'rental-agreement' | 'booking-status' | 'portal';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>(() => {
@@ -31,6 +32,7 @@ export default function App() {
     if (path === '/confirm') return 'confirm';
     if (path === '/rental-agreement') return 'rental-agreement';
     if (path === '/booking-status') return 'booking-status';
+    if (path === '/portal') return 'portal';
     return 'home';
   });
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
@@ -88,7 +90,17 @@ export default function App() {
     <ErrorBoundary>
     <ThemeProvider>
       <AnimatePresence mode="wait">
-        {currentPage === 'booking-status' ? (
+        {currentPage === 'portal' ? (
+          <motion.div
+            key="portal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4, ease: EASE.dramatic }}
+          >
+            <CustomerPortal />
+          </motion.div>
+        ) : currentPage === 'booking-status' ? (
           <motion.div
             key="booking-status"
             initial={{ opacity: 0 }}
