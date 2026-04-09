@@ -123,8 +123,8 @@ export default function DashboardLayout() {
                   color: 'var(--text-primary)',
                   backgroundColor: 'transparent',
                 }}
-                onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(70,95,255,0.08)'}
-                onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'rgba(70,95,255,0.1)'; e.currentTarget.style.color = 'var(--accent-color)'; }}
+                onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--text-primary)'; }}
                 aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               >
                 {/* Three-line hamburger icon (☰) */}

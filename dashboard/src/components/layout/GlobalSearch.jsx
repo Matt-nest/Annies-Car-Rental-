@@ -269,8 +269,8 @@ export default function GlobalSearch() {
   return (
     <>
       {/* Desktop search */}
-      <div className="hidden md:flex relative" ref={dropdownRef}>
-        <div className="relative">
+      <div className="hidden md:flex relative w-full" ref={dropdownRef}>
+        <div className="relative w-full">
           <span className="absolute -translate-y-1/2 left-4 top-1/2">
             <Search size={20} className="text-gray-500 dark:text-gray-400" />
           </span>
