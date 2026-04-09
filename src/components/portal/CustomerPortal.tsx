@@ -660,7 +660,7 @@ export default function CustomerPortal() {
 
           {/* Contact footer */}
           <div className="text-center text-xs py-4" style={{ color: 'var(--text-tertiary)' }}>
-            Questions? Call <a href="tel:7728340117" style={{ color: 'var(--accent-color)' }}>(772) 834-0117</a>
+            Questions? Call <a href="tel:+17729856667" style={{ color: 'var(--accent-color)' }}>(772) 985-6667</a>
           </div>
         </div>
       </main>

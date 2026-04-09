@@ -344,11 +344,13 @@ async function storeSystemMessage(stage, bookingPayload) {
  * Converts line breaks to HTML, preserves unicode emoji.
  */
 function wrapInBrandedHTML(subject, plainTextBody) {
+  const siteUrl = process.env.SITE_URL || 'https://anniescarrental.com';
+  const logoUrl = `${siteUrl}/logo.png`;
+
   // Convert plain text to HTML paragraphs
   const bodyHtml = (plainTextBody || '')
-    .split(/\n\n+/)                   // split on double newlines
+    .split(/\n\n+/)
     .map(para => {
-      // Convert single newlines within a paragraph to <br>
       const inner = para.trim()
         .replace(/\n/g, '<br>')
         .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#c8a97e;text-decoration:underline;">$1</a>');
@@ -359,13 +361,18 @@ function wrapInBrandedHTML(subject, plainTextBody) {
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin:0;padding:0;background:#fafaf9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1c1917;">
+<body style="margin:0;padding:0;background:#fafaf9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1c1917;">
   <div style="max-width:560px;margin:40px auto;background:#fff;border-radius:16px;border:1px solid #e7e5e4;overflow:hidden;">
+
+    <!-- Gold accent bar -->
+    <div style="height:4px;background:linear-gradient(90deg,#c8a97e 0%,#d4af37 50%,#c8a97e 100%);"></div>
 
     <!-- Header -->
     <div style="background:#1c1917;padding:28px 32px;">
-      <p style="margin:0;color:#d6d3d1;font-size:13px;letter-spacing:0.1em;text-transform:uppercase;">Annie's Car Rental</p>
-      <h1 style="margin:8px 0 0;color:#fff;font-size:22px;font-weight:600;">${escapeHtml(subject)}</h1>
+      <div style="margin-bottom:16px;">
+        <img src="${logoUrl}" alt="Annie's Car Rental" width="140" height="auto" style="display:block;max-width:140px;" />
+      </div>
+      <h1 style="margin:0;color:#fff;font-size:22px;font-weight:600;letter-spacing:-0.01em;">${escapeHtml(subject)}</h1>
     </div>
 
     <!-- Body -->
@@ -374,9 +381,11 @@ function wrapInBrandedHTML(subject, plainTextBody) {
     </div>
 
     <!-- Footer -->
-    <div style="padding:20px 32px;border-top:1px solid #e7e5e4;background:#fafaf9;">
-      <p style="margin:0;font-size:12px;color:#a8a29e;text-align:center;">
-        Annie's Car Rental · Port St. Lucie, FL · (772) 834-0117
+    <div style="padding:24px 32px;border-top:1px solid #e7e5e4;background:#fafaf9;text-align:center;">
+      <p style="margin:0 0 6px;font-size:13px;font-weight:600;color:#78716c;">Annie's Car Rental</p>
+      <p style="margin:0 0 4px;font-size:12px;color:#a8a29e;">Port St. Lucie, FL · (772) 985-6667</p>
+      <p style="margin:0;font-size:11px;color:#d6d3d1;">
+        <a href="${siteUrl}" style="color:#c8a97e;text-decoration:none;">anniescarrental.com</a>
       </p>
     </div>
 
@@ -384,6 +393,7 @@ function wrapInBrandedHTML(subject, plainTextBody) {
 </body>
 </html>`;
 }
+
 
 function escapeHtml(str) {
   return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
