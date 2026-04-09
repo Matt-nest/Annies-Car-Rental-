@@ -103,31 +103,31 @@ export default function Sidebar({ open, onClose, alerts = {}, collapsed }) {
           borderColor: 'var(--sidebar-border)',
         }}
       >
-        {/* Logo area */}
-        <div className={`flex items-center justify-between py-5 ${collapsed ? 'lg:px-0 px-2' : 'px-2'}`}>
-          {/* Full logo — always show on mobile, only show on desktop when expanded */}
+        {/* Logo area — compact horizontal lockup */}
+        <div className={`flex items-center justify-between ${collapsed ? 'lg:py-4 lg:px-0 py-3.5 px-2' : 'py-3.5 px-2'}`}>
+          {/* Full logo — show when expanded (or always on mobile) */}
           <NavLink
             to="/"
             onClick={onClose}
             className={`relative block transition-opacity duration-200 hover:opacity-75 ${
-              collapsed ? 'hidden lg:hidden' : 'flex-1'
+              collapsed ? 'lg:hidden flex-1' : 'flex-1'
             }`}
           >
             <img
               src="/logo-dark.png"
               alt="Annie's & Co"
-              className="w-full h-auto object-contain dark:hidden"
-              style={{ maxHeight: 120 }}
+              className="h-auto object-contain object-left dark:hidden"
+              style={{ maxHeight: 40, width: 'auto' }}
             />
             <img
               src="/logo-light.png"
               alt="Annie's & Co"
-              className="w-full h-auto object-contain hidden dark:block"
-              style={{ maxHeight: 120 }}
+              className="h-auto object-contain object-left hidden dark:block"
+              style={{ maxHeight: 40, width: 'auto' }}
             />
           </NavLink>
 
-          {/* Collapsed: small icon logo (desktop only) */}
+          {/* Collapsed icon (desktop only) */}
           {collapsed && (
             <NavLink
               to="/"
@@ -140,28 +140,6 @@ export default function Sidebar({ open, onClose, alerts = {}, collapsed }) {
               >
                 A
               </div>
-            </NavLink>
-          )}
-
-          {/* Mobile: always show full logo + close button */}
-          {collapsed && (
-            <NavLink
-              to="/"
-              onClick={onClose}
-              className="lg:hidden relative flex-1 block transition-opacity duration-200 hover:opacity-75"
-            >
-              <img
-                src="/logo-dark.png"
-                alt="Annie's & Co"
-                className="w-full h-auto object-contain dark:hidden"
-                style={{ maxHeight: 120 }}
-              />
-              <img
-                src="/logo-light.png"
-                alt="Annie's & Co"
-                className="w-full h-auto object-contain hidden dark:block"
-                style={{ maxHeight: 120 }}
-              />
             </NavLink>
           )}
 
