@@ -60,15 +60,51 @@ export async function createBooking(payload) {
     ? (delivery_address || 'Delivery address TBD')
     : 'Port St. Lucie';
 
-  // 1. Look up vehicle
-  const { data: vehicle, error: vErr } = await supabase
+  // 1. Look up vehicle — try vehicle_code first, then id, then slug match
+  let vehicle = null;
+  let vErr = null;
+
+  // Try exact vehicle_code match (VIN)
+  const { data: v1, error: e1 } = await supabase
     .from('vehicles')
     .select('*')
     .eq('vehicle_code', vehicle_code)
-    .single();
+    .maybeSingle();
+  
+  if (v1) {
+    vehicle = v1;
+  } else {
+    // Try UUID match (in case frontend sends the DB id)
+    const { data: v2 } = await supabase
+      .from('vehicles')
+      .select('*')
+      .eq('id', vehicle_code)
+      .maybeSingle();
+    
+    if (v2) {
+      vehicle = v2;
+    } else {
+      // Try slug match: 'v-altima' → match against make/model
+      const slugModel = vehicle_code.replace(/^v-/, '').replace(/-/g, ' ').toLowerCase();
+      const { data: allVehicles } = await supabase
+        .from('vehicles')
+        .select('*')
+        .neq('status', 'retired');
+      
+      if (allVehicles) {
+        vehicle = allVehicles.find(v => {
+          const model = (v.model || '').toLowerCase();
+          const make = (v.make || '').toLowerCase();
+          return model === slugModel || make === slugModel
+            || `${make} ${model}`.includes(slugModel)
+            || slugModel.includes(model);
+        });
+      }
+    }
+  }
 
-  if (vErr || !vehicle) {
-    const err = new Error('Vehicle not found');
+  if (!vehicle) {
+    const err = new Error(`Vehicle not found for code: ${vehicle_code}`);
     err.status = 404;
     throw err;
   }
