@@ -93,7 +93,6 @@ export default function DashboardLayout() {
           onClose={() => setSidebarOpen(false)}
           alerts={alerts}
           collapsed={collapsed}
-          onToggleCollapse={toggleCollapse}
         />
 
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
@@ -108,21 +107,40 @@ export default function DashboardLayout() {
             }}
           >
             <div className="flex flex-grow items-center gap-3 px-4 py-3 sm:px-6">
-              {/* Mobile hamburger */}
+              {/* ── Sidebar toggle button (TailAdmin style) ──────────── */}
+              {/* Mobile: opens drawer   •   Desktop: toggles collapse */}
               <button
-                className="z-[99999] flex lg:hidden shrink-0"
-                onClick={() => setSidebarOpen(true)}
-                aria-label="Toggle sidebar"
+                onClick={() => {
+                  if (window.innerWidth < 1024) {
+                    setSidebarOpen(true);
+                  } else {
+                    toggleCollapse();
+                  }
+                }}
+                className="flex items-center justify-center w-10 h-10 rounded-lg border-2 shrink-0 transition-colors"
+                style={{
+                  borderColor: 'var(--accent-color)',
+                  color: 'var(--text-primary)',
+                  backgroundColor: 'transparent',
+                }}
+                onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(70,95,255,0.08)'}
+                onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               >
-                <Menu size={24} strokeWidth={1.5} style={{ color: 'var(--text-secondary)' }} />
+                {/* Three-line hamburger icon (☰) */}
+                <svg width="16" height="12" viewBox="0 0 16 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect y="0" width="16" height="2" rx="1" fill="currentColor" />
+                  <rect y="5" width="16" height="2" rx="1" fill="currentColor" />
+                  <rect y="10" width="16" height="2" rx="1" fill="currentColor" />
+                </svg>
               </button>
 
-              {/* Search bar — far left, fills available space */}
-              <div className="flex-1 min-w-0 max-w-xl">
+              {/* Search bar — fills most of the remaining header space */}
+              <div className="flex-1 min-w-0">
                 <GlobalSearch />
               </div>
 
-              {/* Right controls: spacer pushes right */}
+              {/* Right controls */}
               <div className="flex items-center gap-2 ml-auto shrink-0">
                 {/* Theme toggle */}
                 <button

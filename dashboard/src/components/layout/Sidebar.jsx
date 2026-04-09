@@ -2,7 +2,6 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Calendar, Car, Users, BookOpen,
   TrendingUp, Settings, X, LogOut, AlertTriangle, CreditCard, Landmark, MessageSquare,
-  ChevronsLeft, ChevronsRight,
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
 
@@ -75,7 +74,7 @@ function NavItem({ to, label, icon: Icon, end, alertKey, alerts, onClose, collap
   );
 }
 
-export default function Sidebar({ open, onClose, alerts = {}, collapsed, onToggleCollapse }) {
+export default function Sidebar({ open, onClose, alerts = {}, collapsed }) {
   const { signOut, profile } = useAuth();
   const isAdminOrOwner = profile?.role === 'owner' || profile?.role === 'admin';
   const initials = `${(profile?.first_name || '?')[0]}${(profile?.last_name || '')[0] || ''}`.toUpperCase();
@@ -94,7 +93,8 @@ export default function Sidebar({ open, onClose, alerts = {}, collapsed, onToggl
         className={`
           fixed mt-16 flex flex-col lg:mt-0 top-0 left-0 h-screen
           border-r transition-all duration-300 ease-in-out z-[99999] lg:z-[999]
-          ${collapsed ? 'w-[72px] px-2' : 'w-[260px] px-5'}
+          ${collapsed ? 'lg:w-[72px] lg:px-2' : 'lg:w-[260px] lg:px-5'}
+          w-[260px] px-5
           ${open ? 'translate-x-0' : '-translate-x-full'}
           lg:relative lg:translate-x-0 lg:flex
         `}
@@ -103,10 +103,53 @@ export default function Sidebar({ open, onClose, alerts = {}, collapsed, onToggl
           borderColor: 'var(--sidebar-border)',
         }}
       >
-        {/* Logo + collapse toggle */}
-        <div className={`flex items-center justify-between py-5 ${collapsed ? 'px-0' : 'px-2'}`}>
-          {!collapsed ? (
-            <NavLink to="/" onClick={onClose} className="relative flex-1 block transition-opacity duration-200 hover:opacity-75">
+        {/* Logo area */}
+        <div className={`flex items-center justify-between py-5 ${collapsed ? 'lg:px-0 px-2' : 'px-2'}`}>
+          {/* Full logo — always show on mobile, only show on desktop when expanded */}
+          <NavLink
+            to="/"
+            onClick={onClose}
+            className={`relative block transition-opacity duration-200 hover:opacity-75 ${
+              collapsed ? 'hidden lg:hidden' : 'flex-1'
+            }`}
+          >
+            <img
+              src="/logo-dark.png"
+              alt="Annie's & Co"
+              className="w-full h-auto object-contain dark:hidden"
+              style={{ maxHeight: 120 }}
+            />
+            <img
+              src="/logo-light.png"
+              alt="Annie's & Co"
+              className="w-full h-auto object-contain hidden dark:block"
+              style={{ maxHeight: 120 }}
+            />
+          </NavLink>
+
+          {/* Collapsed: small icon logo (desktop only) */}
+          {collapsed && (
+            <NavLink
+              to="/"
+              onClick={onClose}
+              className="hidden lg:flex mx-auto items-center justify-center transition-opacity duration-200 hover:opacity-75"
+            >
+              <div
+                className="w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold text-white"
+                style={{ background: 'linear-gradient(135deg, #465FFF, #7c3aed)' }}
+              >
+                A
+              </div>
+            </NavLink>
+          )}
+
+          {/* Mobile: always show full logo + close button */}
+          {collapsed && (
+            <NavLink
+              to="/"
+              onClick={onClose}
+              className="lg:hidden relative flex-1 block transition-opacity duration-200 hover:opacity-75"
+            >
               <img
                 src="/logo-dark.png"
                 alt="Annie's & Co"
@@ -120,49 +163,16 @@ export default function Sidebar({ open, onClose, alerts = {}, collapsed, onToggl
                 style={{ maxHeight: 120 }}
               />
             </NavLink>
-          ) : (
-            <NavLink to="/" onClick={onClose} className="mx-auto block transition-opacity duration-200 hover:opacity-75">
-              <img
-                src="/logo-icon.png"
-                alt="Annie's & Co"
-                className="w-8 h-8 object-contain"
-                onError={e => {
-                  // Fallback: show initials circle if icon logo doesn't exist
-                  e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'flex';
-                }}
-              />
-              <div
-                className="w-8 h-8 rounded-lg items-center justify-center text-xs font-bold text-white hidden"
-                style={{ background: 'linear-gradient(135deg, #465FFF, #7c3aed)' }}
-              >
-                A
-              </div>
-            </NavLink>
           )}
 
-          {/* Desktop collapse / mobile close */}
+          {/* Mobile close button */}
           <button
-            onClick={() => {
-              if (window.innerWidth < 1024) {
-                onClose();
-              } else {
-                onToggleCollapse();
-              }
-            }}
-            className="p-2 rounded-lg transition-colors shrink-0"
+            onClick={onClose}
+            className="lg:hidden p-2 rounded-lg transition-colors"
             style={{ color: 'var(--sidebar-text-muted)' }}
-            onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--sidebar-hover)'}
-            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label="Close menu"
           >
-            {/* Mobile: X, Desktop: chevrons */}
-            <X size={20} className="lg:hidden" />
-            {collapsed
-              ? <ChevronsRight size={18} className="hidden lg:block" />
-              : <ChevronsLeft size={18} className="hidden lg:block" />
-            }
+            <X size={20} />
           </button>
         </div>
 
@@ -177,6 +187,7 @@ export default function Sidebar({ open, onClose, alerts = {}, collapsed, onToggl
                     Menu
                   </h3>
                 )}
+                {collapsed && <div className="hidden lg:block h-2" />}
                 <ul className="flex flex-col gap-0.5">
                   {MAIN_NAV.map(item => (
                     <NavItem key={item.to} {...item} alerts={alerts} onClose={onClose} collapsed={collapsed} />
@@ -220,7 +231,7 @@ export default function Sidebar({ open, onClose, alerts = {}, collapsed, onToggl
               onClick={onClose}
               title={collapsed ? `${profile.first_name} ${profile.last_name}` : undefined}
               className={`flex items-center gap-3 py-2 rounded-lg transition-colors hover:bg-[var(--sidebar-active-bg)] ${
-                collapsed ? 'justify-center px-1' : 'px-4'
+                collapsed ? 'lg:justify-center lg:px-1 px-4' : 'px-4'
               }`}
             >
               <div
@@ -229,16 +240,14 @@ export default function Sidebar({ open, onClose, alerts = {}, collapsed, onToggl
               >
                 {initials}
               </div>
-              {!collapsed && (
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate" style={{ color: 'var(--sidebar-text)' }}>
-                    {profile.first_name} {profile.last_name}
-                  </p>
-                  <p className="text-[10px] truncate capitalize" style={{ color: 'var(--sidebar-text-muted)' }}>
-                    {profile.role}
-                  </p>
-                </div>
-              )}
+              <div className={`min-w-0 ${collapsed ? 'lg:hidden' : ''}`}>
+                <p className="text-sm font-medium truncate" style={{ color: 'var(--sidebar-text)' }}>
+                  {profile.first_name} {profile.last_name}
+                </p>
+                <p className="text-[10px] truncate capitalize" style={{ color: 'var(--sidebar-text-muted)' }}>
+                  {profile.role}
+                </p>
+              </div>
             </NavLink>
           )}
 
@@ -246,7 +255,7 @@ export default function Sidebar({ open, onClose, alerts = {}, collapsed, onToggl
             onClick={signOut}
             title={collapsed ? 'Sign out' : undefined}
             className={`group relative flex items-center w-full gap-3 py-2.5 font-medium rounded-lg text-sm transition-colors ${
-              collapsed ? 'justify-center px-1' : 'px-4'
+              collapsed ? 'lg:justify-center lg:px-1 px-4' : 'px-4'
             }`}
             style={{ color: 'var(--sidebar-text)' }}
             onMouseEnter={e => {
@@ -259,7 +268,7 @@ export default function Sidebar({ open, onClose, alerts = {}, collapsed, onToggl
             }}
           >
             <LogOut size={20} strokeWidth={1.8} className="shrink-0" />
-            {!collapsed && 'Sign out'}
+            <span className={collapsed ? 'lg:hidden' : ''}>{collapsed ? '' : 'Sign out'}</span>
           </button>
         </div>
       </aside>
