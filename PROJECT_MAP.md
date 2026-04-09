@@ -1,7 +1,7 @@
 # PROJECT MAP — Annie's Car Rental Dashboard
 
 > **Ground truth for dependency tracing.** Update this file whenever you add, move, or delete a file.
-> Last generated: 2026-04-04
+> Last generated: 2026-04-09
 
 ---
 
@@ -239,7 +239,108 @@ AGREEMENTS (→ rental_agreements table)
 | `rental_agreements` | Agreement + signatures |
 | `booking_status_log` | Timeline + activity feed |
 | `webhook_failures` | GHL webhook error log |
+| `vehicle_deposits` | Per-vehicle deposit amounts ($150/$200/$250) |
+| `booking_deposits` | Deposit tracking per booking with settlement status |
+| `booking_addons` | Add-on purchases (unlimited miles/tolls/delivery) |
+| `incidentals` | Post-return charges (cleaning, damage, smoking, etc.) |
+| `invoices` | Generated invoices with line items |
+| `customer_disputes` | Dispute workflow for incidentals |
+| `toll_charges` | Per-vehicle toll tracking |
+| `checkin_records` | Odometer/fuel/condition at each lifecycle stage |
+| `email_templates` | Automated email/SMS template content + merge fields |
 | Views/RPCs | `stats/overview`, `stats/revenue`, `stats/upcoming`, `stats/vehicles`, `stats/activity` |
+
+### Supabase Storage
+
+| Bucket | Visibility | MIME Types | Max Size | Purpose |
+|--------|-----------|------------|----------|---------|
+| `rental-photos` | Public | jpeg, png, webp, heic | 10MB | Inspection + check-in photos |
+
+---
+
+## Rental Operations Infrastructure (added 2026-04-09)
+
+### Backend Services
+
+| File | Description | Used By |
+|------|-------------|---------|
+| `backend/services/depositService.js` | Stripe deposit charge, refund, settlement | deposit routes |
+| `backend/services/inspectionService.js` | Post-return inspection with auto mileage/late fee calcs | inspection routes, checkin routes |
+| `backend/services/invoiceService.js` | Invoice generation with line items | invoice routes |
+| `backend/services/portalAuthService.js` | JWT auth for customer portal (booking code + email) | portal routes |
+| `backend/services/emailService.js` | Branded email sending via Resend (shared shell with logo) | booking flow, all notifications |
+| `backend/services/notifyService.js` | Template engine + notification dispatch (Resend + Twilio) | triggered by admin actions |
+
+### Backend Routes (all registered in `api/index.js`)
+
+| Route File | Prefix | Endpoints |
+|------------|--------|-----------|
+| `routes/deposits.js` | `/deposits` | GET /:id, POST /charge, POST /refund, POST /settle |
+| `routes/addons.js` | `/addons` | GET /booking/:id, POST /booking/:id |
+| `routes/checkin.js` | `/checkin` | GET /booking/:id, POST /booking/:id |
+| `routes/incidentals.js` | `/incidentals` | GET /booking/:id, POST /booking/:id, DELETE /:id |
+| `routes/invoices.js` | `/invoices` | GET /booking/:id, POST /generate |
+| `routes/tolls.js` | `/tolls` | GET /vehicle/:id, GET /booking/:id, POST / |
+| `routes/disputes.js` | `/disputes` | GET /booking/:id, POST /:id/resolve |
+| `routes/portal.js` | `/portal` | POST /verify, GET /booking, GET /lockbox, POST /checkin, POST /checkout, POST /dispute |
+
+### Dashboard Tabs (BookingDetailPage sub-components)
+
+| File | Tab Label | Description | API Calls |
+|------|-----------|-------------|-----------|
+| `components/booking-tabs/CheckInPrepTab.jsx` | Check-In Prep | Vehicle prep form, lockbox display, "Mark Ready" button | `api.getCheckinRecords()`, `api.createCheckinRecord()`, `api.transitionBooking()` |
+| `components/booking-tabs/InspectionTab.jsx` | Inspection | Post-return inspection, incidentals CRUD, settlement math | `api.getIncidentals()`, `api.addIncidental()`, `api.deleteIncidental()`, `api.settleDeposit()` |
+| `components/booking-tabs/InvoiceTab.jsx` | Invoice | Deposit management, invoice generation, line items | `api.getBookingDeposit()`, `api.getInvoice()`, `api.generateInvoice()` |
+| `components/booking-tabs/TollsTab.jsx` | Tolls | Per-booking toll charges, vehicle-wide toll history | `api.getBookingTolls()`, `api.getVehicleTolls()`, `api.addToll()` |
+
+### Customer Portal (frontend)
+
+| File | Route | Description |
+|------|-------|-------------|
+| `src/components/portal/CustomerPortal.tsx` | `/portal?code=XXXX` | Self-service portal: login, status dashboard, lockbox code, check-in/out forms, deposit/invoice view, dispute submission |
+
+### Booking Status Flow
+
+```
+pending_approval → approved → confirmed → ready_for_pickup → active → returned → completed
+                 → declined                                                     → cancelled
+```
+
+### Email Templates (in `email_templates` table)
+
+| Stage | Channel | Trigger |
+|-------|---------|---------|
+| `booking_submitted` | Email + SMS | Customer submits booking |
+| `booking_approved` | Email + SMS | Admin approves |
+| `booking_declined` | Email + SMS | Admin declines |
+| `payment_confirmed` | Email | Stripe payment succeeds |
+| `pickup_reminder` | Email + SMS | 24h before pickup (cron) |
+| `day_of_pickup` | SMS | Morning of pickup (cron) |
+| `ready_for_pickup` | Email + SMS | Admin marks vehicle ready |
+| `mid_rental_checkin` | SMS | Day 3 of 5+ day rentals (cron) |
+| `return_reminder` | Email + SMS | 24h before return (cron) |
+| `day_of_return` | SMS | Morning of return (cron) |
+| `inspection_complete` | Email | Admin completes inspection |
+| `invoice_sent` | Email | Invoice generated |
+| `deposit_refunded` | Email + SMS | Full deposit returned |
+| `deposit_settled` | Email | Deposit applied to incidentals |
+| `return_confirmed` | SMS | Admin confirms clean return |
+| `rental_completed` | Email + SMS | 2h after return confirmed |
+| `late_return_warning` | SMS | 1h overdue (cron) |
+| `late_return_escalation` | Email + SMS | 4h overdue (cron) |
+| `booking_cancelled` | Email + SMS | Booking cancelled |
+
+### Notification Merge Fields
+
+```
+{{first_name}}, {{last_name}}, {{email}}, {{phone}},
+{{booking_code}}, {{vehicle}}, {{pickup_date}}, {{pickup_time}},
+{{return_date}}, {{return_time}}, {{rental_days}}, {{total_cost}},
+{{lockbox_code}}, {{status_link}}, {{review_link}},
+{{deposit_amount}}, {{deposit_status}}, {{incidental_total}},
+{{total_miles}}, {{overage_miles}}, {{mileage_charge}},
+{{invoice_total}}, {{invoice_status}}, {{refund_amount}}
+```
 
 ---
 
@@ -282,7 +383,10 @@ AGREEMENTS (→ rental_agreements table)
   - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
   - `GHL_WEBHOOK_*` (8 webhook URLs for GoHighLevel automation)
   - `RESEND_API_KEY`, `EMAIL_FROM`, `SITE_URL`
-  - `OWNER_NAME`, `BUSINESS_PHONE`, `DEFAULT_PICKUP_LOCATION`
+  - `OWNER_NAME`, `OWNER_EMAIL`, `BUSINESS_PHONE`, `DEFAULT_PICKUP_LOCATION`
+  - `PORTAL_JWT_SECRET` (JWT signing for customer portal auth)
+  - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` (SMS notifications)
+  - `DASHBOARD_URL` (admin dashboard base URL for internal links)
 
 ### GitHub → Vercel Auto-Deploy
 - Push to `main` → Vercel auto-deploys both projects
