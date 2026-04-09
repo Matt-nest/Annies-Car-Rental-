@@ -19,6 +19,8 @@ import statsRoutes from '../routes/stats.js';
 import cronRoutes from '../routes/cron.js';
 import notificationRoutes from '../routes/notifications.js';
 import messagingRoutes from '../routes/messaging.js';
+import searchRoutes from '../routes/search.js';
+import userRoutes from '../routes/users.js';
 
 const app = express();
 
@@ -58,6 +60,8 @@ app.use('/api/v1/agreements', agreementRoutes);
 app.use('/api/v1/cron', cronRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/messaging', messagingRoutes);
+app.use('/api/v1/search', searchRoutes);
+app.use('/api/v1/users', userRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ error: `${req.method} ${req.path} not found` }));
