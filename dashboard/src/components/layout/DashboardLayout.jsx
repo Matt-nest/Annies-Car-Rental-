@@ -19,6 +19,20 @@ export default function DashboardLayout() {
   const [profileOpen, setProfileOpen] = useState(false);
   const dropdownRef = useRef(null);
 
+  // ── Sidebar collapse (desktop only, persisted) ──────────────────────────────
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem('sidebar-collapsed') === 'true'; } catch { return false; }
+  });
+
+  function toggleCollapse() {
+    setCollapsed(prev => {
+      const next = !prev;
+      try { localStorage.setItem('sidebar-collapsed', String(next)); } catch {}
+      return next;
+    });
+  }
+
+  // ── Theme ───────────────────────────────────────────────────────────────────
   const [dark, setDark] = useState(() => {
     try { const t = localStorage.getItem('dash-theme'); return t ? t === 'dark' : true; } catch { return true; }
   });
@@ -37,6 +51,7 @@ export default function DashboardLayout() {
     return () => { html.classList.remove('dark', 'light'); };
   }, [dark]);
 
+  // ── Alerts polling ──────────────────────────────────────────────────────────
   useEffect(() => {
     const loadAlerts = () => {
       api.getOverview()
@@ -51,7 +66,7 @@ export default function DashboardLayout() {
     return () => clearInterval(interval);
   }, []);
 
-  // Close dropdown on outside click
+  // ── Profile dropdown dismiss ────────────────────────────────────────────────
   useEffect(() => {
     function handleClickOutside(e) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -73,25 +88,42 @@ export default function DashboardLayout() {
   return (
     <ThemeContext.Provider value={{ dark, toggle: () => setDark(d => !d) }}>
       <div className="flex h-screen overflow-hidden theme-transition" style={{ backgroundColor: 'var(--bg-primary)' }}>
-        <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} alerts={alerts} />
+        <Sidebar
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          alerts={alerts}
+          collapsed={collapsed}
+          onToggleCollapse={toggleCollapse}
+        />
 
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
           {/* Header */}
-          <header className="sticky top-0 flex w-full z-[99999]" style={{ backgroundColor: 'var(--header-bg)', borderBottom: '1px solid var(--border-subtle)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
-            <div className="flex flex-grow items-center justify-between px-4 py-3 sm:px-6 md:justify-end">
-              {/* Mobile toggle */}
+          <header
+            className="sticky top-0 flex w-full z-[99999]"
+            style={{
+              backgroundColor: 'var(--header-bg)',
+              borderBottom: '1px solid var(--border-subtle)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+            }}
+          >
+            <div className="flex flex-grow items-center gap-3 px-4 py-3 sm:px-6">
+              {/* Mobile hamburger */}
               <button
-                className="z-[99999] flex lg:hidden"
+                className="z-[99999] flex lg:hidden shrink-0"
                 onClick={() => setSidebarOpen(true)}
                 aria-label="Toggle sidebar"
               >
                 <Menu size={24} strokeWidth={1.5} style={{ color: 'var(--text-secondary)' }} />
               </button>
 
-              {/* Right controls */}
-              <div className="flex items-center gap-2">
+              {/* Search bar — far left, fills available space */}
+              <div className="flex-1 min-w-0 max-w-xl">
                 <GlobalSearch />
+              </div>
 
+              {/* Right controls: spacer pushes right */}
+              <div className="flex items-center gap-2 ml-auto shrink-0">
                 {/* Theme toggle */}
                 <button
                   onClick={() => setDark(d => !d)}
