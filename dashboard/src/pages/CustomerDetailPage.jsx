@@ -127,7 +127,7 @@ export default function CustomerDetailPage() {
             </a>
           </div>
           {customer.driver_license_number && (
-            <div className="pt-3 border-t border-[var(--border-subtle)] grid grid-cols-2 gap-3">
+            <div className="pt-3 border-t border-[var(--border-subtle)] grid sm:grid-cols-2 gap-3">
               <Field label="DL Number" value={customer.driver_license_number} />
               <Field label="DL State" value={customer.driver_license_state} />
               <Field label="DL Expiry" value={customer.driver_license_expiry} />

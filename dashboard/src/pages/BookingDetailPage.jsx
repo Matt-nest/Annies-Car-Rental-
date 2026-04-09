@@ -80,7 +80,7 @@ export default function BookingDetailPage() {
   return (
     <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-5">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate('/bookings')} className="btn-ghost py-1.5 px-2">
             <ArrowLeft size={16} />
@@ -97,7 +97,7 @@ export default function BookingDetailPage() {
         </div>
 
         {/* Contextual action buttons */}
-        <div className="flex flex-wrap gap-2 shrink-0">
+        <div className="flex flex-wrap gap-2 shrink-0 w-full sm:w-auto">
           {status === 'pending_approval' && (
             <>
               <button onClick={() => setModal('approve')} className="btn-primary">
@@ -196,7 +196,7 @@ export default function BookingDetailPage() {
             </a>
           </div>
           {c?.driver_license_number && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid sm:grid-cols-2 gap-3">
               <Field label="DL Number" value={c.driver_license_number} />
               <Field label="DL State" value={c.driver_license_state} />
               <Field label="DL Expiry" value={c.driver_license_expiry} />
@@ -219,7 +219,7 @@ export default function BookingDetailPage() {
                   <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2 flex items-center gap-1.5">
                     <CreditCard size={12} /> Driver's License
                   </p>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid sm:grid-cols-2 gap-3">
                     <Field label="License Number" value={ag?.driver_license_number || c?.driver_license_number} />
                     <Field label="State" value={ag?.driver_license_state || c?.driver_license_state} />
                     <Field label="Expiry" value={ag?.driver_license_expiry || c?.driver_license_expiry} />
@@ -276,7 +276,7 @@ export default function BookingDetailPage() {
               <p className="text-xs text-[var(--text-tertiary)] font-mono">{v?.vehicle_code}</p>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid sm:grid-cols-2 gap-3">
             <Field label="Daily Rate" value={`$${booking.daily_rate}`} />
             <Field label="Rental Days" value={booking.rental_days} />
           </div>
@@ -284,7 +284,7 @@ export default function BookingDetailPage() {
 
         {/* Rental Details */}
         <Section title="Rental Details">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid sm:grid-cols-2 gap-3">
             <Field label="Pickup Date" value={format(new Date(booking.pickup_date), 'MMM d, yyyy')} />
             <Field label="Pickup Time" value={booking.pickup_time} />
             <Field label="Return Date" value={format(new Date(booking.return_date), 'MMM d, yyyy')} />
@@ -337,7 +337,7 @@ export default function BookingDetailPage() {
 
         {/* Insurance */}
         <Section title="Insurance">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid sm:grid-cols-2 gap-3">
             <Field label="Provider" value={booking.insurance_provider} />
             <div>
               <p className="text-xs text-[var(--text-tertiary)]">Status</p>
@@ -374,7 +374,7 @@ export default function BookingDetailPage() {
             booking.rental_agreements[0].insurance_company && (
             <div className="mt-4 pt-4 border-t border-[var(--border-subtle)]">
               <p className="text-sm font-medium text-[var(--text-primary)] mb-3">Customer Provided Details</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid sm:grid-cols-2 gap-3">
                 <Field label="Company" value={booking.rental_agreements[0].insurance_company} />
                 <Field label="Policy #" value={booking.rental_agreements[0].insurance_policy_number} />
                 <Field label="Expiry" value={booking.rental_agreements[0].insurance_expiry} />
@@ -445,7 +445,7 @@ export default function BookingDetailPage() {
         {/* Vehicle Condition */}
         {(booking.pickup_mileage || booking.return_mileage) && (
           <Section title="Vehicle Condition">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid sm:grid-cols-2 gap-3">
               <Field label="Pickup Mileage" value={booking.pickup_mileage} />
               <Field label="Pickup Fuel" value={booking.pickup_fuel_level} />
               <Field label="Return Mileage" value={booking.return_mileage} />

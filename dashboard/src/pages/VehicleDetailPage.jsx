@@ -117,7 +117,7 @@ export default function VehicleDetailPage() {
   return (
     <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-5">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate('/fleet')} className="btn-ghost py-1.5 px-2">
             <ArrowLeft size={16} />
@@ -193,7 +193,7 @@ export default function VehicleDetailPage() {
           }
         >
           {!editing ? (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid sm:grid-cols-2 gap-3">
               <Field label="Make" value={vehicle.make} />
               <Field label="Model" value={vehicle.model} />
               <Field label="Year" value={vehicle.year} />
@@ -206,7 +206,7 @@ export default function VehicleDetailPage() {
               <Field label="Mileage Limit/Day" value={`${vehicle.mileage_limit_per_day || 150} mi`} />
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid sm:grid-cols-2 gap-3">
               {[
                 { label: 'Make', key: 'make', type: 'text' },
                 { label: 'Model', key: 'model', type: 'text' },
@@ -319,7 +319,7 @@ export default function VehicleDetailPage() {
       {/* Block dates modal */}
       <Modal open={blockModal} onClose={() => setBlockModal(false)} title="Block Dates">
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid sm:grid-cols-2 gap-3">
             <div>
               <label className="label">Start Date</label>
               <input className="input" type="date" value={blockForm.start_date} onChange={e => setBlockForm(f => ({ ...f, start_date: e.target.value }))} />

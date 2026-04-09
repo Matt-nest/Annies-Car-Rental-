@@ -178,7 +178,7 @@ export default function RevenuePage() {
       </motion.div>
 
       {/* Summary cards */}
-      <motion.div {...fadeUp(2)} className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <motion.div {...fadeUp(2)} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard label="Total Revenue" value={`$${Number(revenue?.total || 0).toLocaleString()}`} sub="Selected period" icon={DollarSign} accentColor="#22c55e" />
         <StatCard label="This Month" value={`$${Number(revenue?.this_month_revenue || 0).toLocaleString()}`} sub={`${revenue?.this_month_bookings || 0} bookings`} icon={Calendar} accentColor="#818cf8" />
         <StatCard label="Avg per Booking" icon={CreditCard} accentColor="#465FFF"
