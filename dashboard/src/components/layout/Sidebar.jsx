@@ -18,9 +18,11 @@ const MAIN_NAV = [
 
 const SYSTEM_NAV = [
   { to: '/stripe',          label: 'Stripe',   icon: Landmark },
-  { to: '/settings',        label: 'Settings',  icon: Settings },
   { to: '/webhook-failures', label: 'Webhooks', icon: AlertTriangle },
 ];
+
+// Settings always visible
+const SETTINGS_NAV = { to: '/settings', label: 'Settings', icon: Settings };
 
 function NavItem({ to, label, icon: Icon, end, alertKey, alerts, onClose }) {
   const count = alertKey ? (alerts[alertKey] || 0) : 0;
@@ -138,7 +140,7 @@ export default function Sidebar({ open, onClose, alerts = {} }) {
                 </ul>
               </div>
 
-              {/* System — only visible to owner/admin */}
+              {/* System — Stripe/Webhooks only visible to owner/admin */}
               {isAdminOrOwner && (
               <div>
                 <h3 className="section-label mb-4 ml-4">
@@ -151,6 +153,13 @@ export default function Sidebar({ open, onClose, alerts = {} }) {
                 </ul>
               </div>
               )}
+
+              {/* Settings — always visible */}
+              <div>
+                <ul className="flex flex-col gap-0.5">
+                  <NavItem {...SETTINGS_NAV} alerts={alerts} onClose={onClose} />
+                </ul>
+              </div>
             </div>
           </nav>
         </div>
