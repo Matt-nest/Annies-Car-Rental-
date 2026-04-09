@@ -45,7 +45,7 @@ export async function createPaymentIntent(bookingCode) {
       clientSecret: activeIntent.client_secret,
       amount: activeIntent.amount,
       currency: activeIntent.currency,
-      booking: formatBookingSummary(booking),
+      booking: await formatBookingSummary(booking),
     };
   }
 
@@ -57,7 +57,7 @@ export async function createPaymentIntent(bookingCode) {
       alreadyPaid: true,
       amount: succeededIntent.amount,
       currency: succeededIntent.currency,
-      booking: formatBookingSummary(booking),
+      booking: await formatBookingSummary(booking),
     };
   }
 
@@ -86,7 +86,7 @@ export async function createPaymentIntent(bookingCode) {
     clientSecret: paymentIntent.client_secret,
     amount: paymentIntent.amount,
     currency: paymentIntent.currency,
-    booking: formatBookingSummary(booking),
+    booking: await formatBookingSummary(booking),
   };
 }
 
@@ -118,6 +118,28 @@ export async function handleWebhookEvent(event) {
           deposit_amount: pi.amount / 100,
         })
         .eq('id', bookingId);
+
+      // Auto-create booking_deposits record for settlement tracking
+      const { data: booking_ } = await supabase
+        .from('bookings')
+        .select('vehicle_id')
+        .eq('id', bookingId)
+        .single();
+      if (booking_?.vehicle_id) {
+        const { data: vd } = await supabase
+          .from('vehicle_deposits')
+          .select('amount')
+          .eq('vehicle_id', booking_.vehicle_id)
+          .maybeSingle();
+        if (vd) {
+          await supabase.from('booking_deposits').upsert({
+            booking_id: bookingId,
+            amount: vd.amount,
+            stripe_payment_intent_id: pi.id,
+            status: 'held',
+          }, { onConflict: 'booking_id' }).catch(() => {});
+        }
+      }
 
       console.log(`[Stripe] Payment succeeded for booking ${pi.metadata.booking_code}: $${pi.amount / 100}`);
 
@@ -239,6 +261,28 @@ export async function confirmPayment(paymentIntentId) {
     })
     .eq('id', bookingId);
 
+  // Auto-create booking_deposits record for settlement tracking
+  const { data: booking_ } = await supabase
+    .from('bookings')
+    .select('vehicle_id')
+    .eq('id', bookingId)
+    .single();
+  if (booking_?.vehicle_id) {
+    const { data: vd } = await supabase
+      .from('vehicle_deposits')
+      .select('amount')
+      .eq('vehicle_id', booking_.vehicle_id)
+      .maybeSingle();
+    if (vd) {
+      await supabase.from('booking_deposits').upsert({
+        booking_id: bookingId,
+        amount: vd.amount,
+        stripe_payment_intent_id: pi.id,
+        status: 'held',
+      }, { onConflict: 'booking_id' }).catch(() => {});
+    }
+  }
+
   console.log(`[Stripe] Payment confirmed for booking ${pi.metadata.booking_code}: $${pi.amount / 100}`);
 
   // Dashboard notification
@@ -273,7 +317,18 @@ export async function confirmPayment(paymentIntentId) {
 /**
  * Format a booking into a summary for the frontend checkout page
  */
-function formatBookingSummary(booking) {
+async function formatBookingSummary(booking) {
+  // Fetch the deposit amount for this vehicle
+  let depositAmount = 150; // default $150
+  if (booking.vehicle_id) {
+    const { data: vd } = await supabase
+      .from('vehicle_deposits')
+      .select('amount')
+      .eq('vehicle_id', booking.vehicle_id)
+      .maybeSingle();
+    if (vd) depositAmount = vd.amount / 100;
+  }
+
   return {
     bookingCode: booking.booking_code,
     status: booking.status,
@@ -290,5 +345,9 @@ function formatBookingSummary(booking) {
     discountAmount: Number(booking.discount_amount || 0),
     taxAmount: Number(booking.tax_amount || 0),
     totalCost: Number(booking.total_cost),
+    depositAmount,
+    hasDelivery: !!booking.has_delivery,
+    hasUnlimitedMiles: !!booking.has_unlimited_miles,
+    hasUnlimitedTolls: !!booking.has_unlimited_tolls,
   };
 }
