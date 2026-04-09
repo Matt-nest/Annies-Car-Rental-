@@ -117,9 +117,17 @@ router.post('/sync', requireAuth, asyncHandler(async (req, res) => {
 
 /**
  * POST /webhook/inbound — receive inbound messages from GHL
- * No auth required — GHL sends webhooks server-to-server
+ * Secured via API key header (x-webhook-secret)
  */
 router.post('/webhook/inbound', asyncHandler(async (req, res) => {
+  // Validate webhook secret
+  const secret = process.env.GHL_WEBHOOK_SECRET;
+  const provided = req.headers['x-webhook-secret'];
+  if (secret && provided !== secret) {
+    console.warn('[GHL Webhook] Unauthorized — bad or missing x-webhook-secret');
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
   const { type, contactId, body: msgBody, message, conversationId, direction, messageType } = req.body;
 
   console.log('[GHL Webhook] Inbound message received:', {
