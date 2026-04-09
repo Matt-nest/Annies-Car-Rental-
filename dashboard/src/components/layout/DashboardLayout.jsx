@@ -97,8 +97,6 @@ export default function DashboardLayout() {
           pinned={pinned}
         />
 
-        {/* When sidebar is unpinned (fixed overlay), add a spacer for the 72px icon rail */}
-        {!pinned && <div className="hidden lg:block shrink-0" style={{ width: 72 }} />}
 
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
           {/* Header */}
