@@ -1083,6 +1083,16 @@ export default function MessagingPage() {
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
 
+  // Mobile viewport detection (768px = Tailwind md breakpoint)
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const handler = (e) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    setIsMobile(mq.matches);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
   const loadConversations = useCallback(() => {
     return api.getConversations()
       .then(data => setConversations(data || []))
@@ -1166,60 +1176,65 @@ export default function MessagingPage() {
           </motion.div>
         )}
       </AnimatePresence>
-      {/* Page header — hidden on mobile when viewing a chat */}
-      <motion.div
-        className={`${selectedCustomer ? 'hidden md:flex' : 'flex'} shrink-0 items-center justify-between flex-wrap gap-2`}
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: EASE }}
-        style={{
-          padding: '14px 16px',
-          borderBottom: '1px solid var(--border-subtle)',
-          background: 'var(--bg-elevated)',
-          backdropFilter: 'blur(12px)',
-        }}
-      >
-        <div>
-          <h1 style={{
-            fontSize: '18px', fontWeight: 700, letterSpacing: '-0.02em',
-            color: 'var(--text-primary)',
-          }}>Messaging</h1>
-          <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: 2 }}>
-            Two-way SMS & email — synced with GoHighLevel
-          </p>
-        </div>
 
-        {/* Tab switcher */}
-        <div style={{
-          display: 'flex', borderRadius: 12, padding: 3,
-          background: 'var(--bg-card, rgba(0,0,0,0.03))',
-          border: '1px solid var(--border-subtle)',
-        }}>
-          {[
-            { key: 'conversations', label: 'Conversations', Icon: MessageSquare },
-            { key: 'templates', label: 'Templates', Icon: FileText },
-          ].map(({ key, label, Icon }) => (
-            <motion.button
-              key={key}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => setTab(key)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 5,
-                padding: '7px 14px', borderRadius: 9, border: 'none',
-                cursor: 'pointer', fontSize: '12px', fontWeight: 600,
-                letterSpacing: '-0.005em',
-                background: tab === key ? 'var(--bg-elevated, #fff)' : 'transparent',
-                color: tab === key ? '#007AFF' : 'var(--text-secondary)',
-                boxShadow: tab === key ? '0 1px 4px rgba(0,0,0,0.06)' : 'none',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              <Icon size={13} />
-              {label}
-            </motion.button>
-          ))}
-        </div>
-      </motion.div>
+      {/* Page header — hidden on mobile when viewing a chat */}
+      {!(isMobile && selectedCustomer) && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: EASE }}
+          style={{
+            padding: '14px 16px',
+            borderBottom: '1px solid var(--border-subtle)',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            flexWrap: 'wrap', gap: '8px',
+            background: 'var(--bg-elevated)',
+            backdropFilter: 'blur(12px)',
+            flexShrink: 0,
+          }}
+        >
+          <div>
+            <h1 style={{
+              fontSize: '18px', fontWeight: 700, letterSpacing: '-0.02em',
+              color: 'var(--text-primary)',
+            }}>Messaging</h1>
+            <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: 2 }}>
+              Two-way SMS &amp; email — synced with GoHighLevel
+            </p>
+          </div>
+
+          {/* Tab switcher */}
+          <div style={{
+            display: 'flex', borderRadius: 12, padding: 3,
+            background: 'var(--bg-card, rgba(0,0,0,0.03))',
+            border: '1px solid var(--border-subtle)',
+          }}>
+            {[
+              { key: 'conversations', label: 'Conversations', Icon: MessageSquare },
+              { key: 'templates', label: 'Templates', Icon: FileText },
+            ].map(({ key, label, Icon }) => (
+              <motion.button
+                key={key}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => setTab(key)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  padding: '7px 14px', borderRadius: 9, border: 'none',
+                  cursor: 'pointer', fontSize: '12px', fontWeight: 600,
+                  letterSpacing: '-0.005em',
+                  background: tab === key ? 'var(--bg-elevated, #fff)' : 'transparent',
+                  color: tab === key ? '#007AFF' : 'var(--text-secondary)',
+                  boxShadow: tab === key ? '0 1px 4px rgba(0,0,0,0.06)' : 'none',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <Icon size={13} />
+                {label}
+              </motion.button>
+            ))}
+          </div>
+        </motion.div>
+      )}
 
       {/* Content area */}
       {tab === 'templates' ? (
@@ -1228,36 +1243,55 @@ export default function MessagingPage() {
         </div>
       ) : (
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-          {/* Conversation list — full width on mobile, 340px sidebar on desktop */}
-          <div
-            className={`${selectedCustomer ? 'hidden md:block' : 'block'} w-full md:w-[340px] shrink-0 h-full overflow-hidden`}
-          >
-            <ConversationList
-              conversations={conversations}
-              selected={selectedCustomer}
-              onSelect={setSelectedCustomer}
-              search={search}
-              onSearch={setSearch}
-              onSync={handleSync}
-              syncing={syncing}
-            />
-          </div>
-          {/* Chat panel — visible on desktop always, on mobile only when a chat is selected */}
-          <div
-            className={`${selectedCustomer ? 'flex' : 'hidden'} md:flex flex-col flex-1 min-w-0 h-full overflow-hidden`}
-          >
-            {/* Mobile back button */}
-            {selectedCustomer && (
+          {/* ── DESKTOP LAYOUT: side-by-side, always both visible ── */}
+          {!isMobile && (
+            <>
+              <div style={{ width: 340, flexShrink: 0 }}>
+                <ConversationList
+                  conversations={conversations}
+                  selected={selectedCustomer}
+                  onSelect={setSelectedCustomer}
+                  search={search}
+                  onSearch={setSearch}
+                  onSync={handleSync}
+                  syncing={syncing}
+                />
+              </div>
+              <ChatPanel customerId={selectedCustomer} conversations={conversations} />
+            </>
+          )}
+
+          {/* ── MOBILE LAYOUT: list OR chat, never both ── */}
+          {isMobile && !selectedCustomer && (
+            <div style={{ width: '100%' }}>
+              <ConversationList
+                conversations={conversations}
+                selected={selectedCustomer}
+                onSelect={setSelectedCustomer}
+                search={search}
+                onSearch={setSearch}
+                onSync={handleSync}
+                syncing={syncing}
+              />
+            </div>
+          )}
+          {isMobile && selectedCustomer && (
+            <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
               <button
-                className="md:hidden flex items-center gap-2 px-4 py-3 text-sm font-medium shrink-0"
-                style={{ color: 'var(--accent-color)', borderBottom: '1px solid var(--border-subtle)' }}
                 onClick={() => setSelectedCustomer(null)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '12px 16px', fontSize: '14px', fontWeight: 600,
+                  color: 'var(--accent-color)', background: 'none', border: 'none',
+                  borderBottom: '1px solid var(--border-subtle)',
+                  cursor: 'pointer', flexShrink: 0,
+                }}
               >
                 ← Back to conversations
               </button>
-            )}
-            <ChatPanel customerId={selectedCustomer} conversations={conversations} />
-          </div>
+              <ChatPanel customerId={selectedCustomer} conversations={conversations} />
+            </div>
+          )}
         </div>
       )}
 
