@@ -75,7 +75,7 @@ export default function CustomerDetailPage() {
   const completedCount = bookings.filter(b => b.status === 'completed').length;
 
   return (
-    <div className="p-6 lg:p-8 max-w-4xl mx-auto space-y-6">
+    <div className="p-6 lg:p-8 space-y-6">
       {/* Header */}
       <div className="flex items-start gap-3">
         <button onClick={() => navigate('/customers')} className="btn-ghost py-1.5 px-2">

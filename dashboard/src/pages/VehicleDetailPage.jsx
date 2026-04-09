@@ -115,7 +115,7 @@ export default function VehicleDetailPage() {
   const completedCount = bookings.filter(b => b.status === 'completed').length;
 
   return (
-    <div className="p-6 lg:p-8 max-w-4xl mx-auto space-y-6">
+    <div className="p-6 lg:p-8 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div className="flex items-center gap-3">
