@@ -66,7 +66,9 @@ function NavItem({ to, label, icon: Icon, end, alertKey, alerts, onClose }) {
 }
 
 export default function Sidebar({ open, onClose, alerts = {} }) {
-  const { signOut } = useAuth();
+  const { signOut, profile } = useAuth();
+  const isAdminOrOwner = profile?.role === 'owner' || profile?.role === 'admin';
+  const initials = `${(profile?.first_name || '?')[0]}${(profile?.last_name || '')[0] || ''}`.toUpperCase();
 
   return (
     <>
@@ -136,7 +138,8 @@ export default function Sidebar({ open, onClose, alerts = {} }) {
                 </ul>
               </div>
 
-              {/* System */}
+              {/* System — only visible to owner/admin */}
+              {isAdminOrOwner && (
               <div>
                 <h3 className="section-label mb-4 ml-4">
                   System
@@ -147,12 +150,37 @@ export default function Sidebar({ open, onClose, alerts = {} }) {
                   ))}
                 </ul>
               </div>
+              )}
             </div>
           </nav>
         </div>
 
-        {/* Footer — sign out */}
-        <div className="mt-auto py-4" style={{ borderTop: '1px solid var(--sidebar-border)' }}>
+        {/* Footer — user info + sign out */}
+        <div className="mt-auto py-4 space-y-3" style={{ borderTop: '1px solid var(--sidebar-border)' }}>
+          {/* User profile pill */}
+          {profile && (
+            <NavLink
+              to="/settings"
+              onClick={onClose}
+              className="flex items-center gap-3 px-4 py-2 rounded-lg transition-colors hover:bg-[var(--sidebar-active-bg)]"
+            >
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
+                style={{ background: 'linear-gradient(135deg, #465FFF, #7c3aed)' }}
+              >
+                {initials}
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate" style={{ color: 'var(--sidebar-text)' }}>
+                  {profile.first_name} {profile.last_name}
+                </p>
+                <p className="text-[10px] truncate capitalize" style={{ color: 'var(--sidebar-text-muted)' }}>
+                  {profile.role}
+                </p>
+              </div>
+            </NavLink>
+          )}
+
           <button
             onClick={signOut}
             className="group relative flex items-center w-full gap-3 px-4 py-2.5 font-medium rounded-lg text-sm transition-colors"

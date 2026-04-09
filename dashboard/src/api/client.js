@@ -131,4 +131,14 @@ export const api = {
     if (!res.ok) throw new Error('Upload failed');
     return res.json();
   },
+
+  // Users & Profiles
+  getMyProfile: () => request('/users/me'),
+  updateMyProfile: (body) => request('/users/me', { method: 'PATCH', body: JSON.stringify(body) }),
+  changePassword: (new_password) => request('/users/me/password', { method: 'POST', body: JSON.stringify({ new_password }) }),
+  getUsers: () => request('/users'),
+  inviteUser: (body) => request('/users/invite', { method: 'POST', body: JSON.stringify(body) }),
+  updateUserRole: (id, role) => request(`/users/${id}/role`, { method: 'PATCH', body: JSON.stringify({ role }) }),
+  deactivateUser: (id) => request(`/users/${id}`, { method: 'DELETE' }),
+  reactivateUser: (id) => request(`/users/${id}/reactivate`, { method: 'POST' }),
 };

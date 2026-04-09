@@ -17,6 +17,7 @@ import searchRoutes from './routes/search.js';
 import notificationRoutes from './routes/notifications.js';
 import messagingRoutes from './routes/messaging.js';
 import cronRoutes from './routes/cron.js';
+import userRoutes from './routes/users.js';
 import { startCronJobs } from './services/cronJobs.js';
 
 const app = express();
@@ -71,6 +72,7 @@ app.use('/api/v1/uploads', uploadRoutes);
 // Rental agreements (e-sign)
 app.use('/api/v1/agreements', agreementRoutes);
 app.use('/api/v1/cron', cronRoutes);
+app.use('/api/v1/users', userRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ error: `${req.method} ${req.path} not found` }));
