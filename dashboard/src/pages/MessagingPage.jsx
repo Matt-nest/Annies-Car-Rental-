@@ -289,7 +289,10 @@ function ChatPanel({ customerId, conversations }) {
   }, [customerId]);
 
   const scrollToBottom = useCallback((behavior = 'smooth') => {
-    messagesEndRef.current?.scrollIntoView({ behavior });
+    const el = scrollContainerRef.current;
+    if (el) {
+      el.scrollTo({ top: el.scrollHeight, behavior });
+    }
   }, []);
 
   useEffect(() => {
@@ -1163,16 +1166,15 @@ export default function MessagingPage() {
           </motion.div>
         )}
       </AnimatePresence>
-      {/* Page header */}
+      {/* Page header — hidden on mobile when viewing a chat */}
       <motion.div
+        className={`${selectedCustomer ? 'hidden md:flex' : 'flex'} shrink-0 items-center justify-between flex-wrap gap-2`}
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: EASE }}
         style={{
           padding: '14px 16px',
           borderBottom: '1px solid var(--border-subtle)',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          flexWrap: 'wrap', gap: '8px',
           background: 'var(--bg-elevated)',
           backdropFilter: 'blur(12px)',
         }}
@@ -1226,8 +1228,10 @@ export default function MessagingPage() {
         </div>
       ) : (
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-          {/* Desktop: side-by-side. Mobile: show list OR chat */}
-          <div className="hidden md:block" style={{ width: 340, flexShrink: 0 }}>
+          {/* Conversation list — full width on mobile, 340px sidebar on desktop */}
+          <div
+            className={`${selectedCustomer ? 'hidden md:block' : 'block'} w-full md:w-[340px] shrink-0 h-full overflow-hidden`}
+          >
             <ConversationList
               conversations={conversations}
               selected={selectedCustomer}
@@ -1238,24 +1242,14 @@ export default function MessagingPage() {
               syncing={syncing}
             />
           </div>
-          {/* Mobile: show conversation list when nothing is selected */}
-          <div className={`md:hidden w-full ${selectedCustomer ? 'hidden' : 'block'}`}>
-            <ConversationList
-              conversations={conversations}
-              selected={selectedCustomer}
-              onSelect={setSelectedCustomer}
-              search={search}
-              onSearch={setSearch}
-              onSync={handleSync}
-              syncing={syncing}
-            />
-          </div>
-          {/* Chat panel — on mobile, show full-width when a conversation is selected */}
-          <div className={`flex-1 min-w-0 ${!selectedCustomer ? 'hidden md:flex' : 'flex'} flex-col`}>
+          {/* Chat panel — visible on desktop always, on mobile only when a chat is selected */}
+          <div
+            className={`${selectedCustomer ? 'flex' : 'hidden'} md:flex flex-col flex-1 min-w-0 h-full overflow-hidden`}
+          >
             {/* Mobile back button */}
             {selectedCustomer && (
               <button
-                className="md:hidden flex items-center gap-2 px-4 py-3 text-sm font-medium"
+                className="md:hidden flex items-center gap-2 px-4 py-3 text-sm font-medium shrink-0"
                 style={{ color: 'var(--accent-color)', borderBottom: '1px solid var(--border-subtle)' }}
                 onClick={() => setSelectedCustomer(null)}
               >
