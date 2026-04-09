@@ -2,6 +2,7 @@ import { getStripe } from '../utils/stripe.js';
 import { supabase } from '../db/supabase.js';
 import { transitionBooking, getBookingDetail } from './bookingService.js';
 import { createNotification } from './notificationService.js';
+import { sendBookingNotification, buildBookingPayload } from './notifyService.js';
 
 const stripe = getStripe();
 
@@ -119,6 +120,16 @@ export async function handleWebhookEvent(event) {
         .eq('id', bookingId);
 
       console.log(`[Stripe] Payment succeeded for booking ${pi.metadata.booking_code}: $${pi.amount / 100}`);
+
+      // Send payment confirmation to customer
+      const paidBooking = await getBookingDetail(bookingId).catch(() => null);
+      if (paidBooking) {
+        const payload = buildBookingPayload(paidBooking);
+        payload.amount = (pi.amount / 100).toFixed(2);
+        payload.payment_method = pi.payment_method_types?.join(', ') || 'Card';
+        payload.payment_date = new Date().toISOString();
+        sendBookingNotification('payment_confirmed', payload);
+      }
 
       // Dashboard notification
       createNotification(

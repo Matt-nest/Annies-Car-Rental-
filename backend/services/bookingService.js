@@ -282,6 +282,7 @@ export async function transitionBooking(bookingId, newStatus, { changedBy = 'own
     approved: 'booking_approved',
     declined: 'booking_declined',
     cancelled: 'booking_cancelled',
+    returned: 'return_confirmed',
     completed: 'rental_completed',
   };
 

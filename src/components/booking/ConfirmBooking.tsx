@@ -23,7 +23,6 @@ import {
   stripePromise,
   API_URL,
   BONZAH_URL,
-  WEBHOOK_URL,
   PHONE_NUMBER,
   getRefCode,
   isValidEmail,
@@ -148,15 +147,14 @@ export default function ConfirmBooking() {
     setSubmitError('');
 
     try {
-      const searchParams = new URLSearchParams(window.location.search);
-      const params = new URLSearchParams({
-        booking_reference_code: refCode!,
-        bonzah_policy_number: policyNumber.trim(),
-        bonzah_email: bonzahEmail.trim(),
-        email: (searchParams.get('email') || '').trim(),
-        phone: (searchParams.get('phone') || '').trim(),
+      const res = await fetch(`${API_URL}/bookings/${refCode}/insurance`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bonzah_policy_number: policyNumber.trim(),
+          bonzah_email: bonzahEmail.trim(),
+        }),
       });
-      const res = await fetch(WEBHOOK_URL + '?' + params.toString());
       if (!res.ok) throw new Error('Request failed');
       setIsConfirmed(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });

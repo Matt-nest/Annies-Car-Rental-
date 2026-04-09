@@ -120,6 +120,7 @@ export function buildMergeFields(bookingPayload) {
   const bp = bookingPayload;
   const v = bp.vehicle || {};
   const c = bp.customer || {};
+  const siteUrl = process.env.SITE_URL || 'https://anniescarrental.com';
 
   return {
     first_name:     c.first_name || 'Guest',
@@ -136,6 +137,9 @@ export function buildMergeFields(bookingPayload) {
     rental_days:    bp.rental_days || '',
     lockbox_code:   bp.lockbox_code || '2580',
     decline_reason: bp.decline_reason || 'The vehicle is not available for your selected dates.',
+    // Confirm link — drives customer to sign agreement + pay
+    confirm_link:   `${siteUrl}/confirm?code=${bp.booking_code || ''}`,
+    status_link:    `${siteUrl}/booking-status?code=${bp.booking_code || ''}`,
     // Payment fields
     amount:         bp.amount || bp.total_cost || '',
     payment_method: bp.payment_method || 'Card',
@@ -233,8 +237,11 @@ const EVENT_SUMMARIES = {
   booking_approved:       'Booking approved — awaiting agreement & payment',
   booking_declined:       'Booking request declined',
   booking_cancelled:      'Booking cancelled',
+  payment_confirmed:      'Payment received — booking confirmed',
   pickup_reminder:        'Pickup reminder sent',
+  day_of_pickup:          'Day-of-pickup reminder sent',
   return_reminder:        'Return reminder sent',
+  return_confirmed:       'Vehicle returned — thank you sent',
   late_return_warning:    'Late return warning',
   rental_completed:       'Rental completed — review request sent',
 };
@@ -260,12 +267,13 @@ export async function sendBookingNotification(stage, bookingPayload) {
     const customer = bookingPayload.customer || {};
     const channel = rendered.channel || 'email';
 
-    // Send email
-    if ((channel === 'email' || channel === 'both') && customer.email) {
+    // Send email (skip for booking_submitted — emailService.js sends a branded HTML version)
+    const skipEmail = stage === 'booking_submitted';
+    if (!skipEmail && (channel === 'email' || channel === 'both') && customer.email) {
       sendEmail({
         to: customer.email,
         subject: rendered.subject,
-        html: rendered.body,
+        html: wrapInBrandedHTML(rendered.subject, rendered.body),
       }).catch(e => console.error('[Notify] Email fire-and-forget error:', e.message));
     }
 
@@ -309,6 +317,59 @@ async function storeSystemMessage(stage, bookingPayload) {
     externalId: `notify-${stage}-${bookingCode}-${Date.now()}`,
     metadata: { stage, automated: true, booking_code: bookingCode },
   });
+}
+
+// ── Branded HTML Email Wrapper ──────────────────────────────────────────────
+
+/**
+ * Wraps plain-text template content in the Annie's Car Rental branded
+ * email design (matching the hardcoded booking confirmation email).
+ * Converts line breaks to HTML, preserves unicode emoji.
+ */
+function wrapInBrandedHTML(subject, plainTextBody) {
+  // Convert plain text to HTML paragraphs
+  const bodyHtml = (plainTextBody || '')
+    .split(/\n\n+/)                   // split on double newlines
+    .map(para => {
+      // Convert single newlines within a paragraph to <br>
+      const inner = para.trim()
+        .replace(/\n/g, '<br>')
+        .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#c8a97e;text-decoration:underline;">$1</a>');
+      return `<p style="margin:0 0 16px;color:#44403c;font-size:15px;line-height:1.7;">${inner}</p>`;
+    })
+    .join('');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#fafaf9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1c1917;">
+  <div style="max-width:560px;margin:40px auto;background:#fff;border-radius:16px;border:1px solid #e7e5e4;overflow:hidden;">
+
+    <!-- Header -->
+    <div style="background:#1c1917;padding:28px 32px;">
+      <p style="margin:0;color:#d6d3d1;font-size:13px;letter-spacing:0.1em;text-transform:uppercase;">Annie's Car Rental</p>
+      <h1 style="margin:8px 0 0;color:#fff;font-size:22px;font-weight:600;">${escapeHtml(subject)}</h1>
+    </div>
+
+    <!-- Body -->
+    <div style="padding:32px;">
+      ${bodyHtml}
+    </div>
+
+    <!-- Footer -->
+    <div style="padding:20px 32px;border-top:1px solid #e7e5e4;background:#fafaf9;">
+      <p style="margin:0;font-size:12px;color:#a8a29e;text-align:center;">
+        Annie's Car Rental · Port St. Lucie, FL · (772) 834-0117
+      </p>
+    </div>
+
+  </div>
+</body>
+</html>`;
+}
+
+function escapeHtml(str) {
+  return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────

@@ -7,8 +7,6 @@ export { API_URL } from '../../../config';
    Constants
    ──────────────────────────────────────────────────────── */
 export const BONZAH_URL = 'https://www.bonzah.com';
-export const WEBHOOK_URL =
-  'https://services.leadconnectorhq.com/hooks/kP7owzBOHxXk0Ch6wiZT/webhook-trigger/7214c771-a6e1-4167-b1cf-59b957e57309';
 export const PHONE_NUMBER = '(772) 985-6667';
 
 export const STEPS = [

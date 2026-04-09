@@ -111,7 +111,27 @@ async function autoExpireUnapproved() {
   }
 }
 
+/** Send day-of-pickup SMS for bookings with pickup_date = today */
+async function sendDayOfPickupReminders() {
+  console.log('[CRON] Running sendDayOfPickupReminders');
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('*, customers(*), vehicles(*)')
+    .eq('pickup_date', today())
+    .in('status', ['approved', 'confirmed']);
+
+  if (error) { console.error('[CRON] dayOfPickup error:', error); return; }
+
+  for (const b of data || []) {
+    sendBookingNotification('day_of_pickup', buildBookingPayload(b));
+  }
+  console.log(`[CRON] Sent ${data?.length || 0} day-of-pickup reminders`);
+}
+
 export function startCronJobs() {
+  // Daily at 7am ET — day-of-pickup reminders
+  cron.schedule('0 7 * * *', sendDayOfPickupReminders, { timezone: TZ });
+
   // Daily at 9am ET — pickup and return reminders
   cron.schedule('0 9 * * *', sendPickupReminders, { timezone: TZ });
   cron.schedule('0 9 * * *', sendReturnReminders, { timezone: TZ });

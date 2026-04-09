@@ -6,17 +6,6 @@ import { getVehicleDisplayName } from '../../data/vehicles';
 import { useTheme } from '../../context/ThemeContext';
 import { API_URL, API_KEY } from '../../config';
 
-// GHL webhook as fallback if backend is unreachable
-const GHL_FALLBACK_URL = 'https://services.leadconnectorhq.com/hooks/kP7owzBOHxXk0Ch6wiZT/webhook-trigger/ivjo1qPItO8lTrMJ5icB';
-
-function generateFallbackRefCode(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  const suffix = Array.from({ length: 4 }, () =>
-    chars[Math.floor(Math.random() * chars.length)]
-  ).join('');
-  return `BK-${date}-${suffix}`;
-}
 
 interface RequestToBookFormProps {
   vehicle: Vehicle;
@@ -224,42 +213,11 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
         }
       }
     } catch {
-      // Backend unreachable — fall back to GHL direct
-      try {
-        await submitToGHLFallback();
-      } catch {
-        setSubmitError('Something went wrong submitting your request. Please try again or call us at (772) 985-6667.');
-      }
+      setSubmitError('Something went wrong submitting your request. Please try again or call us at (772) 985-6667.');
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  // Fallback: submit directly to GHL if backend is down or vehicle not in DB yet
-  async function submitToGHLFallback() {
-    const deliveryLabels: Record<DeliveryOption, string> = {
-      pickup: 'Pickup — Port St. Lucie (free)',
-      psl_delivery: 'Delivery — Port St. Lucie ($39)',
-      surrounding_delivery: 'Delivery — Surrounding Areas ($49)',
-    };
-    const params = new URLSearchParams({
-      first_name: formData.firstName.trim(),
-      last_name: formData.lastName.trim(),
-      phone: formData.phone.trim(),
-      email: formData.email.trim(),
-      vehicle_requested: formData.vehicleName,
-      pickup_date: formData.startDate,
-      return_date: formData.endDate,
-      delivery_option: deliveryLabels[formData.deliveryOption],
-      ...(formData.deliveryOption !== 'pickup' && formData.deliveryAddress ? { delivery_address: formData.deliveryAddress.trim() } : {}),
-      booking_reference_code: generateFallbackRefCode(),
-    });
-    const response = await fetch(GHL_FALLBACK_URL + '?' + params.toString());
-    if (!response.ok) throw new Error('GHL fallback failed');
-    const code = params.get('booking_reference_code') || generateFallbackRefCode();
-    setRefCode(code);
-    setIsSuccess(true);
-  }
 
   // Price estimate computed from selected dates + delivery option
   const priceEstimate = (() => {

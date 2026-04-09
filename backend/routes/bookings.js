@@ -253,4 +253,38 @@ router.post('/:id/complete', requireAuth, asyncHandler(async (req, res) => {
   res.json(result);
 }));
 
+/** PATCH /bookings/:code/insurance — public (customer submits Bonzah insurance) */
+router.patch('/:code/insurance', asyncHandler(async (req, res) => {
+  const { bonzah_policy_number, bonzah_email } = req.body;
+
+  if (!bonzah_policy_number) {
+    return res.status(400).json({ error: 'Policy number is required' });
+  }
+
+  // Look up booking by booking_code (public route — no auth)
+  const { data: booking, error } = await supabase
+    .from('bookings')
+    .select('id, booking_code, status')
+    .eq('booking_code', req.params.code)
+    .single();
+
+  if (error || !booking) {
+    return res.status(404).json({ error: 'Booking not found' });
+  }
+
+  // Store insurance info on the booking
+  await supabase
+    .from('bookings')
+    .update({
+      insurance_provider: 'bonzah',
+      insurance_policy_number: bonzah_policy_number,
+      insurance_email: bonzah_email || null,
+    })
+    .eq('id', booking.id);
+
+  console.log(`[Booking] Insurance updated for ${booking.booking_code}: ${bonzah_policy_number}`);
+
+  res.json({ success: true, booking_code: booking.booking_code });
+}));
+
 export default router;
