@@ -64,7 +64,7 @@ export default function SettingsPage() {
       </Section>
 
       <Section title="Booking Automation" description="Timing for auto-expire and reminders (hardcoded in cron job)">
-        <div className="grid grid-cols-2 gap-4 text-sm">
+        <div className="grid sm:grid-cols-2 gap-4 text-sm">
           <div className="bg-[var(--bg-card)] rounded-lg p-3">
             <p className="font-medium text-[var(--text-primary)]">24 hours</p>
             <p className="text-[var(--text-secondary)] text-xs mt-0.5">Approval reminder sent to Annie</p>

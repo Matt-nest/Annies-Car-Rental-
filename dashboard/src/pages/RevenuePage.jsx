@@ -160,13 +160,13 @@ export default function RevenuePage() {
       </motion.div>
 
       {/* Date range filter */}
-      <motion.div {...fadeUp(1)} className="flex items-center gap-1.5 flex-wrap">
-        <Calendar size={14} className="text-gray-400 mr-1" />
+      <motion.div {...fadeUp(1)} className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+        <Calendar size={14} className="text-gray-400 mr-1 shrink-0" />
         {RANGE_PRESETS.map((preset, i) => (
           <button
             key={i}
             onClick={() => setActiveRange(i)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
               i === activeRange
                 ? 'bg-brand-500 text-white shadow-sm'
                 : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5'

@@ -153,11 +153,11 @@ export default function FleetPage() {
       {loading ? (
         <SkeletonKpi count={5} />
       ) : (
-        <div className="grid grid-cols-5 gap-3">
+        <div className="flex md:grid md:grid-cols-5 gap-3 overflow-x-auto no-scrollbar pb-1">
           {['available', 'rented', 'turo', 'maintenance', 'retired'].map(s => (
             <button
               key={s}
-              className="liquid-glass p-3 text-center transition-all duration-200"
+              className="liquid-glass p-3 text-center transition-all duration-200 shrink-0 min-w-[72px]"
               onClick={() => setFilter(f => ({ ...f, status: f.status === s ? '' : s }))}
               style={{
                 borderColor: filter.status === s ? 'var(--accent-color)' : undefined,
@@ -260,7 +260,7 @@ export default function FleetPage() {
       {/* Add Vehicle Modal */}
       <Modal open={addModal} onClose={() => setAddModal(false)} title="Add Vehicle" maxWidth="max-w-xl">
         <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid sm:grid-cols-3 gap-3">
             <div>
               <label className="label">Make *</label>
               <input className="input" value={addForm.make} onChange={e => setAddForm(f => ({...f, make: e.target.value}))} placeholder="Ford" />
@@ -274,7 +274,7 @@ export default function FleetPage() {
               <input className="input" type="number" value={addForm.year} onChange={e => setAddForm(f => ({...f, year: parseInt(e.target.value)}))} />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid sm:grid-cols-2 gap-3">
             <div>
               <label className="label">Vehicle Code</label>
               <input className="input mono-code text-xs" value={addForm.vehicle_code}
@@ -288,7 +288,7 @@ export default function FleetPage() {
               </select>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid sm:grid-cols-3 gap-3">
             <div>
               <label className="label">Daily Rate ($) *</label>
               <input className="input" type="number" value={addForm.daily_rate} onChange={e => setAddForm(f => ({...f, daily_rate: e.target.value}))} placeholder="150" />
@@ -302,7 +302,7 @@ export default function FleetPage() {
               <input className="input" type="number" value={addForm.seats} onChange={e => setAddForm(f => ({...f, seats: parseInt(e.target.value)}))} />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid sm:grid-cols-2 gap-3">
             <div>
               <label className="label">Fuel Type</label>
               <select className="input" value={addForm.fuel_type} onChange={e => setAddForm(f => ({...f, fuel_type: e.target.value}))}>
