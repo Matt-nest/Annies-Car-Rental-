@@ -3,10 +3,10 @@ import { supabase } from '../db/supabase.js';
 import { requireAuth } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import {
-  sendGHLMessage,
+  sendDirectEmail,
+  sendDirectSMS,
   getLocalMessages,
   storeLocalMessage,
-  syncGHLConversations,
 } from '../services/messagingService.js';
 
 const router = Router();
@@ -68,10 +68,10 @@ router.post('/conversations/:customerId/send', requireAuth, asyncHandler(async (
     return res.status(400).json({ error: 'body is required' });
   }
 
-  // Get customer info for GHL contact matching
+  // Get customer info
   const { data: customer } = await supabase
     .from('customers')
-    .select('id, first_name, last_name, email, phone, ghl_contact_id')
+    .select('id, first_name, last_name, email, phone')
     .eq('id', customerId)
     .single();
 
@@ -79,16 +79,12 @@ router.post('/conversations/:customerId/send', requireAuth, asyncHandler(async (
     return res.status(404).json({ error: 'Customer not found' });
   }
 
-  // Send via GHL — auto-links contact by email/phone if not already linked
-  let ghlResult = null;
-  if (process.env.GHL_PRIVATE_INTEGRATION_TOKEN) {
-    ghlResult = await sendGHLMessage({
-      customer,
-      type: channel === 'sms' ? 'SMS' : 'Email',
-      message: body,
-      subject,
-      html,
-    });
+  // Send via the appropriate channel
+  let sendResult = null;
+  if (channel === 'sms') {
+    sendResult = await sendDirectSMS({ customer, message: body });
+  } else {
+    sendResult = await sendDirectEmail({ customer, subject, body, html });
   }
 
   // Store locally
@@ -98,82 +94,69 @@ router.post('/conversations/:customerId/send', requireAuth, asyncHandler(async (
     channel,
     subject,
     body,
-    externalId: ghlResult?.messageId || null,
-    metadata: ghlResult ? { ghl_response: ghlResult } : {},
+    externalId: sendResult?.id || sendResult?.sid || null,
+    metadata: { send_result: sendResult },
   });
 
-  res.json({ success: true, message: stored, ghl: ghlResult });
+  res.json({ success: true, message: stored, result: sendResult });
 }));
 
-// ── GHL Sync ──────────────────────────────────────────────────────────────────
-
-/** POST /sync — pull all GHL conversations into local database */
-router.post('/sync', requireAuth, asyncHandler(async (req, res) => {
-  const result = await syncGHLConversations();
-  res.json(result);
-}));
-
-// ── GHL Inbound Webhook ──────────────────────────────────────────────────────
+// ── Twilio Inbound Webhook ────────────────────────────────────────────────────
 
 /**
- * POST /webhook/inbound — receive inbound messages from GHL
- * Secured via API key header (x-webhook-secret)
+ * POST /webhook/inbound — receive inbound SMS from Twilio
+ * Twilio sends: From, Body, MessageSid, To, etc.
+ * Secured via x-webhook-secret header or Twilio signature (basic check)
  */
 router.post('/webhook/inbound', asyncHandler(async (req, res) => {
-  // Validate webhook secret — check multiple header names + query param
-  const secret = process.env.GHL_WEBHOOK_SECRET;
-  const provided = req.headers['x-webhook-secret']
-    || req.headers['x-api-key']
-    || req.headers['authorization']?.replace('Bearer ', '')
-    || req.query.secret;
-  if (secret && provided !== secret) {
-    console.warn('[GHL Webhook] Unauthorized — headers:', JSON.stringify(Object.keys(req.headers)));
-    return res.status(401).json({ error: 'Unauthorized' });
+  const { From, Body, MessageSid, from, body: msgBody, message } = req.body;
+
+  // Support both Twilio format (capitalized) and generic format
+  const senderPhone = From || from || '';
+  const messageBody = Body || msgBody || message || '';
+  const messageId = MessageSid || req.body.messageId || req.body.id || '';
+
+  if (!senderPhone || !messageBody) {
+    return res.status(400).json({ error: 'From and Body are required' });
   }
 
-  const { type, contactId, body: msgBody, message, conversationId, direction, messageType } = req.body;
+  // Normalize phone for matching
+  const normalized = senderPhone.replace(/\D/g, '');
 
-  console.log('[GHL Webhook] Inbound message received:', {
-    type: type || messageType,
-    contactId,
-    conversationId,
-    direction,
-    bodyLength: (msgBody || message || '').length,
-  });
-
-  if (!contactId) {
-    return res.status(400).json({ error: 'contactId is required' });
-  }
-
-  // Find local customer by ghl_contact_id
-  const { data: customer } = await supabase
+  // Find local customer by phone
+  const { data: customers } = await supabase
     .from('customers')
-    .select('id')
-    .eq('ghl_contact_id', contactId)
-    .single();
+    .select('id, phone')
+    .not('phone', 'is', null);
+
+  const customer = (customers || []).find(c => {
+    const localPhone = (c.phone || '').replace(/\D/g, '');
+    return localPhone === normalized
+      || localPhone.endsWith(normalized)
+      || normalized.endsWith(localPhone);
+  });
 
   if (!customer) {
-    console.warn(`[GHL Webhook] No local customer found for GHL contact ${contactId}`);
-    // Still return 200 so GHL doesn't retry
-    return res.json({ received: true, matched: false });
+    console.warn(`[Inbound] No customer matched phone ${senderPhone}`);
+    // Return 200 so Twilio doesn't retry
+    return res.status(200).type('text/xml').send('<Response></Response>');
   }
 
-  // Store the message locally
-  const stored = await storeLocalMessage({
+  // Store the inbound message locally
+  await storeLocalMessage({
     customerId: customer.id,
-    direction: direction === 'outbound' ? 'outbound' : 'inbound',
-    channel: String(type || messageType || 'email').toLowerCase() === 'sms' || type === 1 ? 'sms' : 'email',
-    subject: req.body.subject || null,
-    body: msgBody || message || '',
-    externalId: req.body.messageId || req.body.id || null,
-    metadata: {
-      ghl_conversation_id: conversationId,
-      ghl_contact_id: contactId,
-      webhook: true,
-    },
+    direction: 'inbound',
+    channel: 'sms',
+    subject: null,
+    body: messageBody,
+    externalId: messageId,
+    metadata: { from: senderPhone, twilio_sid: messageId },
   });
 
-  res.json({ received: true, matched: true, stored: !!stored });
+  console.log(`[Inbound] SMS from ${senderPhone} stored for customer ${customer.id}`);
+
+  // Respond with empty TwiML (Twilio expects XML response)
+  res.status(200).type('text/xml').send('<Response></Response>');
 }));
 
 // ── Email Templates ───────────────────────────────────────────────────────────
@@ -252,4 +235,3 @@ router.delete('/email-templates/:id', requireAuth, asyncHandler(async (req, res)
 }));
 
 export default router;
-

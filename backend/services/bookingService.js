@@ -2,7 +2,7 @@ import { supabase } from '../db/supabase.js';
 import { generateBookingCode } from '../utils/generateBookingCode.js';
 import { checkAvailability } from './availabilityService.js';
 import { calcRentalDays, calcPricing, DELIVERY_FEES } from './pricingService.js';
-import { fireGHLWebhook, buildBookingPayload } from './ghlWebhook.js';
+import { sendBookingNotification, buildBookingPayload } from './notifyService.js';
 import { sendBookingConfirmation } from './emailService.js';
 import { createNotification } from './notificationService.js';
 
@@ -219,9 +219,9 @@ export async function createBooking(payload) {
     reason: 'Booking submitted via website',
   });
 
-  // 8. GHL webhooks (fire-and-forget)
+  // 8. Send booking notification (fire-and-forget)
   const fullBooking = { ...booking, customers: customer, vehicles: vehicle };
-  fireGHLWebhook('booking.created', buildBookingPayload(fullBooking));
+  sendBookingNotification('booking_submitted', buildBookingPayload(fullBooking));
 
   // 9. Confirmation email to customer (fire-and-forget)
   sendBookingConfirmation({
@@ -242,7 +242,7 @@ export async function createBooking(payload) {
   return booking;
 }
 
-/** Transition a booking status with logging and GHL hooks */
+/** Transition a booking status with logging and notification hooks */
 export async function transitionBooking(bookingId, newStatus, { changedBy = 'owner', reason, extraFields = {} } = {}) {
   const booking = await getBookingDetail(bookingId);
 
@@ -277,17 +277,17 @@ export async function transitionBooking(bookingId, newStatus, { changedBy = 'own
     reason,
   });
 
-  // GHL event map
-  const ghlEventMap = {
-    approved: 'booking.approved',
-    declined: 'booking.declined',
-    cancelled: 'booking.cancelled',
-    completed: 'booking.completed',
+  // Send notification for status change (fire-and-forget)
+  const stageMap = {
+    approved: 'booking_approved',
+    declined: 'booking_declined',
+    cancelled: 'booking_cancelled',
+    completed: 'rental_completed',
   };
 
-  if (ghlEventMap[newStatus]) {
+  if (stageMap[newStatus]) {
     const updated = await getBookingDetail(bookingId);
-    fireGHLWebhook(ghlEventMap[newStatus], buildBookingPayload(updated));
+    sendBookingNotification(stageMap[newStatus], buildBookingPayload(updated));
   }
 
   // Dashboard notification for status changes
