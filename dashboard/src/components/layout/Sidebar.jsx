@@ -1,3 +1,4 @@
+import { useState, useRef } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Calendar, Car, Users, BookOpen,
@@ -21,11 +22,12 @@ const SYSTEM_NAV = [
   { to: '/webhook-failures', label: 'Webhooks', icon: AlertTriangle },
 ];
 
-// Settings always visible
 const SETTINGS_NAV = { to: '/settings', label: 'Settings', icon: Settings };
 
-function NavItem({ to, label, icon: Icon, end, alertKey, alerts, onClose, collapsed }) {
+/* ─── Nav item with magnify hover effect ──────────────────────────────────── */
+function NavItem({ to, label, icon: Icon, end, alertKey, alerts, onClose, showLabels }) {
   const count = alertKey ? (alerts[alertKey] || 0) : 0;
+  const [hovered, setHovered] = useState(false);
 
   return (
     <li>
@@ -33,17 +35,27 @@ function NavItem({ to, label, icon: Icon, end, alertKey, alerts, onClose, collap
         to={to}
         end={end}
         onClick={onClose}
-        title={collapsed ? label : undefined}
+        title={!showLabels ? label : undefined}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
         className={({ isActive }) =>
-          `group relative flex items-center w-full gap-3 font-medium rounded-lg text-sm transition-all duration-150 ${
-            collapsed ? 'justify-center px-2 py-2.5' : 'px-4 py-2.5'
+          `group relative flex items-center w-full gap-3 font-medium rounded-lg text-sm transition-all duration-200 ${
+            showLabels ? 'px-4 py-2.5' : 'justify-center px-2 py-2.5'
           } ${
             isActive
               ? 'text-[var(--sidebar-active-text)]'
               : 'text-[var(--sidebar-text)] hover:text-[var(--text-primary)]'
           }`
         }
-        style={({ isActive }) => isActive ? { backgroundColor: 'var(--sidebar-active-bg)' } : {}}
+        style={({ isActive }) => ({
+          backgroundColor: isActive ? 'var(--sidebar-active-bg)' : undefined,
+          // Magnify effect on hover when labels are showing
+          ...(showLabels && hovered && !isActive ? {
+            transform: 'translateX(4px) scale(1.02)',
+            backgroundColor: 'var(--sidebar-hover)',
+          } : {}),
+          transition: 'all 0.2s cubic-bezier(0.4,0,0.2,1)',
+        })}
       >
         {({ isActive }) => (
           <>
@@ -55,13 +67,28 @@ function NavItem({ to, label, icon: Icon, end, alertKey, alerts, onClose, collap
                   ? 'shrink-0'
                   : 'text-[var(--sidebar-text-muted)] group-hover:text-[var(--sidebar-text)] shrink-0'
               }
-              style={isActive ? { color: 'var(--sidebar-active-icon)' } : {}}
+              style={{
+                color: isActive ? 'var(--sidebar-active-icon)' : undefined,
+                // Icon magnify when collapsed and hovered
+                transform: !showLabels && hovered ? 'scale(1.2)' : 'scale(1)',
+                transition: 'transform 0.2s ease',
+              }}
             />
-            {!collapsed && <span className="flex-1 truncate">{label}</span>}
+            {showLabels && (
+              <span
+                className="flex-1 truncate"
+                style={{
+                  fontWeight: hovered && !isActive ? 600 : undefined,
+                  transition: 'font-weight 0.2s ease',
+                }}
+              >
+                {label}
+              </span>
+            )}
             {count > 0 && (
               <span
                 className={`text-[10px] font-bold rounded-full flex items-center justify-center bg-red-500 text-white shrink-0 ${
-                  collapsed ? 'absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-0.5' : 'min-w-[18px] h-[18px] px-1'
+                  !showLabels ? 'absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-0.5' : 'min-w-[18px] h-[18px] px-1'
                 }`}
               >
                 {count}
@@ -74,10 +101,34 @@ function NavItem({ to, label, icon: Icon, end, alertKey, alerts, onClose, collap
   );
 }
 
-export default function Sidebar({ open, onClose, alerts = {}, collapsed }) {
+/* ═══════════════════════════════════════════════════════════════════════════════
+   SIDEBAR
+   - pinned=true: always expanded, full width
+   - pinned=false: collapsed to 72px icon rail, hover to temporarily expand overlay
+   ═══════════════════════════════════════════════════════════════════════════════ */
+export default function Sidebar({ open, onClose, alerts = {}, pinned }) {
   const { signOut, profile } = useAuth();
   const isAdminOrOwner = profile?.role === 'owner' || profile?.role === 'admin';
   const initials = `${(profile?.first_name || '?')[0]}${(profile?.last_name || '')[0] || ''}`.toUpperCase();
+
+  // Hover-to-expand state (only matters when not pinned)
+  const [hoverExpanded, setHoverExpanded] = useState(false);
+  const hoverTimeout = useRef(null);
+
+  // Determine visual state
+  const isExpanded = pinned || hoverExpanded;
+
+  function handleMouseEnter() {
+    if (pinned) return; // pinned = always expanded, no hover logic
+    clearTimeout(hoverTimeout.current);
+    setHoverExpanded(true);
+  }
+
+  function handleMouseLeave() {
+    if (pinned) return;
+    // Small delay before collapsing so cursor can travel across gaps
+    hoverTimeout.current = setTimeout(() => setHoverExpanded(false), 200);
+  }
 
   return (
     <>
@@ -89,28 +140,39 @@ export default function Sidebar({ open, onClose, alerts = {}, collapsed }) {
         />
       )}
 
+      {/* Sidebar */}
       <aside
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
         className={`
           fixed mt-16 flex flex-col lg:mt-0 top-0 left-0 h-screen
-          border-r transition-all duration-300 ease-in-out z-[99999] lg:z-[999]
-          ${collapsed ? 'lg:w-[72px] lg:px-2' : 'lg:w-[260px] lg:px-5'}
+          border-r z-[99999] lg:z-[999]
           w-[260px] px-5
           ${open ? 'translate-x-0' : '-translate-x-full'}
-          lg:relative lg:translate-x-0 lg:flex
+          lg:translate-x-0 lg:flex
+          ${pinned
+            ? 'lg:relative lg:w-[260px] lg:px-5'
+            : hoverExpanded
+              ? 'lg:fixed lg:w-[260px] lg:px-5 lg:shadow-2xl'
+              : 'lg:fixed lg:w-[72px] lg:px-2'
+          }
         `}
         style={{
           backgroundColor: 'var(--sidebar-bg)',
           borderColor: 'var(--sidebar-border)',
+          transition: 'width 0.3s cubic-bezier(0.4,0,0.2,1), padding 0.3s cubic-bezier(0.4,0,0.2,1), box-shadow 0.3s ease',
+          // When hover-expanding, add elevated shadow for overlay feel
+          ...(hoverExpanded && !pinned ? { boxShadow: '8px 0 32px rgba(0,0,0,0.3)' } : {}),
         }}
       >
         {/* Logo area */}
-        <div className={`flex items-center justify-between ${collapsed ? 'lg:py-4 lg:px-0 py-5 px-2' : 'py-5 px-2'}`}>
-          {/* Full logo — show when expanded (or always on mobile) */}
+        <div className={`flex items-center justify-between py-5 px-2`}>
+          {/* Full logo — show when expanded */}
           <NavLink
             to="/"
             onClick={onClose}
-            className={`relative block transition-opacity duration-200 hover:opacity-75 ${
-              collapsed ? 'lg:hidden flex-1' : 'flex-1'
+            className={`relative block transition-all duration-300 hover:opacity-75 ${
+              isExpanded ? 'flex-1 opacity-100' : 'lg:hidden flex-1 opacity-100'
             }`}
           >
             <img
@@ -127,8 +189,8 @@ export default function Sidebar({ open, onClose, alerts = {}, collapsed }) {
             />
           </NavLink>
 
-          {/* Collapsed icon (desktop only) */}
-          {collapsed && (
+          {/* Collapsed icon (desktop only, when not expanded) */}
+          {!isExpanded && (
             <NavLink
               to="/"
               onClick={onClose}
@@ -159,40 +221,46 @@ export default function Sidebar({ open, onClose, alerts = {}, collapsed }) {
             <div className="flex flex-col gap-4">
               {/* Main menu */}
               <div>
-                {!collapsed && (
-                  <h3 className="section-label mb-4 ml-4">
+                {isExpanded && (
+                  <h3 className="section-label mb-4 ml-4" style={{
+                    opacity: isExpanded ? 1 : 0,
+                    transition: 'opacity 0.2s ease',
+                  }}>
                     Menu
                   </h3>
                 )}
-                {collapsed && <div className="hidden lg:block h-2" />}
+                {!isExpanded && <div className="hidden lg:block h-2" />}
                 <ul className="flex flex-col gap-0.5">
                   {MAIN_NAV.map(item => (
-                    <NavItem key={item.to} {...item} alerts={alerts} onClose={onClose} collapsed={collapsed} />
+                    <NavItem key={item.to} {...item} alerts={alerts} onClose={onClose} showLabels={isExpanded} />
                   ))}
                 </ul>
               </div>
 
-              {/* System — Stripe/Webhooks only visible to owner/admin */}
+              {/* System — owner/admin only */}
               {isAdminOrOwner && (
               <div>
-                {!collapsed && (
-                  <h3 className="section-label mb-4 ml-4">
+                {isExpanded && (
+                  <h3 className="section-label mb-4 ml-4" style={{
+                    opacity: isExpanded ? 1 : 0,
+                    transition: 'opacity 0.2s ease',
+                  }}>
                     System
                   </h3>
                 )}
                 <ul className="flex flex-col gap-0.5">
                   {SYSTEM_NAV.map(item => (
-                    <NavItem key={item.to} {...item} alerts={alerts} onClose={onClose} collapsed={collapsed} />
+                    <NavItem key={item.to} {...item} alerts={alerts} onClose={onClose} showLabels={isExpanded} />
                   ))}
                 </ul>
               </div>
               )}
 
-              {/* Settings — always visible */}
+              {/* Settings */}
               <div>
-                {!collapsed && <div className="border-t border-[var(--sidebar-border)] my-1" />}
+                {isExpanded && <div className="border-t border-[var(--sidebar-border)] my-1" />}
                 <ul className="flex flex-col gap-0.5">
-                  <NavItem {...SETTINGS_NAV} alerts={alerts} onClose={onClose} collapsed={collapsed} />
+                  <NavItem {...SETTINGS_NAV} alerts={alerts} onClose={onClose} showLabels={isExpanded} />
                 </ul>
               </div>
             </div>
@@ -201,14 +269,13 @@ export default function Sidebar({ open, onClose, alerts = {}, collapsed }) {
 
         {/* Footer — user info + sign out */}
         <div className="mt-auto py-4 space-y-2" style={{ borderTop: '1px solid var(--sidebar-border)' }}>
-          {/* User profile pill */}
           {profile && (
             <NavLink
               to="/settings"
               onClick={onClose}
-              title={collapsed ? `${profile.first_name} ${profile.last_name}` : undefined}
+              title={!isExpanded ? `${profile.first_name} ${profile.last_name}` : undefined}
               className={`flex items-center gap-3 py-2 rounded-lg transition-colors hover:bg-[var(--sidebar-active-bg)] ${
-                collapsed ? 'lg:justify-center lg:px-1 px-4' : 'px-4'
+                isExpanded ? 'px-4' : 'lg:justify-center lg:px-1 px-4'
               }`}
             >
               <div
@@ -217,22 +284,24 @@ export default function Sidebar({ open, onClose, alerts = {}, collapsed }) {
               >
                 {initials}
               </div>
-              <div className={`min-w-0 ${collapsed ? 'lg:hidden' : ''}`}>
-                <p className="text-sm font-medium truncate" style={{ color: 'var(--sidebar-text)' }}>
-                  {profile.first_name} {profile.last_name}
-                </p>
-                <p className="text-[10px] truncate capitalize" style={{ color: 'var(--sidebar-text-muted)' }}>
-                  {profile.role}
-                </p>
-              </div>
+              {isExpanded && (
+                <div className="min-w-0" style={{ opacity: 1, transition: 'opacity 0.2s ease' }}>
+                  <p className="text-sm font-medium truncate" style={{ color: 'var(--sidebar-text)' }}>
+                    {profile.first_name} {profile.last_name}
+                  </p>
+                  <p className="text-[10px] truncate capitalize" style={{ color: 'var(--sidebar-text-muted)' }}>
+                    {profile.role}
+                  </p>
+                </div>
+              )}
             </NavLink>
           )}
 
           <button
             onClick={signOut}
-            title={collapsed ? 'Sign out' : undefined}
+            title={!isExpanded ? 'Sign out' : undefined}
             className={`group relative flex items-center w-full gap-3 py-2.5 font-medium rounded-lg text-sm transition-colors ${
-              collapsed ? 'lg:justify-center lg:px-1 px-4' : 'px-4'
+              isExpanded ? 'px-4' : 'lg:justify-center lg:px-1 px-4'
             }`}
             style={{ color: 'var(--sidebar-text)' }}
             onMouseEnter={e => {
@@ -245,7 +314,7 @@ export default function Sidebar({ open, onClose, alerts = {}, collapsed }) {
             }}
           >
             <LogOut size={20} strokeWidth={1.8} className="shrink-0" />
-            <span className={collapsed ? 'lg:hidden' : ''}>{collapsed ? '' : 'Sign out'}</span>
+            {isExpanded && <span>Sign out</span>}
           </button>
         </div>
       </aside>

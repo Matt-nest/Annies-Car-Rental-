@@ -19,15 +19,17 @@ export default function DashboardLayout() {
   const [profileOpen, setProfileOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  // ── Sidebar collapse (desktop only, persisted) ──────────────────────────────
-  const [collapsed, setCollapsed] = useState(() => {
-    try { return localStorage.getItem('sidebar-collapsed') === 'true'; } catch { return false; }
+  // ── Sidebar pinned state (desktop only, persisted) ──────────────────────────
+  // pinned=true: sidebar always expanded (takes layout space)
+  // pinned=false: sidebar collapsed to icon rail, hover to expand overlay
+  const [pinned, setPinned] = useState(() => {
+    try { return localStorage.getItem('sidebar-pinned') !== 'false'; } catch { return true; }
   });
 
-  function toggleCollapse() {
-    setCollapsed(prev => {
+  function togglePinned() {
+    setPinned(prev => {
       const next = !prev;
-      try { localStorage.setItem('sidebar-collapsed', String(next)); } catch {}
+      try { localStorage.setItem('sidebar-pinned', String(next)); } catch {}
       return next;
     });
   }
@@ -92,8 +94,11 @@ export default function DashboardLayout() {
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
           alerts={alerts}
-          collapsed={collapsed}
+          pinned={pinned}
         />
+
+        {/* When sidebar is unpinned (fixed overlay), add a spacer for the 72px icon rail */}
+        {!pinned && <div className="hidden lg:block shrink-0" style={{ width: 72 }} />}
 
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
           {/* Header */}
@@ -108,24 +113,24 @@ export default function DashboardLayout() {
           >
             <div className="flex flex-grow items-center gap-3 px-4 py-3 sm:px-6">
               {/* ── Sidebar toggle button (TailAdmin style) ──────────── */}
-              {/* Mobile: opens drawer   •   Desktop: toggles collapse */}
+              {/* Mobile: opens drawer   •   Desktop: toggles pinned/unpinned */}
               <button
                 onClick={() => {
                   if (window.innerWidth < 1024) {
                     setSidebarOpen(true);
                   } else {
-                    toggleCollapse();
+                    togglePinned();
                   }
                 }}
-                className="flex items-center justify-center w-10 h-10 rounded-lg border-2 shrink-0 transition-colors"
+                className="flex items-center justify-center w-10 h-10 rounded-lg border-2 shrink-0 transition-all duration-200"
                 style={{
-                  borderColor: 'var(--accent-color)',
-                  color: 'var(--text-primary)',
-                  backgroundColor: 'transparent',
+                  borderColor: pinned ? 'var(--accent-color)' : 'var(--border-subtle)',
+                  color: pinned ? 'var(--accent-color)' : 'var(--text-primary)',
+                  backgroundColor: pinned ? 'rgba(70,95,255,0.08)' : 'transparent',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'rgba(70,95,255,0.1)'; e.currentTarget.style.color = 'var(--accent-color)'; }}
-                onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'rgba(70,95,255,0.12)'; e.currentTarget.style.color = 'var(--accent-color)'; e.currentTarget.style.borderColor = 'var(--accent-color)'; }}
+                onMouseLeave={e => { e.currentTarget.style.backgroundColor = pinned ? 'rgba(70,95,255,0.08)' : 'transparent'; e.currentTarget.style.color = pinned ? 'var(--accent-color)' : 'var(--text-primary)'; e.currentTarget.style.borderColor = pinned ? 'var(--accent-color)' : 'var(--border-subtle)'; }}
+                aria-label={pinned ? 'Unpin sidebar' : 'Pin sidebar'}
               >
                 {/* Three-line hamburger icon (☰) */}
                 <svg width="16" height="12" viewBox="0 0 16 12" fill="none" xmlns="http://www.w3.org/2000/svg">
