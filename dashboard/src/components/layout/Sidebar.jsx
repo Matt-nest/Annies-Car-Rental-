@@ -134,12 +134,11 @@ export default function Sidebar({ open, onClose, alerts = {}, collapsed }) {
               onClick={onClose}
               className="hidden lg:flex mx-auto items-center justify-center transition-opacity duration-200 hover:opacity-75"
             >
-              <div
-                className="w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold text-white"
-                style={{ background: 'linear-gradient(135deg, #465FFF, #7c3aed)' }}
-              >
-                A
-              </div>
+              <img
+                src="/logo-icon.png"
+                alt="Annie's & Co"
+                className="w-9 h-9 object-contain"
+              />
             </NavLink>
           )}
 
