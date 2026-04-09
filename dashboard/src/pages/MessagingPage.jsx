@@ -1169,9 +1169,10 @@ export default function MessagingPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: EASE }}
         style={{
-          padding: '14px 24px',
+          padding: '14px 16px',
           borderBottom: '1px solid var(--border-subtle)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          flexWrap: 'wrap', gap: '8px',
           background: 'var(--bg-elevated)',
           backdropFilter: 'blur(12px)',
         }}
@@ -1225,7 +1226,8 @@ export default function MessagingPage() {
         </div>
       ) : (
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-          <div style={{ width: 340, flexShrink: 0 }}>
+          {/* Desktop: side-by-side. Mobile: show list OR chat */}
+          <div className="hidden md:block" style={{ width: 340, flexShrink: 0 }}>
             <ConversationList
               conversations={conversations}
               selected={selectedCustomer}
@@ -1236,7 +1238,32 @@ export default function MessagingPage() {
               syncing={syncing}
             />
           </div>
-          <ChatPanel customerId={selectedCustomer} conversations={conversations} />
+          {/* Mobile: show conversation list when nothing is selected */}
+          <div className={`md:hidden w-full ${selectedCustomer ? 'hidden' : 'block'}`}>
+            <ConversationList
+              conversations={conversations}
+              selected={selectedCustomer}
+              onSelect={setSelectedCustomer}
+              search={search}
+              onSearch={setSearch}
+              onSync={handleSync}
+              syncing={syncing}
+            />
+          </div>
+          {/* Chat panel — on mobile, show full-width when a conversation is selected */}
+          <div className={`flex-1 min-w-0 ${!selectedCustomer ? 'hidden md:flex' : 'flex'} flex-col`}>
+            {/* Mobile back button */}
+            {selectedCustomer && (
+              <button
+                className="md:hidden flex items-center gap-2 px-4 py-3 text-sm font-medium"
+                style={{ color: 'var(--accent-color)', borderBottom: '1px solid var(--border-subtle)' }}
+                onClick={() => setSelectedCustomer(null)}
+              >
+                ← Back to conversations
+              </button>
+            )}
+            <ChatPanel customerId={selectedCustomer} conversations={conversations} />
+          </div>
         </div>
       )}
 

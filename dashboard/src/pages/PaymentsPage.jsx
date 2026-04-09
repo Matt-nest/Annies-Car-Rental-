@@ -100,7 +100,8 @@ export default function PaymentsPage() {
         <EmptyState icon={CreditCard} title="No payments found" description="Payments will appear here as bookings are completed." />
       ) : (
         <div className="card overflow-hidden">
-          <div className="overflow-x-auto glass-scroll">
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto glass-scroll">
             <table className="w-full text-sm whitespace-nowrap">
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
@@ -159,7 +160,7 @@ export default function PaymentsPage() {
                           <span className="text-xs">{payment.method}</span>
                         </div>
                       </td>
-                      <td className={`px-5 py-4 text-right font-bold tabular-nums tabular-nums`} style={{ color: isRefund ? 'var(--danger-color)' : '#22c55e' }}>
+                      <td className={`px-5 py-4 text-right font-bold tabular-nums`} style={{ color: isRefund ? 'var(--danger-color)' : '#22c55e' }}>
                         {displayAmount}
                       </td>
                       <td className="px-5 py-4 text-right">
@@ -190,6 +191,60 @@ export default function PaymentsPage() {
                 })}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile card list */}
+          <div className="md:hidden divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
+            {payments.map(payment => {
+              const isRefund = payment.payment_type === 'refund';
+              const isStripe = payment.method === 'stripe' && payment.reference_id?.startsWith('pi_');
+              const displayAmount = isRefund
+                ? `-$${Math.abs(payment.amount).toFixed(2)}`
+                : `$${parseFloat(payment.amount).toFixed(2)}`;
+              const customerName = payment.bookings?.customers
+                ? `${payment.bookings.customers.first_name} ${payment.bookings.customers.last_name}` : 'Unknown';
+
+              return (
+                <div key={payment.id} className="px-4 py-3.5" style={{ borderColor: 'var(--border-subtle)' }}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{customerName}</span>
+                    <span className="text-sm font-bold tabular-nums" style={{ color: isRefund ? 'var(--danger-color)' : '#22c55e' }}>
+                      {displayAmount}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Link
+                        to={`/bookings/${payment.booking_id}`}
+                        className="mono-code text-xs font-semibold"
+                        style={{ color: 'var(--accent-color)' }}
+                      >
+                        {payment.bookings?.booking_code || payment.booking_id.substring(0, 8)}
+                      </Link>
+                      <span className="status-pill capitalize" style={{
+                        backgroundColor: isRefund ? 'rgba(244,63,94,0.08)' : payment.payment_type === 'deposit' ? 'rgba(139,92,246,0.08)' : 'rgba(59,130,246,0.08)',
+                        borderColor: isRefund ? 'rgba(244,63,94,0.15)' : payment.payment_type === 'deposit' ? 'rgba(139,92,246,0.15)' : 'rgba(59,130,246,0.15)',
+                        color: isRefund ? '#f43f5e' : payment.payment_type === 'deposit' ? '#8b5cf6' : '#3b82f6',
+                      }}>
+                        {payment.payment_type}
+                      </span>
+                    </div>
+                    <span className="mono-code text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
+                      {format(new Date(payment.created_at), 'MM/dd HH:mm')}
+                    </span>
+                  </div>
+                  {!isRefund && isStripe && payment.amount > 0 && (
+                    <button
+                      onClick={() => openRefundModal(payment)}
+                      className="mt-2 w-full h-10 rounded-lg text-xs font-semibold transition-colors"
+                      style={{ backgroundColor: 'var(--accent-glow)', color: 'var(--accent-color)', border: '1px solid rgba(30,58,95,0.2)' }}
+                    >
+                      Issue Refund
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

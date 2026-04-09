@@ -175,6 +175,47 @@ export default function BookingsPage() {
           emptyMessage="No bookings found"
           emptyIcon={BookOpen}
           onRowClick={b => navigate(`/bookings/${b.id}`)}
+          mobileCardRenderer={b => (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="mono-code text-xs font-semibold" style={{ color: 'var(--accent-color)' }}>{b.booking_code}</span>
+                <StatusBadge status={b.status} />
+              </div>
+              <div className="flex items-center gap-2.5">
+                <div
+                  className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shrink-0"
+                  style={{ background: 'linear-gradient(135deg, #465FFF, #8B5CF6)', color: '#fff' }}
+                >
+                  {b.customers?.first_name?.[0]}{b.customers?.last_name?.[0]}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{b.customers?.first_name} {b.customers?.last_name}</p>
+                  <p className="text-xs truncate" style={{ color: 'var(--text-tertiary)' }}>{b.vehicles?.year} {b.vehicles?.make} {b.vehicles?.model}</p>
+                </div>
+                <span className="ml-auto text-sm font-bold tabular-nums shrink-0" style={{ color: 'var(--text-primary)' }}>${Number(b.total_cost).toLocaleString()}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs" style={{ color: 'var(--text-secondary)' }}>
+                <span>{format(new Date(b.pickup_date), 'MMM d')} → {format(new Date(b.return_date), 'MMM d')}</span>
+                <span>{b.rental_days}d</span>
+              </div>
+              {b.status === 'pending_approval' && (
+                <div className="flex gap-2 pt-1" onClick={e => e.stopPropagation()}>
+                  <button
+                    onClick={() => setActionModal({ type: 'approve', booking: b })}
+                    className="flex-1 h-10 rounded-lg flex items-center justify-center gap-1.5 text-xs font-semibold text-white bg-emerald-500 active:bg-emerald-600"
+                  >
+                    <CheckCircle size={14} /> Approve
+                  </button>
+                  <button
+                    onClick={() => setActionModal({ type: 'decline', booking: b })}
+                    className="flex-1 h-10 rounded-lg flex items-center justify-center gap-1.5 text-xs font-semibold text-white bg-red-500 active:bg-red-600"
+                  >
+                    <XCircle size={14} /> Decline
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         />
       </div>
 
