@@ -107,6 +107,8 @@ export function buildMergeFields(bookingPayload) {
     // Confirm link — drives customer to sign agreement + pay
     confirm_link:   `${siteUrl}/confirm?code=${bp.booking_code || ''}`,
     status_link:    `${siteUrl}/booking-status?code=${bp.booking_code || ''}`,
+    // Portal link — drives customer directly to the rental portal for check-in/out
+    portal_link:    `${siteUrl}/portal?code=${bp.booking_code || ''}&email=${encodeURIComponent(c.email || '')}`,
     // Payment fields
     amount:         bp.amount || bp.total_cost || '',
     payment_method: bp.payment_method || 'Card',
