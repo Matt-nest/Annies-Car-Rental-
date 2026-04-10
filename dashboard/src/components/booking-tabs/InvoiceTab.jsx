@@ -25,7 +25,17 @@ export default function InvoiceTab({ booking, onReload }) {
         api.getBookingDeposit(booking.id).catch(() => null),
       ]);
       setInvoice(inv);
-      setDeposit(dep);
+      // Fallback: booking_deposits table may be empty — use booking.deposit_amount
+      if (dep && dep.status !== 'none' && dep.amount > 0) {
+        setDeposit(dep);
+      } else if (booking.deposit_amount) {
+        setDeposit({
+          amount: Math.round(booking.deposit_amount * 100),
+          status: booking.deposit_status || 'held',
+        });
+      } else {
+        setDeposit(null);
+      }
     } catch (e) { console.error(e); }
     setLoading(false);
   }

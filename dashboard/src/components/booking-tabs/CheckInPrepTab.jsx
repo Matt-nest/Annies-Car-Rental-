@@ -40,7 +40,7 @@ export default function CheckInPrepTab({ booking, onReload }) {
         odometer: form.odometer ? Number(form.odometer) : undefined,
         fuelLevel: form.fuelLevel,
         conditionNotes: form.conditionNotes || undefined,
-        photos: photos.length > 0 ? photos : undefined,
+        photoUrls: [],
       });
       setForm({ odometer: '', fuelLevel: 'full', conditionNotes: '' });
       setPhotos([]);

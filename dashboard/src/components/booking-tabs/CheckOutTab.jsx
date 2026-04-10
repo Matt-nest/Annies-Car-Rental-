@@ -56,7 +56,17 @@ export default function CheckOutTab({ booking, onReload }) {
         api.getBookingDeposit(booking.id).catch(() => null),
       ]);
       setIncidentals(inc);
-      setDeposit(dep);
+      // Fallback: booking_deposits table may be empty — use booking.deposit_amount
+      if (dep && dep.status !== 'none' && dep.amount > 0) {
+        setDeposit(dep);
+      } else if (booking.deposit_amount) {
+        setDeposit({
+          amount: Math.round(booking.deposit_amount * 100),
+          status: booking.deposit_status || 'held',
+        });
+      } else {
+        setDeposit(null);
+      }
     } catch (e) { console.error(e); }
     setLoading(false);
   }
@@ -89,7 +99,7 @@ export default function CheckOutTab({ booking, onReload }) {
         checkoutOdometer: inspectionForm.checkoutOdometer ? Number(inspectionForm.checkoutOdometer) : undefined,
         fuelLevel: inspectionForm.fuelLevel,
         conditionNotes: inspectionForm.conditionNotes || undefined,
-        photos: photos.length > 0 ? photos : undefined,
+        photoUrls: [],
       });
       await loadData();
       onReload?.();
@@ -384,7 +394,7 @@ export default function CheckOutTab({ booking, onReload }) {
 
             {/* Dropdown Menu */}
             {showDropdown && (
-              <div className="absolute z-20 mt-1 w-full bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-xl shadow-lg max-h-64 overflow-y-auto">
+              <div className="absolute z-50 mt-1 w-full bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-xl shadow-lg max-h-64 overflow-y-auto">
                 {availableTypes.map(type => (
                   <button
                     key={type.value}

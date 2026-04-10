@@ -18,8 +18,9 @@ export default function CheckInsPage() {
   async function loadBookings() {
     setLoading(true);
     try {
-      const data = await api.getBookings();
-      setBookings(data || []);
+      const result = await api.getBookings({ limit: 200 });
+      // API returns { data: [...], total, limit, offset }
+      setBookings(Array.isArray(result) ? result : (result?.data || []));
     } catch (e) { console.error(e); }
     setLoading(false);
   }

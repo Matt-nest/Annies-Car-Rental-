@@ -228,20 +228,25 @@ export default function BookingDetailPage() {
         />
       )}
 
-      {activeTab === 'checkin' && (
-        <CheckInPrepTab booking={booking} onReload={load} />
-      )}
+      {/* Tab content — z-10 so dropdowns float above the agreement section */}
+      <div className="relative" style={{ zIndex: 10 }}>
+        {activeTab === 'checkin' && (
+          <CheckInPrepTab booking={booking} onReload={load} />
+        )}
 
-      {activeTab === 'checkout' && (
-        <CheckOutTab booking={booking} onReload={load} />
-      )}
+        {activeTab === 'checkout' && (
+          <CheckOutTab booking={booking} onReload={load} />
+        )}
 
-      {activeTab === 'invoice' && (
-        <InvoiceTab booking={booking} onReload={load} />
-      )}
+        {activeTab === 'invoice' && (
+          <InvoiceTab booking={booking} onReload={load} />
+        )}
+      </div>
 
       {/* Rental Agreement (always visible below tabs) */}
-      <AgreementSection bookingId={id} />
+      <div className="relative" style={{ zIndex: 0 }}>
+        <AgreementSection bookingId={id} />
+      </div>
 
       {/* Timeline (always visible below tabs) */}
       <Section title="Status Timeline">
