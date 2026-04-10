@@ -16,7 +16,7 @@ router.get('/overview', requireAuth, asyncHandler(async (req, res) => {
     { count: activeCount },
     { data: pickupsToday },
     { data: returnsToday },
-    { data: monthRevenue },
+    { data: confirmedPayments },
     { data: avgRating },
     { count: monthBookings },
     { count: pendingAgreements },
@@ -27,7 +27,10 @@ router.get('/overview', requireAuth, asyncHandler(async (req, res) => {
       .eq('pickup_date', todayStr).in('status', ['approved', 'confirmed']),
     supabase.from('bookings').select('id, booking_code, return_time, customers(first_name, last_name), vehicles(year, make, model)')
       .eq('return_date', todayStr).eq('status', 'active'),
-    supabase.from('bookings').select('total_cost').gte('created_at', `${startOfMonth}T00:00:00`).in('status', ['approved', 'confirmed', 'active', 'returned', 'completed']),
+    // Revenue from CONFIRMED payments only (not booking estimates)
+    supabase.from('payments').select('amount, payment_type')
+      .gte('created_at', `${startOfMonth}T00:00:00`)
+      .in('payment_type', ['rental', 'refund']),
     supabase.from('reviews').select('rating'),
     supabase.from('bookings').select('*', { count: 'exact', head: true }).gte('created_at', `${startOfMonth}T00:00:00`),
     supabase.from('rental_agreements').select('*', { count: 'exact', head: true })
@@ -35,7 +38,8 @@ router.get('/overview', requireAuth, asyncHandler(async (req, res) => {
       .is('owner_signed_at', null),
   ]);
 
-  const revenueThisMonth = (monthRevenue || []).reduce((s, b) => s + parseFloat(b.total_cost), 0);
+  // Net revenue = rental payments minus refunds (deposits excluded)
+  const revenueThisMonth = (confirmedPayments || []).reduce((s, p) => s + parseFloat(p.amount), 0);
   const avgRatingVal = avgRating?.length
     ? (avgRating.reduce((s, r) => s + r.rating, 0) / avgRating.length).toFixed(1)
     : null;
@@ -52,64 +56,90 @@ router.get('/overview', requireAuth, asyncHandler(async (req, res) => {
   });
 }));
 
-/** GET /stats/revenue — revenue breakdown */
+/** GET /stats/revenue — revenue breakdown (confirmed payments only) */
 router.get('/revenue', requireAuth, asyncHandler(async (req, res) => {
   const { from, to, period = 'month' } = req.query;
 
+  // Fetch confirmed payments joined with their booking + vehicle data
   let query = supabase
-    .from('bookings')
-    .select('booking_code, pickup_date, total_cost, tax_amount, source, vehicle_id, created_at, deposit_status, vehicles(year, make, model, category)')
-    .in('status', ['approved', 'confirmed', 'active', 'returned', 'completed']);
+    .from('payments')
+    .select('amount, payment_type, method, reference_id, created_at, paid_at, booking_id, bookings(booking_code, pickup_date, total_cost, tax_amount, source, vehicle_id, vehicles(year, make, model, category))')
+    .in('payment_type', ['rental', 'refund']);
 
-  // Only apply date filters if explicitly provided
   if (from) query = query.gte('created_at', `${from}T00:00:00`);
   if (to)   query = query.lte('created_at', `${to}T23:59:59`);
 
-  const { data, error } = await query.order('created_at', { ascending: false });
-
+  const { data: payments, error } = await query.order('created_at', { ascending: false });
   if (error) throw error;
 
-  // Group by month
+  // Group by month (using the booking's pickup_date for consistency)
   const byMonth = {};
-  for (const b of data || []) {
-    const key = b.pickup_date.slice(0, 7); // YYYY-MM
-    byMonth[key] = (byMonth[key] || 0) + parseFloat(b.total_cost);
+  for (const p of payments || []) {
+    const pickupDate = p.bookings?.pickup_date;
+    if (!pickupDate) continue;
+    const key = pickupDate.slice(0, 7); // YYYY-MM
+    byMonth[key] = (byMonth[key] || 0) + parseFloat(p.amount);
   }
 
   // Group by source
   const bySource = {};
-  for (const b of data || []) {
-    bySource[b.source || 'website'] = (bySource[b.source || 'website'] || 0) + parseFloat(b.total_cost);
+  for (const p of payments || []) {
+    const src = p.bookings?.source || 'website';
+    bySource[src] = (bySource[src] || 0) + parseFloat(p.amount);
   }
 
   // Group by vehicle
   const byVehicle = {};
-  for (const b of data || []) {
-    const key = b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : b.vehicle_id;
-    byVehicle[key] = (byVehicle[key] || 0) + parseFloat(b.total_cost);
+  for (const p of payments || []) {
+    const v = p.bookings?.vehicles;
+    const key = v ? `${v.year} ${v.make} ${v.model}` : (p.bookings?.vehicle_id || 'unknown');
+    byVehicle[key] = (byVehicle[key] || 0) + parseFloat(p.amount);
   }
 
   // Group by vehicle category
   const byCategory = {};
-  for (const b of data || []) {
-    const cat = b.vehicles?.category || 'uncategorized';
-    byCategory[cat] = (byCategory[cat] || 0) + parseFloat(b.total_cost);
+  for (const p of payments || []) {
+    const cat = p.bookings?.vehicles?.category || 'uncategorized';
+    byCategory[cat] = (byCategory[cat] || 0) + parseFloat(p.amount);
   }
 
-  // Group by day (for heatmap and daily trend)
+  // Group by day
   const byDay = {};
-  for (const b of data || []) {
-    byDay[b.pickup_date] = (byDay[b.pickup_date] || 0) + parseFloat(b.total_cost);
+  for (const p of payments || []) {
+    const day = (p.paid_at || p.created_at).slice(0, 10);
+    byDay[day] = (byDay[day] || 0) + parseFloat(p.amount);
   }
 
-  const total = (data || []).reduce((s, b) => s + parseFloat(b.total_cost), 0);
-  const totalTax = (data || []).reduce((s, b) => s + parseFloat(b.tax_amount || 0), 0);
+  const total = (payments || []).reduce((s, p) => s + parseFloat(p.amount), 0);
+
+  // Estimate tax from linked bookings (for reporting only)
+  const seenBookings = new Set();
+  let totalTax = 0;
+  for (const p of payments || []) {
+    if (p.payment_type === 'rental' && p.bookings?.tax_amount && !seenBookings.has(p.booking_id)) {
+      totalTax += parseFloat(p.bookings.tax_amount || 0);
+      seenBookings.add(p.booking_id);
+    }
+  }
 
   // Current month stats
   const now = new Date();
   const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const thisMonthRevenue = byMonth[currentMonthKey] || 0;
-  const thisMonthBookings = (data || []).filter(b => b.pickup_date.startsWith(currentMonthKey)).length;
+  const thisMonthBookings = (payments || []).filter(p => p.payment_type === 'rental' && p.bookings?.pickup_date?.startsWith(currentMonthKey)).length;
+
+  // Map payments to transaction-like objects for backward compat with the dashboard
+  const transactions = (payments || []).map(p => ({
+    booking_code: p.bookings?.booking_code,
+    pickup_date: p.bookings?.pickup_date,
+    total_cost: p.amount,
+    tax_amount: p.bookings?.tax_amount || 0,
+    source: p.bookings?.source,
+    vehicle_id: p.bookings?.vehicle_id,
+    created_at: p.created_at,
+    payment_type: p.payment_type,
+    vehicles: p.bookings?.vehicles,
+  }));
 
   res.json({
     total: total.toFixed(2),
@@ -121,7 +151,7 @@ router.get('/revenue', requireAuth, asyncHandler(async (req, res) => {
     by_vehicle: byVehicle,
     by_category: byCategory,
     by_day: byDay,
-    transactions: data,
+    transactions,
   });
 }));
 
@@ -136,21 +166,29 @@ router.get('/vehicles', requireAuth, asyncHandler(async (req, res) => {
   if (error) throw error;
 
   const stats = await Promise.all((vehicles || []).map(async (v) => {
+    // Get bookings for utilization (days rented)
     const { data: bookings } = await supabase
       .from('bookings')
-      .select('pickup_date, return_date, total_cost')
+      .select('pickup_date, return_date')
       .eq('vehicle_id', v.id)
       .in('status', ['confirmed', 'active', 'returned', 'completed'])
       .gte('pickup_date', since);
 
+    // Get confirmed payments for this vehicle's bookings (actual revenue)
+    const { data: vehiclePayments } = await supabase
+      .from('payments')
+      .select('amount, booking_id, bookings!inner(vehicle_id)')
+      .eq('bookings.vehicle_id', v.id)
+      .in('payment_type', ['rental', 'refund'])
+      .gte('created_at', `${since}T00:00:00`);
+
     let totalDays = 0;
-    let totalRevenue = 0;
     for (const b of bookings || []) {
       const days = Math.ceil((new Date(b.return_date) - new Date(b.pickup_date)) / (1000 * 60 * 60 * 24));
       totalDays += days;
-      totalRevenue += parseFloat(b.total_cost);
     }
 
+    const totalRevenue = (vehiclePayments || []).reduce((s, p) => s + parseFloat(p.amount), 0);
     const utilizationRate = ((totalDays / 90) * 100).toFixed(1);
     return { ...v, rentals_last_90d: (bookings || []).length, days_rented_90d: totalDays, revenue_90d: totalRevenue.toFixed(2), utilization_rate: utilizationRate };
   }));
