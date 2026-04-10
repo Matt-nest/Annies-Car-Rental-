@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Users, Fuel, Gauge, Settings2, CheckCircle2, XCircle, MapPin, ArrowLeft, Phone, Star, ArrowRight, X } from 'lucide-react';
+import { Users, Fuel, Gauge, Settings2, CheckCircle2, XCircle, MapPin, ArrowLeft, Phone, Star, ArrowRight, X, DollarSign, Clock, Car } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Vehicle } from '../../types';
 import { getVehicleDisplayName } from '../../data/vehicles';
@@ -65,10 +65,12 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
   ], [vehicle.transmission, vehicle.mpg, vehicle.seats, vehicle.fuel]);
 
   const rules = useMemo(() => [
-    { label: 'No smoking', desc: 'Smoking in the vehicle will result in a cleaning fee', icon: XCircle },
-    { label: 'Return clean', desc: 'Excessively dirty vehicles may incur an additional fee', icon: CheckCircle2 },
-    { label: 'Refuel before return', desc: 'Return the vehicle with the same fuel level', icon: Fuel },
-    { label: 'No off-roading', desc: 'Vehicle must be driven on paved roads only', icon: MapPin },
+    { label: 'No smoking or pets', desc: 'Smoking or transporting animals incurs a cleaning fee up to $250', icon: XCircle },
+    { label: 'Fuel policy', desc: 'Return at the same fuel level — refueling charge is $20 per quarter tank', icon: Fuel },
+    { label: 'Tolls & violations', desc: 'You\'re responsible for tolls and traffic fines, plus a $50 admin fee per violation', icon: DollarSign },
+    { label: 'Late returns', desc: 'Late returns are charged $30/day — please contact us if you need an extension', icon: Clock },
+    { label: '150 miles/day included', desc: 'Standard rentals include 150 miles per day — excess mileage can be arranged', icon: Car },
+    { label: 'Return condition', desc: 'Return the vehicle in the same condition received, aside from normal wear', icon: CheckCircle2 },
   ], []);
 
   return (
@@ -418,10 +420,13 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
               )}
             </AnimatePresence>
 
-            {/* Rules */}
+            {/* Rates & Policies */}
             <section className="space-y-6 pt-8" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-              <h2 className="text-2xl font-medium">Rental Guidelines</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h2 className="text-2xl font-medium">Rates & Policies</h2>
+                <p className="text-sm mt-1" style={{ color: 'var(--text-tertiary)' }}>Transparent pricing, no surprises. Incidentals are only charged if applicable.</p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {rules.map((rule, i) => (
                   <div key={i} className="flex gap-4">
                     <rule.icon size={18} className="mt-0.5 shrink-0" style={{ color: 'var(--text-tertiary)' }} />

@@ -117,6 +117,13 @@ export default function BookingSummaryCard({ bookingSummary, theme }: BookingSum
             </p>
           </>
         )}
+
+        {/* Incidentals disclosure */}
+        <p className="text-[10px] mt-3 leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+          Additional charges may apply for tolls ($50 admin fee each), fuel refill ($20/quarter tank), 
+          late returns ($30/day), or cleaning (up to $250). These are only charged if incurred and are 
+          deducted from your security deposit.
+        </p>
       </div>
     </div>
   );
