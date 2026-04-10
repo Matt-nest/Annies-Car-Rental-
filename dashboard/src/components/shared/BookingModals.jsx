@@ -1,7 +1,7 @@
 import Modal from './Modal';
 
 /**
- * Booking action modals: Decline, Cancel, Pickup, Return, Damage, Payment.
+ * Booking action modals: Decline, Cancel, Check-In, Check-Out, Damage, Payment.
  * Extracted from BookingDetailPage to reduce component size.
  */
 export default function BookingModals({
@@ -60,7 +60,7 @@ export default function BookingModals({
         </div>
       </Modal>
 
-      <Modal open={modal === 'pickup'} onClose={() => setModal(null)} title="Record Pickup">
+      <Modal open={modal === 'pickup'} onClose={() => setModal(null)} title="Record Check-In">
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -81,18 +81,18 @@ export default function BookingModals({
           <div>
             <label className="label">Photo URL (optional)</label>
             <input className="input text-sm" type="url" placeholder="https://…" value={conditionForm.photoUrl} onChange={e => setConditionForm(f => ({ ...f, photoUrl: e.target.value }))} />
-            <p className="text-[10px] text-stone-400 mt-0.5">Paste a link to a photo of the vehicle condition at pickup</p>
+            <p className="text-[10px] text-stone-400 mt-0.5">Paste a link to a photo of the vehicle condition at check-in</p>
           </div>
           <div className="flex gap-3">
             <button onClick={() => setModal(null)} className="btn-secondary flex-1 justify-center">Cancel</button>
             <button onClick={() => doAction('pickup')} disabled={actioning} className="btn-primary flex-1 justify-center">
-              {actioning ? 'Saving…' : 'Record Pickup'}
+              {actioning ? 'Saving…' : 'Record Check-In'}
             </button>
           </div>
         </div>
       </Modal>
 
-      <Modal open={modal === 'return'} onClose={() => setModal(null)} title="Record Return">
+      <Modal open={modal === 'return'} onClose={() => setModal(null)} title="Record Check-Out">
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -113,12 +113,12 @@ export default function BookingModals({
           <div>
             <label className="label">Photo URL (optional)</label>
             <input className="input text-sm" type="url" placeholder="https://…" value={conditionForm.photoUrl} onChange={e => setConditionForm(f => ({ ...f, photoUrl: e.target.value }))} />
-            <p className="text-[10px] text-stone-400 mt-0.5">Paste a link to a photo of the vehicle condition at return</p>
+            <p className="text-[10px] text-stone-400 mt-0.5">Paste a link to a photo of the vehicle condition at check-out</p>
           </div>
           <div className="flex gap-3">
             <button onClick={() => setModal(null)} className="btn-secondary flex-1 justify-center">Cancel</button>
             <button onClick={() => doAction('return')} disabled={actioning} className="btn-primary flex-1 justify-center">
-              {actioning ? 'Saving…' : 'Record Return'}
+              {actioning ? 'Saving…' : 'Record Check-Out'}
             </button>
           </div>
         </div>

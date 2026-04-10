@@ -5,14 +5,13 @@ import { sendBookingNotification, buildBookingPayload } from '../services/notify
 const router = Router();
 
 // ═══════════════════════════════════════════════════════════════
-// Security: Only Vercel Cron or requests with CRON_SECRET can trigger
+// Security: Only requests with valid CRON_SECRET can trigger
+// Vercel Cron auto-sends Authorization: Bearer <CRON_SECRET>
 // ═══════════════════════════════════════════════════════════════
 function verifyCron(req, res, next) {
-  const isVercelCron = req.headers['user-agent'] === 'vercel-cron/1.0';
   const hasSecret = req.headers['authorization'] === `Bearer ${process.env.CRON_SECRET}`;
-
-  if (!isVercelCron && !hasSecret) {
-    return res.status(401).json({ error: 'Unauthorized' });
+  if (!hasSecret) {
+    return res.status(401).json({ error: 'Unauthorized — valid CRON_SECRET required' });
   }
   next();
 }

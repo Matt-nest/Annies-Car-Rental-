@@ -91,24 +91,31 @@ export default function BookingSummaryCard({ bookingSummary, theme }: BookingSum
           className="flex justify-between font-semibold pt-1.5 mt-1.5"
           style={{ borderTop: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
         >
-          <span>Total</span>
+          <span>Rental Total</span>
           <span>${(bookingSummary.totalCost || 0).toFixed(2)}</span>
         </div>
 
-        {/* Security Deposit info */}
+        {/* Security Deposit — included in Stripe charge */}
         {bookingSummary.depositAmount > 0 && (
-          <div
-            className="flex items-center justify-between pt-2 mt-2"
-            style={{ borderTop: '1px solid var(--border-subtle)' }}
-          >
-            <span className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-              <Shield size={12} />
-              Refundable security deposit
-            </span>
-            <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-              ${bookingSummary.depositAmount.toFixed(2)}
-            </span>
-          </div>
+          <>
+            <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>
+              <span className="flex items-center gap-1.5">
+                <Shield size={12} />
+                Refundable security deposit
+              </span>
+              <span>${bookingSummary.depositAmount.toFixed(2)}</span>
+            </div>
+            <div
+              className="flex justify-between font-bold pt-1.5 mt-1"
+              style={{ borderTop: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
+            >
+              <span>Total Charged Today</span>
+              <span>${(bookingSummary.totalChargedWithDeposit || (bookingSummary.totalCost + bookingSummary.depositAmount)).toFixed(2)}</span>
+            </div>
+            <p className="text-[10px] mt-1" style={{ color: 'var(--text-tertiary)' }}>
+              Your ${bookingSummary.depositAmount.toFixed(2)} deposit is fully refundable after vehicle inspection.
+            </p>
+          </>
         )}
       </div>
     </div>

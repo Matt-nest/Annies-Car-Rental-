@@ -84,6 +84,9 @@ export default function Footer() {
                   Check Booking Status →
                 </a>
               </div>
+              <a href="/portal" className="nav-link text-sm font-medium">
+                Manage My Rental →
+              </a>
               <a href="/confirm" className="nav-link text-sm">Complete Your Booking</a>
               <a href="/rental-agreement" className="nav-link text-sm">Rental Agreement</a>
               <div className="pt-1" style={{ borderTop: '1px solid var(--border-subtle)' }}>

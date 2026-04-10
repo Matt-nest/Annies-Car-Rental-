@@ -25,6 +25,7 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
     startDate: '', endDate: '', pickupTime: '10:00', returnTime: '10:00',
     deliveryOption: 'pickup', deliveryAddress: '',
     insuranceNeeded: 'not-sure', notes: '',
+    unlimitedMiles: false, unlimitedTolls: false,
     vehicleId: vehicle.id, vehicleName: getVehicleDisplayName(vehicle), vehicleDailyRate: vehicle.dailyRate,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -184,6 +185,8 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
       insurance_provider: formData.insuranceNeeded === 'yes' ? 'bonzah' : formData.insuranceNeeded === 'no' ? 'none' : undefined,
       special_requests: formData.notes.trim() || undefined,
       id_photo_url: id_photo_url || undefined,
+      unlimited_miles: formData.unlimitedMiles || undefined,
+      unlimited_tolls: formData.unlimitedTolls || undefined,
       source: 'website',
     };
 
@@ -235,9 +238,11 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
       subtotal = days * vehicle.dailyRate;
     }
     const deliveryFee = DELIVERY_FEES[formData.deliveryOption];
+    const mileageFee = formData.unlimitedMiles ? 100 : 0;
+    const tollFee = formData.unlimitedTolls ? 20 : 0;
     const taxable = subtotal + deliveryFee;
     const tax = taxable * 0.07;
-    return { days, subtotal, deliveryFee, tax, total: taxable + tax };
+    return { days, subtotal, deliveryFee, mileageFee, tollFee, tax, total: taxable + tax + mileageFee + tollFee };
   })();
 
   const formatTime = (t: string) => {
@@ -379,7 +384,7 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
         {/* Times */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-[10px] uppercase tracking-widest mb-1 block ml-1" style={{ color: 'var(--text-tertiary)' }}>Pickup Time</label>
+            <label className="text-[10px] uppercase tracking-widest mb-1 block ml-1" style={{ color: 'var(--text-tertiary)' }}>Check-In Time</label>
             <select name="pickupTime" value={formData.pickupTime} onChange={handleChange} className={inputClass('pickupTime')} style={{ ...inputStyle, ...inputBorder('pickupTime') }}>
               {['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00'].map(t => (
                 <option key={t} value={t}>{formatTime(t)}</option>
@@ -387,7 +392,7 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
             </select>
           </div>
           <div>
-            <label className="text-[10px] uppercase tracking-widest mb-1 block ml-1" style={{ color: 'var(--text-tertiary)' }}>Return Time</label>
+            <label className="text-[10px] uppercase tracking-widest mb-1 block ml-1" style={{ color: 'var(--text-tertiary)' }}>Check-Out Time</label>
             <select name="returnTime" value={formData.returnTime} onChange={handleChange} className={inputClass('returnTime')} style={{ ...inputStyle, ...inputBorder('returnTime') }}>
               {['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00'].map(t => (
                 <option key={t} value={t}>{formatTime(t)}</option>
@@ -419,6 +424,18 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
               <span>FL Sales Tax (7%)</span>
               <span>${priceEstimate.tax.toFixed(2)}</span>
             </div>
+            {priceEstimate.mileageFee > 0 && (
+              <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>
+                <span>Unlimited Miles</span>
+                <span>${priceEstimate.mileageFee.toFixed(2)}</span>
+              </div>
+            )}
+            {priceEstimate.tollFee > 0 && (
+              <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>
+                <span>Unlimited Tolls</span>
+                <span>${priceEstimate.tollFee.toFixed(2)}</span>
+              </div>
+            )}
             <div className="flex justify-between font-semibold border-t pt-2" style={{ color: 'var(--text-primary)', borderColor: 'var(--border-subtle)' }}>
               <span>Estimated Total</span>
               <span>${priceEstimate.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
@@ -507,6 +524,67 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
                 {label}
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* Add-Ons */}
+        <div>
+          <label className="text-[10px] uppercase tracking-widest mb-2 block ml-1" style={{ color: 'var(--text-tertiary)' }}>Optional Add-Ons</label>
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => setFormData(prev => ({ ...prev, unlimitedMiles: !prev.unlimitedMiles }))}
+              className="w-full flex items-center justify-between p-3.5 rounded-xl border transition-all duration-300 cursor-pointer text-left"
+              style={{
+                backgroundColor: formData.unlimitedMiles ? 'rgba(200,169,126,0.08)' : (theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'),
+                borderColor: formData.unlimitedMiles ? 'var(--accent)' : 'var(--border-subtle)',
+              }}
+            >
+              <div>
+                <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>🛣️ Unlimited Miles</p>
+                <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>No mileage cap for your entire rental</p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-sm font-semibold" style={{ color: 'var(--accent-color)' }}>$100</span>
+                <div
+                  className="w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all"
+                  style={{
+                    backgroundColor: formData.unlimitedMiles ? 'var(--accent)' : 'transparent',
+                    borderColor: formData.unlimitedMiles ? 'var(--accent)' : 'var(--border-subtle)',
+                    color: formData.unlimitedMiles ? 'var(--accent-fg)' : 'transparent',
+                  }}
+                >
+                  {formData.unlimitedMiles && '✓'}
+                </div>
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setFormData(prev => ({ ...prev, unlimitedTolls: !prev.unlimitedTolls }))}
+              className="w-full flex items-center justify-between p-3.5 rounded-xl border transition-all duration-300 cursor-pointer text-left"
+              style={{
+                backgroundColor: formData.unlimitedTolls ? 'rgba(200,169,126,0.08)' : (theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'),
+                borderColor: formData.unlimitedTolls ? 'var(--accent)' : 'var(--border-subtle)',
+              }}
+            >
+              <div>
+                <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>🛤️ Unlimited Tolls</p>
+                <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>All toll charges covered for your trip</p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-sm font-semibold" style={{ color: 'var(--accent-color)' }}>$20</span>
+                <div
+                  className="w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all"
+                  style={{
+                    backgroundColor: formData.unlimitedTolls ? 'var(--accent)' : 'transparent',
+                    borderColor: formData.unlimitedTolls ? 'var(--accent)' : 'var(--border-subtle)',
+                    color: formData.unlimitedTolls ? 'var(--accent-fg)' : 'transparent',
+                  }}
+                >
+                  {formData.unlimitedTolls && '✓'}
+                </div>
+              </div>
+            </button>
           </div>
         </div>
 

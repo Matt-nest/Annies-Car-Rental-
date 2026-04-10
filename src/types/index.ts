@@ -50,6 +50,8 @@ export interface BookingRequest {
   deliveryAddress: string;
   insuranceNeeded: 'yes' | 'no' | 'not-sure';
   notes: string;
+  unlimitedMiles: boolean;
+  unlimitedTolls: boolean;
   vehicleId: string;
   vehicleName: string;
   vehicleDailyRate: number;

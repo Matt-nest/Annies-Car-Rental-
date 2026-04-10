@@ -59,7 +59,6 @@ export async function checkAvailability(vehicleId, startDate, endDate, excludeBo
  * Get all available vehicles for a date range.
  */
 export async function getAvailableVehicles(startDate, endDate) {
-  // Get all non-retired vehicles
   const { data: vehicles, error } = await supabase
     .from('vehicles')
     .select('*')
@@ -68,11 +67,20 @@ export async function getAvailableVehicles(startDate, endDate) {
 
   if (error) throw error;
 
-  const available = [];
-  for (const v of vehicles || []) {
-    const { available: isAvail } = await checkAvailability(v.id, startDate, endDate);
-    if (isAvail) available.push(v);
-  }
+  // Batch: get ALL conflicting bookings for ANY vehicle in this range
+  const { data: conflicts } = await supabase
+    .from('bookings').select('vehicle_id')
+    .not('status', 'in', '("declined","cancelled")')
+    .lte('pickup_date', endDate).gte('return_date', startDate);
 
-  return available;
+  const { data: blocked } = await supabase
+    .from('blocked_dates').select('vehicle_id')
+    .lte('start_date', endDate).gte('end_date', startDate);
+
+  const conflictIds = new Set([
+    ...(conflicts || []).map(c => c.vehicle_id),
+    ...(blocked || []).map(b => b.vehicle_id),
+  ]);
+
+  return (vehicles || []).filter(v => !conflictIds.has(v.id));
 }

@@ -6,8 +6,10 @@ const DELIVERY_FEE = parseFloat(process.env.DELIVERY_FEE || '50.00');
  */
 export function calcRentalDays(pickupDate, returnDate) {
   const msPerDay = 1000 * 60 * 60 * 24;
-  const pickup = new Date(pickupDate);
-  const ret = new Date(returnDate);
+  const pDateStr = String(pickupDate).split('T')[0];
+  const rDateStr = String(returnDate).split('T')[0];
+  const pickup = new Date(pDateStr + 'T12:00:00Z');
+  const ret = new Date(rDateStr + 'T12:00:00Z');
   // +1 makes it inclusive: pickup day counts as day 1
   return Math.max(1, Math.ceil((ret - pickup) / msPerDay) + 1);
 }

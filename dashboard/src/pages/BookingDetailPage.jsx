@@ -126,12 +126,12 @@ export default function BookingDetailPage() {
           )}
           {['approved', 'confirmed'].includes(status) && (
             <button onClick={() => setModal('pickup')} className="btn-primary">
-              <Package size={15} /> Record Pickup
+              <Package size={15} /> Record Check-In
             </button>
           )}
           {status === 'active' && (
             <button onClick={() => setModal('return')} className="btn-primary">
-              <RotateCcw size={15} /> Record Return
+              <RotateCcw size={15} /> Record Check-Out
             </button>
           )}
           {status === 'returned' && (
@@ -396,10 +396,10 @@ function OverviewTab({ booking, c, v, id, load, setModal, setPaymentForm, setLig
       {/* Rental Details */}
       <Section title="Rental Details">
         <div className="grid sm:grid-cols-2 gap-3">
-          <Field label="Pickup Date" value={format(new Date(booking.pickup_date), 'MMM d, yyyy')} />
-          <Field label="Pickup Time" value={booking.pickup_time} />
-          <Field label="Return Date" value={format(new Date(booking.return_date), 'MMM d, yyyy')} />
-          <Field label="Return Time" value={booking.return_time} />
+          <Field label="Check-In Date" value={format(new Date(booking.pickup_date), 'MMM d, yyyy')} />
+          <Field label="Check-In Time" value={booking.pickup_time} />
+          <Field label="Check-Out Date" value={format(new Date(booking.return_date), 'MMM d, yyyy')} />
+          <Field label="Check-Out Time" value={booking.return_time} />
         </div>
         <div className="flex items-start gap-2 text-sm text-[var(--text-secondary)]">
           <MapPin size={14} className="mt-0.5 shrink-0" />
@@ -556,13 +556,13 @@ function OverviewTab({ booking, c, v, id, load, setModal, setPaymentForm, setLig
       {(booking.pickup_mileage || booking.return_mileage) && (
         <Section title="Vehicle Condition">
           <div className="grid sm:grid-cols-2 gap-3">
-            <Field label="Pickup Mileage" value={booking.pickup_mileage} />
-            <Field label="Pickup Fuel" value={booking.pickup_fuel_level} />
-            <Field label="Return Mileage" value={booking.return_mileage} />
-            <Field label="Return Fuel" value={booking.return_fuel_level} />
+            <Field label="Check-In Mileage" value={booking.pickup_mileage} />
+            <Field label="Check-In Fuel" value={booking.pickup_fuel_level} />
+            <Field label="Check-Out Mileage" value={booking.return_mileage} />
+            <Field label="Check-Out Fuel" value={booking.return_fuel_level} />
           </div>
-          {booking.pickup_condition_notes && <Field label="Pickup Notes" value={booking.pickup_condition_notes} />}
-          {booking.return_condition_notes && <Field label="Return Notes" value={booking.return_condition_notes} />}
+          {booking.pickup_condition_notes && <Field label="Check-In Notes" value={booking.pickup_condition_notes} />}
+          {booking.return_condition_notes && <Field label="Check-Out Notes" value={booking.return_condition_notes} />}
         </Section>
       )}
 

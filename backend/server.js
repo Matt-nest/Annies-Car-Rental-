@@ -18,7 +18,15 @@ import notificationRoutes from './routes/notifications.js';
 import messagingRoutes from './routes/messaging.js';
 import cronRoutes from './routes/cron.js';
 import userRoutes from './routes/users.js';
-import { startCronJobs } from './services/cronJobs.js';
+import systemRoutes from './routes/system.js';
+import portalRoutes from './routes/portal.js';
+import depositRoutes from './routes/deposits.js';
+import checkinRoutes from './routes/checkin.js';
+import disputeRoutes from './routes/disputes.js';
+import incidentalRoutes from './routes/incidentals.js';
+import invoiceRoutes from './routes/invoices.js';
+import addonRoutes from './routes/addons.js';
+import tollRoutes from './routes/tolls.js';
 
 const app = express();
 const PORT = process.env.API_PORT || 3001;
@@ -54,6 +62,7 @@ app.use('/api/v1/stats',      statsRoutes);
 app.use('/api/v1/search',     searchRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/messaging', messagingRoutes);
+app.use('/api/v1/system', systemRoutes);
 
 // Payment routes share /bookings/:id prefix and standalone /payments/:id
 app.use('/api/v1', paymentRoutes);
@@ -73,6 +82,14 @@ app.use('/api/v1/uploads', uploadRoutes);
 app.use('/api/v1/agreements', agreementRoutes);
 app.use('/api/v1/cron', cronRoutes);
 app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/portal', portalRoutes);
+app.use('/api/v1/deposits', depositRoutes);
+app.use('/api/v1', checkinRoutes);
+app.use('/api/v1/disputes', disputeRoutes);
+app.use('/api/v1', incidentalRoutes);
+app.use('/api/v1', invoiceRoutes);
+app.use('/api/v1', addonRoutes);
+app.use('/api/v1', tollRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ error: `${req.method} ${req.path} not found` }));
@@ -83,7 +100,6 @@ app.use(errorHandler);
 // ── Start ─────────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`[API] Running on port ${PORT}`);
-  startCronJobs();
 });
 
 export default app;

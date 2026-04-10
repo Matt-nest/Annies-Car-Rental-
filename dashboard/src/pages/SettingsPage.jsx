@@ -7,6 +7,7 @@ import {
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthProvider';
 import DashboardLayoutSettings from '../components/settings/DashboardLayoutSettings';
+import DataError from '../components/shared/DataError';
 
 /* ─── Role badge colors ───────────────────────────────── */
 const ROLE_COLORS = {
@@ -107,7 +108,9 @@ function ProfileTab() {
   }
 
   async function handlePasswordChange() {
-    if (newPw.length < 6) return setPwMsg('Password must be at least 6 characters');
+    if (newPw.length < 8) return setPwMsg('Password must be at least 8 characters');
+    if (!/\\d/.test(newPw)) return setPwMsg('Password must contain at least one number');
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(newPw)) return setPwMsg('Password must contain at least one special character');
     if (newPw !== confirmPw) return setPwMsg('Passwords do not match');
     setPwSaving(true);
     setPwMsg('');
@@ -188,11 +191,7 @@ function ProfileTab() {
           <p className="text-[10px] text-[var(--text-tertiary)] mt-1">Email cannot be changed here.</p>
         </div>
 
-        {error && (
-          <div className="flex items-center gap-2 text-xs text-red-400 bg-red-500/10 rounded-lg p-2.5">
-            <AlertCircle size={13} /> {error}
-          </div>
-        )}
+        <DataError error={error} />
 
         <button
           onClick={handleSave}
@@ -529,8 +528,55 @@ function TeamTab() {
    SYSTEM TAB
    ════════════════════════════════════════════════════════ */
 function SystemTab() {
+  const [health, setHealth] = useState(null);
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    const check = async () => {
+      try {
+        const res = await api.getSystemHealth();
+        if (mounted) setHealth(res);
+      } catch (err) {
+        if (mounted) setHealth({ status: 'offline', error: err.message });
+      } finally {
+        if (mounted) setChecking(false);
+      }
+    };
+    check();
+    const intval = setInterval(check, 30000);
+    return () => {
+      mounted = false;
+      clearInterval(intval);
+    };
+  }, []);
+
   return (
     <div className="space-y-6 max-w-2xl">
+      <Section title="System Status" description="Database connection & latency">
+        <div className="card p-4 flex items-center gap-4 bg-[var(--bg-card)]">
+          {checking && !health ? (
+            <div className="flex items-center gap-2 text-[var(--text-secondary)] text-sm">
+              <RefreshCw size={14} className="animate-spin" /> Checking...
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <div className={`w-2.5 h-2.5 rounded-full ${health?.status === 'operational' ? 'bg-green-500' : 'bg-red-500'}`} />
+                <span className="text-sm font-semibold text-[var(--text-primary)] capitalize">
+                  {health?.status || 'Offline'}
+                </span>
+              </div>
+              {health?.latency_ms !== undefined && (
+                <div className="text-xs text-[var(--text-tertiary)] border-l border-[var(--border-subtle)] pl-4">
+                  Latency: <span className="font-mono text-[var(--text-primary)]">{health.latency_ms}ms</span>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </Section>
+
       <div className="flex items-start gap-2.5 bg-[rgba(99,179,237,0.07)] border border-[rgba(99,179,237,0.15)] rounded-xl p-4 text-sm text-[#63b3ed]">
         <Info size={15} className="mt-0.5 shrink-0 text-[#63b3ed]" />
         <div>

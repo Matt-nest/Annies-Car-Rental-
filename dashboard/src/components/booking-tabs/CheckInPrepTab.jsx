@@ -69,7 +69,7 @@ export default function CheckInPrepTab({ booking, onReload }) {
             <CheckCircle size={18} className="text-cyan-500" />
           </div>
           <div className="flex-1">
-            <p className="text-sm font-semibold text-cyan-600 dark:text-cyan-400">Vehicle Ready for Pickup</p>
+            <p className="text-sm font-semibold text-cyan-600 dark:text-cyan-400">Vehicle Ready for Check-In</p>
             <p className="text-xs text-[var(--text-secondary)] mt-0.5">
               Customer has been notified. Awaiting check-in.
             </p>
@@ -140,7 +140,7 @@ export default function CheckInPrepTab({ booking, onReload }) {
             {canMarkReady && (
               <button onClick={handleMarkReady} disabled={markingReady} className="btn-primary">
                 <CheckCircle size={15} />
-                {markingReady ? 'Marking…' : 'Mark Ready for Pickup'}
+                {markingReady ? 'Marking…' : 'Mark Ready for Check-In'}
               </button>
             )}
           </div>

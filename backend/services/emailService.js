@@ -9,40 +9,12 @@
  * then add RESEND_API_KEY to Vercel backend environment variables.
  */
 
-const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const FROM_ADDRESS = process.env.EMAIL_FROM || 'Annie\'s Car Rental <noreply@anniescarrental.com>';
 const SITE_URL = process.env.SITE_URL || 'https://anniescarrental.com';
 const LOGO_URL = `${SITE_URL}/logo.png`;
+import { sendViaResend } from '../utils/mailTransport.js';
 
 async function sendEmail({ to, subject, html }) {
-  if (!RESEND_API_KEY) {
-    console.log(`[Email] RESEND_API_KEY not set — skipping email to ${to}: ${subject}`);
-    return { skipped: true };
-  }
-
-  try {
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ from: FROM_ADDRESS, to, subject, html }),
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      console.error(`[Email] Resend error for ${to}:`, err);
-      return { error: err };
-    }
-
-    const data = await res.json();
-    console.log(`[Email] Sent "${subject}" to ${to} — id: ${data.id}`);
-    return data;
-  } catch (err) {
-    console.error(`[Email] Failed to send to ${to}:`, err.message);
-    return { error: err.message };
-  }
+  return sendViaResend({ to, subject, html });
 }
 
 /* ── Shared Email Shell ────────────────────────────────────────────────────── */

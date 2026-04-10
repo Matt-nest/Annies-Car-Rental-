@@ -1,5 +1,5 @@
 // SPA routing: vercel.json rewrites all paths to index.html
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AnimatePresence, motion } from 'motion/react';
 import { Vehicle } from './types';
@@ -38,6 +38,19 @@ export default function App() {
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [quickViewVehicle, setQuickViewVehicle] = useState<Vehicle | null>(null);
 
+  useEffect(() => {
+    const handlePop = () => {
+      const path = window.location.pathname;
+      if (path === '/confirm') setCurrentPage('confirm');
+      else if (path === '/rental-agreement') setCurrentPage('rental-agreement');
+      else if (path === '/booking-status') setCurrentPage('booking-status');
+      else if (path === '/portal') setCurrentPage('portal');
+      else { setCurrentPage('home'); setSelectedVehicle(null); }
+    };
+    window.addEventListener('popstate', handlePop);
+    return () => window.removeEventListener('popstate', handlePop);
+  }, []);
+
   // Quick-view: fleet card click opens modal (desktop only, bypasses to detail on mobile)
   const handleQuickView = (vehicle: Vehicle) => {
     if (window.innerWidth < 768) {
@@ -58,12 +71,14 @@ export default function App() {
     closeQuickView();
     setSelectedVehicle(vehicle);
     setCurrentPage('detail');
+    window.history.pushState(null, '', `/detail?vin=${vehicle.vin}`);
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
   const handleBackToHome = () => {
     setCurrentPage('home');
     setSelectedVehicle(null);
+    window.history.pushState(null, '', '/');
     setTimeout(() => {
       const el = document.getElementById('fleet');
       if (el) el.scrollIntoView({ behavior: 'smooth' });
@@ -74,6 +89,7 @@ export default function App() {
     if (currentPage !== 'home') {
       setCurrentPage('home');
       setSelectedVehicle(null);
+      window.history.pushState(null, '', '/');
       setTimeout(() => {
         if (section === 'home') window.scrollTo({ top: 0, behavior: 'smooth' });
         else document.getElementById(section)?.scrollIntoView({ behavior: 'smooth' });

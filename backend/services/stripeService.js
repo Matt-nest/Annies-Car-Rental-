@@ -8,7 +8,8 @@ const stripe = getStripe();
 
 /**
  * Create a PaymentIntent for a booking.
- * Looks up the booking by booking_code, calculates amount from total_cost.
+ * Charges total_cost + security deposit in a single PaymentIntent.
+ * The deposit portion is tracked separately in booking_deposits.
  * Returns { clientSecret, amount, currency, booking } for the frontend.
  */
 export async function createPaymentIntent(bookingCode) {
@@ -61,15 +62,28 @@ export async function createPaymentIntent(bookingCode) {
     };
   }
 
-  // Calculate amount in cents
-  const amountInCents = Math.round(Number(booking.total_cost) * 100);
-  if (amountInCents <= 0) {
+  // Calculate amount in cents — rental + security deposit
+  const rentalCents = Math.round(Number(booking.total_cost) * 100);
+  if (rentalCents <= 0) {
     throw Object.assign(new Error('Invalid booking total'), { status: 400 });
   }
 
+  // Look up vehicle-specific deposit (defaults to $150 / 15000 cents)
+  let depositCents = 15000;
+  if (booking.vehicle_id) {
+    const { data: vd } = await supabase
+      .from('vehicle_deposits')
+      .select('amount')
+      .eq('vehicle_id', booking.vehicle_id)
+      .maybeSingle();
+    if (vd) depositCents = vd.amount;
+  }
+
+  const totalChargeCents = rentalCents + depositCents;
+
   // Create the PaymentIntent
   const paymentIntent = await stripe.paymentIntents.create({
-    amount: amountInCents,
+    amount: totalChargeCents,
     currency: 'usd',
     automatic_payment_methods: { enabled: true },
     metadata: {
@@ -77,9 +91,11 @@ export async function createPaymentIntent(bookingCode) {
       booking_code: booking.booking_code,
       customer_name: `${booking.customers?.first_name} ${booking.customers?.last_name}`,
       vehicle: `${booking.vehicles?.year} ${booking.vehicles?.make} ${booking.vehicles?.model}`,
+      rental_cents: String(rentalCents),
+      deposit_cents: String(depositCents),
     },
     receipt_email: booking.customers?.email || undefined,
-    description: `Annie's Car Rental — ${booking.booking_code} — ${booking.vehicles?.year} ${booking.vehicles?.make} ${booking.vehicles?.model}`,
+    description: `Annie's Car Rental — ${booking.booking_code} — ${booking.vehicles?.year} ${booking.vehicles?.make} ${booking.vehicles?.model} (incl. $${(depositCents / 100).toFixed(0)} refundable deposit)`,
   });
 
   return {
@@ -100,54 +116,62 @@ export async function handleWebhookEvent(event) {
       const bookingId = pi.metadata.booking_id;
       if (!bookingId) break;
 
-      // Record the payment
+      // Split the payment into rental + deposit using metadata
+      const depositCents = Number(pi.metadata.deposit_cents) || 0;
+      const rentalCents = Number(pi.metadata.rental_cents) || pi.amount;
+      const rentalDollars = rentalCents / 100;
+      const depositDollars = depositCents / 100;
+
+      // Record the rental payment
       await supabase.from('payments').insert({
         booking_id: bookingId,
-        amount: pi.amount / 100,
+        amount: rentalDollars,
         payment_type: 'rental',
         method: 'stripe',
         reference_id: pi.id,
         notes: `Stripe payment — ${pi.payment_method_types?.join(', ') || 'card'}`,
       });
 
+      // Record the deposit payment (separate row for accounting)
+      if (depositCents > 0) {
+        await supabase.from('payments').insert({
+          booking_id: bookingId,
+          amount: depositDollars,
+          payment_type: 'deposit',
+          method: 'stripe',
+          reference_id: pi.id,
+          notes: `Security deposit — refundable`,
+        });
+      }
+
       // Update booking deposit status
       await supabase
         .from('bookings')
         .update({
           deposit_status: 'paid',
-          deposit_amount: pi.amount / 100,
+          deposit_amount: depositDollars,
         })
         .eq('id', bookingId);
 
-      // Auto-create booking_deposits record for settlement tracking
-      const { data: booking_ } = await supabase
-        .from('bookings')
-        .select('vehicle_id')
-        .eq('id', bookingId)
-        .single();
-      if (booking_?.vehicle_id) {
-        const { data: vd } = await supabase
-          .from('vehicle_deposits')
-          .select('amount')
-          .eq('vehicle_id', booking_.vehicle_id)
-          .maybeSingle();
-        if (vd) {
-          await supabase.from('booking_deposits').upsert({
-            booking_id: bookingId,
-            amount: vd.amount,
-            stripe_payment_intent_id: pi.id,
-            status: 'held',
-          }, { onConflict: 'booking_id' }).catch(() => {});
-        }
+      // Create booking_deposits record for settlement tracking
+      if (depositCents > 0) {
+        await supabase.from('booking_deposits').upsert({
+          booking_id: bookingId,
+          amount: depositCents,
+          stripe_charge_id: pi.id,
+          status: 'held',
+        }, { onConflict: 'booking_id' }).catch(() => {});
       }
 
-      console.log(`[Stripe] Payment succeeded for booking ${pi.metadata.booking_code}: $${pi.amount / 100}`);
+      console.log(`[Stripe] Payment succeeded for booking ${pi.metadata.booking_code}: $${rentalDollars} rental + $${depositDollars} deposit = $${pi.amount / 100} total`);
 
       // Send payment confirmation to customer
       const paidBooking = await getBookingDetail(bookingId).catch(() => null);
       if (paidBooking) {
         const payload = buildBookingPayload(paidBooking);
-        payload.amount = (pi.amount / 100).toFixed(2);
+        payload.amount = rentalDollars.toFixed(2);
+        payload.deposit_amount = depositDollars.toFixed(2);
+        payload.total_charged = (pi.amount / 100).toFixed(2);
         payload.payment_method = pi.payment_method_types?.join(', ') || 'Card';
         payload.payment_date = new Date().toISOString();
         sendBookingNotification('payment_confirmed', payload);
@@ -242,45 +266,51 @@ export async function confirmPayment(paymentIntentId) {
     return { success: true, alreadyRecorded: true };
   }
 
-  // Record the payment
+  // Split into rental + deposit using metadata (same logic as webhook)
+  const depositCents = Number(pi.metadata.deposit_cents) || 0;
+  const rentalCents = Number(pi.metadata.rental_cents) || pi.amount;
+  const rentalDollars = rentalCents / 100;
+  const depositDollars = depositCents / 100;
+
+  // Record the rental payment
   await supabase.from('payments').insert({
     booking_id: bookingId,
-    amount: pi.amount / 100,
+    amount: rentalDollars,
     payment_type: 'rental',
     method: 'stripe',
     reference_id: pi.id,
     notes: `Stripe payment — ${pi.payment_method_types?.join(', ') || 'card'}`,
   });
 
+  // Record the deposit payment
+  if (depositCents > 0) {
+    await supabase.from('payments').insert({
+      booking_id: bookingId,
+      amount: depositDollars,
+      payment_type: 'deposit',
+      method: 'stripe',
+      reference_id: pi.id,
+      notes: `Security deposit — refundable`,
+    });
+  }
+
   // Update booking deposit status
   await supabase
     .from('bookings')
     .update({
       deposit_status: 'paid',
-      deposit_amount: pi.amount / 100,
+      deposit_amount: depositDollars,
     })
     .eq('id', bookingId);
 
-  // Auto-create booking_deposits record for settlement tracking
-  const { data: booking_ } = await supabase
-    .from('bookings')
-    .select('vehicle_id')
-    .eq('id', bookingId)
-    .single();
-  if (booking_?.vehicle_id) {
-    const { data: vd } = await supabase
-      .from('vehicle_deposits')
-      .select('amount')
-      .eq('vehicle_id', booking_.vehicle_id)
-      .maybeSingle();
-    if (vd) {
-      await supabase.from('booking_deposits').upsert({
-        booking_id: bookingId,
-        amount: vd.amount,
-        stripe_payment_intent_id: pi.id,
-        status: 'held',
-      }, { onConflict: 'booking_id' }).catch(() => {});
-    }
+  // Create booking_deposits record for settlement tracking
+  if (depositCents > 0) {
+    await supabase.from('booking_deposits').upsert({
+      booking_id: bookingId,
+      amount: depositCents,
+      stripe_charge_id: pi.id,
+      status: 'held',
+    }, { onConflict: 'booking_id' }).catch(() => {});
   }
 
   console.log(`[Stripe] Payment confirmed for booking ${pi.metadata.booking_code}: $${pi.amount / 100}`);
@@ -346,6 +376,8 @@ async function formatBookingSummary(booking) {
     taxAmount: Number(booking.tax_amount || 0),
     totalCost: Number(booking.total_cost),
     depositAmount,
+    depositIncludedInCharge: true,
+    totalChargedWithDeposit: Number(booking.total_cost) + depositAmount,
     hasDelivery: !!booking.has_delivery,
     hasUnlimitedMiles: !!booking.has_unlimited_miles,
     hasUnlimitedTolls: !!booking.has_unlimited_tolls,

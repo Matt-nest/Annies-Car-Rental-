@@ -153,9 +153,9 @@ export async function performInspection(bookingId, {
     .update(updateFields)
     .eq('id', bookingId);
 
-  // Create incidental records
-  for (const item of incidentals) {
-    await supabase.from('incidentals').insert({
+  // Create incidental records in bulk
+  if (incidentals?.length > 0) {
+    const incidentalRecords = incidentals.map(item => ({
       booking_id: bookingId,
       type: item.type,
       amount: item.amount,
@@ -163,7 +163,8 @@ export async function performInspection(bookingId, {
       photo_urls: item.photoUrls || [],
       waived: item.waived || false,
       created_by: inspectedBy || 'admin',
-    });
+    }));
+    await supabase.from('incidentals').insert(incidentalRecords);
   }
 
   // Auto-calculate mileage and late fees if not already included

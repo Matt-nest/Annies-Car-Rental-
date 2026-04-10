@@ -7,6 +7,7 @@ import { api } from '../api/client';
 import { SkeletonTable } from '../components/shared/Skeleton';
 import EmptyState from '../components/shared/EmptyState';
 import Modal from '../components/shared/Modal';
+import DataError from '../components/shared/DataError';
 
 const EASE = [0.25, 1, 0.5, 1];
 
@@ -84,15 +85,7 @@ export default function PaymentsPage() {
         </button>
       </motion.div>
 
-      {error && (
-        <div
-          className="card p-4 flex items-center gap-3"
-          style={{ backgroundColor: 'var(--danger-glow)', borderColor: 'rgba(244,63,94,0.2)' }}
-        >
-          <AlertCircle size={18} style={{ color: 'var(--danger-color)' }} />
-          <p className="text-sm" style={{ color: 'var(--danger-color)' }}>{error}</p>
-        </div>
-      )}
+      <DataError error={error} />
 
       {loading ? (
         <SkeletonTable rows={8} cols={7} />

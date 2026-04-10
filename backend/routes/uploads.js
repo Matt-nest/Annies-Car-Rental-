@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import path from 'path';
 import { supabase } from '../db/supabase.js';
 import { requireAuth } from '../middleware/auth.js';
+import { requirePortalAuth } from '../services/portalAuthService.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 
 const router = Router();
@@ -107,5 +108,34 @@ router.get('/signed-url', requireAuth, asyncHandler(async (req, res) => {
   if (error) throw Object.assign(new Error('Failed to sign URL'), { status: 500 });
   res.json({ url: data.signedUrl });
 }));
+
+// ══════════════════════════════════════════════════════════════════════════════
+// POST /uploads/checkin-photos
+// Portal auth (customer JWT) — Multi-file upload for check-in/check-out photos
+// Stores in private 'checkin-photos' bucket, organized by booking ID
+// ══════════════════════════════════════════════════════════════════════════════
+
+
+router.post(
+  '/checkin-photos',
+  requirePortalAuth,
+  upload.array('photos', 10), // up to 10 photos
+  asyncHandler(async (req, res) => {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'No files uploaded. Field name must be "photos".' });
+    }
+
+    const bookingId = req.portal.bookingId;
+    const folder = `booking-${bookingId}`;
+    const results = [];
+
+    for (const file of req.files) {
+      const result = await uploadToStorage('checkin-photos', file, folder);
+      results.push(result);
+    }
+
+    res.json({ photos: results });
+  })
+);
 
 export default router;

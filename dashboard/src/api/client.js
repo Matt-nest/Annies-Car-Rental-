@@ -182,4 +182,7 @@ export const api = {
   // Disputes
   getDisputes: (params = {}) => request(`/disputes?${new URLSearchParams(params)}`),
   resolveDispute: (id, body) => request(`/disputes/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+
+  // System
+  getSystemHealth: () => request('/system/health'),
 };

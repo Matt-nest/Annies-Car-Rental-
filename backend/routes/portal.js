@@ -1,15 +1,23 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import { supabase } from '../db/supabase.js';
 import { verifyPortalAccess, requirePortalAuth } from '../services/portalAuthService.js';
 import { transitionBooking, getBookingDetail } from '../services/bookingService.js';
 
 const router = Router();
 
+// Rate limit portal verification: 5 attempts per 15 minutes per IP
+const portalRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { error: 'Too many verification attempts. Please try again later.' },
+});
+
 /**
  * POST /portal/verify — Authenticate customer for portal access
  * Body: { bookingCode, email }
  */
-router.post('/verify', async (req, res) => {
+router.post('/verify', portalRateLimit, async (req, res) => {
   try {
     const { bookingCode, email } = req.body;
 
@@ -62,8 +70,16 @@ router.get('/booking', requirePortalAuth, async (req, res) => {
       .eq('booking_id', req.portal.bookingId)
       .maybeSingle();
 
+    // Compute total_price for frontend (subtotal + delivery + tax)
+    const total_price = (safe.subtotal || 0) + (safe.delivery_fee || 0) + (safe.tax_amount || 0);
+
+    // Alias 'vehicles' → 'vehicle' for frontend consistency
+    const vehicle = safe.vehicles || null;
+
     res.json({
       ...safe,
+      total_price,
+      vehicle,
       deposit: deposit || null,
       addons: addons || [],
       checkinRecords: checkinRecords || [],

@@ -6,6 +6,7 @@ import { api } from '../api/client';
 import StatusBadge from '../components/shared/StatusBadge';
 import DataTable from '../components/shared/DataTable';
 import Modal from '../components/shared/Modal';
+import DataError from '../components/shared/DataError';
 import { format } from 'date-fns';
 
 const EASE = [0.25, 1, 0.5, 1];
@@ -131,13 +132,7 @@ export default function BookingsPage() {
         </button>
       </motion.div>
 
-      {error && (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm"
-          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: 'var(--danger)' }}>
-          <AlertCircle size={16} className="shrink-0" />
-          {error}
-        </div>
-      )}
+      <DataError error={error} />
 
       {/* Filter bar */}
       <div className="card p-4 flex flex-wrap items-center gap-3">

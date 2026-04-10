@@ -209,7 +209,7 @@ export default function KPICardsWidget() {
           }}
         />
         <KpiCard
-          label="Pickups Today"
+          label="Check-Ins Today"
           rawValue={overview?.pickups_today?.length ?? 0}
           icon={ArrowUpFromLine}
           accentColor="#63b3ed"

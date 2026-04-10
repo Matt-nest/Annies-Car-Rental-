@@ -34,8 +34,9 @@ router.get('/', requireAuth, asyncHandler(async (req, res) => {
     query = query.ilike('booking_code', `%${req.query.q}%`);
   }
 
-  const limit = parseInt(req.query.limit) || 50;
-  const offset = parseInt(req.query.offset) || 0;
+  const page = parseInt(req.query.page) || 1;
+  const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+  const offset = (page - 1) * limit;
   query = query.range(offset, offset + limit - 1);
 
   const { data, error, count } = await query;

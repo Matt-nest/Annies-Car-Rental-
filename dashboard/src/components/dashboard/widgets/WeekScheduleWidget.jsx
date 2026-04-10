@@ -113,7 +113,7 @@ export default function WeekScheduleWidget() {
 
       {/* Legend */}
       <div className="px-5 pb-3 flex items-center gap-4">
-        {[['#63b3ed', 'Pickup'], ['#a78bfa', 'Return']].map(([c, l]) => (
+        {[['#63b3ed', 'Check-In'], ['#a78bfa', 'Check-Out']].map(([c, l]) => (
           <span key={l} className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
             <span className="w-2 h-2 rounded-full" style={{ backgroundColor: c }} />
             {l}

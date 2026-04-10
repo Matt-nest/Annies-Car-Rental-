@@ -69,8 +69,8 @@ router.patch('/me', requireAuth, asyncHandler(async (req, res) => {
 router.post('/me/password', requireAuth, asyncHandler(async (req, res) => {
   const { new_password } = req.body;
 
-  if (!new_password || new_password.length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  if (!new_password || new_password.length < 8 || !/\\d/.test(new_password) || !/[!@#$%^&*(),.?":{}|<>]/.test(new_password)) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters and contain at least one number and one special character' });
   }
 
   const { error } = await adminClient.auth.admin.updateUserById(req.user.id, {
@@ -149,8 +149,6 @@ router.post('/invite', requireAuth, requireRole('owner'), asyncHandler(async (re
     return res.status(500).json({ error: profileError.message });
   }
 
-  console.log(`[Users] ${req.user.email} invited ${email} as ${role}`);
-
   res.status(201).json({
     profile,
     temp_password: tempPassword,
@@ -185,7 +183,6 @@ router.patch('/:id/role', requireAuth, requireRole('owner'), asyncHandler(async 
     return res.status(500).json({ error: error.message });
   }
 
-  console.log(`[Users] ${req.user.email} changed ${data.email} role to ${role}`);
   res.json(data);
 }));
 
@@ -209,7 +206,6 @@ router.delete('/:id', requireAuth, requireRole('owner'), asyncHandler(async (req
     return res.status(500).json({ error: error.message });
   }
 
-  console.log(`[Users] ${req.user.email} deactivated ${data.email}`);
   res.json({ success: true, message: `${data.email} deactivated` });
 }));
 
@@ -228,7 +224,6 @@ router.post('/:id/reactivate', requireAuth, requireRole('owner'), asyncHandler(a
     return res.status(500).json({ error: error.message });
   }
 
-  console.log(`[Users] ${req.user.email} reactivated ${data.email}`);
   res.json(data);
 }));
 

@@ -55,8 +55,8 @@ router.post('/webhook', async (req, res) => {
     if (webhookSecret) {
       event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
     } else {
-      event = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-      console.log('[Stripe Webhook] No STRIPE_WEBHOOK_SECRET set — skipping signature verification (dev mode)');
+      console.error('[Stripe Webhook] STRIPE_WEBHOOK_SECRET not configured — rejecting webhook');
+      return res.status(500).json({ error: 'Webhook not configured' });
     }
   } catch (err) {
     console.error('[Stripe Webhook] Signature verification failed:', err.message);

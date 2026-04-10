@@ -307,7 +307,7 @@ export default function PendingCounterSignWidget() {
                     Agreement Counter-Signed!
                   </p>
                   <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: 4 }}>
-                    Booking has been confirmed and is awaiting pickup.
+                    Booking has been confirmed and is awaiting check-in.
                   </p>
                 </div>
               ) : (

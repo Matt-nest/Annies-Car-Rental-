@@ -10,9 +10,7 @@
 
 import { supabase } from '../db/supabase.js';
 import { storeLocalMessage } from './messagingService.js';
-
-const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const FROM_EMAIL = process.env.EMAIL_FROM || "Annie's Car Rental <noreply@anniescarrental.com>";
+import { sendViaResend } from '../utils/mailTransport.js';
 
 const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN;
@@ -25,38 +23,7 @@ const TWILIO_FROM = process.env.TWILIO_PHONE_NUMBER;
  * Returns { id } on success or { error } on failure.
  */
 export async function sendEmail({ to, subject, html }) {
-  if (!RESEND_API_KEY) {
-    console.log(`[Notify] RESEND_API_KEY not set — skipping email to ${to}: ${subject}`);
-    return { skipped: true };
-  }
-  if (!to) {
-    console.warn('[Notify] No email address provided — skipping');
-    return { skipped: true };
-  }
-
-  try {
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ from: FROM_EMAIL, to, subject, html }),
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      console.error(`[Notify] Resend error for ${to}:`, err);
-      return { error: err };
-    }
-
-    const data = await res.json();
-    console.log(`[Notify] Email sent "${subject}" → ${to} (id: ${data.id})`);
-    return data;
-  } catch (err) {
-    console.error(`[Notify] Email failed to ${to}:`, err.message);
-    return { error: err.message };
-  }
+  return sendViaResend({ to, subject, html });
 }
 
 /**
@@ -152,7 +119,6 @@ export function buildMergeFields(bookingPayload) {
     // Deposit fields
     deposit_amount:  bp.deposit_amount || '',
     deposit_status:  bp.deposit_status || '',
-    refund_amount:   bp.refund_amount || '',
     incidental_total: bp.incidental_total || '',
     // Mileage fields
     checkin_odometer:  bp.checkin_odometer || '',
@@ -170,10 +136,21 @@ export function buildMergeFields(bookingPayload) {
  * Interpolate a template string with merge fields.
  * Replaces all {{key}} placeholders with values from the fields map.
  */
-export function interpolateTemplate(template, fields) {
+export function interpolateTemplate(template, fields, isHtml = false) {
   if (!template) return '';
   return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
-    return fields[key] !== undefined && fields[key] !== '' ? fields[key] : match;
+    let val = fields[key] !== undefined && fields[key] !== '' ? String(fields[key]) : match;
+    
+    if (isHtml && val !== match && !key.includes('link')) {
+      val = val
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+    
+    return val;
   });
 }
 
@@ -200,9 +177,9 @@ export async function getRenderedTemplate(stage, bookingPayload) {
     name:       template.name,
     stage:      template.stage,
     channel:    template.channel || 'email',
-    subject:    interpolateTemplate(template.subject, fields),
-    body:       interpolateTemplate(template.body, fields),
-    sms_body:   interpolateTemplate(template.sms_body, fields),
+    subject:    interpolateTemplate(template.subject, fields, false),
+    body:       interpolateTemplate(template.body, fields, true),
+    sms_body:   interpolateTemplate(template.sms_body, fields, false),
     trigger_type: template.trigger_type,
   };
 }

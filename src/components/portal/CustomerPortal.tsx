@@ -10,6 +10,7 @@ import { EASE, DURATION } from '../../utils/motion';
 import { API_URL } from '../../config';
 import Navbar from '../layout/Navbar';
 import Footer from '../layout/Footer';
+import PhotoUploader from './PhotoUploader';
 
 /* ── Helpers ────────────────────────────────────────────── */
 const fmt = (d: string) => {
@@ -22,6 +23,13 @@ const fmtTime = (t: string) => {
   return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
 };
 const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+
+function isTokenExpired(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.exp ? payload.exp * 1000 < Date.now() : false;
+  } catch { return true; }
+}
 
 /* ── Styles (inline to match main site) ─────────────────── */
 const card = (theme: string) => ({
@@ -36,8 +44,9 @@ export default function CustomerPortal() {
   const { theme } = useTheme();
   const params = new URLSearchParams(window.location.search);
   const bookingCode = params.get('code') || params.get('ref') || '';
+  const initialEmail = params.get('email') || '';
 
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(initialEmail);
   const [token, setToken] = useState<string | null>(null);
   const [booking, setBooking] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -52,6 +61,11 @@ export default function CustomerPortal() {
   const [actionLoading, setActionLoading] = useState(false);
   const [actionSuccess, setActionSuccess] = useState('');
   const [lockbox, setLockbox] = useState<string | null>(null);
+
+  // Photo uploads
+  const [checkinPhotos, setCheckinPhotos] = useState<string[]>([]);
+  const [checkoutPhotos, setCheckoutPhotos] = useState<string[]>([]);
+  const [disputePhotos, setDisputePhotos] = useState<string[]>([]);
 
   // Dispute form
   const [disputeReason, setDisputeReason] = useState('');
@@ -88,6 +102,12 @@ export default function CustomerPortal() {
   /* ── Load Booking ── */
   const loadBooking = useCallback(async () => {
     if (!token) return;
+    if (isTokenExpired(token)) {
+      setToken(null);
+      setView('login');
+      setError('Your session has expired. Please verify again.');
+      return;
+    }
     try {
       const res = await fetch(`${API_URL}/portal/booking`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -113,6 +133,12 @@ export default function CustomerPortal() {
   /* ── Self-Service Check-In ── */
   const handleCheckIn = async () => {
     if (!conditionConfirmed) return;
+    if (token && isTokenExpired(token)) {
+      setToken(null);
+      setView('login');
+      setError('Your session has expired. Please verify again.');
+      return;
+    }
     setActionLoading(true);
     try {
       const res = await fetch(`${API_URL}/portal/checkin`, {
@@ -121,6 +147,7 @@ export default function CustomerPortal() {
         body: JSON.stringify({
           odometer: odometer ? Number(odometer) : undefined,
           fuelLevel: fuel,
+          photoUrls: checkinPhotos.length > 0 ? checkinPhotos : undefined,
           conditionConfirmed: true,
         }),
       });
@@ -135,6 +162,12 @@ export default function CustomerPortal() {
   /* ── Self-Service Check-Out ── */
   const handleCheckOut = async () => {
     if (!keyReturned) return;
+    if (token && isTokenExpired(token)) {
+      setToken(null);
+      setView('login');
+      setError('Your session has expired. Please verify again.');
+      return;
+    }
     setActionLoading(true);
     try {
       const res = await fetch(`${API_URL}/portal/checkout`, {
@@ -143,6 +176,7 @@ export default function CustomerPortal() {
         body: JSON.stringify({
           odometer: odometer ? Number(odometer) : undefined,
           fuelLevel: fuel,
+          photoUrls: checkoutPhotos.length > 0 ? checkoutPhotos : undefined,
           keyReturned: true,
         }),
       });
@@ -157,12 +191,18 @@ export default function CustomerPortal() {
   /* ── Dispute ── */
   const handleDispute = async () => {
     if (!disputeReason.trim()) return;
+    if (token && isTokenExpired(token)) {
+      setToken(null);
+      setView('login');
+      setError('Your session has expired. Please verify again.');
+      return;
+    }
     setDisputeSubmitting(true);
     try {
       const res = await fetch(`${API_URL}/portal/dispute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ reason: disputeReason }),
+        body: JSON.stringify({ reason: disputeReason, photoUrls: disputePhotos.length > 0 ? disputePhotos : undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -463,6 +503,15 @@ export default function CustomerPortal() {
                     </select>
                   </div>
                 </div>
+                {token && (
+                  <PhotoUploader
+                    token={token}
+                    onPhotosChange={setCheckinPhotos}
+                    maxPhotos={10}
+                    label="Vehicle Condition Photos"
+                    hint="Take photos of the vehicle's exterior and interior before driving"
+                  />
+                )}
                 <label className="flex items-center gap-3 cursor-pointer py-2">
                   <input type="checkbox" checked={conditionConfirmed} onChange={e => setConditionConfirmed(e.target.checked)}
                     className="w-5 h-5 rounded accent-[var(--accent-color)]" />
@@ -513,6 +562,15 @@ export default function CustomerPortal() {
                     </select>
                   </div>
                 </div>
+                {token && (
+                  <PhotoUploader
+                    token={token}
+                    onPhotosChange={setCheckoutPhotos}
+                    maxPhotos={10}
+                    label="Return Condition Photos"
+                    hint="Take photos of the vehicle as you're returning it — exterior, interior, and parking spot"
+                  />
+                )}
                 <label className="flex items-center gap-3 cursor-pointer py-2">
                   <input type="checkbox" checked={keyReturned} onChange={e => setKeyReturned(e.target.checked)}
                     className="w-5 h-5 rounded accent-[var(--accent-color)]" />
@@ -591,13 +649,22 @@ export default function CustomerPortal() {
                       Disagree with a charge?
                     </p>
                     <textarea
-                      className="w-full px-3 py-2.5 rounded-xl text-sm resize-none"
+                      className="w-full px-3 py-2.5 rounded-xl text-sm resize-none mb-3"
                       rows={3}
                       style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
                       placeholder="Explain what you disagree with…"
                       value={disputeReason}
                       onChange={e => setDisputeReason(e.target.value)}
                     />
+                    {token && (
+                      <PhotoUploader
+                        token={token}
+                        onPhotosChange={setDisputePhotos}
+                        maxPhotos={5}
+                        label="Supporting Photos"
+                        hint="Upload photos that support your dispute (optional)"
+                      />
+                    )}
                     <button
                       onClick={handleDispute}
                       disabled={disputeSubmitting || !disputeReason.trim()}

@@ -95,7 +95,7 @@ const STATUS_LABELS = {
   pending_approval: 'Pending',
   approved: 'Approved',
   confirmed: 'Confirmed',
-  ready_for_pickup: 'Ready for Pickup',
+  ready_for_pickup: 'Ready for Check-In',
   active: 'Active',
   returned: 'Pending Inspection',
   completed: 'Completed',

@@ -17,7 +17,8 @@ router.get('/conversations', requireAuth, asyncHandler(async (req, res) => {
   const { data, error } = await supabase
     .from('messages')
     .select('customer_id, created_at, body, direction, channel')
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(1000);
 
   if (error) throw error;
 

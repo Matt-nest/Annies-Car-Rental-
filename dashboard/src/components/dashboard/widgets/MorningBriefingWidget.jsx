@@ -96,7 +96,7 @@ export default function MorningBriefingWidget() {
         <div className="flex flex-wrap items-center gap-2 flex-1">
           {phase !== 'evening' ? (
             <>
-              <StatChip icon={ArrowUpFromLine} value={pickupsToday} label="pickups" color="#63b3ed" onClick={() => navigate('/calendar')} />
+              <StatChip icon={ArrowUpFromLine} value={pickupsToday} label="check-ins" color="#63b3ed" onClick={() => navigate('/calendar')} />
               <StatChip icon={ArrowDownToLine} value={returnsToday} label="returns" color="#a78bfa" onClick={() => navigate('/calendar')} />
               <StatChip icon={DollarSign} value={activeRentals} label="active" color="#22c55e" />
             </>
