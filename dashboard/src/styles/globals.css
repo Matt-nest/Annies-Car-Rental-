@@ -251,7 +251,7 @@ html.dark {
                 box-shadow 0.25s var(--ease-out-quart),
                 border-color 0.25s ease;
     position: relative;
-    overflow: hidden;
+    overflow: visible;
   }
 
   @media (hover: hover) and (pointer: fine) {

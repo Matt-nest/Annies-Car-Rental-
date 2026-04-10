@@ -4,7 +4,7 @@ import Section from '../shared/Section';
 import Field from '../shared/Field';
 import {
   Clipboard, Plus, Trash2, AlertTriangle, Camera, DollarSign,
-  CheckCircle, ChevronDown, ImagePlus, X, Fuel
+  CheckCircle, ChevronDown, ImagePlus, X, Fuel, Gauge, Clock
 } from 'lucide-react';
 
 /* ── Incidental type definitions ─────────────────────────────────────────────
@@ -33,7 +33,6 @@ export default function CheckOutTab({ booking, onReload }) {
   const [addingIncidental, setAddingIncidental] = useState(false);
   const [deposit, setDeposit] = useState(null);
   const [photos, setPhotos] = useState([]);
-  const [uploading, setUploading] = useState(false);
 
   const [inspectionForm, setInspectionForm] = useState({
     checkoutOdometer: '',
@@ -80,7 +79,7 @@ export default function CheckOutTab({ booking, onReload }) {
   const mileageCharge = Math.round(milesOver * 34); // cents
 
   // Fuel math
-  const checkinFuel = booking.checkin_fuel_level || 'full';
+  const checkinFuel = booking.checkin_fuel_level || booking.pickup_fuel_level || 'full';
   const returnFuel = inspectionForm.fuelLevel;
   const fuelDiff = FUEL_QUARTERS[checkinFuel] - FUEL_QUARTERS[returnFuel]; // positive = short
   const fuelCharge = Math.max(0, fuelDiff) * 2000; // $20/quarter tank in cents
@@ -190,6 +189,8 @@ export default function CheckOutTab({ booking, onReload }) {
   // ── Computed ───────────────────────────────────────────────────────────
   const isInspectable = ['returned', 'active'].includes(booking.status);
   const inspectionDone = booking.inspection_completed_at;
+  const isCompleted = ['completed'].includes(booking.status);
+  const checkoutComplete = inspectionDone || isCompleted;
   const activeIncidentals = incidentals.filter(i => !i.waived);
   const incidentalTotal = activeIncidentals.reduce((sum, i) => sum + i.amount, 0);
   const depositAmt = deposit?.amount || 0;
@@ -202,8 +203,8 @@ export default function CheckOutTab({ booking, onReload }) {
 
   return (
     <div className="space-y-5">
-      {/* ── Step 1: Inspection Complete Banner ──────────────────────────── */}
-      {inspectionDone && (
+      {/* ── Checkout Complete Banner ──────────────────────────────────── */}
+      {checkoutComplete && (
         <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 flex items-center gap-3">
           <div className="w-10 h-10 bg-emerald-500/20 rounded-full flex items-center justify-center shrink-0">
             <CheckCircle size={18} className="text-emerald-500" />
@@ -218,8 +219,8 @@ export default function CheckOutTab({ booking, onReload }) {
         </div>
       )}
 
-      {/* ── Step 1: Return Inspection Form ─────────────────────────────── */}
-      {isInspectable && !inspectionDone && (
+      {/* ── Step 1: Return Inspection Form (only when NOT yet done) ───── */}
+      {isInspectable && !checkoutComplete && (
         <Section title="Step 1 — Return Inspection">
           <div className="space-y-4">
             <div className="grid sm:grid-cols-2 gap-3">
@@ -305,7 +306,7 @@ export default function CheckOutTab({ booking, onReload }) {
               </div>
             )}
 
-            <button onClick={handleInspection} disabled={inspecting} className="btn-primary">
+            <button onClick={handleInspection} disabled={inspecting} className="btn-primary w-full">
               <Clipboard size={15} />
               {inspecting ? 'Saving Inspection…' : 'Complete Inspection'}
             </button>
@@ -313,20 +314,33 @@ export default function CheckOutTab({ booking, onReload }) {
         </Section>
       )}
 
-      {/* ── Mileage Summary ────────────────────────────────────────────── */}
+      {/* ── Mileage Summary (if we have data) ────────────────────────── */}
       {(booking.checkin_odometer || booking.checkout_odometer) && (
-        <Section title="Mileage Summary">
-          <div className="grid sm:grid-cols-4 gap-3">
-            <Field label="Check-In" value={booking.checkin_odometer?.toLocaleString() || '—'} />
-            <Field label="Check-Out" value={booking.checkout_odometer?.toLocaleString() || '—'} />
-            <Field label="Total Miles" value={
-              booking.checkin_odometer && booking.checkout_odometer
-                ? (booking.checkout_odometer - booking.checkin_odometer).toLocaleString()
-                : '—'
-            } />
-            <Field label="Allowed" value={`${milesAllowed.toLocaleString()} mi`} />
+        <div className="bg-[var(--bg-elevated)] rounded-xl p-4 border border-[var(--border-subtle)]">
+          <p className="text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] mb-2">Mileage Summary</p>
+          <div className="grid grid-cols-4 gap-3 text-center">
+            <div>
+              <p className="text-xs text-[var(--text-tertiary)]">Check-In</p>
+              <p className="text-sm font-semibold text-[var(--text-primary)] tabular-nums">{booking.checkin_odometer?.toLocaleString() || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-[var(--text-tertiary)]">Check-Out</p>
+              <p className="text-sm font-semibold text-[var(--text-primary)] tabular-nums">{booking.checkout_odometer?.toLocaleString() || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-[var(--text-tertiary)]">Total</p>
+              <p className="text-sm font-semibold text-[var(--text-primary)] tabular-nums">
+                {booking.checkin_odometer && booking.checkout_odometer
+                  ? (booking.checkout_odometer - booking.checkin_odometer).toLocaleString()
+                  : '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-[var(--text-tertiary)]">Allowed</p>
+              <p className="text-sm font-semibold text-[var(--text-primary)] tabular-nums">{milesAllowed.toLocaleString()}</p>
+            </div>
           </div>
-        </Section>
+        </div>
       )}
 
       {/* ── Step 2: Incidentals ────────────────────────────────────────── */}
@@ -375,12 +389,12 @@ export default function CheckOutTab({ booking, onReload }) {
           </div>
         )}
 
-        {/* Multi-select add incidentals */}
+        {/* Multi-select add incidentals — overflow:visible to prevent clipping */}
         <div className="border-t border-[var(--border-subtle)] pt-4">
           <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-3">Add Incidentals</p>
 
           {/* Dropdown Trigger */}
-          <div className="relative">
+          <div className="relative" style={{ zIndex: 40 }}>
             <button
               onClick={() => setShowDropdown(!showDropdown)}
               className="input text-sm flex items-center justify-between w-full"
@@ -392,20 +406,24 @@ export default function CheckOutTab({ booking, onReload }) {
               <ChevronDown size={14} className={`text-[var(--text-tertiary)] transition-transform ${showDropdown ? 'rotate-180' : ''}`} />
             </button>
 
-            {/* Dropdown Menu */}
+            {/* Dropdown Menu — fixed position to avoid clipping */}
             {showDropdown && (
-              <div className="absolute z-50 mt-1 w-full bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-xl shadow-lg max-h-64 overflow-y-auto">
-                {availableTypes.map(type => (
-                  <button
-                    key={type.value}
-                    onClick={() => handleSelectIncidental(type)}
-                    className="w-full text-left px-4 py-3 hover:bg-[var(--bg-elevated)] transition-colors border-b border-[var(--border-subtle)] last:border-0"
-                  >
-                    <p className="text-sm font-medium text-[var(--text-primary)]">{type.label}</p>
-                    <p className="text-xs text-[var(--text-tertiary)]">{type.desc}</p>
-                  </button>
-                ))}
-              </div>
+              <>
+                {/* Backdrop to close */}
+                <div className="fixed inset-0 z-40" onClick={() => setShowDropdown(false)} />
+                <div className="absolute z-50 mt-1 w-full bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-xl shadow-xl max-h-64 overflow-y-auto">
+                  {availableTypes.map(type => (
+                    <button
+                      key={type.value}
+                      onClick={() => handleSelectIncidental(type)}
+                      className="w-full text-left px-4 py-3 hover:bg-[var(--bg-elevated)] transition-colors border-b border-[var(--border-subtle)] last:border-0"
+                    >
+                      <p className="text-sm font-medium text-[var(--text-primary)]">{type.label}</p>
+                      <p className="text-xs text-[var(--text-tertiary)]">{type.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </>
             )}
           </div>
 

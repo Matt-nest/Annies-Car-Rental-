@@ -124,13 +124,13 @@ export default function BookingDetailPage() {
             </>
           )}
           {['approved', 'confirmed'].includes(status) && (
-            <button onClick={() => setModal('pickup')} className="btn-primary">
-              <Package size={15} /> Record Check-In
+            <button onClick={() => setActiveTab('checkin')} className="btn-primary">
+              <Package size={15} /> Go to Check-In
             </button>
           )}
           {status === 'active' && (
-            <button onClick={() => setModal('return')} className="btn-primary">
-              <RotateCcw size={15} /> Record Check-Out
+            <button onClick={() => setActiveTab('checkout')} className="btn-primary">
+              <RotateCcw size={15} /> Go to Check-Out
             </button>
           )}
           {status === 'returned' && (
