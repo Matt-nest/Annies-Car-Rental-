@@ -69,7 +69,7 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
     { label: 'Fuel policy', desc: 'Return at the same fuel level — refueling charge is $20 per quarter tank', icon: Fuel },
     { label: 'Tolls & violations', desc: 'You\'re responsible for tolls and traffic fines, plus a $50 admin fee per violation', icon: DollarSign },
     { label: 'Late returns', desc: 'Late returns are charged $30/day — please contact us if you need an extension', icon: Clock },
-    { label: '150 miles/day included', desc: 'Standard rentals include 150 miles per day — excess mileage can be arranged', icon: Car },
+    { label: '200 miles/day included', desc: 'Every rental includes 200 miles per day — additional miles are just $0.34/mile', icon: Car },
     { label: 'Return condition', desc: 'Return the vehicle in the same condition received, aside from normal wear', icon: CheckCircle2 },
   ], []);
 

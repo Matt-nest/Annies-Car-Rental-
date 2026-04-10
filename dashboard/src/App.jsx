@@ -18,6 +18,7 @@ import SettingsPage from './pages/SettingsPage';
 import WebhookFailuresPage from './pages/WebhookFailuresPage';
 import StripePage from './pages/StripePage';
 import MessagingPage from './pages/MessagingPage';
+import CheckInsPage from './pages/CheckInsPage';
 
 export default function App() {
   return (
@@ -41,6 +42,7 @@ export default function App() {
             <Route path="/customers"  element={<CustomersPage />} />
             <Route path="/customers/:id" element={<CustomerDetailPage />} />
             <Route path="/calendar"   element={<CalendarPage />} />
+            <Route path="/check-ins"  element={<CheckInsPage />} />
             <Route path="/payments"   element={<PaymentsPage />} />
             <Route path="/revenue"    element={<RevenuePage />} />
             <Route path="/settings"   element={<SettingsPage />} />

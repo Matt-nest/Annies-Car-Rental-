@@ -2,15 +2,17 @@ import { useState, useEffect } from 'react';
 import { api } from '../../api/client';
 import Section from '../shared/Section';
 import Field from '../shared/Field';
-import { Package, Key, Camera, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { Package, Key, Camera, CheckCircle, Clock, AlertCircle, ImagePlus, X } from 'lucide-react';
 
 export default function CheckInPrepTab({ booking, onReload }) {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [lockbox, setLockbox] = useState(null);
   const [form, setForm] = useState({ odometer: '', fuelLevel: 'full', conditionNotes: '' });
+  const [photos, setPhotos] = useState([]);
   const [saving, setSaving] = useState(false);
   const [markingReady, setMarkingReady] = useState(false);
+  const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -38,8 +40,11 @@ export default function CheckInPrepTab({ booking, onReload }) {
         odometer: form.odometer ? Number(form.odometer) : undefined,
         fuelLevel: form.fuelLevel,
         conditionNotes: form.conditionNotes || undefined,
+        photos: photos.length > 0 ? photos : undefined,
       });
       setForm({ odometer: '', fuelLevel: 'full', conditionNotes: '' });
+      setPhotos([]);
+      setShowForm(false);
       await loadData();
       onReload?.();
     } catch (e) { console.error(e); alert(e.message); }
@@ -56,9 +61,25 @@ export default function CheckInPrepTab({ booking, onReload }) {
     setMarkingReady(false);
   }
 
+  // Photo handling
+  function handlePhotoSelect(e) {
+    const files = Array.from(e.target.files);
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = () => setPhotos(prev => [...prev, { data: reader.result, name: file.name }]);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function removePhoto(idx) {
+    setPhotos(prev => prev.filter((_, i) => i !== idx));
+  }
+
   const canMarkReady = booking.status === 'confirmed';
   const isReady = booking.status === 'ready_for_pickup';
   const adminPrepRecords = records.filter(r => r.record_type === 'admin_prep');
+  const checkinRecords = records.filter(r => r.record_type !== 'admin_prep');
+  const milesAllowed = (booking.rental_days || 1) * 200;
 
   return (
     <div className="space-y-5">
@@ -77,7 +98,23 @@ export default function CheckInPrepTab({ booking, onReload }) {
         </div>
       )}
 
-      {/* Lockbox Code (only shown when ready or active) */}
+      {/* Mileage Allowance Banner */}
+      <div className="bg-[var(--bg-elevated)] rounded-xl p-4 border border-[var(--border-subtle)]">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs text-[var(--text-tertiary)] uppercase tracking-wider">Mileage Allowance</p>
+            <p className="text-lg font-bold text-[var(--text-primary)] mt-0.5">
+              {milesAllowed.toLocaleString()} miles
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-[var(--text-tertiary)]">{booking.rental_days || 1} days × 200 mi/day</p>
+            <p className="text-xs text-[var(--text-tertiary)]">Overage: $0.34/mile</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Lockbox Code */}
       {lockbox && (
         <Section title="Lockbox Code">
           <div className="flex items-center gap-4">
@@ -96,60 +133,94 @@ export default function CheckInPrepTab({ booking, onReload }) {
         </Section>
       )}
 
-      {/* Vehicle Prep Form */}
-      <Section title="Vehicle Prep">
-        <div className="space-y-4">
-          <div className="grid sm:grid-cols-2 gap-3">
+      {/* Start Check-In Button or Form */}
+      {!showForm && adminPrepRecords.length === 0 ? (
+        <button onClick={() => setShowForm(true)} className="btn-primary w-full py-3 text-base">
+          <Package size={18} />
+          Start Vehicle Check-In
+        </button>
+      ) : null}
+
+      {(showForm || adminPrepRecords.length > 0) && (
+        <Section title="Vehicle Check-In">
+          <div className="space-y-4">
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-[var(--text-tertiary)] mb-1 block">Starting Odometer</label>
+                <input
+                  type="number"
+                  className="input text-sm"
+                  placeholder="e.g. 45320"
+                  value={form.odometer}
+                  onChange={e => setForm(f => ({ ...f, odometer: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-[var(--text-tertiary)] mb-1 block">Fuel Level</label>
+                <select
+                  className="input text-sm"
+                  value={form.fuelLevel}
+                  onChange={e => setForm(f => ({ ...f, fuelLevel: e.target.value }))}
+                >
+                  {['full', '3/4', '1/2', '1/4', 'empty'].map(l => (
+                    <option key={l} value={l}>{l}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
             <div>
-              <label className="text-xs text-[var(--text-tertiary)] mb-1 block">Starting Odometer</label>
-              <input
-                type="number"
-                className="input text-sm"
-                placeholder="e.g. 45320"
-                value={form.odometer}
-                onChange={e => setForm(f => ({ ...f, odometer: e.target.value }))}
+              <label className="text-xs text-[var(--text-tertiary)] mb-1 block">Condition Notes</label>
+              <textarea
+                className="input text-sm resize-none"
+                rows={3}
+                placeholder="Pre-existing damage, cleanliness, accessories included…"
+                value={form.conditionNotes}
+                onChange={e => setForm(f => ({ ...f, conditionNotes: e.target.value }))}
               />
             </div>
+
+            {/* Photo Uploader */}
             <div>
-              <label className="text-xs text-[var(--text-tertiary)] mb-1 block">Fuel Level</label>
-              <select
-                className="input text-sm"
-                value={form.fuelLevel}
-                onChange={e => setForm(f => ({ ...f, fuelLevel: e.target.value }))}
-              >
-                {['full', '3/4', '1/2', '1/4', 'empty'].map(l => (
-                  <option key={l} value={l}>{l}</option>
+              <label className="text-xs text-[var(--text-tertiary)] mb-2 block">Check-In Photos</label>
+              <div className="flex flex-wrap gap-2">
+                {photos.map((photo, idx) => (
+                  <div key={idx} className="relative w-20 h-20 rounded-lg overflow-hidden border border-[var(--border-subtle)]">
+                    <img src={photo.data} alt={photo.name} className="w-full h-full object-cover" />
+                    <button
+                      onClick={() => removePhoto(idx)}
+                      className="absolute top-0.5 right-0.5 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center"
+                    >
+                      <X size={10} className="text-white" />
+                    </button>
+                  </div>
                 ))}
-              </select>
+                <label className="w-20 h-20 rounded-lg border-2 border-dashed border-[var(--border-medium)] flex flex-col items-center justify-center cursor-pointer hover:border-[var(--accent-color)] transition-colors">
+                  <ImagePlus size={18} className="text-[var(--text-tertiary)]" />
+                  <span className="text-[9px] text-[var(--text-tertiary)] mt-1">Add photo</span>
+                  <input type="file" accept="image/*" multiple onChange={handlePhotoSelect} className="hidden" />
+                </label>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button onClick={handleSavePrep} disabled={saving} className="btn-primary">
+                <CheckCircle size={15} />
+                {saving ? 'Saving…' : 'Save Check-In Record'}
+              </button>
+              {canMarkReady && (
+                <button onClick={handleMarkReady} disabled={markingReady} className="btn-secondary">
+                  <Package size={15} />
+                  {markingReady ? 'Marking…' : 'Mark Ready for Pickup'}
+                </button>
+              )}
             </div>
           </div>
-          <div>
-            <label className="text-xs text-[var(--text-tertiary)] mb-1 block">Condition Notes</label>
-            <textarea
-              className="input text-sm resize-none"
-              rows={3}
-              placeholder="Pre-existing damage, cleanliness, accessories included…"
-              value={form.conditionNotes}
-              onChange={e => setForm(f => ({ ...f, conditionNotes: e.target.value }))}
-            />
-          </div>
-          <div className="flex gap-2">
-            <button onClick={handleSavePrep} disabled={saving} className="btn-secondary">
-              {saving ? 'Saving…' : 'Save Prep Record'}
-            </button>
-            {canMarkReady && (
-              <button onClick={handleMarkReady} disabled={markingReady} className="btn-primary">
-                <CheckCircle size={15} />
-                {markingReady ? 'Marking…' : 'Mark Ready for Check-In'}
-              </button>
-            )}
-          </div>
-        </div>
-      </Section>
+        </Section>
+      )}
 
       {/* Prep History */}
       {adminPrepRecords.length > 0 && (
-        <Section title="Prep History">
+        <Section title="Check-In History">
           <div className="space-y-3">
             {adminPrepRecords.map(rec => (
               <div key={rec.id} className="p-3 bg-[var(--bg-card)] rounded-lg border border-[var(--border-subtle)]">
@@ -170,11 +241,11 @@ export default function CheckInPrepTab({ booking, onReload }) {
         </Section>
       )}
 
-      {/* Full Check-In Record History */}
-      {records.filter(r => r.record_type !== 'admin_prep').length > 0 && (
-        <Section title="Check-In / Check-Out Records">
+      {/* Customer Check-In / Check-Out Records */}
+      {checkinRecords.length > 0 && (
+        <Section title="Customer Records">
           <div className="space-y-3">
-            {records.filter(r => r.record_type !== 'admin_prep').map(rec => (
+            {checkinRecords.map(rec => (
               <div key={rec.id} className="p-3 bg-[var(--bg-card)] rounded-lg border border-[var(--border-subtle)]">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-semibold text-[var(--accent-color)] uppercase">

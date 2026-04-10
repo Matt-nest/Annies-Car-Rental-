@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Phone, Mail, Car, MapPin, CheckCircle, XCircle, Package, RotateCcw, Flag, DollarSign, FileText, Shield, CreditCard, User, ClipboardCheck, Receipt, Navigation } from 'lucide-react';
 import { api } from '../api/client';
 import StatusBadge from '../components/shared/StatusBadge';
@@ -10,9 +10,8 @@ import BookingTimeline from '../components/shared/BookingTimeline';
 import Section from '../components/shared/Section';
 import Field from '../components/shared/Field';
 import CheckInPrepTab from '../components/booking-tabs/CheckInPrepTab';
-import InspectionTab from '../components/booking-tabs/InspectionTab';
+import CheckOutTab from '../components/booking-tabs/CheckOutTab';
 import InvoiceTab from '../components/booking-tabs/InvoiceTab';
-import TollsTab from '../components/booking-tabs/TollsTab';
 import { format } from 'date-fns';
 
 /* ────────────────────────────────────────────────────────
@@ -21,9 +20,8 @@ import { format } from 'date-fns';
 const TABS = [
   { id: 'overview',   label: 'Overview',   icon: FileText    },
   { id: 'checkin',    label: 'Check-In',   icon: Package     },
-  { id: 'inspection', label: 'Inspection', icon: ClipboardCheck },
+  { id: 'checkout',   label: 'Check-Out',  icon: ClipboardCheck },
   { id: 'invoice',    label: 'Invoice',    icon: Receipt     },
-  { id: 'tolls',      label: 'Tolls',      icon: Navigation  },
 ];
 
 /* ────────────────────────────────────────────────────────
@@ -32,6 +30,7 @@ const TABS = [
 export default function BookingDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
@@ -41,7 +40,7 @@ export default function BookingDetailPage() {
   const [conditionForm, setConditionForm] = useState({ fuel: 'full', notes: '', photoUrl: '' });
   const [damageForm, setDamageForm] = useState({ description: '', severity: 'minor', estimated_cost: '', photo_url: '' });
   const [lightboxUrl, setLightboxUrl] = useState(null);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'overview');
 
   const load = async () => {
     setLoading(true);
@@ -233,16 +232,12 @@ export default function BookingDetailPage() {
         <CheckInPrepTab booking={booking} onReload={load} />
       )}
 
-      {activeTab === 'inspection' && (
-        <InspectionTab booking={booking} onReload={load} />
+      {activeTab === 'checkout' && (
+        <CheckOutTab booking={booking} onReload={load} />
       )}
 
       {activeTab === 'invoice' && (
         <InvoiceTab booking={booking} onReload={load} />
-      )}
-
-      {activeTab === 'tolls' && (
-        <TollsTab booking={booking} />
       )}
 
       {/* Rental Agreement (always visible below tabs) */}

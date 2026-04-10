@@ -209,10 +209,12 @@ export default function KPICardsWidget() {
           }}
         />
         <KpiCard
-          label="Check-Ins Today"
+          label="Check-Ins & Outs"
           rawValue={overview?.pickups_today?.length ?? 0}
           icon={ArrowUpFromLine}
           accentColor="#63b3ed"
+          sub="today's activity"
+          onClick={() => navigate('/check-ins')}
         />
         <KpiCard
           label="Revenue / Month"

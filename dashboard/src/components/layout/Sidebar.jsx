@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Calendar, Car, Users, BookOpen,
   TrendingUp, Settings, X, LogOut, AlertTriangle, CreditCard, Landmark, MessageSquare,
+  ArrowUpFromLine,
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
 
@@ -12,6 +13,7 @@ const MAIN_NAV = [
   { to: '/fleet',     label: 'Fleet',     icon: Car },
   { to: '/customers', label: 'Customers', icon: Users },
   { to: '/calendar',  label: 'Calendar',  icon: Calendar },
+  { to: '/check-ins', label: 'Check-Ins',  icon: ArrowUpFromLine },
   { to: '/payments',  label: 'Payments',  icon: CreditCard },
   { to: '/revenue',   label: 'Revenue',   icon: TrendingUp },
   { to: '/messaging', label: 'Messaging',  icon: MessageSquare },

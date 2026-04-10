@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
-import { generateInvoice, getInvoice, markInvoiceSent } from '../services/invoiceService.js';
+import { generateInvoice, getInvoice, markInvoiceSent, sendInvoiceEmail } from '../services/invoiceService.js';
 
 const router = Router();
 
@@ -32,11 +32,11 @@ router.get('/bookings/:id/invoice', requireAuth, async (req, res) => {
 });
 
 /**
- * POST /invoices/:id/send — Mark invoice as sent (called after email dispatch)
+ * POST /invoices/:id/send — Send invoice email to customer + mark as sent
  */
 router.post('/invoices/:id/send', requireAuth, async (req, res) => {
   try {
-    const result = await markInvoiceSent(req.params.id);
+    const result = await sendInvoiceEmail(req.params.id);
     res.json(result);
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });

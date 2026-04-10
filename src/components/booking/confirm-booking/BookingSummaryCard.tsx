@@ -1,4 +1,4 @@
-import { Car, Calendar, Shield } from 'lucide-react';
+import { Car, Calendar, Shield, Gauge } from 'lucide-react';
 
 interface BookingSummaryCardProps {
   bookingSummary: any;
@@ -95,6 +95,17 @@ export default function BookingSummaryCard({ bookingSummary, theme }: BookingSum
           <span>${(bookingSummary.totalCost || 0).toFixed(2)}</span>
         </div>
 
+        {/* Mileage allowance */}
+        {bookingSummary.rentalDays > 0 && (
+          <div className="flex justify-between text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+            <span className="flex items-center gap-1.5">
+              <Gauge size={11} />
+              Mileage included
+            </span>
+            <span>{(bookingSummary.rentalDays * 200).toLocaleString()} miles ({bookingSummary.rentalDays} × 200 mi/day)</span>
+          </div>
+        )}
+
         {/* Security Deposit — included in Stripe charge */}
         {bookingSummary.depositAmount > 0 && (
           <>
@@ -121,8 +132,8 @@ export default function BookingSummaryCard({ bookingSummary, theme }: BookingSum
         {/* Incidentals disclosure */}
         <p className="text-[10px] mt-3 leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
           Additional charges may apply for tolls ($50 admin fee each), fuel refill ($20/quarter tank), 
-          late returns ($30/day), or cleaning (up to $250). These are only charged if incurred and are 
-          deducted from your security deposit.
+          late returns ($30/day), mileage over 200 mi/day ($0.34/mile), or cleaning (up to $250). 
+          These are only charged if incurred and are deducted from your security deposit.
         </p>
       </div>
     </div>
