@@ -215,6 +215,8 @@ router.post('/:id/return', requireAuth, asyncHandler(async (req, res) => {
       rentalDays: actualDays,
       deliveryFeeAmount: DELIVERY_FEES[booking.delivery_type] ?? Number(booking.delivery_fee || 0),
       discountAmount: Number(booking.discount_amount || 0),
+      mileageAddonFee: Number(booking.mileage_addon_fee || 0),
+      tollAddonFee: Number(booking.toll_addon_fee || 0),
     });
     Object.assign(extraFields, {
       return_date: todayStr,

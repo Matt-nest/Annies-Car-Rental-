@@ -53,6 +53,7 @@ export async function createBooking(payload) {
     insurance_provider, insurance_status, bonzah_policy_id,
     special_requests, source = 'website',
     id_photo_url,
+    unlimited_miles, unlimited_tolls,
   } = payload;
 
   const deliveryFeeAmount = DELIVERY_FEES[delivery_type] ?? 0;
@@ -153,11 +154,15 @@ export async function createBooking(payload) {
 
   // 4. Pricing
   const rentalDays = calcRentalDays(pickup_date, return_date);
+  const mileageAddonFee = unlimited_miles ? 100 : 0;   // $100 flat
+  const tollAddonFee = unlimited_tolls ? 20 : 0;        // $20 flat
   const pricing = calcPricing({
     dailyRate: vehicle.daily_rate,
     weeklyRate: vehicle.weekly_rate,
     rentalDays,
     deliveryFeeAmount,
+    mileageAddonFee,
+    tollAddonFee,
   });
 
   // 5. Generate booking code (retry on collision)
@@ -195,6 +200,8 @@ export async function createBooking(payload) {
       delivery_requested: deliveryRequested,
       delivery_address: deliveryRequested ? delivery_address : null,
       ...pricing,
+      unlimited_miles: !!unlimited_miles,
+      unlimited_tolls: !!unlimited_tolls,
       deposit_amount: vehicle.deposit_amount || 0,
       insurance_provider,
       insurance_status: insurance_status || 'pending',

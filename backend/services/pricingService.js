@@ -26,7 +26,7 @@ export const DELIVERY_FEES = {
  * Supports weekly rate discounts: full weeks at weeklyRate, remaining days at dailyRate.
  * deliveryFeeAmount: pass the exact fee (use DELIVERY_FEES map to look up from delivery_type).
  */
-export function calcPricing({ dailyRate, weeklyRate, rentalDays, deliveryFeeAmount = 0, discountAmount = 0 }) {
+export function calcPricing({ dailyRate, weeklyRate, rentalDays, deliveryFeeAmount = 0, discountAmount = 0, mileageAddonFee = 0, tollAddonFee = 0 }) {
   let subtotal;
   if (rentalDays >= 7 && weeklyRate) {
     const fullWeeks = Math.floor(rentalDays / 7);
@@ -38,7 +38,8 @@ export function calcPricing({ dailyRate, weeklyRate, rentalDays, deliveryFeeAmou
 
   const taxableAmount = subtotal - discountAmount + deliveryFeeAmount;
   const taxAmount = parseFloat((taxableAmount * TAX_RATE).toFixed(2));
-  const totalCost = parseFloat((taxableAmount + taxAmount).toFixed(2));
+  // Addons are flat fees added after tax (not taxable)
+  const totalCost = parseFloat((taxableAmount + taxAmount + mileageAddonFee + tollAddonFee).toFixed(2));
 
   return {
     daily_rate: dailyRate,
@@ -46,6 +47,8 @@ export function calcPricing({ dailyRate, weeklyRate, rentalDays, deliveryFeeAmou
     subtotal,
     discount_amount: discountAmount,
     delivery_fee: deliveryFeeAmount,
+    mileage_addon_fee: mileageAddonFee,
+    toll_addon_fee: tollAddonFee,
     tax_amount: taxAmount,
     total_cost: totalCost,
   };

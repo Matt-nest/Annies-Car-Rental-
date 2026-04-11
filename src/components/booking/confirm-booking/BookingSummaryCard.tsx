@@ -81,6 +81,18 @@ export default function BookingSummaryCard({ bookingSummary, theme }: BookingSum
             <span>-${bookingSummary.discountAmount.toFixed(2)}</span>
           </div>
         )}
+        {bookingSummary.mileageAddonFee > 0 && (
+          <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>
+            <span>Unlimited Miles</span>
+            <span>${bookingSummary.mileageAddonFee.toFixed(2)}</span>
+          </div>
+        )}
+        {bookingSummary.tollAddonFee > 0 && (
+          <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>
+            <span>Unlimited Tolls</span>
+            <span>${bookingSummary.tollAddonFee.toFixed(2)}</span>
+          </div>
+        )}
         {bookingSummary.taxAmount > 0 && (
           <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>
             <span>Tax</span>

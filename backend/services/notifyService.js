@@ -129,6 +129,13 @@ export function buildMergeFields(bookingPayload) {
     // Invoice
     invoice_total:     bp.invoice_total || '',
     invoice_link:      bp.invoice_link || '',
+    // Add-ons
+    unlimited_miles_fee: bp.mileage_addon_fee ? Number(bp.mileage_addon_fee).toFixed(2) : '',
+    unlimited_tolls_fee: bp.toll_addon_fee ? Number(bp.toll_addon_fee).toFixed(2) : '',
+    addons_text: [
+      bp.unlimited_miles ? `Unlimited Miles: $${Number(bp.mileage_addon_fee || 100).toFixed(2)}` : '',
+      bp.unlimited_tolls ? `Unlimited Tolls: $${Number(bp.toll_addon_fee || 20).toFixed(2)}` : '',
+    ].filter(Boolean).join(', ') || 'None',
     // Review
     review_link:    bp.review_link || 'https://g.page/annies-car-rental/review',
   };

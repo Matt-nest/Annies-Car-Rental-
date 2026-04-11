@@ -389,13 +389,15 @@ async function formatBookingSummary(booking) {
     subtotal: Number(booking.subtotal),
     deliveryFee: Number(booking.delivery_fee || 0),
     discountAmount: Number(booking.discount_amount || 0),
+    mileageAddonFee: Number(booking.mileage_addon_fee || 0),
+    tollAddonFee: Number(booking.toll_addon_fee || 0),
     taxAmount: Number(booking.tax_amount || 0),
     totalCost: Number(booking.total_cost),
     depositAmount,
     depositIncludedInCharge: true,
     totalChargedWithDeposit: Number(booking.total_cost) + depositAmount,
-    hasDelivery: !!booking.has_delivery,
-    hasUnlimitedMiles: !!booking.has_unlimited_miles,
-    hasUnlimitedTolls: !!booking.has_unlimited_tolls,
+    hasDelivery: !!booking.delivery_requested,
+    hasUnlimitedMiles: !!booking.unlimited_miles,
+    hasUnlimitedTolls: !!booking.unlimited_tolls,
   };
 }

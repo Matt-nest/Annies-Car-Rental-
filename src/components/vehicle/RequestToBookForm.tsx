@@ -541,7 +541,7 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
               }}
             >
               <div>
-                <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>🛣️ Unlimited Miles</p>
+                <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Unlimited Miles</p>
                 <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>No mileage cap for your entire rental</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -568,7 +568,7 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
               }}
             >
               <div>
-                <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>🛤️ Unlimited Tolls</p>
+                <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Unlimited Tolls</p>
                 <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>All toll charges covered for your trip</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">

@@ -431,6 +431,18 @@ function OverviewTab({ booking, c, v, id, load, setModal, setPaymentForm, setLig
               <span>-${booking.discount_amount}</span>
             </div>
           )}
+          {Number(booking.mileage_addon_fee) > 0 && (
+            <div className="flex justify-between text-[var(--text-secondary)]">
+              <span>Unlimited Miles</span>
+              <span>${booking.mileage_addon_fee}</span>
+            </div>
+          )}
+          {Number(booking.toll_addon_fee) > 0 && (
+            <div className="flex justify-between text-[var(--text-secondary)]">
+              <span>Unlimited Tolls</span>
+              <span>${booking.toll_addon_fee}</span>
+            </div>
+          )}
           <div className="flex justify-between text-[var(--text-secondary)]">
             <span>Tax</span>
             <span>${booking.tax_amount}</span>
