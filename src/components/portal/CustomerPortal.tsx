@@ -145,9 +145,6 @@ export default function CustomerPortal() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          odometer: odometer ? Number(odometer) : undefined,
-          fuelLevel: fuel,
-          photoUrls: checkinPhotos.length > 0 ? checkinPhotos : undefined,
           conditionConfirmed: true,
         }),
       });
@@ -174,8 +171,6 @@ export default function CustomerPortal() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          odometer: odometer ? Number(odometer) : undefined,
-          fuelLevel: fuel,
           photoUrls: checkoutPhotos.length > 0 ? checkoutPhotos : undefined,
           keyReturned: true,
         }),
@@ -456,18 +451,25 @@ export default function CustomerPortal() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.2, ease: EASE.smooth }}
-              className="p-5 rounded-2xl text-center"
-              style={{ backgroundColor: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}
+              className="p-6 sm:p-8 rounded-2xl text-center"
+              style={{ backgroundColor: 'rgba(245,158,11,0.08)', border: '2px solid rgba(245,158,11,0.25)' }}
             >
-              <Key size={28} className="mx-auto mb-3" style={{ color: '#f59e0b' }} />
-              <p className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: '#f59e0b' }}>
-                Lockbox Code
+              <Key size={36} className="mx-auto mb-4" style={{ color: '#f59e0b' }} />
+              <p className="text-xs font-bold uppercase tracking-[0.2em] mb-3" style={{ color: '#f59e0b' }}>
+                Your Lockbox Code
               </p>
-              <p className="text-4xl font-bold tracking-[0.3em] font-mono" style={{ color: 'var(--text-primary)' }}>
+              <p className="text-5xl sm:text-6xl font-black tracking-[0.4em] font-mono mb-4" style={{ color: 'var(--text-primary)' }}>
                 {lockbox}
               </p>
-              <p className="text-xs mt-2" style={{ color: 'var(--text-tertiary)' }}>
-                Use this code to retrieve the key from the lockbox at the pickup location
+              <button
+                onClick={() => { navigator.clipboard.writeText(lockbox); }}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-all hover:scale-105 active:scale-95"
+                style={{ backgroundColor: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}
+              >
+                Tap to Copy
+              </button>
+              <p className="text-xs mt-3" style={{ color: 'var(--text-tertiary)' }}>
+                Use this code to retrieve the key from the lockbox at the pickup location.
               </p>
             </motion.div>
           )}
@@ -482,50 +484,28 @@ export default function CustomerPortal() {
             >
               <div className="p-5 space-y-4">
                 <h3 className="text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-                  <Check size={20} style={{ color: '#22c55e' }} /> Self-Service Check-In
+                  <Check size={20} style={{ color: '#22c55e' }} /> Start Your Rental
                 </h3>
-                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                  Confirm the vehicle condition and start your rental.
+                <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                  Once you've retrieved the key and inspected the vehicle, confirm below to start your rental.
                 </p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs mb-1 block" style={{ color: 'var(--text-tertiary)' }}>Starting Odometer</label>
-                    <input type="number" className="w-full px-3 py-2.5 rounded-xl text-sm" style={{
-                      backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)',
-                    }} placeholder="e.g. 45320" value={odometer} onChange={e => setOdometer(e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="text-xs mb-1 block" style={{ color: 'var(--text-tertiary)' }}>Fuel Level</label>
-                    <select className="w-full px-3 py-2.5 rounded-xl text-sm" style={{
-                      backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)',
-                    }} value={fuel} onChange={e => setFuel(e.target.value)}>
-                      {['full', '3/4', '1/2', '1/4', 'empty'].map(l => <option key={l} value={l}>{l}</option>)}
-                    </select>
-                  </div>
-                </div>
-                {token && (
-                  <PhotoUploader
-                    token={token}
-                    onPhotosChange={setCheckinPhotos}
-                    maxPhotos={10}
-                    label="Vehicle Condition Photos"
-                    hint="Take photos of the vehicle's exterior and interior before driving"
-                  />
-                )}
-                <label className="flex items-center gap-3 cursor-pointer py-2">
+                <label className="flex items-start gap-3 cursor-pointer py-3 px-4 rounded-xl transition-all" style={{
+                  backgroundColor: conditionConfirmed ? 'rgba(34,197,94,0.08)' : 'var(--bg-card-hover)',
+                  border: conditionConfirmed ? '2px solid rgba(34,197,94,0.3)' : '2px solid var(--border-subtle)',
+                }}>
                   <input type="checkbox" checked={conditionConfirmed} onChange={e => setConditionConfirmed(e.target.checked)}
-                    className="w-5 h-5 rounded accent-[var(--accent-color)]" />
+                    className="w-5 h-5 rounded accent-[#22c55e] mt-0.5 shrink-0" />
                   <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                    I confirm the vehicle is in acceptable condition
+                    I've picked up the vehicle and confirm it's in acceptable condition
                   </span>
                 </label>
                 <button
                   onClick={handleCheckIn}
                   disabled={actionLoading || !conditionConfirmed}
-                  className="w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-full font-medium transition-all duration-300 hover:scale-[1.02] active:scale-95 text-sm disabled:opacity-50"
-                  style={{ backgroundColor: '#22c55e', color: '#fff' }}
+                  className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-full font-semibold transition-all duration-300 hover:scale-[1.02] active:scale-95 text-sm disabled:opacity-50"
+                  style={{ backgroundColor: '#22c55e', color: '#fff', minHeight: '52px' }}
                 >
-                  {actionLoading ? <><Loader2 size={16} className="animate-spin" /> Processing…</> : <><Check size={16} /> Complete Check-In</>}
+                  {actionLoading ? <><Loader2 size={16} className="animate-spin" /> Processing…</> : <><ArrowRight size={16} /> Start My Rental</>}
                 </button>
               </div>
             </motion.div>
@@ -543,24 +523,16 @@ export default function CustomerPortal() {
                 <h3 className="text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
                   <Car size={20} style={{ color: 'var(--accent-color)' }} /> Return Your Vehicle
                 </h3>
-                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                  Park the vehicle, return the key to the lockbox, and complete your check-out below.
-                </p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs mb-1 block" style={{ color: 'var(--text-tertiary)' }}>Ending Odometer</label>
-                    <input type="number" className="w-full px-3 py-2.5 rounded-xl text-sm" style={{
-                      backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)',
-                    }} placeholder="e.g. 46120" value={odometer} onChange={e => setOdometer(e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="text-xs mb-1 block" style={{ color: 'var(--text-tertiary)' }}>Fuel Level</label>
-                    <select className="w-full px-3 py-2.5 rounded-xl text-sm" style={{
-                      backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)',
-                    }} value={fuel} onChange={e => setFuel(e.target.value)}>
-                      {['full', '3/4', '1/2', '1/4', 'empty'].map(l => <option key={l} value={l}>{l}</option>)}
-                    </select>
-                  </div>
+                <div className="p-4 rounded-xl text-sm space-y-2" style={{
+                  backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)',
+                }}>
+                  <p className="font-medium" style={{ color: 'var(--text-primary)' }}>Return Steps:</p>
+                  <ol className="list-decimal list-inside space-y-1 text-sm">
+                    <li>Park the vehicle in the designated spot</li>
+                    <li>Place the key back in the lockbox</li>
+                    <li>Take a few photos of the vehicle (optional)</li>
+                    <li>Confirm the return below</li>
+                  </ol>
                 </div>
                 {token && (
                   <PhotoUploader
@@ -568,23 +540,26 @@ export default function CustomerPortal() {
                     onPhotosChange={setCheckoutPhotos}
                     maxPhotos={10}
                     label="Return Condition Photos"
-                    hint="Take photos of the vehicle as you're returning it — exterior, interior, and parking spot"
+                    hint="Take a few photos of the vehicle as you leave it — this protects you in case of disputes"
                   />
                 )}
-                <label className="flex items-center gap-3 cursor-pointer py-2">
+                <label className="flex items-start gap-3 cursor-pointer py-3 px-4 rounded-xl transition-all" style={{
+                  backgroundColor: keyReturned ? 'rgba(200,169,126,0.08)' : 'var(--bg-card-hover)',
+                  border: keyReturned ? '2px solid rgba(200,169,126,0.3)' : '2px solid var(--border-subtle)',
+                }}>
                   <input type="checkbox" checked={keyReturned} onChange={e => setKeyReturned(e.target.checked)}
-                    className="w-5 h-5 rounded accent-[var(--accent-color)]" />
+                    className="w-5 h-5 rounded accent-[var(--accent-color)] mt-0.5 shrink-0" />
                   <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                    I have returned the key to the lockbox
+                    I have returned the key to the lockbox and the vehicle is parked
                   </span>
                 </label>
                 <button
                   onClick={handleCheckOut}
                   disabled={actionLoading || !keyReturned}
-                  className="w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-full font-medium transition-all duration-300 hover:scale-[1.02] active:scale-95 text-sm disabled:opacity-50"
-                  style={{ backgroundColor: 'var(--accent-color)', color: '#1c1917' }}
+                  className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-full font-semibold transition-all duration-300 hover:scale-[1.02] active:scale-95 text-sm disabled:opacity-50"
+                  style={{ backgroundColor: 'var(--accent-color)', color: '#1c1917', minHeight: '52px' }}
                 >
-                  {actionLoading ? <><Loader2 size={16} className="animate-spin" /> Processing…</> : <><Check size={16} /> Complete Check-Out</>}
+                  {actionLoading ? <><Loader2 size={16} className="animate-spin" /> Processing…</> : <><Check size={16} /> Complete Return</>}
                 </button>
               </div>
             </motion.div>

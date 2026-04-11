@@ -1,353 +1,360 @@
-import { useState, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { api } from '../../api/client';
-import Section from '../shared/Section';
-import Field from '../shared/Field';
-import { Package, Key, CheckCircle, Clock, ImagePlus, X, ChevronDown, ChevronRight, Fuel, Gauge } from 'lucide-react';
+import { Camera, X, Loader2, ImagePlus, CheckCircle, Key, AlertCircle, Fuel } from 'lucide-react';
 
-export default function CheckInPrepTab({ booking, onReload }) {
-  const [records, setRecords] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [lockbox, setLockbox] = useState(null);
-  const [form, setForm] = useState({ odometer: '', fuelLevel: 'full', conditionNotes: '' });
-  const [photos, setPhotos] = useState([]);
-  const [saving, setSaving] = useState(false);
-  const [markingReady, setMarkingReady] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [justSaved, setJustSaved] = useState(false); // triggers "Mark Ready" required state
-  const [historyOpen, setHistoryOpen] = useState(false);
+/* ── Fuel Level Tap Selector ────────────────────────────────────────── */
+const FUEL_LEVELS = [
+  { value: 'full',  label: 'F',   pct: 100 },
+  { value: '3/4',   label: '¾',   pct: 75  },
+  { value: '1/2',   label: '½',   pct: 50  },
+  { value: '1/4',   label: '¼',   pct: 25  },
+  { value: 'empty', label: 'E',   pct: 0   },
+];
 
-  useEffect(() => {
-    loadData();
-  }, [booking.id]);
-
-  async function loadData() {
-    setLoading(true);
-    try {
-      const [recs, lb] = await Promise.all([
-        api.getCheckinRecords(booking.id).catch(() => []),
-        ['ready_for_pickup', 'active'].includes(booking.status)
-          ? api.getBookingLockbox(booking.id).catch(() => null)
-          : null,
-      ]);
-      setRecords(recs);
-      setLockbox(lb);
-    } catch (e) { console.error(e); }
-    setLoading(false);
-  }
-
-  async function handleSavePrep() {
-    setSaving(true);
-    try {
-      await api.recordCheckIn(booking.id, {
-        odometer: form.odometer ? Number(form.odometer) : undefined,
-        fuelLevel: form.fuelLevel,
-        conditionNotes: form.conditionNotes || undefined,
-        photoUrls: [],
-      });
-      setForm({ odometer: '', fuelLevel: 'full', conditionNotes: '' });
-      setPhotos([]);
-      setShowForm(false);
-      setJustSaved(true);
-      await loadData();
-      onReload?.();
-    } catch (e) { console.error(e); alert(e.message); }
-    setSaving(false);
-  }
-
-  async function handleMarkReady() {
-    setMarkingReady(true);
-    try {
-      await api.markReadyForPickup(booking.id);
-      setJustSaved(false);
-      await loadData();
-      onReload?.();
-    } catch (e) { console.error(e); alert(e.message); }
-    setMarkingReady(false);
-  }
-
-  function handlePhotoSelect(e) {
-    const files = Array.from(e.target.files);
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = () => setPhotos(prev => [...prev, { data: reader.result, name: file.name }]);
-      reader.readAsDataURL(file);
-    });
-  }
-
-  function removePhoto(idx) {
-    setPhotos(prev => prev.filter((_, i) => i !== idx));
-  }
-
-  const canMarkReady = booking.status === 'confirmed';
-  const isReady = booking.status === 'ready_for_pickup';
-  const isActive = booking.status === 'active';
-  const isCheckedIn = isReady || isActive || ['returned', 'completed'].includes(booking.status);
-  const adminPrepRecords = records.filter(r => r.record_type === 'admin_prep');
-  const checkinRecords = records.filter(r => r.record_type !== 'admin_prep');
-  const milesAllowed = (booking.rental_days || 1) * 200;
-  const hasRecords = adminPrepRecords.length > 0;
-
-  // The check-in is complete when we have records AND status is past "confirmed"
-  const checkInComplete = hasRecords && isCheckedIn;
-
+function FuelSelector({ value, onChange }) {
   return (
-    <div className="space-y-5">
-      {/* ── Completed Banner ─────────────────────────────────────────── */}
-      {checkInComplete && (
-        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 flex items-center gap-3">
-          <div className="w-10 h-10 bg-emerald-500/20 rounded-full flex items-center justify-center shrink-0">
-            <CheckCircle size={18} className="text-emerald-500" />
-          </div>
-          <div className="flex-1">
-            <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Vehicle Check-In Complete</p>
-            <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-              {isReady ? 'Ready for customer pickup.' : isActive ? 'Vehicle is currently out.' : 'Rental complete.'}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* ── Mileage Allowance Banner ─────────────────────────────────── */}
-      <div className="bg-[var(--bg-elevated)] rounded-xl p-4 border border-[var(--border-subtle)]">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs text-[var(--text-tertiary)] uppercase tracking-wider">Mileage Allowance</p>
-            <p className="text-lg font-bold text-[var(--text-primary)] mt-0.5">
-              {milesAllowed.toLocaleString()} miles
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="text-xs text-[var(--text-tertiary)]">{booking.rental_days || 1} days × 200 mi/day</p>
-            <p className="text-xs text-[var(--text-tertiary)]">Overage: $0.34/mile</p>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Lockbox Code ─────────────────────────────────────────────── */}
-      {lockbox && (
-        <Section title="Lockbox Code">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-amber-500/10 rounded-xl flex items-center justify-center">
-              <Key size={22} className="text-amber-500" />
-            </div>
-            <div>
-              <p className="text-3xl font-bold tracking-widest font-mono text-[var(--text-primary)]">
-                {lockbox.lockbox_code}
-              </p>
-              <p className="text-xs text-[var(--text-tertiary)]">
-                Shared with customer via portal when status is ready/active
-              </p>
-            </div>
-          </div>
-        </Section>
-      )}
-
-      {/* ── "Mark Ready" Required After Save ──────────────────────────── */}
-      {justSaved && canMarkReady && (
-        <div
-          className="rounded-xl p-4 border-2 border-red-500 bg-red-500/5 animate-pulse-once"
-          style={{ animation: 'pulse 1.5s ease-in-out 2' }}
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold text-red-600 dark:text-red-400">
-                ⚠ Required: Mark Vehicle Ready for Pickup
-              </p>
-              <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                Check-in record saved. You must mark the vehicle as ready so the customer can begin their check-in process.
-              </p>
-            </div>
-            <button
-              onClick={handleMarkReady}
-              disabled={markingReady}
-              className="shrink-0 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
-              style={{
-                background: 'linear-gradient(135deg, #EF4444, #DC2626)',
-                boxShadow: '0 4px 14px rgba(239, 68, 68, 0.35)',
-              }}
-            >
-              <Package size={15} className="inline mr-1.5 -mt-0.5" />
-              {markingReady ? 'Marking…' : 'Mark Ready for Pickup'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── Check-In Form — only show when NOT yet checked in ─────────── */}
-      {!checkInComplete && !justSaved && (
-        <>
-          {!showForm && !hasRecords ? (
-            <button onClick={() => setShowForm(true)} className="btn-primary w-full py-3 text-base">
-              <Package size={18} />
-              Start Vehicle Check-In
-            </button>
-          ) : null}
-
-          {(showForm || hasRecords) && (
-            <Section title="Vehicle Check-In">
-              <div className="space-y-4">
-                <div className="grid sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs text-[var(--text-tertiary)] mb-1 block">Starting Odometer</label>
-                    <input
-                      type="number"
-                      className="input text-sm"
-                      placeholder="e.g. 45320"
-                      value={form.odometer}
-                      onChange={e => setForm(f => ({ ...f, odometer: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-[var(--text-tertiary)] mb-1 block">Fuel Level</label>
-                    <select
-                      className="input text-sm"
-                      value={form.fuelLevel}
-                      onChange={e => setForm(f => ({ ...f, fuelLevel: e.target.value }))}
-                    >
-                      {['full', '3/4', '1/2', '1/4', 'empty'].map(l => (
-                        <option key={l} value={l}>{l}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs text-[var(--text-tertiary)] mb-1 block">Condition Notes</label>
-                  <textarea
-                    className="input text-sm resize-none"
-                    rows={3}
-                    placeholder="Pre-existing damage, cleanliness, accessories included…"
-                    value={form.conditionNotes}
-                    onChange={e => setForm(f => ({ ...f, conditionNotes: e.target.value }))}
-                  />
-                </div>
-
-                {/* Photo Uploader */}
-                <div>
-                  <label className="text-xs text-[var(--text-tertiary)] mb-2 block">Check-In Photos</label>
-                  <div className="flex flex-wrap gap-2">
-                    {photos.map((photo, idx) => (
-                      <div key={idx} className="relative w-20 h-20 rounded-lg overflow-hidden border border-[var(--border-subtle)]">
-                        <img src={photo.data} alt={photo.name} className="w-full h-full object-cover" />
-                        <button
-                          onClick={() => removePhoto(idx)}
-                          className="absolute top-0.5 right-0.5 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center"
-                        >
-                          <X size={10} className="text-white" />
-                        </button>
-                      </div>
-                    ))}
-                    <label className="w-20 h-20 rounded-lg border-2 border-dashed border-[var(--border-medium)] flex flex-col items-center justify-center cursor-pointer hover:border-[var(--accent-color)] transition-colors">
-                      <ImagePlus size={18} className="text-[var(--text-tertiary)]" />
-                      <span className="text-[9px] text-[var(--text-tertiary)] mt-1">Add photo</span>
-                      <input type="file" accept="image/*" multiple onChange={handlePhotoSelect} className="hidden" />
-                    </label>
-                  </div>
-                </div>
-
-                <button onClick={handleSavePrep} disabled={saving} className="btn-primary w-full">
-                  <CheckCircle size={15} />
-                  {saving ? 'Saving…' : 'Save Check-In Record'}
-                </button>
-              </div>
-            </Section>
-          )}
-        </>
-      )}
-
-      {/* ── Check-In History (collapsible, compact) ─────────────────── */}
-      {adminPrepRecords.length > 0 && (
-        <div className="border border-[var(--border-subtle)] rounded-xl overflow-hidden">
+    <div className="flex gap-2">
+      {FUEL_LEVELS.map(level => {
+        const isSelected = value === level.value;
+        return (
           <button
-            onClick={() => setHistoryOpen(!historyOpen)}
-            className="w-full flex items-center justify-between p-4 bg-[var(--bg-elevated)] hover:bg-[var(--bg-card)] transition-colors text-left"
-          >
-            <div className="flex items-center gap-2">
-              <Clock size={14} className="text-[var(--text-tertiary)]" />
-              <span className="text-sm font-semibold text-[var(--text-primary)]">
-                Check-In History
-              </span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--accent-glow)] text-[var(--accent-color)] font-semibold">
-                {adminPrepRecords.length}
-              </span>
-            </div>
-            <ChevronDown
-              size={16}
-              className={`text-[var(--text-tertiary)] transition-transform duration-200 ${historyOpen ? 'rotate-180' : ''}`}
-            />
-          </button>
-
-          <div
-            className="transition-all duration-300 ease-in-out overflow-hidden"
+            key={level.value}
+            type="button"
+            onClick={() => onChange(level.value)}
+            className="flex-1 flex flex-col items-center gap-1 py-3 rounded-xl text-sm font-semibold transition-all duration-200"
             style={{
-              maxHeight: historyOpen ? `${adminPrepRecords.length * 120 + 40}px` : '0px',
-              opacity: historyOpen ? 1 : 0,
+              backgroundColor: isSelected ? 'var(--accent-glow)' : 'var(--bg-card-hover)',
+              border: isSelected ? '2px solid var(--accent-color)' : '2px solid var(--border-subtle)',
+              color: isSelected ? 'var(--accent-color)' : 'var(--text-tertiary)',
+              minHeight: '56px',
             }}
           >
-            <div className="p-3 space-y-2">
-              {adminPrepRecords.map(rec => (
-                <div key={rec.id} className="p-3 bg-[var(--bg-card)] rounded-lg border border-[var(--border-subtle)]">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] text-[var(--text-tertiary)]">
-                      {new Date(rec.created_at).toLocaleString()} — {rec.created_by}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-4 text-xs">
-                    {rec.odometer && (
-                      <span className="flex items-center gap-1">
-                        <Gauge size={11} className="text-[var(--text-tertiary)]" />
-                        <span className="text-[var(--text-secondary)]">{rec.odometer.toLocaleString()} mi</span>
-                      </span>
-                    )}
-                    {rec.fuel_level && (
-                      <span className="flex items-center gap-1">
-                        <Fuel size={11} className="text-[var(--text-tertiary)]" />
-                        <span className="text-[var(--text-secondary)]">{rec.fuel_level}</span>
-                      </span>
-                    )}
-                    {rec.condition_notes && (
-                      <span className="text-[var(--text-secondary)] truncate max-w-[200px]">{rec.condition_notes}</span>
-                    )}
-                  </div>
-                  {rec.photo_urls?.length > 0 && (
-                    <div className="flex gap-1.5 mt-2">
-                      {rec.photo_urls.map((url, i) => (
-                        <img key={i} src={url} alt="" className="w-10 h-10 rounded object-cover border border-[var(--border-subtle)]" />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
+            <span className="text-lg">{level.label}</span>
+            <span className="text-[10px] opacity-60">{level.pct}%</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── Inline Photo Uploader (Admin — uses admin auth) ─────────────── */
+function AdminPhotoUploader({ bookingId, photos, setPhotos }) {
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef(null);
+
+  const handleFiles = async (files) => {
+    if (!files?.length) return;
+    setUploading(true);
+    try {
+      for (const file of Array.from(files).slice(0, 10 - photos.length)) {
+        const result = await api.uploadVehicleImage(file);
+        setPhotos(prev => [...prev, result.url]);
+      }
+    } catch (e) {
+      console.error('Photo upload failed:', e);
+    }
+    setUploading(false);
+    if (fileRef.current) fileRef.current.value = '';
+  };
+
+  return (
+    <div className="space-y-2">
+      <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] flex items-center gap-1.5">
+        <Camera size={13} /> Vehicle Photos
+        <span className="ml-auto tabular-nums">{photos.length}/10</span>
+      </label>
+
+      {photos.length > 0 && (
+        <div className="grid grid-cols-4 gap-2">
+          {photos.map((url, i) => (
+            <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-[var(--border-subtle)] group">
+              <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
+              <button
+                type="button"
+                onClick={() => setPhotos(prev => prev.filter((_, j) => j !== i))}
+                className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <X size={10} />
+              </button>
             </div>
-          </div>
+          ))}
         </div>
       )}
 
-      {/* ── Customer Records ────────────────────────────────────────── */}
-      {checkinRecords.length > 0 && (
-        <Section title="Customer Records">
-          <div className="space-y-3">
-            {checkinRecords.map(rec => (
-              <div key={rec.id} className="p-3 bg-[var(--bg-card)] rounded-lg border border-[var(--border-subtle)]">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-[var(--accent-color)] uppercase">
-                    {rec.record_type === 'customer_checkin' ? '📥 Customer Check-In' :
-                     rec.record_type === 'customer_checkout' ? '📤 Customer Check-Out' :
-                     rec.record_type === 'admin_inspection' ? '🔍 Admin Inspection' : rec.record_type}
-                  </span>
-                  <span className="text-xs text-[var(--text-tertiary)]">
-                    {new Date(rec.created_at).toLocaleString()}
-                  </span>
-                </div>
-                <div className="grid sm:grid-cols-3 gap-2 text-sm">
-                  {rec.odometer && <Field label="Odometer" value={rec.odometer.toLocaleString()} />}
-                  {rec.fuel_level && <Field label="Fuel" value={rec.fuel_level} />}
-                  {rec.condition_notes && <Field label="Notes" value={rec.condition_notes} />}
-                </div>
-              </div>
-            ))}
-          </div>
-        </Section>
+      {photos.length < 10 && (
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+          className="w-full flex items-center justify-center gap-2 py-4 rounded-xl text-sm font-medium transition-all"
+          style={{
+            backgroundColor: 'var(--bg-card-hover)',
+            border: '2px dashed var(--border-subtle)',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          {uploading ? (
+            <><Loader2 size={16} className="animate-spin" /> Uploading…</>
+          ) : (
+            <><ImagePlus size={18} /> {photos.length === 0 ? 'Add Vehicle Photos' : 'Add More'}</>
+          )}
+        </button>
       )}
+
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        multiple
+        className="hidden"
+        onChange={e => handleFiles(e.target.files)}
+      />
+    </div>
+  );
+}
+
+/* ── Main Component ──────────────────────────────────────────────────── */
+export default function CheckInPrepTab({ booking, onReload }) {
+  const [odometer, setOdometer] = useState('');
+  const [fuelLevel, setFuelLevel] = useState('full');
+  const [notes, setNotes] = useState('');
+  const [photos, setPhotos] = useState([]);
+  const [showNotes, setShowNotes] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
+  const [lockboxCode, setLockboxCode] = useState(null);
+
+  const isReady = ['ready_for_pickup', 'active', 'returned', 'completed'].includes(booking.status);
+
+  // Load existing check-in data if already prepped
+  useEffect(() => {
+    if (isReady) {
+      loadExistingData();
+    }
+  }, [booking.id]);
+
+  async function loadExistingData() {
+    try {
+      const records = await api.getCheckinRecords(booking.id);
+      const prepRecord = records.find(r => r.record_type === 'admin_prep');
+      if (prepRecord) {
+        setOdometer(prepRecord.odometer || '');
+        setFuelLevel(prepRecord.fuel_level || 'full');
+        setNotes(prepRecord.condition_notes || '');
+        setPhotos(prepRecord.photo_urls || []);
+        if (prepRecord.condition_notes) setShowNotes(true);
+      }
+      // Load lockbox
+      const lb = await api.getBookingLockbox(booking.id).catch(() => null);
+      if (lb?.lockbox_code) setLockboxCode(lb.lockbox_code);
+    } catch (e) { console.error(e); }
+  }
+
+  async function handleSubmit() {
+    setSubmitting(true);
+    setError('');
+    try {
+      await api.recordCheckIn(booking.id, {
+        odometer: odometer ? Number(odometer) : undefined,
+        fuelLevel,
+        conditionNotes: notes || undefined,
+        photoUrls: photos.length > 0 ? photos : undefined,
+        markReady: true,
+      });
+      setSuccess(true);
+      // Load lockbox code after marking ready
+      const lb = await api.getBookingLockbox(booking.id).catch(() => null);
+      if (lb?.lockbox_code) setLockboxCode(lb.lockbox_code);
+      onReload?.();
+    } catch (err) {
+      setError(err.message || 'Failed to save check-in');
+    }
+    setSubmitting(false);
+  }
+
+  const v = booking.vehicles;
+  const vehicleName = v ? `${v.year} ${v.make} ${v.model}` : 'Vehicle';
+
+  /* ─── Already Prepped State ──────────────────────────────────────── */
+  if (isReady || success) {
+    return (
+      <div className="max-w-lg mx-auto space-y-5 py-2">
+        {/* Success banner */}
+        <div className="p-5 rounded-2xl text-center" style={{
+          backgroundColor: 'rgba(34,197,94,0.08)',
+          border: '1px solid rgba(34,197,94,0.2)',
+        }}>
+          <CheckCircle size={40} className="mx-auto mb-3 text-emerald-500" />
+          <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-1">
+            Vehicle Ready for Pickup
+          </h3>
+          <p className="text-sm text-[var(--text-secondary)]">
+            {vehicleName} has been checked in and the customer has been notified.
+          </p>
+        </div>
+
+        {/* Lockbox code */}
+        {lockboxCode && (
+          <div className="p-5 rounded-2xl text-center" style={{
+            backgroundColor: 'rgba(245,158,11,0.08)',
+            border: '1px solid rgba(245,158,11,0.2)',
+          }}>
+            <Key size={24} className="mx-auto mb-2 text-amber-500" />
+            <p className="text-xs font-semibold uppercase tracking-widest text-amber-500 mb-1">Lockbox Code</p>
+            <p className="text-3xl font-bold tracking-[0.25em] font-mono text-[var(--text-primary)]">
+              {lockboxCode}
+            </p>
+          </div>
+        )}
+
+        {/* Recorded data summary */}
+        <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] space-y-3">
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Check-In Record</h4>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            {odometer && (
+              <div>
+                <p className="text-xs text-[var(--text-tertiary)]">Odometer</p>
+                <p className="font-semibold tabular-nums text-[var(--text-primary)]">{Number(odometer).toLocaleString()} mi</p>
+              </div>
+            )}
+            <div>
+              <p className="text-xs text-[var(--text-tertiary)]">Fuel Level</p>
+              <p className="font-semibold text-[var(--text-primary)]">{fuelLevel}</p>
+            </div>
+          </div>
+          {notes && (
+            <div>
+              <p className="text-xs text-[var(--text-tertiary)]">Notes</p>
+              <p className="text-sm text-[var(--text-secondary)]">{notes}</p>
+            </div>
+          )}
+          {photos.length > 0 && (
+            <div>
+              <p className="text-xs text-[var(--text-tertiary)] mb-2">Photos ({photos.length})</p>
+              <div className="grid grid-cols-4 gap-2">
+                {photos.map((url, i) => (
+                  <img key={i} src={url} alt={`Photo ${i + 1}`} className="aspect-square rounded-lg object-cover border border-[var(--border-subtle)]" />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  /* ─── Check-In Form ─────────────────────────────────────────────── */
+  return (
+    <div className="max-w-lg mx-auto space-y-5 py-2">
+      {/* Vehicle header */}
+      <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)]">
+        <p className="text-sm font-semibold text-[var(--text-primary)]">{vehicleName}</p>
+        <p className="text-xs text-[var(--text-tertiary)] font-mono">{v?.vehicle_code}</p>
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div className="flex items-center gap-2 p-3 rounded-xl text-sm" style={{
+          backgroundColor: 'rgba(239,68,68,0.08)',
+          border: '1px solid rgba(239,68,68,0.2)',
+          color: '#ef4444',
+        }}>
+          <AlertCircle size={16} />
+          <span className="flex-1">{error}</span>
+          <button onClick={() => setError('')}><X size={14} /></button>
+        </div>
+      )}
+
+      {/* Odometer */}
+      <div>
+        <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-2 block">
+          Starting Odometer
+        </label>
+        <input
+          type="number"
+          inputMode="numeric"
+          className="w-full px-4 py-3.5 rounded-xl text-lg font-semibold tabular-nums transition-all"
+          style={{
+            backgroundColor: 'var(--bg-card-hover)',
+            border: '2px solid var(--border-subtle)',
+            color: 'var(--text-primary)',
+            outline: 'none',
+          }}
+          placeholder="45,320"
+          value={odometer}
+          onChange={e => setOdometer(e.target.value)}
+          onFocus={e => (e.target.style.borderColor = 'var(--accent-color)')}
+          onBlur={e => (e.target.style.borderColor = 'var(--border-subtle)')}
+        />
+      </div>
+
+      {/* Fuel Level */}
+      <div>
+        <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-2 flex items-center gap-1.5">
+          <Fuel size={13} /> Fuel Level
+        </label>
+        <FuelSelector value={fuelLevel} onChange={setFuelLevel} />
+      </div>
+
+      {/* Photos */}
+      <AdminPhotoUploader bookingId={booking.id} photos={photos} setPhotos={setPhotos} />
+
+      {/* Notes (collapsed by default) */}
+      {!showNotes ? (
+        <button
+          type="button"
+          onClick={() => setShowNotes(true)}
+          className="text-xs font-medium text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
+        >
+          + Add condition notes
+        </button>
+      ) : (
+        <div>
+          <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-2 block">
+            Condition Notes
+          </label>
+          <textarea
+            className="w-full px-4 py-3 rounded-xl text-sm resize-none transition-all"
+            rows={3}
+            style={{
+              backgroundColor: 'var(--bg-card-hover)',
+              border: '2px solid var(--border-subtle)',
+              color: 'var(--text-primary)',
+              outline: 'none',
+            }}
+            placeholder="Scratch on rear bumper, etc."
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            onFocus={e => (e.target.style.borderColor = 'var(--accent-color)')}
+            onBlur={e => (e.target.style.borderColor = 'var(--border-subtle)')}
+          />
+        </div>
+      )}
+
+      {/* Submit — single atomic action */}
+      <button
+        onClick={handleSubmit}
+        disabled={submitting}
+        className="w-full flex items-center justify-center gap-2.5 px-6 py-4 rounded-2xl font-semibold text-base transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+        style={{
+          backgroundColor: '#22c55e',
+          color: '#fff',
+          boxShadow: '0 4px 14px rgba(34,197,94,0.3)',
+          minHeight: '56px',
+        }}
+      >
+        {submitting ? (
+          <><Loader2 size={20} className="animate-spin" /> Saving & Marking Ready…</>
+        ) : (
+          <><CheckCircle size={20} /> Ready for Pickup</>
+        )}
+      </button>
+
+      <p className="text-xs text-center text-[var(--text-tertiary)]">
+        This will save the check-in record and notify the customer that their vehicle is ready.
+      </p>
     </div>
   );
 }

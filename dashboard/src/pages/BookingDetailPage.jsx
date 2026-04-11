@@ -134,14 +134,9 @@ export default function BookingDetailPage() {
             </button>
           )}
           {status === 'returned' && (
-            <>
-              <button onClick={() => doAction('complete')} className="btn-primary">
-                <CheckCircle size={15} /> Complete
-              </button>
-              <button onClick={() => setModal('damage')} className="btn-secondary">
-                <Flag size={15} /> Damage Report
-              </button>
-            </>
+            <button onClick={() => setActiveTab('checkout')} className="btn-primary">
+              <ClipboardCheck size={15} /> Continue Check-Out
+            </button>
           )}
           {['pending_approval', 'approved', 'confirmed', 'ready_for_pickup', 'active'].includes(status) && (
             <button onClick={() => setModal('cancel')} className="btn-ghost text-[var(--danger-color)]">

@@ -1,61 +1,195 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { api } from '../../api/client';
 import Section from '../shared/Section';
-import Field from '../shared/Field';
 import {
-  Clipboard, Plus, Trash2, AlertTriangle, Camera, DollarSign,
-  CheckCircle, ChevronDown, ImagePlus, X, Fuel, Gauge, Clock
+  CheckCircle, AlertCircle, Loader2, Camera, X, ImagePlus,
+  Fuel, ChevronRight, ChevronLeft, DollarSign, Plus, Trash2,
+  FileText, Send, ArrowRight, Gauge,
 } from 'lucide-react';
 
-/* ── Incidental type definitions ─────────────────────────────────────────────
-   Defaults now match the actual rental agreement (Section 7 — Charges).
-   Gas + late + mileage are auto-calculated when possible.
-   ──────────────────────────────────────────────────────────────────────────── */
-const INCIDENTAL_TYPES = [
-  { value: 'cleaning',        label: 'Cleaning Fee',      defaultAmount: 7500,  maxAmount: 25000, desc: 'Vehicle returned excessively dirty' },
-  { value: 'smoking',         label: 'Smoking / Pet Fee',  defaultAmount: 25000, maxAmount: 25000, desc: 'Evidence of smoking or animal transport' },
-  { value: 'gas',             label: 'Fuel Refill',        defaultAmount: 0,     maxAmount: null,  desc: '$20 per quarter tank short' },
-  { value: 'late_return',     label: 'Late Return Fee',    defaultAmount: 0,     maxAmount: null,  desc: '$30 per day late' },
-  { value: 'mileage_overage', label: 'Mileage Overage',    defaultAmount: 0,     maxAmount: null,  desc: '$0.34 per mile over 200/day' },
-  { value: 'toll_violation',  label: 'Toll / Traffic Violation', defaultAmount: 5000, maxAmount: null, desc: '$50 admin fee per violation' },
-  { value: 'damage',          label: 'Vehicle Damage',     defaultAmount: 0,     maxAmount: null,  desc: 'Custom amount — describe damage' },
-  { value: 'other',           label: 'Other Charge',       defaultAmount: 0,     maxAmount: null,  desc: 'Any other incidental charge' },
+/* ── Fuel Level Tap Selector ────────────────────────────────────────── */
+const FUEL_LEVELS = [
+  { value: 'full',  label: 'F',  pct: 100 },
+  { value: '3/4',   label: '¾',  pct: 75  },
+  { value: '1/2',   label: '½',  pct: 50  },
+  { value: '1/4',   label: '¼',  pct: 25  },
+  { value: 'empty', label: 'E',  pct: 0   },
 ];
 
-const FUEL_LEVELS = ['full', '3/4', '1/2', '1/4', 'empty'];
-const FUEL_QUARTERS = { full: 4, '3/4': 3, '1/2': 2, '1/4': 1, empty: 0 };
+function FuelSelector({ value, onChange }) {
+  return (
+    <div className="flex gap-2">
+      {FUEL_LEVELS.map(level => {
+        const isSelected = value === level.value;
+        return (
+          <button
+            key={level.value}
+            type="button"
+            onClick={() => onChange(level.value)}
+            className="flex-1 flex flex-col items-center gap-1 py-3 rounded-xl text-sm font-semibold transition-all duration-200"
+            style={{
+              backgroundColor: isSelected ? 'var(--accent-glow)' : 'var(--bg-card-hover)',
+              border: isSelected ? '2px solid var(--accent-color)' : '2px solid var(--border-subtle)',
+              color: isSelected ? 'var(--accent-color)' : 'var(--text-tertiary)',
+              minHeight: '56px',
+            }}
+          >
+            <span className="text-lg">{level.label}</span>
+            <span className="text-[10px] opacity-60">{level.pct}%</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
-export default function CheckOutTab({ booking, onReload }) {
-  // ── State ───────────────────────────────────────────────────────────────
-  const [incidentals, setIncidentals] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [inspecting, setInspecting] = useState(false);
-  const [addingIncidental, setAddingIncidental] = useState(false);
-  const [deposit, setDeposit] = useState(null);
-  const [photos, setPhotos] = useState([]);
+/* ── Inline Photo Uploader ───────────────────────────────────────────── */
+function AdminPhotoUploader({ photos, setPhotos }) {
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef(null);
 
-  const [inspectionForm, setInspectionForm] = useState({
-    checkoutOdometer: '',
-    fuelLevel: 'full',
-    conditionNotes: '',
-  });
-
-  // Multi-select incidental
-  const [selectedTypes, setSelectedTypes] = useState([]);
-  const [incidentalRows, setIncidentalRows] = useState([]);
-  const [showDropdown, setShowDropdown] = useState(false);
-
-  useEffect(() => { loadData(); }, [booking.id]);
-
-  async function loadData() {
-    setLoading(true);
+  const handleFiles = async (files) => {
+    if (!files?.length) return;
+    setUploading(true);
     try {
-      const [inc, dep] = await Promise.all([
-        api.getIncidentals(booking.id).catch(() => []),
+      for (const file of Array.from(files).slice(0, 10 - photos.length)) {
+        const result = await api.uploadVehicleImage(file);
+        setPhotos(prev => [...prev, result.url]);
+      }
+    } catch (e) { console.error(e); }
+    setUploading(false);
+    if (fileRef.current) fileRef.current.value = '';
+  };
+
+  return (
+    <div className="space-y-2">
+      <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] flex items-center gap-1.5">
+        <Camera size={13} /> Return Photos <span className="ml-auto tabular-nums">{photos.length}/10</span>
+      </label>
+      {photos.length > 0 && (
+        <div className="grid grid-cols-4 gap-2">
+          {photos.map((url, i) => (
+            <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-[var(--border-subtle)] group">
+              <img src={url} alt="" className="w-full h-full object-cover" />
+              <button type="button" onClick={() => setPhotos(prev => prev.filter((_, j) => j !== i))}
+                className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <X size={10} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      {photos.length < 10 && (
+        <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
+          className="w-full flex items-center justify-center gap-2 py-4 rounded-xl text-sm font-medium"
+          style={{ backgroundColor: 'var(--bg-card-hover)', border: '2px dashed var(--border-subtle)', color: 'var(--text-secondary)' }}>
+          {uploading ? <><Loader2 size={16} className="animate-spin" /> Uploading…</> : <><ImagePlus size={18} /> {photos.length === 0 ? 'Add Return Photos' : 'Add More'}</>}
+        </button>
+      )}
+      <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" onChange={e => handleFiles(e.target.files)} />
+    </div>
+  );
+}
+
+/* ── Incidental Type Options ─────────────────────────────────────────── */
+const INCIDENTAL_TYPES = [
+  { value: 'cleaning', label: 'Cleaning Fee', defaultAmount: 7500 },
+  { value: 'gas', label: 'Gas Discrepancy', defaultAmount: 5000 },
+  { value: 'smoking', label: 'Smoking Fee', defaultAmount: 25000 },
+  { value: 'damage', label: 'Damage Charge', defaultAmount: 0 },
+  { value: 'late_return', label: 'Late Return Fee', defaultAmount: 0 },
+  { value: 'mileage_overage', label: 'Mileage Overage', defaultAmount: 0 },
+  { value: 'toll_violation', label: 'Toll Violation', defaultAmount: 0 },
+  { value: 'other', label: 'Other', defaultAmount: 0 },
+];
+
+/* ── Stepper Header ──────────────────────────────────────────────────── */
+function StepperHeader({ step, steps }) {
+  return (
+    <div className="flex items-center gap-2 mb-6">
+      {steps.map((s, i) => (
+        <div key={i} className="flex items-center gap-2 flex-1">
+          <div className="flex items-center gap-2 flex-1">
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-all"
+              style={{
+                backgroundColor: i < step ? '#22c55e' : i === step ? 'var(--accent-color)' : 'var(--bg-card-hover)',
+                color: i < step ? '#fff' : i === step ? '#1c1917' : 'var(--text-tertiary)',
+                border: i > step ? '2px solid var(--border-subtle)' : 'none',
+              }}
+            >
+              {i < step ? <CheckCircle size={14} /> : i + 1}
+            </div>
+            <span className={`text-xs font-medium hidden sm:block ${i === step ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)]'}`}>
+              {s}
+            </span>
+          </div>
+          {i < steps.length - 1 && (
+            <div className="h-px flex-1 mx-1" style={{ backgroundColor: i < step ? '#22c55e' : 'var(--border-subtle)' }} />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   MAIN COMPONENT — 3-Step Check-Out Flow
+   ══════════════════════════════════════════════════════════════════════ */
+export default function CheckOutTab({ booking, onReload }) {
+  const [step, setStep] = useState(0);
+  const STEPS = ['Vehicle Condition', 'Review Charges', 'Finalize'];
+
+  // Step 1: Condition
+  const [odometer, setOdometer] = useState(booking.return_mileage || '');
+  const [fuelLevel, setFuelLevel] = useState(booking.return_fuel_level || 'full');
+  const [notes, setNotes] = useState('');
+  const [photos, setPhotos] = useState([]);
+  const [showNotes, setShowNotes] = useState(false);
+
+  // Step 2: Incidentals
+  const [incidentals, setIncidentals] = useState([]);
+  const [incidentalsLoaded, setIncidentalsLoaded] = useState(false);
+  const [newIncType, setNewIncType] = useState('cleaning');
+  const [newIncAmount, setNewIncAmount] = useState('');
+  const [newIncDesc, setNewIncDesc] = useState('');
+
+  // Step 3: Settlement
+  const [deposit, setDeposit] = useState(null);
+  const [invoice, setInvoice] = useState(null);
+
+  // Shared
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [completed, setCompleted] = useState(false);
+
+  const v = booking.vehicles;
+  const vehicleName = v ? `${v.year} ${v.make} ${v.model}` : 'Vehicle';
+
+  // Check if already completed
+  const isAlreadyDone = ['completed'].includes(booking.status);
+  const isReturned = booking.status === 'returned';
+
+  /* ── Load incidentals and deposit when entering step 2/3 ── */
+  useEffect(() => {
+    if (step >= 1 && !incidentalsLoaded) loadIncidentals();
+    if (step >= 2) loadDepositAndInvoice();
+  }, [step]);
+
+  async function loadIncidentals() {
+    try {
+      const data = await api.getIncidentals(booking.id);
+      setIncidentals(Array.isArray(data) ? data : []);
+      setIncidentalsLoaded(true);
+    } catch (e) { console.error(e); }
+  }
+
+  async function loadDepositAndInvoice() {
+    try {
+      const [dep, inv] = await Promise.all([
         api.getBookingDeposit(booking.id).catch(() => null),
+        api.getInvoice(booking.id).catch(() => null),
       ]);
-      setIncidentals(inc);
-      // Fallback: booking_deposits table may be empty — use booking.deposit_amount
       if (dep && dep.status !== 'none' && dep.amount > 0) {
         setDeposit(dep);
       } else if (booking.deposit_amount) {
@@ -63,454 +197,464 @@ export default function CheckOutTab({ booking, onReload }) {
           amount: Math.round(booking.deposit_amount * 100),
           status: booking.deposit_status || 'held',
         });
-      } else {
-        setDeposit(null);
       }
+      setInvoice(inv);
     } catch (e) { console.error(e); }
+  }
+
+  /* ── Step 1 → 2: Save condition record ── */
+  async function handleSaveCondition() {
+    setLoading(true);
+    setError('');
+    try {
+      await api.recordCheckOut(booking.id, {
+        odometer: odometer ? Number(odometer) : undefined,
+        fuelLevel,
+        conditionNotes: notes || undefined,
+        photoUrls: photos.length > 0 ? photos : undefined,
+      });
+
+      // Auto-calculate incidentals
+      try {
+        await api.recordInspection(booking.id, {
+          checkoutOdometer: odometer ? Number(odometer) : undefined,
+          fuelLevel,
+          autoCalculate: true,
+        });
+      } catch (calcErr) {
+        // Non-fatal — inspection endpoint may not exist or may fail, we continue
+        console.log('[CheckOut] Auto-calculate skipped:', calcErr.message);
+      }
+
+      await loadIncidentals();
+      setStep(1);
+    } catch (err) {
+      setError(err.message || 'Failed to save condition');
+    }
     setLoading(false);
   }
 
-  // ── Auto-calculations ──────────────────────────────────────────────────
-  const checkinOdo = booking.checkin_odometer;
-  const returnOdo = inspectionForm.checkoutOdometer ? Number(inspectionForm.checkoutOdometer) : booking.checkout_odometer;
-  const milesDriven = checkinOdo && returnOdo ? returnOdo - checkinOdo : null;
-  const milesAllowed = (booking.rental_days || 1) * 200;
-  const milesOver = milesDriven !== null ? Math.max(0, milesDriven - milesAllowed) : 0;
-  const mileageCharge = Math.round(milesOver * 34); // cents
-
-  // Fuel math
-  const checkinFuel = booking.checkin_fuel_level || booking.pickup_fuel_level || 'full';
-  const returnFuel = inspectionForm.fuelLevel;
-  const fuelDiff = FUEL_QUARTERS[checkinFuel] - FUEL_QUARTERS[returnFuel]; // positive = short
-  const fuelCharge = Math.max(0, fuelDiff) * 2000; // $20/quarter tank in cents
-
-  // Late return math
-  const scheduledReturn = booking.return_date ? new Date(booking.return_date) : null;
-  const actualReturn = booking.actual_return_date ? new Date(booking.actual_return_date) : new Date();
-  const daysLate = scheduledReturn ? Math.max(0, Math.ceil((actualReturn - scheduledReturn) / (1000 * 60 * 60 * 24))) : 0;
-  const lateCharge = daysLate * 3000; // $30/day in cents
-
-  // ── Handlers ───────────────────────────────────────────────────────────
-  async function handleInspection() {
-    setInspecting(true);
+  /* ── Step 2: Incidental CRUD ── */
+  async function handleAddIncidental() {
+    if (!newIncAmount) return;
+    setLoading(true);
     try {
-      await api.recordInspection(booking.id, {
-        checkoutOdometer: inspectionForm.checkoutOdometer ? Number(inspectionForm.checkoutOdometer) : undefined,
-        fuelLevel: inspectionForm.fuelLevel,
-        conditionNotes: inspectionForm.conditionNotes || undefined,
-        photoUrls: [],
+      const typeConfig = INCIDENTAL_TYPES.find(t => t.value === newIncType);
+      await api.addIncidental(booking.id, {
+        type: newIncType,
+        description: newIncDesc || typeConfig?.label || newIncType,
+        amount: Math.round(Number(newIncAmount) * 100),
       });
-      await loadData();
-      onReload?.();
-    } catch (e) { console.error(e); alert(e.message); }
-    setInspecting(false);
+      setNewIncAmount('');
+      setNewIncDesc('');
+      await loadIncidentals();
+    } catch (e) { setError(e.message); }
+    setLoading(false);
   }
 
-  function handleSelectIncidental(type) {
-    if (selectedTypes.includes(type.value)) return;
-    setSelectedTypes(prev => [...prev, type.value]);
-
-    // Auto-calculate amount for auto-calculable types
-    let autoAmount = type.defaultAmount;
-    if (type.value === 'gas') autoAmount = fuelCharge;
-    if (type.value === 'late_return') autoAmount = lateCharge;
-    if (type.value === 'mileage_overage') autoAmount = mileageCharge;
-
-    setIncidentalRows(prev => [...prev, {
-      type: type.value,
-      label: type.label,
-      amount: (autoAmount / 100).toFixed(2),
-      description: type.value === 'gas' ? `Fuel: returned at ${returnFuel} (checked-in at ${checkinFuel})` :
-                   type.value === 'late_return' ? `${daysLate} day${daysLate !== 1 ? 's' : ''} late × $30/day` :
-                   type.value === 'mileage_overage' ? `${milesOver.toLocaleString()} miles over × $0.34/mile` :
-                   '',
-    }]);
-    setShowDropdown(false);
-  }
-
-  function handleRemoveRow(typeValue) {
-    setSelectedTypes(prev => prev.filter(t => t !== typeValue));
-    setIncidentalRows(prev => prev.filter(r => r.type !== typeValue));
-  }
-
-  function handleRowChange(typeValue, field, value) {
-    setIncidentalRows(prev => prev.map(r =>
-      r.type === typeValue ? { ...r, [field]: value } : r
-    ));
-  }
-
-  async function handleSaveAllIncidentals() {
-    setAddingIncidental(true);
+  async function handleWaiveIncidental(id) {
     try {
-      for (const row of incidentalRows) {
-        await api.addIncidental(booking.id, {
-          type: row.type,
-          amount: Math.round(Number(row.amount) * 100),
-          description: row.description,
-          waived: false,
-        });
-      }
-      setIncidentalRows([]);
-      setSelectedTypes([]);
-      await loadData();
-    } catch (e) { console.error(e); alert(e.message); }
-    setAddingIncidental(false);
+      await api.updateIncidental(id, { waived: true });
+      await loadIncidentals();
+    } catch (e) { setError(e.message); }
   }
 
   async function handleDeleteIncidental(id) {
-    if (!confirm('Delete this incidental charge?')) return;
     try {
       await api.deleteIncidental(id);
-      await loadData();
-    } catch (e) { console.error(e); }
+      await loadIncidentals();
+    } catch (e) { setError(e.message); }
   }
 
-  async function handleWaiveToggle(inc) {
+  /* ── Step 3: Finalize ── */
+  async function handleGenerateInvoice() {
+    setLoading(true);
     try {
-      await api.updateIncidental(inc.id, { waived: !inc.waived });
-      await loadData();
-    } catch (e) { console.error(e); }
+      const inv = await api.generateInvoice(booking.id);
+      setInvoice(inv);
+    } catch (e) { setError(e.message); }
+    setLoading(false);
   }
 
-  // Photo handling
-  function handlePhotoSelect(e) {
-    const files = Array.from(e.target.files);
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = () => setPhotos(prev => [...prev, { data: reader.result, name: file.name }]);
-      reader.readAsDataURL(file);
-    });
+  async function handleReleaseDeposit() {
+    if (!confirm('Refund the full deposit back to the customer?')) return;
+    setLoading(true);
+    try {
+      await api.releaseDeposit(booking.id);
+      await loadDepositAndInvoice();
+    } catch (e) { setError(e.message); }
+    setLoading(false);
   }
 
-  function removePhoto(idx) {
-    setPhotos(prev => prev.filter((_, i) => i !== idx));
+  async function handleSettleDeposit() {
+    if (!confirm('Settle the deposit against incidentals?')) return;
+    setLoading(true);
+    try {
+      const activeTotal = incidentals.filter(i => !i.waived).reduce((sum, i) => sum + i.amount, 0);
+      await api.settleDeposit(booking.id, { incidentalTotal: activeTotal });
+      await loadDepositAndInvoice();
+    } catch (e) { setError(e.message); }
+    setLoading(false);
   }
 
-  // ── Computed ───────────────────────────────────────────────────────────
-  const isInspectable = ['returned', 'active'].includes(booking.status);
-  const inspectionDone = booking.inspection_completed_at;
-  const isCompleted = ['completed'].includes(booking.status);
-  const checkoutComplete = inspectionDone || isCompleted;
+  async function handleComplete() {
+    setLoading(true);
+    setError('');
+    try {
+      // Generate invoice if not exists
+      if (!invoice) {
+        await api.generateInvoice(booking.id);
+      }
+      // Complete the booking
+      await api.completeBooking(booking.id);
+      setCompleted(true);
+      onReload?.();
+    } catch (e) { setError(e.message); }
+    setLoading(false);
+  }
+
+  async function handleSendInvoiceAndComplete() {
+    setLoading(true);
+    setError('');
+    try {
+      // Generate invoice if not exists
+      let inv = invoice;
+      if (!inv) {
+        inv = await api.generateInvoice(booking.id);
+        setInvoice(inv);
+      }
+      // Send invoice
+      if (inv?.id && inv.status === 'draft') {
+        await api.sendInvoice(inv.id);
+      }
+      // Complete the booking
+      await api.completeBooking(booking.id);
+      setCompleted(true);
+      onReload?.();
+    } catch (e) { setError(e.message); }
+    setLoading(false);
+  }
+
+  /* ── Computed values ── */
   const activeIncidentals = incidentals.filter(i => !i.waived);
-  const incidentalTotal = activeIncidentals.reduce((sum, i) => sum + i.amount, 0);
-  const depositAmt = deposit?.amount || 0;
-  const netRefund = Math.max(0, depositAmt - incidentalTotal);
-  const amountOwed = Math.max(0, incidentalTotal - depositAmt);
+  const incidentalTotal = activeIncidentals.reduce((sum, i) => sum + (i.amount || 0), 0);
+  const depositAmount = deposit?.amount || 0;
+  const depositHeld = deposit?.status === 'held';
+  const refundAmount = Math.max(0, depositAmount - incidentalTotal);
+  const customerOwes = Math.max(0, incidentalTotal - depositAmount);
 
-  const availableTypes = INCIDENTAL_TYPES.filter(t =>
-    !selectedTypes.includes(t.value) && !incidentals.some(i => i.type === t.value && !i.waived)
-  );
+  /* ── Completed State ─────────────────────────────────────────────── */
+  if (completed || isAlreadyDone) {
+    return (
+      <div className="max-w-lg mx-auto py-8 text-center">
+        <CheckCircle size={48} className="mx-auto mb-4 text-emerald-500" />
+        <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2">Rental Complete</h2>
+        <p className="text-sm text-[var(--text-secondary)]">
+          {vehicleName} has been checked out, inspected, and the booking is finalized.
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-5">
-      {/* ── Checkout Complete Banner ──────────────────────────────────── */}
-      {checkoutComplete && (
-        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 flex items-center gap-3">
-          <div className="w-10 h-10 bg-emerald-500/20 rounded-full flex items-center justify-center shrink-0">
-            <CheckCircle size={18} className="text-emerald-500" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Inspection Completed</p>
-            <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-              Completed {new Date(booking.inspection_completed_at).toLocaleString()}
-              {booking.inspection_completed_by && ` by ${booking.inspection_completed_by}`}
-            </p>
-          </div>
+    <div className="max-w-lg mx-auto space-y-4 py-2">
+      {/* Stepper */}
+      <StepperHeader step={step} steps={STEPS} />
+
+      {/* Error */}
+      {error && (
+        <div className="flex items-center gap-2 p-3 rounded-xl text-sm" style={{
+          backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444',
+        }}>
+          <AlertCircle size={16} />
+          <span className="flex-1">{error}</span>
+          <button onClick={() => setError('')}><X size={14} /></button>
         </div>
       )}
 
-      {/* ── Step 1: Return Inspection Form (only when NOT yet done) ───── */}
-      {isInspectable && !checkoutComplete && (
-        <Section title="Step 1 — Return Inspection">
-          <div className="space-y-4">
-            <div className="grid sm:grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-[var(--text-tertiary)] mb-1 block">Return Odometer</label>
-                <input
-                  type="number"
-                  className="input text-sm"
-                  placeholder="e.g. 46120"
-                  value={inspectionForm.checkoutOdometer}
-                  onChange={e => setInspectionForm(f => ({ ...f, checkoutOdometer: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="text-xs text-[var(--text-tertiary)] mb-1 block">Fuel Level</label>
-                <select
-                  className="input text-sm"
-                  value={inspectionForm.fuelLevel}
-                  onChange={e => setInspectionForm(f => ({ ...f, fuelLevel: e.target.value }))}
-                >
-                  {FUEL_LEVELS.map(l => (
-                    <option key={l} value={l}>{l}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
+      {/* ═══ STEP 1: Vehicle Condition ═══ */}
+      {step === 0 && (
+        <div className="space-y-5">
+          {/* Vehicle header */}
+          <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)]">
+            <p className="text-sm font-semibold text-[var(--text-primary)]">{vehicleName}</p>
+            <p className="text-xs text-[var(--text-tertiary)] font-mono">{v?.vehicle_code}</p>
+            {booking.checkin_odometer && (
+              <p className="text-xs text-[var(--text-tertiary)] mt-1">Check-in odometer: {Number(booking.checkin_odometer).toLocaleString()} mi</p>
+            )}
+          </div>
+
+          {/* Odometer */}
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-2 flex items-center gap-1.5">
+              <Gauge size={13} /> Return Odometer
+            </label>
+            <input
+              type="number"
+              inputMode="numeric"
+              className="w-full px-4 py-3.5 rounded-xl text-lg font-semibold tabular-nums"
+              style={{ backgroundColor: 'var(--bg-card-hover)', border: '2px solid var(--border-subtle)', color: 'var(--text-primary)', outline: 'none' }}
+              placeholder="46,120"
+              value={odometer}
+              onChange={e => setOdometer(e.target.value)}
+              onFocus={e => (e.target.style.borderColor = 'var(--accent-color)')}
+              onBlur={e => (e.target.style.borderColor = 'var(--border-subtle)')}
+            />
+            {booking.checkin_odometer && odometer && (
+              <p className="text-xs text-[var(--text-tertiary)] mt-1.5 tabular-nums">
+                Trip: {(Number(odometer) - Number(booking.checkin_odometer)).toLocaleString()} miles
+              </p>
+            )}
+          </div>
+
+          {/* Fuel */}
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-2 flex items-center gap-1.5">
+              <Fuel size={13} /> Fuel Level
+            </label>
+            <FuelSelector value={fuelLevel} onChange={setFuelLevel} />
+          </div>
+
+          {/* Photos */}
+          <AdminPhotoUploader photos={photos} setPhotos={setPhotos} />
+
+          {/* Notes */}
+          {!showNotes ? (
+            <button type="button" onClick={() => setShowNotes(true)} className="text-xs font-medium text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]">
+              + Add condition notes
+            </button>
+          ) : (
             <div>
-              <label className="text-xs text-[var(--text-tertiary)] mb-1 block">Condition Notes</label>
-              <textarea
-                className="input text-sm resize-none"
-                rows={3}
-                placeholder="Document any damage, cleanliness issues, or missing items…"
-                value={inspectionForm.conditionNotes}
-                onChange={e => setInspectionForm(f => ({ ...f, conditionNotes: e.target.value }))}
+              <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-2 block">Condition Notes</label>
+              <textarea className="w-full px-4 py-3 rounded-xl text-sm resize-none" rows={3}
+                style={{ backgroundColor: 'var(--bg-card-hover)', border: '2px solid var(--border-subtle)', color: 'var(--text-primary)', outline: 'none' }}
+                placeholder="Any damage, scratches, missing items…"
+                value={notes} onChange={e => setNotes(e.target.value)}
+                onFocus={e => (e.target.style.borderColor = 'var(--accent-color)')}
+                onBlur={e => (e.target.style.borderColor = 'var(--border-subtle)')}
               />
             </div>
+          )}
 
-            {/* Photo Uploader */}
-            <div>
-              <label className="text-xs text-[var(--text-tertiary)] mb-2 block">Return Photos</label>
-              <div className="flex flex-wrap gap-2">
-                {photos.map((photo, idx) => (
-                  <div key={idx} className="relative w-20 h-20 rounded-lg overflow-hidden border border-[var(--border-subtle)]">
-                    <img src={photo.data} alt={photo.name} className="w-full h-full object-cover" />
-                    <button
-                      onClick={() => removePhoto(idx)}
-                      className="absolute top-0.5 right-0.5 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center"
-                    >
-                      <X size={10} className="text-white" />
-                    </button>
+          {/* Next */}
+          <button onClick={handleSaveCondition} disabled={loading}
+            className="w-full flex items-center justify-center gap-2.5 px-6 py-4 rounded-2xl font-semibold text-base transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+            style={{ backgroundColor: 'var(--accent-color)', color: '#1c1917', minHeight: '56px', boxShadow: '0 4px 14px rgba(200,169,126,0.3)' }}>
+            {loading ? <><Loader2 size={20} className="animate-spin" /> Saving…</> : <>Next: Review Charges <ChevronRight size={18} /></>}
+          </button>
+        </div>
+      )}
+
+      {/* ═══ STEP 2: Review Charges ═══ */}
+      {step === 1 && (
+        <div className="space-y-5">
+          {/* Incidentals List */}
+          <Section title="Charges">
+            {activeIncidentals.length === 0 && incidentals.filter(i => i.waived).length === 0 ? (
+              <p className="text-sm text-[var(--text-tertiary)] py-4 text-center">
+                No charges detected. Add manual charges below if needed.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {incidentals.map(inc => (
+                  <div key={inc.id} className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${inc.waived ? 'opacity-50' : ''}`}
+                    style={{ backgroundColor: 'var(--bg-card)', borderColor: inc.waived ? 'var(--border-subtle)' : 'rgba(239,68,68,0.2)' }}>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-medium ${inc.waived ? 'line-through text-[var(--text-tertiary)]' : 'text-[var(--text-primary)]'}`}>
+                        {inc.description || inc.type}
+                      </p>
+                      <p className="text-xs text-[var(--text-tertiary)] capitalize">{inc.type?.replace(/_/g, ' ')}</p>
+                    </div>
+                    <span className={`text-sm font-bold tabular-nums ${inc.waived ? 'text-[var(--text-tertiary)]' : 'text-[var(--danger-color)]'}`}>
+                      ${(inc.amount / 100).toFixed(2)}
+                    </span>
+                    <div className="flex gap-1">
+                      {!inc.waived && (
+                        <button onClick={() => handleWaiveIncidental(inc.id)} className="btn-ghost text-xs px-2 py-1" title="Waive charge">
+                          Waive
+                        </button>
+                      )}
+                      <button onClick={() => handleDeleteIncidental(inc.id)} className="text-[var(--text-tertiary)] hover:text-[var(--danger-color)] p-1" title="Delete">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                 ))}
-                <label className="w-20 h-20 rounded-lg border-2 border-dashed border-[var(--border-medium)] flex flex-col items-center justify-center cursor-pointer hover:border-[var(--accent-color)] transition-colors">
-                  <ImagePlus size={18} className="text-[var(--text-tertiary)]" />
-                  <span className="text-[9px] text-[var(--text-tertiary)] mt-1">Add photo</span>
-                  <input type="file" accept="image/*" multiple onChange={handlePhotoSelect} className="hidden" />
-                </label>
-              </div>
-            </div>
-
-            {/* Auto-calc preview */}
-            {(milesDriven !== null || fuelDiff > 0 || daysLate > 0) && (
-              <div className="bg-[var(--bg-elevated)] rounded-lg p-3 border border-[var(--border-subtle)] space-y-1.5">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Auto-Detected</p>
-                {milesDriven !== null && (
-                  <div className="flex justify-between text-xs">
-                    <span className="text-[var(--text-secondary)]">Miles driven: {milesDriven.toLocaleString()} / {milesAllowed.toLocaleString()} allowed</span>
-                    {milesOver > 0 && <span className="text-amber-500 font-semibold">{milesOver.toLocaleString()} over → ${(mileageCharge/100).toFixed(2)}</span>}
-                  </div>
-                )}
-                {fuelDiff > 0 && (
-                  <div className="flex justify-between text-xs">
-                    <span className="text-[var(--text-secondary)]">Fuel: {checkinFuel} → {returnFuel}</span>
-                    <span className="text-amber-500 font-semibold">{fuelDiff} quarter{fuelDiff > 1 ? 's' : ''} short → ${(fuelCharge/100).toFixed(2)}</span>
-                  </div>
-                )}
-                {daysLate > 0 && (
-                  <div className="flex justify-between text-xs">
-                    <span className="text-[var(--text-secondary)]">Late: {daysLate} day{daysLate !== 1 ? 's' : ''}</span>
-                    <span className="text-amber-500 font-semibold">${(lateCharge/100).toFixed(2)}</span>
-                  </div>
-                )}
               </div>
             )}
 
-            <button onClick={handleInspection} disabled={inspecting} className="btn-primary w-full">
-              <Clipboard size={15} />
-              {inspecting ? 'Saving Inspection…' : 'Complete Inspection'}
-            </button>
-          </div>
-        </Section>
-      )}
-
-      {/* ── Mileage Summary (if we have data) ────────────────────────── */}
-      {(booking.checkin_odometer || booking.checkout_odometer) && (
-        <div className="bg-[var(--bg-elevated)] rounded-xl p-4 border border-[var(--border-subtle)]">
-          <p className="text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] mb-2">Mileage Summary</p>
-          <div className="grid grid-cols-4 gap-3 text-center">
-            <div>
-              <p className="text-xs text-[var(--text-tertiary)]">Check-In</p>
-              <p className="text-sm font-semibold text-[var(--text-primary)] tabular-nums">{booking.checkin_odometer?.toLocaleString() || '—'}</p>
-            </div>
-            <div>
-              <p className="text-xs text-[var(--text-tertiary)]">Check-Out</p>
-              <p className="text-sm font-semibold text-[var(--text-primary)] tabular-nums">{booking.checkout_odometer?.toLocaleString() || '—'}</p>
-            </div>
-            <div>
-              <p className="text-xs text-[var(--text-tertiary)]">Total</p>
-              <p className="text-sm font-semibold text-[var(--text-primary)] tabular-nums">
-                {booking.checkin_odometer && booking.checkout_odometer
-                  ? (booking.checkout_odometer - booking.checkin_odometer).toLocaleString()
-                  : '—'}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-[var(--text-tertiary)]">Allowed</p>
-              <p className="text-sm font-semibold text-[var(--text-primary)] tabular-nums">{milesAllowed.toLocaleString()}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Step 2: Incidentals ────────────────────────────────────────── */}
-      <Section title="Step 2 — Incidentals">
-        {/* Existing incidentals */}
-        {incidentals.length > 0 && (
-          <div className="space-y-2 mb-4">
-            {incidentals.map(inc => (
-              <div
-                key={inc.id}
-                className={`flex items-center justify-between p-3 rounded-lg border ${
-                  inc.waived
-                    ? 'bg-[var(--bg-card)] border-[var(--border-subtle)] opacity-50'
-                    : 'bg-[var(--bg-elevated)] border-[var(--border-subtle)]'
-                }`}
-              >
-                <div className="flex-1">
-                  <p className={`text-sm font-medium ${inc.waived ? 'line-through text-[var(--text-tertiary)]' : 'text-[var(--text-primary)]'}`}>
-                    {inc.description || inc.type.replace(/_/g, ' ')}
-                  </p>
-                  <p className="text-xs text-[var(--text-tertiary)] capitalize">{inc.type.replace(/_/g, ' ')}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className={`text-sm font-semibold tabular-nums ${inc.waived ? 'text-[var(--text-tertiary)]' : 'text-[var(--danger-color)]'}`}>
-                    ${(inc.amount / 100).toFixed(2)}
-                  </span>
-                  <button
-                    onClick={() => handleWaiveToggle(inc)}
-                    className={`text-xs px-2 py-1 rounded-md transition-colors ${
-                      inc.waived
-                        ? 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20'
-                        : 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20'
-                    }`}
-                  >
-                    {inc.waived ? 'Unwaive' : 'Waive'}
-                  </button>
-                  <button
-                    onClick={() => handleDeleteIncidental(inc.id)}
-                    className="text-[var(--text-tertiary)] hover:text-[var(--danger-color)] transition-colors"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Multi-select add incidentals — overflow:visible to prevent clipping */}
-        <div className="border-t border-[var(--border-subtle)] pt-4">
-          <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-3">Add Incidentals</p>
-
-          {/* Dropdown Trigger */}
-          <div className="relative" style={{ zIndex: 40 }}>
-            <button
-              onClick={() => setShowDropdown(!showDropdown)}
-              className="input text-sm flex items-center justify-between w-full"
-              disabled={availableTypes.length === 0}
-            >
-              <span className="text-[var(--text-tertiary)]">
-                {availableTypes.length > 0 ? 'Select incidental type…' : 'All types added'}
-              </span>
-              <ChevronDown size={14} className={`text-[var(--text-tertiary)] transition-transform ${showDropdown ? 'rotate-180' : ''}`} />
-            </button>
-
-            {/* Dropdown Menu — fixed position to avoid clipping */}
-            {showDropdown && (
-              <>
-                {/* Backdrop to close */}
-                <div className="fixed inset-0 z-40" onClick={() => setShowDropdown(false)} />
-                <div className="absolute z-50 mt-1 w-full bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-xl shadow-xl max-h-64 overflow-y-auto">
-                  {availableTypes.map(type => (
-                    <button
-                      key={type.value}
-                      onClick={() => handleSelectIncidental(type)}
-                      className="w-full text-left px-4 py-3 hover:bg-[var(--bg-elevated)] transition-colors border-b border-[var(--border-subtle)] last:border-0"
-                    >
-                      <p className="text-sm font-medium text-[var(--text-primary)]">{type.label}</p>
-                      <p className="text-xs text-[var(--text-tertiary)]">{type.desc}</p>
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Selected incidental rows */}
-          {incidentalRows.length > 0 && (
-            <div className="space-y-3 mt-4">
-              {incidentalRows.map(row => (
-                <div key={row.type} className="p-3 bg-[var(--bg-elevated)] rounded-lg border border-[var(--border-subtle)]">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-semibold text-[var(--text-primary)]">{row.label}</span>
-                    <button onClick={() => handleRemoveRow(row.type)} className="text-[var(--text-tertiary)] hover:text-[var(--danger-color)]">
-                      <X size={14} />
-                    </button>
-                  </div>
-                  <div className="grid sm:grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-[10px] text-[var(--text-tertiary)] mb-0.5 block">Amount ($)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        className="input text-sm"
-                        value={row.amount}
-                        onChange={e => handleRowChange(row.type, 'amount', e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-[var(--text-tertiary)] mb-0.5 block">Description</label>
-                      <input
-                        className="input text-sm"
-                        placeholder="Details…"
-                        value={row.description}
-                        onChange={e => handleRowChange(row.type, 'description', e.target.value)}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              <button
-                onClick={handleSaveAllIncidentals}
-                disabled={addingIncidental || incidentalRows.every(r => !r.amount || Number(r.amount) <= 0)}
-                className="btn-primary"
-              >
-                <Plus size={14} />
-                {addingIncidental ? 'Saving…' : `Add ${incidentalRows.length} Charge${incidentalRows.length > 1 ? 's' : ''}`}
-              </button>
-            </div>
-          )}
-        </div>
-      </Section>
-
-      {/* ── Step 3: Settlement Summary ─────────────────────────────────── */}
-      {(incidentals.length > 0 || depositAmt > 0) && (
-        <Section title="Step 3 — Settlement Summary">
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between text-[var(--text-secondary)]">
-              <span>Security Deposit Held</span>
-              <span className="tabular-nums text-emerald-500">
-                ${(depositAmt / 100).toFixed(2)}
-              </span>
-            </div>
-            {activeIncidentals.map(inc => (
-              <div key={inc.id} className="flex justify-between text-[var(--text-secondary)]">
-                <span className="text-xs">{inc.description || inc.type.replace(/_/g, ' ')}</span>
-                <span className="tabular-nums text-[var(--danger-color)]">
-                  -${(inc.amount / 100).toFixed(2)}
+            {/* Total */}
+            {activeIncidentals.length > 0 && (
+              <div className="flex justify-between items-center pt-3 mt-3 border-t border-[var(--border-subtle)]">
+                <span className="text-sm font-semibold text-[var(--text-primary)]">Total Charges</span>
+                <span className="text-lg font-bold tabular-nums text-[var(--danger-color)]">
+                  ${(incidentalTotal / 100).toFixed(2)}
                 </span>
               </div>
-            ))}
-            <div className="flex justify-between font-semibold text-[var(--text-primary)] pt-2 border-t border-[var(--border-subtle)]">
-              {amountOwed > 0 ? (
-                <>
-                  <span className="flex items-center gap-1.5">
-                    <AlertTriangle size={14} className="text-amber-500" />
-                    Customer Owes
-                  </span>
-                  <span className="text-[var(--danger-color)] tabular-nums">${(amountOwed / 100).toFixed(2)}</span>
-                </>
-              ) : (
-                <>
-                  <span>Refund to Customer</span>
-                  <span className="text-emerald-500 tabular-nums">${(netRefund / 100).toFixed(2)}</span>
-                </>
-              )}
+            )}
+          </Section>
+
+          {/* Add Incidental */}
+          <Section title="Add Charge">
+            <div className="space-y-3">
+              <select
+                className="w-full px-4 py-3 rounded-xl text-sm"
+                style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
+                value={newIncType}
+                onChange={e => {
+                  setNewIncType(e.target.value);
+                  const config = INCIDENTAL_TYPES.find(t => t.value === e.target.value);
+                  if (config?.defaultAmount) setNewIncAmount((config.defaultAmount / 100).toString());
+                  setNewIncDesc(config?.label || '');
+                }}
+              >
+                {INCIDENTAL_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  className="px-4 py-3 rounded-xl text-sm"
+                  style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
+                  placeholder="Amount ($)"
+                  value={newIncAmount}
+                  onChange={e => setNewIncAmount(e.target.value)}
+                />
+                <button onClick={handleAddIncidental} disabled={!newIncAmount || loading} className="btn-secondary justify-center">
+                  <Plus size={14} /> Add Charge
+                </button>
+              </div>
+              <input
+                className="w-full px-4 py-2.5 rounded-xl text-sm"
+                style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
+                placeholder="Description (optional)"
+                value={newIncDesc}
+                onChange={e => setNewIncDesc(e.target.value)}
+              />
             </div>
+          </Section>
+
+          {/* Navigation */}
+          <div className="flex gap-3">
+            <button onClick={() => setStep(0)} className="btn-ghost flex-1 justify-center py-3.5">
+              <ChevronLeft size={16} /> Back
+            </button>
+            <button onClick={() => { setStep(2); handleGenerateInvoice(); }} disabled={loading}
+              className="flex-[2] flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl font-semibold text-sm transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+              style={{ backgroundColor: 'var(--accent-color)', color: '#1c1917' }}>
+              {loading ? <Loader2 size={16} className="animate-spin" /> : <>Next: Finalize <ChevronRight size={16} /></>}
+            </button>
           </div>
-        </Section>
+        </div>
+      )}
+
+      {/* ═══ STEP 3: Finalize ═══ */}
+      {step === 2 && (
+        <div className="space-y-5">
+          {/* Deposit Summary */}
+          <Section title="Security Deposit">
+            {deposit && depositHeld ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xl font-bold tabular-nums text-[var(--text-primary)]">${(depositAmount / 100).toFixed(2)}</p>
+                    <p className="text-xs text-emerald-500 font-semibold capitalize">Held</p>
+                  </div>
+                </div>
+
+                {incidentalTotal > 0 ? (
+                  <div className="p-3 rounded-xl" style={{ backgroundColor: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-[var(--text-secondary)]">Charges</span>
+                      <span className="font-semibold text-amber-500 tabular-nums">-${(incidentalTotal / 100).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-[var(--text-secondary)]">{customerOwes > 0 ? 'Customer owes' : 'Refund to customer'}</span>
+                      <span className={`font-bold tabular-nums ${customerOwes > 0 ? 'text-[var(--danger-color)]' : 'text-emerald-500'}`}>
+                        ${((customerOwes > 0 ? customerOwes : refundAmount) / 100).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-xl" style={{ backgroundColor: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)' }}>
+                    <p className="text-sm text-emerald-600 font-medium">No charges — full refund of ${(depositAmount / 100).toFixed(2)}</p>
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  {incidentalTotal === 0 ? (
+                    <button onClick={handleReleaseDeposit} disabled={loading} className="btn-primary flex-1 justify-center text-sm">
+                      {loading ? 'Processing…' : 'Refund Full Deposit'}
+                    </button>
+                  ) : (
+                    <>
+                      <button onClick={handleSettleDeposit} disabled={loading} className="btn-primary flex-1 justify-center text-sm">
+                        {loading ? 'Processing…' : 'Settle Against Charges'}
+                      </button>
+                      <button onClick={handleReleaseDeposit} disabled={loading} className="btn-ghost flex-1 justify-center text-sm">
+                        Refund Anyway
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ) : deposit && deposit.status !== 'held' ? (
+              <div className="flex items-center gap-2 text-sm">
+                <CheckCircle size={16} className="text-emerald-500" />
+                <span className="text-[var(--text-secondary)]">Deposit {deposit.status}</span>
+                <span className="font-semibold tabular-nums text-[var(--text-primary)] ml-auto">${(depositAmount / 100).toFixed(2)}</span>
+              </div>
+            ) : (
+              <p className="text-sm text-[var(--text-tertiary)]">No deposit on file</p>
+            )}
+          </Section>
+
+          {/* Invoice Preview */}
+          {invoice && (
+            <Section title="Invoice Summary">
+              <div className="space-y-1.5">
+                {(invoice.items || []).map((item, i) => (
+                  <div key={i} className="flex justify-between text-sm py-1.5 border-b border-[var(--border-subtle)] last:border-0">
+                    <span className="text-[var(--text-secondary)]">{item.description}</span>
+                    <span className={`font-semibold tabular-nums ${item.type === 'incidental' ? 'text-[var(--danger-color)]' : 'text-[var(--text-primary)]'}`}>
+                      ${(item.amount / 100).toFixed(2)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              {invoice.amount_due !== undefined && (
+                <div className="flex justify-between text-base font-bold pt-3 mt-3 border-t border-[var(--border-subtle)]">
+                  <span className="text-[var(--text-primary)]">{invoice.amount_due > 0 ? 'Amount Due' : 'Refund Due'}</span>
+                  <span className={`tabular-nums ${invoice.amount_due > 0 ? 'text-[var(--danger-color)]' : 'text-emerald-500'}`}>
+                    ${(Math.abs(invoice.amount_due) / 100).toFixed(2)}
+                  </span>
+                </div>
+              )}
+            </Section>
+          )}
+
+          {/* Navigation */}
+          <div className="flex gap-3">
+            <button onClick={() => setStep(1)} className="btn-ghost flex-1 justify-center py-3.5">
+              <ChevronLeft size={16} /> Back
+            </button>
+          </div>
+
+          {/* Complete Actions */}
+          <div className="space-y-3 pt-2">
+            <button onClick={handleSendInvoiceAndComplete} disabled={loading}
+              className="w-full flex items-center justify-center gap-2.5 px-6 py-4 rounded-2xl font-semibold text-base transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+              style={{ backgroundColor: '#22c55e', color: '#fff', minHeight: '56px', boxShadow: '0 4px 14px rgba(34,197,94,0.3)' }}>
+              {loading ? <><Loader2 size={20} className="animate-spin" /> Processing…</> : <><Send size={18} /> Send Invoice & Complete Rental</>}
+            </button>
+
+            <button onClick={handleComplete} disabled={loading}
+              className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-medium text-sm transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)' }}>
+              Complete Without Sending Invoice
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
