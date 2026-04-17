@@ -1,20 +1,52 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Annie's Car Rental
 
-# Run and deploy your AI Studio app
+Full-stack car rental platform for Annie's Car Rental in Port St. Lucie, FL.
 
-This contains everything you need to run your app locally.
+## Architecture
 
-View your app in AI Studio: https://ai.studio/apps/3128f971-4253-43a5-a664-7cd1e85da77a
+| Layer | Tech | Location |
+|-------|------|----------|
+| Customer Website | React 19 + TypeScript + Vite 6 + Tailwind v4 | `/` (root) |
+| Admin Dashboard | React 18 + JSX + Vite 5 + Tailwind v3 | `/dashboard` |
+| Backend API | Node.js + Express (Vercel Serverless) | `/backend` |
+| Database | Supabase (PostgreSQL) | Hosted |
+| Payments | Stripe | Integrated |
+| Notifications | Resend (email) + Twilio (SMS) | Integrated |
 
-## Run Locally
+## Local Development
 
-**Prerequisites:**  Node.js
+**Prerequisites:** Node.js 18+
 
+```bash
+# Install dependencies
+npm install
+cd dashboard && npm install
+cd ../backend && npm install
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+# Run customer site
+npm run dev
+
+# Run dashboard
+cd dashboard && npm run dev
+
+# Run backend API
+cd backend && npm run dev
+```
+
+## Environment Variables
+
+Copy `.env.example` files in root, `/dashboard`, and `/backend` directories. See `HANDOFF.md` for the full list of required variables.
+
+## Deployment
+
+All three apps deploy to Vercel automatically on push to `main`.
+
+## Documentation
+
+| File | Purpose |
+|------|---------|
+| `HANDOFF.md` | Complete technical overview (gitignored — local only) |
+| `PROJECT_MAP.md` | File dependency map |
+| `CHANGE_PROTOCOL.md` | Before/during/after checklist for code changes |
+| `CODEBASE_AUDIT.md` | Security and architecture audit findings |
+| `CLAUDE.md` | AI assistant rules and constraints |

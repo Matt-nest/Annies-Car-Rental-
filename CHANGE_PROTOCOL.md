@@ -140,8 +140,8 @@ These files are foundational. Changes require explicit user approval in every ca
 | `auth/AuthProvider.jsx` | Auth state for the whole app. |
 | `auth/ProtectedRoute.jsx` | Security boundary. |
 | Supabase schema | Migrations are irreversible. |
-| GHL webhook routes | SMS/email automation for customers. |
-| All 38 API endpoint paths | Backend routes — frontend and backend must stay in sync. |
+| Notification templates | 19 notification stages across Resend + Twilio. Changing one template affects customer comms. |
+| All 23 route files + endpoints | Backend routes — frontend and backend must stay in sync. |
 
 ---
 

@@ -217,7 +217,7 @@ router.get('/upcoming', requireAuth, asyncHandler(async (req, res) => {
   res.json({ pickups: pickups || [], returns: returns || [] });
 }));
 
-/** GET /stats/webhook-failures — failed GHL webhook attempts */
+/** GET /stats/webhook-failures — failed notification/webhook attempts */
 router.get('/webhook-failures', requireAuth, asyncHandler(async (req, res) => {
   const limit = parseInt(req.query.limit) || 50;
   const { data, error } = await supabase

@@ -21,13 +21,13 @@ Annies Car Rental/
 │   │   ├── api/client.js       ← NEVER TOUCH — 25 consumers
 │   │   ├── auth/               ← NEVER TOUCH
 │   │   ├── components/
-│   │   │   ├── dashboard/      ← Widget engine + all 12 widgets
+│   │   │   ├── dashboard/      ← Widget engine + all 13 widgets
 │   │   │   ├── layout/         ← Sidebar + DashboardLayout
 │   │   │   ├── settings/       ← Widget layout settings (dnd-kit)
 │   │   │   └── shared/         ← StatusBadge, Modal, Skeleton, etc.
 │   │   ├── hooks/              ← useWidgetLayout, useCountUp
 │   │   ├── lib/                ← queryCache, widgetConfig, cn
-│   │   ├── pages/              ← 11 page components
+│   │   ├── pages/              ← 15 page components
 │   │   └── styles/globals.css  ← ALL CSS variables — high blast radius
 │   ├── package.json
 │   └── vercel.json
@@ -42,24 +42,27 @@ Annies Car Rental/
 - **`api/client.js`** — Never modify. 25 consumers. Blast radius = entire app.
 - **`auth/`** — Never modify. Break auth = nothing works.
 - **Supabase schema** — Never change without explicit user instruction.
-- **GHL webhooks** — Never touch webhook routes in backend.
+- **Notification system** — Never modify `notifyService.js` or `emailService.js` templates without tracing all 19 notification stages.
 - **CSS variables** — Never rename a `--variable` without searching all usages first.
 - **Widget IDs** — IDs in `widgetConfig.js` must exactly match keys in `DashboardLayoutEngine.jsx`'s `WIDGET_COMPONENTS` map.
 
 ## Stack
 
-React 18 + Vite 5 + Tailwind 3 + Framer Motion 12 + Recharts 2 + Supabase Auth + dnd-kit
+**Dashboard:** React 18 + Vite 5 + Tailwind 3 + Framer Motion + Recharts 2 + Supabase Auth + dnd-kit
+**Customer Site:** React 19 + Vite 6 + Tailwind 4 + Motion (Framer) + Stripe Elements
+**Backend:** Node.js + Express (Vercel Serverless) + Supabase + Stripe + Resend + Twilio
 
 Dev server: `cd dashboard && npm run dev`
 Build check: `cd dashboard && npm run build`
 
 ## Design Language — "Premium Fleet Command"
 
-- Sidebar: `#0F172A` (always dark)
-- Accent: `#D4AF37` (gold)
-- Fonts: Outfit + JetBrains Mono
+- Sidebar: `#111928` (dark mode) / `#FFFFFF` (light mode)
+- Dashboard accent: `#465FFF` (indigo)
+- Customer site accent: `#D4AF37` (gold)
+- Fonts: Inter (body) + JetBrains Mono (numbers/code)
 - Cards use CSS variable tokens (`var(--bg-card)`, `var(--border-subtle)`, etc.)
-- All colors via CSS variables — no hardcoded hex except in the gold accent and danger red
+- All colors via CSS variables — no hardcoded hex except accent and danger red
 
 ## Workflow for Every Change
 

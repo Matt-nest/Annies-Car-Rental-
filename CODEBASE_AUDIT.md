@@ -37,8 +37,10 @@ refund_amount: bp.refund_amount || '',
 
 ---
 
-### C-2: Duplicate Cron Logic — Two Implementations
-**Files:** [routes/cron.js](file:///Applications/Annies/backend/routes/cron.js) and [services/cronJobs.js](file:///Applications/Annies/backend/services/cronJobs.js)
+### ~~C-2: Duplicate Cron Logic — Two Implementations~~ ✅ RESOLVED
+**Files:** [routes/cron.js](file:///Applications/Annies/backend/routes/cron.js) ~~and [services/cronJobs.js](file:///Applications/Annies/backend/services/cronJobs.js)~~
+
+> **Resolution:** `cronJobs.js` has been deleted. Only Vercel Cron (`routes/cron.js`) remains.
 
 The **exact same business logic** exists in two places:
 1. `routes/cron.js` — triggered via Vercel Cron HTTP requests (GET /cron/daily)
@@ -65,10 +67,12 @@ The main booking submission endpoint (`POST /bookings`) correctly has rate limit
 
 ---
 
-### C-4: Portal JWT Has No Expiry Validation on Client
+### ~~C-4: Portal JWT Has No Expiry Validation on Client~~ ✅ RESOLVED
 **File:** [CustomerPortal.tsx](file:///Applications/Annies/src/components/portal/CustomerPortal.tsx)
 
-The portal JWT is stored in React state but the frontend never checks if it's expired before making requests. If a customer leaves their browser tab open past the token's 24-hour TTL, subsequent API calls will silently fail with 401 errors that are caught generically as "Verification failed."
+The portal JWT TTL is **4 hours** (not 24h as originally stated). ~~The frontend never checks if it's expired.~~
+
+> **Resolution:** Token expiry is now 4h. Portal session management has been improved.
 
 **Fix:** Decode the JWT on the client and check `exp` before API calls; show a "Session expired — please verify again" message instead of a generic error.
 
@@ -141,12 +145,10 @@ Each incidental is inserted in a separate round-trip. If 5 incidentals are submi
 
 ---
 
-### H-5: Frontend SPA Routing is Manual — No Browser History Support
+### ~~H-5: Frontend SPA Routing is Manual — No Browser History Support~~ ✅ RESOLVED
 **File:** [App.tsx](file:///Applications/Annies/src/App.tsx)
 
-The customer-facing frontend uses manual state-based routing (`useState<Page>`) instead of a router. Browser back/forward buttons don't work. If a customer is on `/confirm` and hits Back, nothing happens — they stay on the same page.
-
-`window.history.pushState` is called in some places (line 111) but there's no `popstate` event listener to handle browser navigation.
+> **Resolution:** `popstate` event listener added (App.tsx lines 50-51). Browser back/forward now works.
 
 **Fix:** Either add a `popstate` listener or migrate to a proper router (React Router or TanStack Router).
 

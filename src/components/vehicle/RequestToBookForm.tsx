@@ -215,8 +215,13 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
           throw new Error(errData.error || 'Booking submission failed');
         }
       }
-    } catch {
-      setSubmitError('Something went wrong submitting your request. Please try again or call us at (772) 985-6667.');
+    } catch (err) {
+      console.error('[Booking Submit Error]', err);
+      if (err instanceof TypeError && err.message === 'Failed to fetch') {
+        setSubmitError('Unable to reach our server. Please check your internet connection and try again.');
+      } else {
+        setSubmitError('Something went wrong submitting your request. Please try again or call us at (772) 985-6667.');
+      }
     } finally {
       setIsSubmitting(false);
     }
