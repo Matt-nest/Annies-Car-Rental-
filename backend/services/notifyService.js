@@ -87,7 +87,13 @@ export function buildMergeFields(bookingPayload) {
   const bp = bookingPayload;
   const v = bp.vehicle || {};
   const c = bp.customer || {};
+  const h = bp.handoff || {};
   const siteUrl = process.env.SITE_URL || 'https://anniescarrental.com';
+
+  // Vehicle photo: prefer VIN-based hero image, fallback to thumbnail_url
+  const vehiclePhotoUrl = v.vin
+    ? `${siteUrl}/fleet/${v.vin}/hero.png`
+    : (v.thumbnail_url || '');
 
   return {
     first_name:     c.first_name || 'Guest',
@@ -138,19 +144,56 @@ export function buildMergeFields(bookingPayload) {
     ].filter(Boolean).join(', ') || 'None',
     // Review
     review_link:    bp.review_link || 'https://g.page/annies-car-rental/review',
+    // ── NEW: Vehicle transparency fields ──────────────────────────
+    vehicle_photo_url:      vehiclePhotoUrl,
+    vehicle_year_make_model: [v.year, v.make, v.model].filter(Boolean).join(' ') || 'your vehicle',
+    vehicle_color:          v.color || '',
+    vehicle_plate:          v.license_plate || '',
+    vehicle_vin:            v.vin || '',
+    // ── NEW: Handoff fields (populated only for ready_for_pickup / pickup_reminder) ──
+    handoff_fuel_level:     h.fuel_level || '',
+    handoff_odometer:       h.odometer != null ? String(h.odometer) : '',
+    // handoff_photos stored as JSON array string — rendered to HTML in getRenderedTemplate
+    handoff_photos:         JSON.stringify(h.photos || []),
   };
 }
 
+// Fields that contain pre-rendered HTML or URLs — skip HTML escaping
+const HTML_SAFE_FIELDS = new Set([
+  'handoff_photos', 'vehicle_photo_url', 'vehicle_info_block',
+  'confirm_link', 'status_link', 'portal_link', 'review_link', 'invoice_link',
+]);
+
 /**
  * Interpolate a template string with merge fields.
- * Replaces all {{key}} placeholders with values from the fields map.
+ * Supports:
+ *   {{key}}                → simple replacement
+ *   {{#if key}}...{{/if}}  → conditional block (shown only if key has a truthy value)
+ *                            Nested {{#if}} blocks are supported.
  */
 export function interpolateTemplate(template, fields, isHtml = false) {
   if (!template) return '';
-  return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
+
+  // 1. Process conditional blocks from innermost to outermost.
+  //    Match {{#if key}}...{{/if}} where content has NO nested {{#if}}.
+  //    Repeat until no more conditionals remain.
+  let result = template;
+  const ifPattern = /\{\{#if\s+(\w+)\}\}((?:(?!\{\{#if)[\s\S])*?)\{\{\/if\}\}/g;
+  let maxIter = 10; // safety limit
+  while (ifPattern.test(result) && maxIter-- > 0) {
+    result = result.replace(ifPattern, (_match, key, content) => {
+      const val = fields[key];
+      const isTruthy = val !== undefined && val !== null && val !== '' && val !== '[]' && val !== '""';
+      return isTruthy ? content : '';
+    });
+  }
+
+  // 2. Simple field replacement: {{key}}
+  result = result.replace(/\{\{(\w+)\}\}/g, (match, key) => {
     let val = fields[key] !== undefined && fields[key] !== '' ? String(fields[key]) : match;
-    
-    if (isHtml && val !== match && !key.includes('link')) {
+
+    // HTML-escape values in email bodies, except URLs and pre-rendered HTML fields
+    if (isHtml && val !== match && !HTML_SAFE_FIELDS.has(key)) {
       val = val
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
@@ -158,9 +201,11 @@ export function interpolateTemplate(template, fields, isHtml = false) {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
     }
-    
+
     return val;
   });
+
+  return result;
 }
 
 /**
@@ -182,6 +227,14 @@ export async function getRenderedTemplate(stage, bookingPayload) {
 
   const fields = buildMergeFields(bookingPayload);
 
+  // Render handoff_photos from JSON array → HTML gallery (rendering layer, not data layer)
+  try {
+    const photoUrls = JSON.parse(fields.handoff_photos || '[]');
+    fields.handoff_photos = renderPhotoGallery(photoUrls);
+  } catch {
+    fields.handoff_photos = '';
+  }
+
   return {
     name:       template.name,
     stage:      template.stage,
@@ -197,9 +250,12 @@ export async function getRenderedTemplate(stage, bookingPayload) {
 
 /**
  * Build a standardized payload from a fully-joined booking object.
- * (Same shape as the old buildBookingPayload.)
+ * @param {object} booking — from getBookingDetail() with vehicles(*), customers(*)
+ * @param {object} [options]
+ * @param {object} [options.handoffRecord] — latest admin_prep checkin_record (optional)
  */
-export function buildBookingPayload(booking) {
+export function buildBookingPayload(booking, { handoffRecord } = {}) {
+  const v = booking.vehicles || {};
   return {
     customer_id: booking.customer_id,
     booking_code: booking.booking_code,
@@ -211,11 +267,24 @@ export function buildBookingPayload(booking) {
       phone:      booking.customers?.phone,
     },
     vehicle: {
-      year:  booking.vehicles?.year,
-      make:  booking.vehicles?.make,
-      model: booking.vehicles?.model,
-      vehicle_code: booking.vehicles?.vehicle_code,
+      year:  v.year,
+      make:  v.make,
+      model: v.model,
+      vehicle_code: v.vehicle_code,
+      // Vehicle transparency fields
+      color:         v.color || null,
+      license_plate: v.license_plate || null,
+      vin:           v.vin || null,
+      thumbnail_url: v.thumbnail_url || null,
+      photo_urls:    v.photo_urls || [],
     },
+    // Handoff data — only populated when an admin_prep record is passed in
+    handoff: handoffRecord ? {
+      fuel_level:   handoffRecord.fuel_level || null,
+      odometer:     handoffRecord.odometer || null,
+      photos:       handoffRecord.photo_urls || [],
+      recorded_at:  handoffRecord.created_at || null,
+    } : null,
     pickup_date:     booking.pickup_date,
     return_date:     booking.return_date,
     pickup_time:     booking.pickup_time,
@@ -386,6 +455,18 @@ function escapeHtml(str) {
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
+
+/**
+ * Render an array of photo URLs into inline HTML <img> tags for email.
+ * Called in getRenderedTemplate (rendering layer), not in buildMergeFields (data layer).
+ */
+function renderPhotoGallery(urls) {
+  if (!urls || urls.length === 0) return '';
+  const cells = urls.map(url =>
+    '<td style="padding:4px;"><img src="' + escapeHtml(url) + '" alt="Vehicle photo" style="width:100%;max-width:240px;border-radius:8px;border:1px solid #e7e5e4;" /></td>'
+  ).join('');
+  return '<table cellpadding="0" cellspacing="0" border="0" style="width:100%;"><tr>' + cells + '</tr></table>';
+}
 
 function formatDate(dateStr) {
   if (!dateStr) return '';

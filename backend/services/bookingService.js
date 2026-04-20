@@ -297,7 +297,22 @@ export async function transitionBooking(bookingId, newStatus, { changedBy = 'own
 
   if (stageMap[newStatus]) {
     const updated = await getBookingDetail(bookingId);
-    sendBookingNotification(stageMap[newStatus], buildBookingPayload(updated));
+
+    // For ready_for_pickup: include admin's handoff record (fuel, odometer, photos)
+    let handoffRecord = null;
+    if (newStatus === 'ready_for_pickup') {
+      const { data: prepRecord } = await supabase
+        .from('checkin_records')
+        .select('*')
+        .eq('booking_id', bookingId)
+        .eq('record_type', 'admin_prep')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      handoffRecord = prepRecord;
+    }
+
+    sendBookingNotification(stageMap[newStatus], buildBookingPayload(updated, { handoffRecord }));
   }
 
   // Dashboard notification for status changes

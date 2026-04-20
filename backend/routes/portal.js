@@ -111,38 +111,92 @@ router.get('/lockbox', requirePortalAuth, async (req, res) => {
 
 /**
  * POST /portal/checkin — Customer self-service check-in
- * Body: { odometer, fuelLevel, photoUrls, conditionConfirmed }
+ * Body: {
+ *   odometer: number (required),
+ *   fuelLevel: string (required — 'full'|'three_quarter'|'half'|'quarter'|'empty'),
+ *   photoSlots: { front, driver_side, passenger_side, rear, dashboard?, damage?: string[] } (required 4),
+ *   conditionNotes?: string,
+ *   conditionConfirmed: boolean (required)
+ * }
  * Transitions: ready_for_pickup → active
  */
 router.post('/checkin', requirePortalAuth, async (req, res) => {
   try {
-    const { odometer, fuelLevel, photoUrls, conditionConfirmed } = req.body;
+    const { odometer, fuelLevel, photoSlots, conditionNotes, conditionConfirmed } = req.body;
+    const bookingId = req.portal.bookingId;
 
+    // ── Validation ─────────────────────────────────────────────────
     if (!conditionConfirmed) {
       return res.status(400).json({ error: 'You must confirm the vehicle condition' });
     }
 
-    // Save customer check-in record
+    const VALID_FUEL = ['full', 'three_quarter', 'half', 'quarter', 'empty'];
+    if (!fuelLevel || !VALID_FUEL.includes(fuelLevel)) {
+      return res.status(400).json({ error: `Fuel level is required. Must be one of: ${VALID_FUEL.join(', ')}` });
+    }
+
+    if (!odometer || typeof odometer !== 'number' || odometer < 0) {
+      return res.status(400).json({ error: 'Odometer reading is required and must be a positive number' });
+    }
+
+    // Require 4 named photo slots
+    const REQUIRED_SLOTS = ['front', 'driver_side', 'passenger_side', 'rear'];
+    if (!photoSlots || typeof photoSlots !== 'object') {
+      return res.status(400).json({ error: 'Photo slots are required (front, driver_side, passenger_side, rear)' });
+    }
+    const missingSlots = REQUIRED_SLOTS.filter(s => !photoSlots[s]);
+    if (missingSlots.length > 0) {
+      return res.status(400).json({ error: `Missing required photos: ${missingSlots.join(', ')}` });
+    }
+
+    // ── Security: Verify uploaded photo URLs belong to this booking's folder ──
+    // @security-auditor — booking-ID-matches-JWT check
+    const expectedFolder = `booking-${bookingId}`;
+    const allSlotUrls = Object.values(photoSlots).flat().filter(Boolean);
+    for (const url of allSlotUrls) {
+      if (typeof url === 'string' && !url.includes(expectedFolder)) {
+        return res.status(403).json({
+          error: 'One or more photo URLs do not belong to this booking. Upload photos through the portal.',
+        });
+      }
+    }
+
+    // Flatten all slot URLs into a flat array for backward-compat photo_urls column
+    const flatPhotoUrls = [];
+    for (const slot of [...REQUIRED_SLOTS, 'dashboard']) {
+      if (photoSlots[slot]) flatPhotoUrls.push(photoSlots[slot]);
+    }
+    // Damage slot can be an array
+    if (Array.isArray(photoSlots.damage)) {
+      flatPhotoUrls.push(...photoSlots.damage);
+    } else if (photoSlots.damage) {
+      flatPhotoUrls.push(photoSlots.damage);
+    }
+
+    // ── Save customer check-in record ──────────────────────────────
     await supabase.from('checkin_records').insert({
-      booking_id: req.portal.bookingId,
+      booking_id: bookingId,
       record_type: 'customer_checkin',
       odometer,
       fuel_level: fuelLevel,
-      photo_urls: photoUrls || [],
+      condition_notes: conditionNotes || null,
+      photo_urls: flatPhotoUrls,
+      photo_slots: photoSlots,
       created_by: 'customer',
     });
 
-    // Transition to active
-    const result = await transitionBooking(req.portal.bookingId, 'active', {
+    // ── Transition to active ───────────────────────────────────────
+    const result = await transitionBooking(bookingId, 'active', {
       changedBy: 'customer',
       reason: 'Customer completed self-service check-in',
       extraFields: {
         actual_pickup_at: new Date().toISOString(),
+        checkin_odometer: odometer,
       },
     });
 
     // Update vehicle status to rented
-    const booking = await getBookingDetail(req.portal.bookingId);
+    const booking = await getBookingDetail(bookingId);
     if (booking.vehicle_id) {
       await supabase
         .from('vehicles')

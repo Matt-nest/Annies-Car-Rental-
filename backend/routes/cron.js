@@ -48,10 +48,20 @@ router.get('/daily', async (req, res) => {
       .from('bookings')
       .select('*, customers(*), vehicles(*)')
       .eq('pickup_date', tomorrow())
-      .in('status', ['approved', 'confirmed']);
+      .in('status', ['approved', 'confirmed', 'ready_for_pickup']);
 
     for (const b of pickups || []) {
-      sendBookingNotification('pickup_reminder', buildBookingPayload(b));
+      // Fetch admin's handoff record to include vehicle condition in the reminder
+      const { data: prepRecord } = await supabase
+        .from('checkin_records')
+        .select('*')
+        .eq('booking_id', b.id)
+        .eq('record_type', 'admin_prep')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      sendBookingNotification('pickup_reminder', buildBookingPayload(b, { handoffRecord: prepRecord }));
       results.pickupReminders++;
     }
 

@@ -11,6 +11,7 @@ import { API_URL } from '../../config';
 import Navbar from '../layout/Navbar';
 import Footer from '../layout/Footer';
 import PhotoUploader from './PhotoUploader';
+import SlotPhotoUploader, { type PhotoSlots } from './SlotPhotoUploader';
 
 /* ── Helpers ────────────────────────────────────────────── */
 const fmt = (d: string) => {
@@ -66,6 +67,10 @@ export default function CustomerPortal() {
   const [checkinPhotos, setCheckinPhotos] = useState<string[]>([]);
   const [checkoutPhotos, setCheckoutPhotos] = useState<string[]>([]);
   const [disputePhotos, setDisputePhotos] = useState<string[]>([]);
+
+  // Slot-based check-in photos (new)
+  const [photoSlots, setPhotoSlots] = useState<PhotoSlots>({});
+  const [allSlotsReady, setAllSlotsReady] = useState(false);
 
   // Dispute form
   const [disputeReason, setDisputeReason] = useState('');
@@ -132,7 +137,11 @@ export default function CustomerPortal() {
 
   /* ── Self-Service Check-In ── */
   const handleCheckIn = async () => {
-    if (!conditionConfirmed) return;
+    if (!conditionConfirmed || !allSlotsReady) return;
+    if (!odometer || isNaN(Number(odometer)) || Number(odometer) <= 0) {
+      setError('Please enter a valid odometer reading');
+      return;
+    }
     if (token && isTokenExpired(token)) {
       setToken(null);
       setView('login');
@@ -145,6 +154,9 @@ export default function CustomerPortal() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
+          odometer: Number(odometer),
+          fuelLevel: fuel,
+          photoSlots,
           conditionConfirmed: true,
         }),
       });
@@ -482,13 +494,72 @@ export default function CustomerPortal() {
               transition={{ delay: 0.3, ease: EASE.standard }}
               style={card(theme)}
             >
-              <div className="p-5 space-y-4">
+              <div className="p-5 space-y-5">
                 <h3 className="text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
                   <Check size={20} style={{ color: '#22c55e' }} /> Start Your Rental
                 </h3>
                 <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                  Once you've retrieved the key and inspected the vehicle, confirm below to start your rental.
+                  Inspect the vehicle, take photos from each angle, record the odometer and fuel level, then confirm to start your rental.
                 </p>
+
+                {/* Photo Slots */}
+                {token && (
+                  <SlotPhotoUploader
+                    token={token}
+                    onSlotsChange={(slots, ready) => {
+                      setPhotoSlots(slots);
+                      setAllSlotsReady(ready);
+                    }}
+                  />
+                )}
+
+                {/* Odometer + Fuel */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                      <Gauge size={12} className="inline mr-1" />Odometer *
+                    </label>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      placeholder="e.g. 42350"
+                      value={odometer}
+                      onChange={e => setOdometer(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl text-sm font-mono"
+                      style={{
+                        backgroundColor: 'var(--bg-card-hover)',
+                        border: '1px solid var(--border-subtle)',
+                        color: 'var(--text-primary)',
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                      <Fuel size={12} className="inline mr-1" />Fuel Level *
+                    </label>
+                    <select
+                      value={fuel}
+                      onChange={e => setFuel(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl text-sm"
+                      style={{
+                        backgroundColor: 'var(--bg-card-hover)',
+                        border: '1px solid var(--border-subtle)',
+                        color: 'var(--text-primary)',
+                        outline: 'none',
+                        appearance: 'none' as const,
+                      }}
+                    >
+                      <option value="full">Full</option>
+                      <option value="three_quarter">¾ Tank</option>
+                      <option value="half">½ Tank</option>
+                      <option value="quarter">¼ Tank</option>
+                      <option value="empty">Empty</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Condition Confirmation */}
                 <label className="flex items-start gap-3 cursor-pointer py-3 px-4 rounded-xl transition-all" style={{
                   backgroundColor: conditionConfirmed ? 'rgba(34,197,94,0.08)' : 'var(--bg-card-hover)',
                   border: conditionConfirmed ? '2px solid rgba(34,197,94,0.3)' : '2px solid var(--border-subtle)',
@@ -496,17 +567,25 @@ export default function CustomerPortal() {
                   <input type="checkbox" checked={conditionConfirmed} onChange={e => setConditionConfirmed(e.target.checked)}
                     className="w-5 h-5 rounded accent-[#22c55e] mt-0.5 shrink-0" />
                   <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                    I've picked up the vehicle and confirm it's in acceptable condition
+                    I've inspected the vehicle and confirm it's in acceptable condition. I understand these photos document its state at pickup.
                   </span>
                 </label>
+
+                {/* Submit */}
                 <button
                   onClick={handleCheckIn}
-                  disabled={actionLoading || !conditionConfirmed}
+                  disabled={actionLoading || !conditionConfirmed || !allSlotsReady || !odometer}
                   className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-full font-semibold transition-all duration-300 hover:scale-[1.02] active:scale-95 text-sm disabled:opacity-50"
                   style={{ backgroundColor: '#22c55e', color: '#fff', minHeight: '52px' }}
                 >
                   {actionLoading ? <><Loader2 size={16} className="animate-spin" /> Processing…</> : <><ArrowRight size={16} /> Start My Rental</>}
                 </button>
+
+                {!allSlotsReady && (
+                  <p className="text-[11px] text-center" style={{ color: 'var(--text-tertiary)' }}>
+                    Upload all 4 required photos to enable check-in
+                  </p>
+                )}
               </div>
             </motion.div>
           )}
