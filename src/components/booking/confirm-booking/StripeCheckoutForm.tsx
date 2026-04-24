@@ -59,7 +59,8 @@ export default function StripeCheckoutForm({
     }
   };
 
-  const total = bookingSummary?.totalCost || 0;
+  const totalCharged = bookingSummary?.totalChargedWithDeposit
+    || (bookingSummary?.totalCost || 0) + (bookingSummary?.depositAmount || 0);
 
   return (
     <form onSubmit={handlePay}>
@@ -118,10 +119,11 @@ export default function StripeCheckoutForm({
         ) : (
           <>
             <DollarSign size={18} />
-            Pay ${total.toFixed(2)}
+            Pay ${totalCharged.toFixed(2)}
           </>
         )}
       </button>
     </form>
   );
 }
+
