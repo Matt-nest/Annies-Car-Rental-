@@ -456,7 +456,15 @@ function OverviewTab({ booking, c, v, id, load, setModal, setPaymentForm, setLig
       {/* Insurance */}
       <Section title="Insurance">
         <div className="grid sm:grid-cols-2 gap-3">
-          <Field label="Provider" value={booking.insurance_provider} />
+          <div>
+            <p className="text-xs text-[var(--text-tertiary)]">Provider</p>
+            <p className="text-sm font-medium text-[var(--text-primary)] mt-0.5">
+              {booking.insurance_provider === 'annies' ? "Annie's Car Rental" :
+               booking.insurance_provider === 'own' ? "Customer's Own" :
+               booking.insurance_provider === 'bonzah' ? 'Bonzah' :
+               booking.insurance_provider || '—'}
+            </p>
+          </div>
           <div>
             <p className="text-xs text-[var(--text-tertiary)]">Status</p>
             <select
@@ -472,20 +480,41 @@ function OverviewTab({ booking, c, v, id, load, setModal, setPaymentForm, setLig
               ))}
             </select>
           </div>
-          <div className="col-span-2">
-            <p className="text-xs text-[var(--text-tertiary)]">Policy ID</p>
-            <input
-              className="input text-sm mt-0.5"
-              defaultValue={booking.bonzah_policy_id || ''}
-              placeholder="Policy number (if applicable)"
-              onBlur={async e => {
-                if (e.target.value !== (booking.bonzah_policy_id || '')) {
-                  await api.updateInsuranceStatus(id, booking.insurance_status, e.target.value);
-                  await load();
-                }
-              }}
-            />
-          </div>
+
+          {/* Annie's tier display */}
+          {booking.insurance_provider === 'annies' && booking.insurance_policy_number && (
+            <div className="col-span-2">
+              <p className="text-xs text-[var(--text-tertiary)]">Coverage Tier</p>
+              <span className={`inline-flex items-center gap-1.5 text-xs font-semibold capitalize px-2.5 py-1 rounded-full mt-1 ${
+                booking.insurance_policy_number === 'premium'  ? 'bg-amber-500/15 text-amber-500' :
+                booking.insurance_policy_number === 'standard' ? 'bg-blue-500/10 text-[#63b3ed]' :
+                                                                  'bg-[var(--bg-elevated)] text-[var(--text-secondary)]'
+              }`}>
+                {booking.insurance_policy_number === 'basic'    && '🛡️ Basic Protection — $12/day'}
+                {booking.insurance_policy_number === 'standard' && '🛡️ Standard Protection — $18/day'}
+                {booking.insurance_policy_number === 'premium'  && '🛡️ Premium Protection — $25/day'}
+              </span>
+            </div>
+          )}
+
+          {/* Bonzah / legacy policy ID */}
+          {booking.insurance_provider !== 'annies' && booking.insurance_provider !== 'own' && (
+            <div className="col-span-2">
+              <p className="text-xs text-[var(--text-tertiary)]">Policy ID</p>
+              <input
+                className="input text-sm mt-0.5"
+                defaultValue={booking.insurance_policy_number || booking.bonzah_policy_id || ''}
+                placeholder="Policy number (if applicable)"
+                onBlur={async e => {
+                  const current = booking.insurance_policy_number || booking.bonzah_policy_id || '';
+                  if (e.target.value !== current) {
+                    await api.updateInsuranceStatus(id, booking.insurance_status, e.target.value);
+                    await load();
+                  }
+                }}
+              />
+            </div>
+          )}
         </div>
         
         {booking.rental_agreements?.length > 0 && 
