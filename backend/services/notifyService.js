@@ -125,9 +125,9 @@ export function buildMergeFields(bookingPayload) {
     damage_fee:     bp.damage_fee || '',
     damage_type:    bp.damage_type || 'repairs',
     // Deposit fields
-    deposit_amount:  bp.deposit_amount || '',
+    deposit_amount:  bp.deposit_amount ?? '',
     deposit_status:  bp.deposit_status || '',
-    incidental_total: bp.incidental_total || '',
+    incidental_total: bp.incidental_total != null ? String(bp.incidental_total) : '',
     // Mileage fields
     checkin_odometer:  bp.checkin_odometer || '',
     checkout_odometer: bp.checkout_odometer || '',
@@ -144,6 +144,8 @@ export function buildMergeFields(bookingPayload) {
     ].filter(Boolean).join(', ') || 'None',
     // Review
     review_link:    bp.review_link || 'https://g.page/annies-car-rental/review',
+    // Alias: some templates use total_charged instead of total_cost
+    total_charged:  bp.total_cost ? Number(bp.total_cost).toFixed(2) : '',
     // ── NEW: Vehicle transparency fields ──────────────────────────
     vehicle_photo_url:      vehiclePhotoUrl,
     vehicle_year_make_model: [v.year, v.make, v.model].filter(Boolean).join(' ') || 'your vehicle',
@@ -295,6 +297,21 @@ export function buildBookingPayload(booking, { handoffRecord } = {}) {
     insurance_provider: booking.insurance_provider,
     special_requests:   booking.special_requests,
     decline_reason:     booking.decline_reason,
+    // Financial fields (used by deposit/invoice/inspection templates)
+    deposit_amount:    booking.deposit_amount ?? null,
+    deposit_status:    booking.deposit_status || null,
+    refund_amount:     booking.refund_amount ?? null,
+    incidental_total:  booking.incidental_total ?? null,
+    invoice_total:     booking.invoice_total ?? null,
+    invoice_link:      booking.invoice_link || null,
+    // Mileage fields
+    checkin_odometer:  booking.checkin_odometer || null,
+    checkout_odometer: booking.checkout_odometer || null,
+    total_miles:       booking.total_miles || null,
+    // Damage fields
+    damage_description: booking.damage_description || null,
+    damage_fee:         booking.damage_fee || null,
+    damage_type:        booking.damage_type || null,
   };
 }
 
