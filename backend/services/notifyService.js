@@ -16,6 +16,61 @@ const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN;
 const TWILIO_FROM = process.env.TWILIO_PHONE_NUMBER;
 
+// ── Stage-to-CTA Button Map ─────────────────────────────────────────────────
+// Each notification stage maps to a CTA button that appears in the email.
+// `fieldKey` refers to a merge field from buildMergeFields() containing the URL.
+// `fallbackPath` is used when the merge field is empty.
+
+const STAGE_CTA = {
+  booking_submitted:   { label: 'Check Booking Status',         fieldKey: 'status_link' },
+  booking_approved:    { label: 'Complete Agreement \u0026 Pay →', fieldKey: 'confirm_link',  style: 'gold' },
+  booking_declined:    { label: 'Browse Other Vehicles',         fallbackPath: '/vehicles' },
+  booking_cancelled:   { label: 'Browse Other Vehicles',         fallbackPath: '/vehicles' },
+  payment_confirmed:   { label: 'View Booking Status',           fieldKey: 'status_link' },
+  ready_for_pickup:    { label: 'View Pickup Details',           fieldKey: 'portal_link',   style: 'gold' },
+  pickup_reminder:     { label: 'View Pickup Details',           fieldKey: 'portal_link',   style: 'gold' },
+  day_of_pickup:       { label: 'View Pickup Details',           fieldKey: 'portal_link',   style: 'gold' },
+  return_reminder:     { label: 'View Return Details',           fieldKey: 'portal_link' },
+  late_return_warning: { label: 'View Booking',                  fieldKey: 'portal_link' },
+  return_confirmed:    { label: 'View Booking Status',           fieldKey: 'status_link' },
+  rental_completed:    { label: 'Leave a Review ⭐',              fieldKey: 'review_link',   style: 'gold' },
+  deposit_refunded:    { label: 'View Booking Status',           fieldKey: 'status_link' },
+  deposit_settled:     { label: 'View Booking Status',           fieldKey: 'status_link' },
+  invoice_sent:        { label: 'View Invoice',                  fieldKey: 'invoice_link',  style: 'gold' },
+  inspection_complete: { label: 'View Booking Status',           fieldKey: 'status_link' },
+};
+
+/**
+ * Build a styled CTA button HTML block for a given notification stage.
+ * Returns empty string if no CTA is configured for the stage.
+ */
+function buildCtaHtml(stage, mergeFields) {
+  const cta = STAGE_CTA[stage];
+  if (!cta) return '';
+
+  const siteUrl = process.env.SITE_URL || 'https://anniescarrental.com';
+  let href = '';
+  if (cta.fieldKey && mergeFields[cta.fieldKey]) {
+    href = mergeFields[cta.fieldKey];
+  } else if (cta.fallbackPath) {
+    href = `${siteUrl}${cta.fallbackPath}`;
+  } else {
+    return ''; // No URL available
+  }
+
+  const isGold = cta.style === 'gold';
+  const bg = isGold
+    ? 'background:linear-gradient(135deg,#D4AF37 0%,#B8941E 100%);color:#fff;box-shadow:0 4px 12px rgba(212,175,55,0.3);'
+    : 'background:#1c1917;color:#fff;';
+
+  return `
+    <div style="text-align:center;margin:28px 0 8px;">
+      <a href="${href}" style="display:inline-block;${bg}font-size:15px;font-weight:600;padding:14px 32px;border-radius:10px;text-decoration:none;letter-spacing:0.01em;">
+        ${escapeHtml(cta.label)}
+      </a>
+    </div>`;
+}
+
 // ── Core Send Functions ─────────────────────────────────────────────────────
 
 /**
@@ -356,13 +411,17 @@ export async function sendBookingNotification(stage, bookingPayload) {
     const customer = bookingPayload.customer || {};
     const channel = rendered.channel || 'email';
 
+    // Build merge fields for CTA button URLs
+    const mergeFields = buildMergeFields(bookingPayload);
+    const ctaHtml = buildCtaHtml(stage, mergeFields);
+
     // Send email (skip for booking_submitted — emailService.js sends a branded HTML version)
     const skipEmail = stage === 'booking_submitted';
     if (!skipEmail && (channel === 'email' || channel === 'both') && customer.email) {
       sendEmail({
         to: customer.email,
         subject: rendered.subject,
-        html: wrapInBrandedHTML(rendered.subject, rendered.body),
+        html: wrapInBrandedHTML(rendered.subject, rendered.body, ctaHtml),
       }).catch(e => console.error('[Notify] Email fire-and-forget error:', e.message));
     }
 
@@ -415,7 +474,7 @@ async function storeSystemMessage(stage, bookingPayload) {
  * email design (matching the hardcoded booking confirmation email).
  * Converts line breaks to HTML, preserves unicode emoji.
  */
-function wrapInBrandedHTML(subject, plainTextBody) {
+function wrapInBrandedHTML(subject, plainTextBody, ctaHtml = '') {
   const siteUrl = process.env.SITE_URL || 'https://anniescarrental.com';
   const logoUrl = `${siteUrl}/logo.png`;
 
@@ -489,6 +548,7 @@ function wrapInBrandedHTML(subject, plainTextBody) {
     <!-- Body -->
     <div style="padding:32px;">
       ${finalBody}
+      ${ctaHtml}
     </div>
 
     <!-- Footer -->
