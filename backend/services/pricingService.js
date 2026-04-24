@@ -72,8 +72,11 @@ export function calcPricing({ dailyRate, weeklyRate, rentalDays, deliveryFeeAmou
     delivery_fee: deliveryFeeAmount,
     mileage_addon_fee: mileageAddonFee,
     toll_addon_fee: tollAddonFee,
-    insurance_cost: insuranceCost,
     tax_amount: taxAmount,
     total_cost: totalCost,
+    // NOTE: insurance_cost intentionally excluded from this object.
+    // This return value is spread directly into the bookings table insert (...pricing),
+    // and the bookings table has no insurance_cost column.
+    // Use calcInsuranceCost() separately when building PaymentIntent totals.
   };
 }
