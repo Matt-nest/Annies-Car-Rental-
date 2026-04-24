@@ -1,116 +1,99 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Check } from 'lucide-react';
-import { EASE } from '../../../utils/motion';
-import { STEPS } from './constants';
+import { motion } from 'motion/react';
+import { FileText, Shield, CreditCard, Check } from 'lucide-react';
+import { STAGES } from './constants';
 
-interface ProgressStepperProps {
-  currentStep: 1 | 2 | 3;
+interface Props {
+  currentStage: number;
+  currentSubStep: number;
+  completedStages: number[];
+  theme: string;
 }
 
-export default function ProgressStepper({ currentStep }: ProgressStepperProps) {
+const stageIcons = [FileText, Shield, CreditCard];
+
+export default function ProgressStepper({ currentStage, currentSubStep, completedStages, theme }: Props) {
   return (
-    <div className="mb-10 sm:mb-12" role="list" aria-label="Booking steps">
-      <div className="flex items-start">
-        {STEPS.map((step, idx) => {
-          const isComplete = step.number < currentStep;
-          const isActive = step.number === currentStep;
+    <div className="mb-6">
+      {/* Stage indicators */}
+      <div className="flex items-center justify-between gap-1 sm:gap-2">
+        {STAGES.map((stage, idx) => {
+          const stageNum = stage.number;
+          const isActive = currentStage === stageNum;
+          const isCompleted = completedStages.includes(stageNum);
+          const isPending = !isActive && !isCompleted;
+          const Icon = stageIcons[idx];
 
           return (
-            <React.Fragment key={step.number}>
-              <div
-                className="flex flex-col items-center"
-                role="listitem"
-                aria-current={isActive ? 'step' : undefined}
-              >
-                {/* Bubble */}
-                <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 border-2 transition-all duration-500"
+            <React.Fragment key={stageNum}>
+              {idx > 0 && (
+                <div className="flex-1 h-0.5 rounded-full transition-all duration-500"
                   style={{
-                    backgroundColor: isComplete
+                    backgroundColor: isCompleted || (currentStage > stageNum)
+                      ? 'var(--accent-color)'
+                      : 'var(--border-subtle)',
+                  }}
+                />
+              )}
+              <div className="flex flex-col items-center gap-1.5">
+                <motion.div
+                  className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center shrink-0 transition-all duration-300"
+                  style={{
+                    backgroundColor: isCompleted
                       ? 'rgba(34,197,94,0.15)'
                       : isActive
                         ? 'var(--accent-glow)'
-                        : 'var(--bg-card-hover)',
-                    borderColor: isComplete
-                      ? '#22c55e'
-                      : isActive
-                        ? 'var(--accent-color)'
-                        : 'var(--border-medium)',
-                    color: isComplete
+                        : 'rgba(255,255,255,0.05)',
+                    border: isActive ? '2px solid var(--accent-color)' : '1px solid var(--border-subtle)',
+                    color: isCompleted
                       ? '#22c55e'
                       : isActive
                         ? 'var(--accent-color)'
                         : 'var(--text-tertiary)',
                   }}
+                  animate={isActive ? { scale: [1, 1.05, 1] } : {}}
+                  transition={{ duration: 2, repeat: Infinity }}
                 >
-                  <AnimatePresence mode="wait">
-                    {isComplete ? (
-                      <motion.span
-                        key="check"
-                        initial={{ scale: 0, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ type: 'spring', stiffness: 280, damping: 18 }}
-                        className="flex items-center justify-center"
-                      >
-                        <Check size={18} strokeWidth={3} />
-                      </motion.span>
-                    ) : (
-                      <motion.span
-                        key="num"
-                        initial={{ scale: 0.7, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ duration: 0.2, ease: EASE.smooth }}
-                        className="text-sm font-semibold"
-                      >
-                        {step.number}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </div>
-
-                {/* Labels */}
-                <div className="mt-2.5 text-center">
-                  <p
-                    className="text-[11px] font-semibold uppercase tracking-[0.18em] transition-colors duration-300"
-                    style={{
-                      color: isActive
-                        ? 'var(--text-primary)'
-                        : isComplete
-                          ? '#22c55e'
-                          : 'var(--text-tertiary)',
-                    }}
-                  >
-                    {step.label}
+                  {isCompleted ? <Check size={18} /> : <Icon size={18} />}
+                </motion.div>
+                <div className="text-center">
+                  <p className="text-[10px] sm:text-xs font-semibold leading-tight"
+                    style={{ color: isActive ? 'var(--accent-color)' : isCompleted ? '#22c55e' : 'var(--text-tertiary)' }}>
+                    {stage.label}
                   </p>
-                  <p
-                    className="text-[10px] mt-0.5 hidden sm:block transition-colors duration-300"
-                    style={{ color: 'var(--text-tertiary)' }}
-                  >
-                    {step.sublabel}
+                  <p className="text-[9px] sm:text-[10px] leading-tight mt-0.5 hidden sm:block"
+                    style={{ color: 'var(--text-tertiary)' }}>
+                    {stage.sublabel}
                   </p>
                 </div>
               </div>
-
-              {/* Connector bar */}
-              {idx < STEPS.length - 1 && (
-                <div
-                  className="flex-1 mx-3 sm:mx-4 mt-5 h-0.5 overflow-hidden rounded-full"
-                  style={{ backgroundColor: 'var(--bg-card-hover)' }}
-                >
-                  <motion.div
-                    className="h-full rounded-full"
-                    initial={{ width: '0%' }}
-                    animate={{ width: step.number < currentStep ? '100%' : '0%' }}
-                    transition={{ duration: 0.7, ease: EASE.dramatic }}
-                    style={{ backgroundColor: '#22c55e' }}
-                  />
-                </div>
-              )}
             </React.Fragment>
           );
         })}
       </div>
+
+      {/* Sub-step progress bar (only for Stage 1 which has 6 sub-steps) */}
+      {currentStage === 1 && (
+        <div className="mt-4 flex items-center gap-1.5">
+          {Array.from({ length: STAGES[0].subSteps }, (_, i) => (
+            <div
+              key={i}
+              className="flex-1 h-1 rounded-full transition-all duration-500"
+              style={{
+                backgroundColor: i < currentSubStep
+                  ? 'var(--accent-color)'
+                  : i === currentSubStep - 1
+                    ? 'var(--accent-color)'
+                    : 'var(--border-subtle)',
+                opacity: i < currentSubStep ? 1 : 0.4,
+              }}
+            />
+          ))}
+          <span className="text-[10px] ml-1 shrink-0" style={{ color: 'var(--text-tertiary)' }}>
+            {currentSubStep}/6
+          </span>
+        </div>
+      )}
     </div>
   );
 }

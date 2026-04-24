@@ -72,6 +72,32 @@ export default function ConfirmedScreen({ refCode, scrollToSection }: ConfirmedS
             your check-in details shortly.
           </motion.p>
 
+          {/* What Happens Next */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.78, ease: EASE.standard }}
+            className="text-left rounded-xl border p-4 space-y-3"
+            style={{ backgroundColor: 'rgba(200,169,126,0.04)', borderColor: 'var(--border-subtle)' }}
+          >
+            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--accent-color)' }}>
+              What Happens Next
+            </p>
+            {[
+              { num: 1, text: 'You\'ll receive a confirmation email with your rental details and receipt.' },
+              { num: 2, text: 'On your pickup day, Annie will reach out with vehicle location and handoff instructions.' },
+              { num: 3, text: 'Complete a quick walk-around inspection and you\'re on your way!' },
+            ].map(step => (
+              <div key={step.num} className="flex gap-3 items-start">
+                <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold"
+                  style={{ backgroundColor: 'var(--accent-glow)', color: 'var(--accent-color)' }}>
+                  {step.num}
+                </div>
+                <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{step.text}</p>
+              </div>
+            ))}
+          </motion.div>
+
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

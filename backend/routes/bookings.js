@@ -256,13 +256,9 @@ router.post('/:id/complete', requireAuth, asyncHandler(async (req, res) => {
   res.json(result);
 }));
 
-/** PATCH /bookings/:code/insurance — public (customer submits Bonzah insurance) */
+/** PATCH /bookings/:code/insurance — public (customer submits insurance choice from unified wizard) */
 router.patch('/:code/insurance', asyncHandler(async (req, res) => {
-  const { bonzah_policy_number, bonzah_email } = req.body;
-
-  if (!bonzah_policy_number) {
-    return res.status(400).json({ error: 'Policy number is required' });
-  }
+  const { source, tier, bonzah_policy_number, bonzah_email } = req.body;
 
   // Look up booking by booking_code (public route — no auth)
   const { data: booking, error } = await supabase
@@ -275,17 +271,51 @@ router.patch('/:code/insurance', asyncHandler(async (req, res) => {
     return res.status(404).json({ error: 'Booking not found' });
   }
 
-  // Store insurance info on the booking
-  await supabase
-    .from('bookings')
-    .update({
-      insurance_provider: 'bonzah',
-      insurance_policy_number: bonzah_policy_number,
-      insurance_email: bonzah_email || null,
-    })
-    .eq('id', booking.id);
+  // Handle different insurance sources
+  if (source === 'annies') {
+    // Customer chose Annie's insurance — store tier
+    const validTiers = ['basic', 'standard', 'premium'];
+    if (!tier || !validTiers.includes(tier)) {
+      return res.status(400).json({ error: 'Valid insurance tier is required (basic, standard, premium)' });
+    }
 
-  console.log(`[Booking] Insurance updated for ${booking.booking_code}: ${bonzah_policy_number}`);
+    await supabase
+      .from('bookings')
+      .update({
+        insurance_provider: 'annies',
+        insurance_policy_number: tier,
+        insurance_email: null,
+      })
+      .eq('id', booking.id);
+
+    console.log(`[Booking] Annie's insurance selected for ${booking.booking_code}: ${tier}`);
+  } else if (source === 'own') {
+    // Customer has their own insurance — mark as own (details stored in rental_agreements)
+    await supabase
+      .from('bookings')
+      .update({
+        insurance_provider: 'own',
+        insurance_policy_number: null,
+        insurance_email: null,
+      })
+      .eq('id', booking.id);
+
+    console.log(`[Booking] Customer has own insurance for ${booking.booking_code}`);
+  } else if (bonzah_policy_number) {
+    // Legacy Bonzah flow — backward compatible
+    await supabase
+      .from('bookings')
+      .update({
+        insurance_provider: 'bonzah',
+        insurance_policy_number: bonzah_policy_number,
+        insurance_email: bonzah_email || null,
+      })
+      .eq('id', booking.id);
+
+    console.log(`[Booking] Bonzah insurance updated for ${booking.booking_code}: ${bonzah_policy_number}`);
+  } else {
+    return res.status(400).json({ error: 'Insurance source is required (own, annies, or bonzah_policy_number)' });
+  }
 
   res.json({ success: true, booking_code: booking.booking_code });
 }));

@@ -3,16 +3,18 @@ import { supabase } from '../db/supabase.js';
 import { transitionBooking, getBookingDetail } from './bookingService.js';
 import { createNotification } from './notificationService.js';
 import { sendBookingNotification, buildBookingPayload } from './notifyService.js';
+import { calcInsuranceCost } from './pricingService.js';
 
 const stripe = getStripe();
 
 /**
  * Create a PaymentIntent for a booking.
- * Charges total_cost + security deposit in a single PaymentIntent.
+ * Charges total_cost + insurance_cost + security deposit in a single PaymentIntent.
  * The deposit portion is tracked separately in booking_deposits.
+ * Accepts optional insurance_selection and expected_total_cents for server-side validation.
  * Returns { clientSecret, amount, currency, booking } for the frontend.
  */
-export async function createPaymentIntent(bookingCode) {
+export async function createPaymentIntent(bookingCode, { insurance_selection, expected_total_cents } = {}) {
   // Look up the booking
   const { data: booking, error } = await supabase
     .from('bookings')
@@ -62,11 +64,17 @@ export async function createPaymentIntent(bookingCode) {
     };
   }
 
-  // Calculate amount in cents — rental + security deposit
+  // Calculate amount in cents — rental + insurance + security deposit
   const rentalCents = Math.round(Number(booking.total_cost) * 100);
   if (rentalCents <= 0) {
     throw Object.assign(new Error('Invalid booking total'), { status: 400 });
   }
+
+  // Calculate insurance cost from booking data or passed selection
+  const insSource = insurance_selection?.source || booking.insurance_provider || null;
+  const insTier = insurance_selection?.tier || booking.insurance_policy_number || null;
+  const insuranceDollars = calcInsuranceCost(insSource, insTier, booking.rental_days);
+  const insuranceCents = Math.round(insuranceDollars * 100);
 
   // Look up vehicle-specific deposit (defaults to $150 / 15000 cents)
   let depositCents = 15000;
@@ -79,7 +87,15 @@ export async function createPaymentIntent(bookingCode) {
     if (vd) depositCents = vd.amount;
   }
 
-  const totalChargeCents = rentalCents + depositCents;
+  const totalChargeCents = rentalCents + insuranceCents + depositCents;
+
+  // Server-side amount validation: reject if frontend total disagrees by more than 1 cent
+  if (expected_total_cents != null && Math.abs(totalChargeCents - expected_total_cents) > 1) {
+    throw Object.assign(
+      new Error(`Amount mismatch: server calculated $${(totalChargeCents / 100).toFixed(2)} but frontend expected $${(expected_total_cents / 100).toFixed(2)}. Please refresh and try again.`),
+      { status: 400 }
+    );
+  }
 
   // Create the PaymentIntent
   const paymentIntent = await stripe.paymentIntents.create({
@@ -92,10 +108,13 @@ export async function createPaymentIntent(bookingCode) {
       customer_name: `${booking.customers?.first_name} ${booking.customers?.last_name}`,
       vehicle: `${booking.vehicles?.year} ${booking.vehicles?.make} ${booking.vehicles?.model}`,
       rental_cents: String(rentalCents),
+      insurance_cents: String(insuranceCents),
+      insurance_source: insSource || 'none',
+      insurance_tier: insTier || 'none',
       deposit_cents: String(depositCents),
     },
     receipt_email: booking.customers?.email || undefined,
-    description: `Annie's Car Rental — ${booking.booking_code} — ${booking.vehicles?.year} ${booking.vehicles?.make} ${booking.vehicles?.model} (incl. $${(depositCents / 100).toFixed(0)} refundable deposit)`,
+    description: `Annie's Car Rental — ${booking.booking_code} — ${booking.vehicles?.year} ${booking.vehicles?.make} ${booking.vehicles?.model} (incl. $${(depositCents / 100).toFixed(0)} refundable deposit${insuranceCents > 0 ? ` + $${(insuranceCents / 100).toFixed(0)} insurance` : ''})`,
   });
 
   return {
@@ -375,10 +394,16 @@ async function formatBookingSummary(booking) {
     if (vd) depositAmount = vd.amount / 100;
   }
 
+  // Calculate insurance cost from stored booking data
+  const insuranceSource = booking.insurance_provider || null;
+  const insuranceTier = (insuranceSource === 'annies') ? booking.insurance_policy_number : null;
+  const insuranceCost = calcInsuranceCost(insuranceSource, insuranceTier, booking.rental_days);
+
   return {
     bookingCode: booking.booking_code,
     status: booking.status,
     customerName: `${booking.customers?.first_name} ${booking.customers?.last_name}`,
+    customerEmail: booking.customers?.email || '',
     vehicle: booking.vehicles
       ? `${booking.vehicles.year} ${booking.vehicles.make} ${booking.vehicles.model}`
       : null,
@@ -393,9 +418,12 @@ async function formatBookingSummary(booking) {
     tollAddonFee: Number(booking.toll_addon_fee || 0),
     taxAmount: Number(booking.tax_amount || 0),
     totalCost: Number(booking.total_cost),
+    insuranceSource,
+    insuranceTier,
+    insuranceCost,
     depositAmount,
     depositIncludedInCharge: true,
-    totalChargedWithDeposit: Number(booking.total_cost) + depositAmount,
+    totalChargedWithDeposit: Number(booking.total_cost) + insuranceCost + depositAmount,
     hasDelivery: !!booking.delivery_requested,
     hasUnlimitedMiles: !!booking.unlimited_miles,
     hasUnlimitedTolls: !!booking.unlimited_tolls,

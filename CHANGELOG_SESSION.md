@@ -5,6 +5,50 @@
 
 ---
 
+## 2026-04-24 — Unified Booking Wizard (Agreement + Insurance + Payment)
+
+**Scope:** Replaced 3-page `/confirm` flow with single unified wizard. 14 files touched (9 new, 5 modified).
+**Blast Radius:** HIGH — entire customer-facing booking completion flow.
+
+### Backend Changes (3 files)
+- `backend/services/pricingService.js` — Added `INSURANCE_TIERS` constants, `calcInsuranceCost()`, `insuranceCost` param to `calcPricing()`
+- `backend/services/stripeService.js` — `createPaymentIntent()` now accepts `insurance_selection` + `expected_total_cents`; adds `insurance_cents/source/tier` to PI metadata; server-side amount validation
+- `backend/routes/bookings.js` — Insurance PATCH now handles `source: 'own'|'annies'|bonzah` (backward compatible)
+- `backend/routes/stripe.js` — Passes through `insurance_selection` and `expected_total_cents`
+
+### Frontend — New Files (9)
+- `wizard-steps/RentalSummaryStep.tsx` — Step 1.1 (read-only rental review)
+- `wizard-steps/AddressStep.tsx` — Step 1.2 (address + DOB)
+- `wizard-steps/LicenseStep.tsx` — Step 1.3 (license #, state, expiry)
+- `wizard-steps/TermsStep.tsx` — Step 1.4 (collapsible T&C + acceptance)
+- `wizard-steps/AcknowledgementsStep.tsx` — Step 1.5 (5 checkboxes)
+- `wizard-steps/SignatureStep.tsx` — Step 1.6 (draw/type + ESIGN disclosure)
+- `wizard-steps/InsuranceStep.tsx` — Step 2.1 (own vs Annie's gate + 3 tier cards)
+- `wizard-steps/OrderSummary.tsx` — Itemized receipt (rental + insurance + deposit)
+- `wizard-steps/SubmitLoader.tsx` — Full-screen staged progress overlay
+
+### Frontend — Modified Files (5)
+- `confirm-booking/constants.ts` — STAGES, INSURANCE_TIERS, WizardDraft type, sessionStorage helpers
+- `confirm-booking/ProgressStepper.tsx` — 3-stage stepper with sub-step bar
+- `confirm-booking/ConfirmedScreen.tsx` — Added "What Happens Next" section
+- `ConfirmBooking.tsx` — Complete rewrite as wizard orchestrator (deferred PI creation, orchestrated submit)
+- `BookingSummaryCard.tsx` / `StripeCheckoutForm.tsx` — Superseded (not deleted, no longer imported)
+
+### Key Architecture Decisions
+- **Deferred PaymentIntent:** Uses Stripe Elements `mode:'payment'` — card renders immediately, PI created at submit time with correct insurance amount
+- **Orchestrated Submit:** Agreement POST → Insurance PATCH → elements.submit() → createPaymentIntent → confirmPayment
+- **sessionStorage persistence:** Keyed by booking code, debounced 500ms writes
+- **Server-side validation:** `expected_total_cents` must match within 1 cent or PI creation is rejected
+- **Insurance tiers:** $12/day Basic, $18/day Standard, $25/day Premium — non-taxable flat fees
+
+### Dependencies
+- `signature_pad` (existing) — used by SignatureStep
+- `@stripe/stripe-js` + `@stripe/react-stripe-js` (existing) — Elements with deferred intent
+- `motion/react` (existing) — animations
+- `lucide-react` (existing) — icons
+
+---
+
 ## SESSION LOG FORMAT
 
 ```

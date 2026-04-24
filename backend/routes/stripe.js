@@ -14,12 +14,12 @@ const stripe = getStripe();
  * Returns: { clientSecret, amount, currency, booking }
  */
 router.post('/create-payment-intent', asyncHandler(async (req, res) => {
-  const { booking_code } = req.body;
+  const { booking_code, insurance_selection, expected_total_cents } = req.body;
   if (!booking_code) {
     return res.status(400).json({ error: 'booking_code is required' });
   }
 
-  const result = await createPaymentIntent(booking_code);
+  const result = await createPaymentIntent(booking_code, { insurance_selection, expected_total_cents });
   res.json(result);
 }));
 

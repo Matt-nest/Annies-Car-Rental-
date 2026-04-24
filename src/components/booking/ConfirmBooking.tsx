@@ -1,553 +1,596 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import {
-  CreditCard,
-  Shield,
-  Loader2,
-  AlertCircle,
-  ArrowRight,
-  ArrowLeft,
-  ExternalLink,
-  FileText,
-} from 'lucide-react';
-import { Elements } from '@stripe/react-stripe-js';
-import { useTheme } from '../../context/ThemeContext';
-import { EASE, DURATION } from '../../utils/motion';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
+import { Loader2, AlertCircle, Phone } from 'lucide-react';
+import { Elements, useStripe, useElements, PaymentElement } from '@stripe/react-stripe-js';
+
 import Navbar from '../layout/Navbar';
 import Footer from '../layout/Footer';
-import FormField from '../common/FormField';
-import RentalAgreement from './RentalAgreement';
-
-// Extracted sub-components
-import {
-  stripePromise,
-  API_URL,
-  BONZAH_URL,
-  PHONE_NUMBER,
-  getRefCode,
-  isValidEmail,
-} from './confirm-booking/constants';
 import ProgressStepper from './confirm-booking/ProgressStepper';
-import StripeCheckoutForm from './confirm-booking/StripeCheckoutForm';
-import MissingRefScreen from './confirm-booking/MissingRefScreen';
 import ConfirmedScreen from './confirm-booking/ConfirmedScreen';
+import MissingRefScreen from './confirm-booking/MissingRefScreen';
+
+// Wizard steps
+import RentalSummaryStep from './confirm-booking/wizard-steps/RentalSummaryStep';
+import AddressStep from './confirm-booking/wizard-steps/AddressStep';
+import LicenseStep from './confirm-booking/wizard-steps/LicenseStep';
+import TermsStep from './confirm-booking/wizard-steps/TermsStep';
+import AcknowledgementsStep from './confirm-booking/wizard-steps/AcknowledgementsStep';
+import SignatureStep from './confirm-booking/wizard-steps/SignatureStep';
+import InsuranceStep from './confirm-booking/wizard-steps/InsuranceStep';
+import OrderSummary from './confirm-booking/wizard-steps/OrderSummary';
+import SubmitLoader from './confirm-booking/wizard-steps/SubmitLoader';
+
+import {
+  API_URL, PHONE_NUMBER, INSURANCE_TIERS,
+  stripePromise, getRefCode,
+  formatCurrency,
+  loadDraft, saveDraft, clearDraft, getDefaultDraft,
+  type WizardDraft,
+} from './confirm-booking/constants';
 
 /* ────────────────────────────────────────────────────────
-   Main Wizard Orchestrator
+   Inner form (needs Stripe context)
    ──────────────────────────────────────────────────────── */
-export default function ConfirmBooking() {
-  const { theme } = useTheme();
-  const refCode = useMemo(() => getRefCode(), []);
+function PaymentForm({
+  bookingSummary,
+  draft,
+  depositAmount,
+  bookingCode,
+  onUpdate,
+  onBack,
+  onSuccess,
+  theme,
+}: {
+  bookingSummary: any;
+  draft: WizardDraft;
+  depositAmount: number;
+  bookingCode: string;
+  onUpdate: (patch: Partial<WizardDraft>) => void;
+  onBack: () => void;
+  onSuccess: () => void;
+  theme: string;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [submitting, setSubmitting] = useState(false);
+  const [submitStep, setSubmitStep] = useState<'agreement' | 'insurance' | 'payment' | 'confirming' | 'done'>('agreement');
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
-  const [direction, setDirection] = useState<-1 | 0 | 1>(0);
+  // Calculate grand total for display
+  let insuranceCost = 0;
+  if (draft.insuranceChoice === 'annies' && draft.anniesTier) {
+    const tier = INSURANCE_TIERS.find(t => t.key === draft.anniesTier);
+    if (tier) insuranceCost = tier.dailyRate * (bookingSummary?.rentalDays || 1);
+  }
+  const rentalTotal = bookingSummary?.totalCost || 0;
+  const grandTotal = rentalTotal + insuranceCost + depositAmount;
 
-  // Agreement state
-  const [agreementSigned, setAgreementSigned] = useState(false);
-
-  // Payment state
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [bookingSummary, setBookingSummary] = useState<any>(null);
-  const [paymentLoading, setPaymentLoading] = useState(false);
-  const [paymentError, setPaymentError] = useState('');
-  const [alreadyPaid, setAlreadyPaid] = useState(false);
-
-  // Insurance form state
-  const [policyNumber, setPolicyNumber] = useState('');
-  const [bonzahEmail, setBonzahEmail] = useState('');
-  const [touched, setTouched] = useState<Record<string, boolean>>({});
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState('');
-  const [isConfirmed, setIsConfirmed] = useState(false);
-  const [shake, setShake] = useState(false);
-
-  // Fetch PaymentIntent
-  useEffect(() => {
-    if (!refCode) return;
-    setPaymentLoading(true);
-    fetch(`${API_URL}/stripe/create-payment-intent`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ booking_code: refCode }),
-    })
-      .then(r => r.json())
-      .then(data => {
-        if (data.error) {
-          setPaymentError(data.error);
-        } else if (data.alreadyPaid) {
-          setAlreadyPaid(true);
-          setBookingSummary(data.booking);
-          setAgreementSigned(true);
-          setCurrentStep(3);
-        } else {
-          setClientSecret(data.clientSecret);
-          setBookingSummary(data.booking);
-        }
-      })
-      .catch(() => setPaymentError('Could not load payment form. Please try again.'))
-      .finally(() => setPaymentLoading(false));
-  }, [refCode]);
-
-  const scrollToSection = (section: string) => {
-    if (section === 'home') window.location.href = '/';
-    else window.location.href = `/#${section}`;
-  };
-
-  /* ── Step navigation ── */
-  const advanceToStep2 = () => { setDirection(1); setCurrentStep(2); };
-  const advanceToStep3 = () => {
-    setDirection(1);
-    setCurrentStep(3);
-    setTimeout(() => document.getElementById('policyNumber')?.focus(), 320);
-  };
-  const goBackToStep2 = () => { setDirection(-1); setCurrentStep(2); };
-
-  /* ── Validation ── */
-  const validateField = useCallback((field: string, value: string): string => {
-    if (field === 'policyNumber' && !value.trim()) return 'Policy number is required';
-    if (field === 'bonzahEmail') {
-      if (!value.trim()) return 'Email address is required';
-      if (!isValidEmail(value)) return 'Please enter a valid email address';
-    }
-    return '';
-  }, []);
-
-  const handleBlur = (field: string, value: string) => {
-    setTouched((prev) => ({ ...prev, [field]: true }));
-    setErrors((prev) => ({ ...prev, [field]: validateField(field, value) }));
-  };
-
-  const handleFieldChange = (field: string, value: string) => {
-    if (field === 'policyNumber') setPolicyNumber(value);
-    if (field === 'bonzahEmail') setBonzahEmail(value);
-    if (touched[field]) {
-      setErrors((prev) => ({ ...prev, [field]: validateField(field, value) }));
-    }
-  };
-
-  /* ── Submit ── */
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setTouched({ policyNumber: true, bonzahEmail: true });
-
-    const nextErrors: Record<string, string> = {};
-    const pnErr = validateField('policyNumber', policyNumber);
-    const emErr = validateField('bonzahEmail', bonzahEmail);
-    if (pnErr) nextErrors.policyNumber = pnErr;
-    if (emErr) nextErrors.bonzahEmail = emErr;
-    setErrors(nextErrors);
-
-    if (Object.keys(nextErrors).length > 0) {
-      document.getElementById(Object.keys(nextErrors)[0])?.focus();
-      return;
-    }
-
-    setIsSubmitting(true);
-    setSubmitError('');
+  const handlePayNow = async () => {
+    if (!stripe || !elements) return;
+    setSubmitting(true);
+    setSubmitError(null);
 
     try {
-      const res = await fetch(`${API_URL}/bookings/${refCode}/insurance`, {
+      // ── Step 1: Submit agreement ──────────────────────────
+      setSubmitStep('agreement');
+      const agreementPayload = {
+        address_line1: draft.address.line1,
+        city: draft.address.city,
+        state: draft.address.state,
+        zip: draft.address.zip,
+        date_of_birth: draft.dob,
+        driver_license_number: draft.license.number,
+        driver_license_state: draft.license.state,
+        driver_license_expiry: draft.license.expiry,
+        // Personal insurance fields (if they filled them in)
+        insurance_company: draft.personalInsurance.company || null,
+        insurance_policy_number: draft.personalInsurance.policyNumber || null,
+        insurance_expiry: draft.personalInsurance.expiry || null,
+        insurance_agent_name: draft.personalInsurance.agentName || null,
+        insurance_agent_phone: draft.personalInsurance.agentPhone || null,
+        insurance_vehicle_description: draft.personalInsurance.vehicleDescription || null,
+        signature_data: draft.signature.data,
+        signature_type: draft.signature.mode === 'draw' ? 'drawn' : 'typed',
+      };
+
+      const agRes = await fetch(`${API_URL}/agreements/${bookingCode}/sign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(agreementPayload),
+      });
+      const agJson = await agRes.json();
+      if (!agRes.ok && !agJson.alreadySigned) {
+        throw new Error(agJson.error || 'Failed to submit agreement');
+      }
+
+      // ── Step 2: Submit insurance ──────────────────────────
+      setSubmitStep('insurance');
+      const insurancePayload: any = { source: draft.insuranceChoice };
+      if (draft.insuranceChoice === 'annies') {
+        insurancePayload.tier = draft.anniesTier;
+      }
+      const insRes = await fetch(`${API_URL}/bookings/${bookingCode}/insurance`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(insurancePayload),
+      });
+      if (!insRes.ok) {
+        const insJson = await insRes.json();
+        throw new Error(insJson.error || 'Failed to record insurance');
+      }
+
+      // ── Step 3: Validate card with Stripe Elements ──────
+      setSubmitStep('payment');
+      const { error: submitErr } = await elements.submit();
+      if (submitErr) {
+        throw new Error(submitErr.message || 'Card validation failed');
+      }
+
+      // ── Step 3b: Create PaymentIntent (server computes amount) ──
+      const insurance_selection = draft.insuranceChoice === 'annies'
+        ? { source: 'annies', tier: draft.anniesTier }
+        : { source: draft.insuranceChoice || 'own' };
+
+      const piRes = await fetch(`${API_URL}/stripe/create-payment-intent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          bonzah_policy_number: policyNumber.trim(),
-          bonzah_email: bonzahEmail.trim(),
+          booking_code: bookingCode,
+          insurance_selection,
+          expected_total_cents: Math.round(grandTotal * 100),
         }),
       });
-      if (!res.ok) throw new Error('Request failed');
-      setIsConfirmed(true);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch {
-      setSubmitError(`Something went wrong. Please try again or call us at ${PHONE_NUMBER}.`);
-      setShake(true);
-      setTimeout(() => setShake(false), 600);
-    } finally {
-      setIsSubmitting(false);
+      const piJson = await piRes.json();
+      if (!piRes.ok) throw new Error(piJson.error || 'Failed to create payment');
+
+      if (piJson.alreadyPaid) {
+        // Payment already completed (e.g. page refresh)
+        setSubmitStep('done');
+        clearDraft(bookingCode);
+        onSuccess();
+        return;
+      }
+
+      // ── Step 3c: Confirm payment with Stripe ──────────────
+      const { error: confirmError } = await stripe.confirmPayment({
+        elements,
+        clientSecret: piJson.clientSecret,
+        confirmParams: {
+          return_url: window.location.href,
+        },
+        redirect: 'if_required',
+      });
+
+      if (confirmError) {
+        throw new Error(confirmError.message || 'Payment failed. Please try again.');
+      }
+
+      // ── Step 4: Confirm with backend ──────────────────────
+      setSubmitStep('confirming');
+      // The PaymentIntent ID is in the client secret
+      const piId = piJson.clientSecret.split('_secret_')[0];
+      try {
+        await fetch(`${API_URL}/stripe/confirm-payment`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ payment_intent_id: piId }),
+        });
+      } catch {
+        // Non-critical: webhook will catch it
+        console.warn('Could not confirm payment with backend');
+      }
+
+      setSubmitStep('done');
+      clearDraft(bookingCode);
+      onSuccess();
+    } catch (err: any) {
+      setSubmitError(err.message || 'Something went wrong');
+      setSubmitting(false);
     }
   };
 
-  /* ═══════════════════════════════════════
-     Early returns for special states
-     ═══════════════════════════════════════ */
-  if (!refCode) {
-    return <MissingRefScreen scrollToSection={scrollToSection} theme={theme} />;
-  }
+  const handleRetry = () => {
+    setSubmitError(null);
+    handlePayNow();
+  };
 
-  if (isConfirmed) {
-    return <ConfirmedScreen refCode={refCode} scrollToSection={scrollToSection} />;
-  }
-
-  /* ═══════════════════════════════════════
-     Main wizard render
-     ═══════════════════════════════════════ */
-  const stepTransition = (dir: -1 | 0 | 1) => ({
-    initial: { opacity: 0, x: dir === -1 ? -24 : 0, y: dir === 0 ? 20 : 0 },
-    animate: { opacity: 1, x: 0, y: 0 },
-    exit: { opacity: 0, x: dir === 1 ? -24 : 24 },
-    transition: { duration: 0.25, ease: EASE.standard },
-  });
+  const handleDismiss = () => {
+    setSubmitError(null);
+    setSubmitting(false);
+  };
 
   return (
     <>
-      <Navbar onNavigate={scrollToSection} />
+      <AnimatePresence>
+        {submitting && (
+          <SubmitLoader
+            currentStep={submitStep}
+            error={submitError}
+            onRetry={handleRetry}
+            onDismiss={handleDismiss}
+          />
+        )}
+      </AnimatePresence>
 
-      <main
-        className="min-h-screen px-4 sm:px-6"
-        style={{ paddingTop: '120px', paddingBottom: '80px' }}
-      >
-        <div className="max-w-xl mx-auto">
+      <div className="space-y-5">
+        <OrderSummary
+          bookingSummary={bookingSummary}
+          draft={draft}
+          depositAmount={depositAmount}
+          theme={theme}
+        />
 
-          {/* Page Header */}
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: DURATION.slow, ease: EASE.dramatic }}
-            className="text-center mb-10 sm:mb-12"
+        {/* Stripe Payment Element */}
+        <div className="rounded-xl border p-4 sm:p-5"
+          style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+          <h3 className="text-base font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Payment Method</h3>
+          <PaymentElement options={{ layout: 'tabs' }} />
+        </div>
+
+        {submitError && !submitting && (
+          <div className="flex items-start gap-3 p-4 rounded-xl border text-sm"
+            style={{ backgroundColor: 'rgba(239,68,68,0.08)', borderColor: 'rgba(239,68,68,0.25)', color: '#ef4444' }}>
+            <AlertCircle size={18} className="mt-0.5 shrink-0" />
+            <span>{submitError}</span>
+          </div>
+        )}
+
+        <div className="flex gap-3">
+          <button type="button" onClick={onBack}
+            className="px-6 py-4 rounded-full font-medium transition-all duration-300 cursor-pointer border"
+            style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)', backgroundColor: 'transparent' }}>
+            Back
+          </button>
+          <button
+            type="button"
+            onClick={handlePayNow}
+            disabled={!stripe || submitting}
+            className={`flex-1 py-4 rounded-full font-medium transition-all duration-300 flex items-center justify-center gap-2 ${
+              submitting ? 'opacity-60 cursor-not-allowed' : 'hover:scale-[1.02] hover:-translate-y-px active:scale-95 hover:shadow-lg cursor-pointer'
+            }`}
+            style={{ backgroundColor: 'var(--accent-color)', color: 'var(--accent-fg)' }}
           >
-            <h1
-              className="text-3xl sm:text-4xl md:text-5xl font-light mb-4"
-              style={{ color: 'var(--text-primary)' }}
-            >
-              Complete Your{' '}
-              <span className="font-serif italic" style={{ color: 'var(--accent-color)' }}>
-                Booking
-              </span>
-            </h1>
-            <p
-              className="text-sm sm:text-base leading-relaxed max-w-sm mx-auto mb-5"
-              style={{ color: 'var(--text-secondary)' }}
-            >
-              Three quick steps to finalize your reservation.
+            {submitting ? (
+              <><Loader2 className="animate-spin" size={18} /> Processing…</>
+            ) : (
+              <>Pay {formatCurrency(grandTotal)}</>
+            )}
+          </button>
+        </div>
+
+        <p className="text-[10px] text-center leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+          By clicking "Pay", you authorize Annie's Car Rental to charge your card for the rental total, insurance, and refundable security deposit.
+          Your deposit will be returned after vehicle inspection.
+        </p>
+      </div>
+    </>
+  );
+}
+
+/* ────────────────────────────────────────────────────────
+   Main Orchestrator
+   ──────────────────────────────────────────────────────── */
+export default function ConfirmBooking() {
+  const scrollToSection = useCallback((section: string) => {
+    window.location.href = '/#' + section;
+  }, []);
+
+  const refCode = getRefCode();
+  const [theme, setTheme] = useState(() =>
+    document.documentElement.getAttribute('data-theme') || 'dark'
+  );
+
+  // Booking data from server
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [agreementData, setAgreementData] = useState<any>(null);
+  const [bookingSummary, setBookingSummary] = useState<any>(null);
+  const [depositAmount, setDepositAmount] = useState(150);
+
+  // Wizard state
+  const [draft, setDraft] = useState<WizardDraft>(() => loadDraft(refCode || ''));
+  const [confirmed, setConfirmed] = useState(false);
+
+  // Debounced save
+  const saveTimerRef = useRef<number>();
+  const updateDraft = useCallback((patch: Partial<WizardDraft>) => {
+    setDraft(prev => {
+      const next = { ...prev, ...patch };
+      // Debounce sessionStorage write
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = window.setTimeout(() => {
+        if (refCode) saveDraft(refCode, next);
+      }, 500);
+      return next;
+    });
+  }, [refCode]);
+
+  // Theme observer
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setTheme(document.documentElement.getAttribute('data-theme') || 'dark');
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => observer.disconnect();
+  }, []);
+
+  // Fetch agreement data + booking summary
+  useEffect(() => {
+    if (!refCode) { setLoading(false); return; }
+
+    (async () => {
+      try {
+        // Fetch agreement data (auto-filled fields, already-signed status)
+        const agRes = await fetch(`${API_URL}/agreements/${refCode}`);
+        const agJson = await agRes.json();
+        if (!agRes.ok) throw new Error(agJson.error || 'Failed to load booking data');
+
+        setAgreementData(agJson);
+
+        // Pre-fill draft from customer defaults (only if draft is fresh)
+        if (agJson.customerDefaults && !draft.address.line1) {
+          const cd = agJson.customerDefaults;
+          updateDraft({
+            address: {
+              line1: cd.address_line1 || '',
+              city: cd.city || '',
+              state: cd.state || '',
+              zip: cd.zip || '',
+            },
+            dob: cd.date_of_birth || '',
+            license: {
+              number: cd.driver_license_number || '',
+              state: cd.driver_license_state || '',
+              expiry: cd.driver_license_expiry || '',
+            },
+          });
+        }
+
+        // Fetch payment/booking summary for pricing
+        const piRes = await fetch(`${API_URL}/stripe/create-payment-intent`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ booking_code: refCode }),
+        });
+        const piJson = await piRes.json();
+
+        if (piJson.alreadyPaid) {
+          setConfirmed(true);
+        }
+
+        if (piJson.booking) {
+          setBookingSummary(piJson.booking);
+          setDepositAmount(piJson.booking.depositAmount || 150);
+        }
+      } catch (e: any) {
+        setError(e.message);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [refCode]);
+
+  // If already signed & paid, skip to confirmed
+  useEffect(() => {
+    if (agreementData?.alreadySigned && confirmed) {
+      // Already fully done
+    }
+  }, [agreementData, confirmed]);
+
+  // Navigation helpers
+  const goToStage = (stage: number, subStep = 1) => {
+    updateDraft({ stage, subStep });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Update URL for browser history
+    const url = new URL(window.location.href);
+    url.searchParams.set('stage', String(stage));
+    window.history.pushState({}, '', url.toString());
+  };
+
+  const goToSubStep = (subStep: number) => {
+    updateDraft({ subStep });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const completeStage = (stageNum: number) => {
+    const completed = [...draft.completedStages];
+    if (!completed.includes(stageNum)) completed.push(stageNum);
+    updateDraft({ completedStages: completed });
+  };
+
+  // Stage 1 sub-step navigation
+  const nextSubStep = () => {
+    if (draft.subStep < 6) {
+      goToSubStep(draft.subStep + 1);
+    } else {
+      // Stage 1 complete → Stage 2
+      completeStage(1);
+      goToStage(2);
+    }
+  };
+
+  const prevSubStep = () => {
+    if (draft.subStep > 1) {
+      goToSubStep(draft.subStep - 1);
+    }
+  };
+
+  // ── Missing ref code ──────────────────────────────────
+  if (!refCode) {
+    return <MissingRefScreen scrollToSection={scrollToSection} />;
+  }
+
+  // ── Confirmed ──────────────────────────────────────────
+  if (confirmed) {
+    return <ConfirmedScreen refCode={refCode} scrollToSection={scrollToSection} />;
+  }
+
+  // ── Loading ──────────────────────────────────────────
+  if (loading) {
+    return (
+      <>
+        <Navbar onNavigate={scrollToSection} />
+        <div className="min-h-screen flex items-center justify-center" style={{ paddingTop: '120px' }}>
+          <div className="flex items-center gap-3">
+            <Loader2 className="animate-spin" size={22} style={{ color: 'var(--accent-color)' }} />
+            <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Loading your booking…</span>
+          </div>
+        </div>
+        <Footer />
+      </>
+    );
+  }
+
+  // ── Error ──────────────────────────────────────────────
+  if (error) {
+    return (
+      <>
+        <Navbar onNavigate={scrollToSection} />
+        <div className="min-h-screen flex items-center justify-center px-4" style={{ paddingTop: '120px' }}>
+          <div className="max-w-md w-full rounded-2xl border p-6 text-center space-y-4"
+            style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+            <AlertCircle size={40} style={{ color: '#ef4444' }} className="mx-auto" />
+            <h2 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>Unable to Load Booking</h2>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{error}</p>
+            <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+              <Phone size={12} className="inline mr-1" />
+              Need help? Call {PHONE_NUMBER}
             </p>
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.3, ease: EASE.smooth }}
-              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium"
-              style={{
-                backgroundColor: 'var(--accent-glow)',
-                border: '1px solid var(--accent-color)',
-                color: 'var(--accent-color)',
-              }}
-            >
-              Ref:{' '}
-              <span className="font-mono font-bold tracking-wider text-base">{refCode}</span>
-            </motion.div>
-          </motion.div>
+          </div>
+        </div>
+        <Footer />
+      </>
+    );
+  }
 
-          {/* Progress Stepper */}
+  const af = agreementData?.autoFilled || {};
+
+  // ── Wizard ──────────────────────────────────────────────
+  return (
+    <>
+      <Navbar onNavigate={scrollToSection} />
+      <div className="min-h-screen px-4" style={{ paddingTop: '100px', paddingBottom: '80px' }}>
+        <div className="max-w-lg mx-auto">
+          {/* Header */}
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.35, ease: EASE.standard }}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center mb-6"
           >
-            <ProgressStepper currentStep={currentStep} />
+            <h1 className="text-2xl sm:text-3xl font-light" style={{ color: 'var(--text-primary)' }}>
+              Complete Your{' '}
+              <span className="font-serif italic" style={{ color: 'var(--accent-color)' }}>Booking</span>
+            </h1>
+            <p className="text-sm mt-1" style={{ color: 'var(--text-tertiary)' }}>
+              Ref: <span className="font-mono font-bold">{refCode}</span>
+            </p>
           </motion.div>
 
-          {/* Step Cards */}
+          {/* Progress stepper */}
+          <ProgressStepper
+            currentStage={draft.stage}
+            currentSubStep={draft.subStep}
+            completedStages={draft.completedStages}
+            theme={theme}
+          />
+
+          {/* Stage content */}
           <AnimatePresence mode="wait">
+            <motion.div
+              key={`${draft.stage}-${draft.subStep}`}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.25 }}
+            >
+              {/* ═══ Stage 1: Agreement ═══ */}
+              {draft.stage === 1 && draft.subStep === 1 && (
+                <RentalSummaryStep autoFilled={af} theme={theme} onContinue={nextSubStep} />
+              )}
+              {draft.stage === 1 && draft.subStep === 2 && (
+                <AddressStep draft={draft} onUpdate={updateDraft} onContinue={nextSubStep} onBack={prevSubStep} theme={theme} />
+              )}
+              {draft.stage === 1 && draft.subStep === 3 && (
+                <LicenseStep draft={draft} onUpdate={updateDraft} onContinue={nextSubStep} onBack={prevSubStep} theme={theme} />
+              )}
+              {draft.stage === 1 && draft.subStep === 4 && (
+                <TermsStep draft={draft} onUpdate={updateDraft} onContinue={nextSubStep} onBack={prevSubStep} theme={theme} />
+              )}
+              {draft.stage === 1 && draft.subStep === 5 && (
+                <AcknowledgementsStep draft={draft} onUpdate={updateDraft} onContinue={nextSubStep} onBack={prevSubStep} theme={theme} />
+              )}
+              {draft.stage === 1 && draft.subStep === 6 && (
+                <SignatureStep draft={draft} onUpdate={updateDraft} onContinue={nextSubStep} onBack={prevSubStep} theme={theme} />
+              )}
 
-            {/* STEP 1 — Rental Agreement */}
-            {currentStep === 1 && (
-              <motion.div key="step1" {...stepTransition(direction)}>
-                <div
-                  className="rounded-2xl border overflow-hidden"
-                  style={{
-                    backgroundColor: 'var(--bg-card)',
-                    borderColor: 'var(--border-subtle)',
-                    borderLeftWidth: '3px',
-                    borderLeftColor: 'var(--accent-color)',
-                  }}
-                >
-                  <div className="p-6 sm:p-8">
-                    <h2
-                      className="text-xl sm:text-2xl font-medium mb-2 flex items-center gap-2.5"
-                      style={{ color: 'var(--text-primary)' }}
-                    >
-                      <FileText size={22} style={{ color: 'var(--accent-color)' }} />
-                      Rental Agreement
-                    </h2>
-                    <p
-                      className="text-sm sm:text-[15px] leading-relaxed mb-6"
-                      style={{ color: 'var(--text-secondary)' }}
-                    >
-                      Review and sign the rental agreement before proceeding to payment.
-                    </p>
+              {/* ═══ Stage 2: Insurance ═══ */}
+              {draft.stage === 2 && (
+                <InsuranceStep
+                  draft={draft}
+                  rentalDays={af.rentalDays || bookingSummary?.rentalDays || 1}
+                  onUpdate={updateDraft}
+                  onContinue={() => { completeStage(2); goToStage(3); }}
+                  onBack={() => goToStage(1, 6)}
+                  theme={theme}
+                />
+              )}
 
-                    <RentalAgreement
-                      bookingCode={refCode}
-                      theme={theme}
-                      onSigned={() => {
-                        setAgreementSigned(true);
-                        advanceToStep2();
-                      }}
-                    />
-                  </div>
-                </div>
-              </motion.div>
-            )}
+              {/* ═══ Stage 3: Payment ═══ */}
+              {draft.stage === 3 && (
+                (() => {
+                  // Compute amount for Stripe Elements initialization
+                  let insCost = 0;
+                  if (draft.insuranceChoice === 'annies' && draft.anniesTier) {
+                    const tier = INSURANCE_TIERS.find(t => t.key === draft.anniesTier);
+                    if (tier) insCost = tier.dailyRate * (bookingSummary?.rentalDays || af.rentalDays || 1);
+                  }
+                  const totalCents = Math.round(((bookingSummary?.totalCost || af.totalCost || 0) + insCost + depositAmount) * 100);
 
-            {/* STEP 2 — Payment */}
-            {currentStep === 2 && (
-              <motion.div key="step2" {...stepTransition(direction)}>
-                <div
-                  className="rounded-2xl border overflow-hidden"
-                  style={{
-                    backgroundColor: 'var(--bg-card)',
-                    borderColor: 'var(--border-subtle)',
-                    borderLeftWidth: '3px',
-                    borderLeftColor: 'var(--accent-color)',
-                  }}
-                >
-                  <div className="p-6 sm:p-8">
-                    <h2
-                      className="text-xl sm:text-2xl font-medium mb-2 flex items-center gap-2.5"
-                      style={{ color: 'var(--text-primary)' }}
-                    >
-                      <CreditCard size={22} style={{ color: 'var(--accent-color)' }} />
-                      Pay for Your Rental
-                    </h2>
-                    <p
-                      className="text-sm sm:text-[15px] leading-relaxed mb-6"
-                      style={{ color: 'var(--text-secondary)' }}
-                    >
-                      Complete your payment below to secure your reservation.
-                    </p>
-
-                    {paymentLoading && (
-                      <div className="flex items-center justify-center py-12 gap-3">
-                        <Loader2 className="animate-spin" size={22} style={{ color: 'var(--accent-color)' }} />
-                        <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Loading payment form…</span>
-                      </div>
-                    )}
-
-                    {paymentError && !paymentLoading && (
-                      <div
-                        className="flex items-start gap-3 p-4 rounded-xl border text-sm"
-                        style={{
-                          backgroundColor: 'rgba(239,68,68,0.08)',
-                          borderColor: 'rgba(239,68,68,0.25)',
-                          color: '#ef4444',
-                        }}
-                      >
-                        <AlertCircle size={18} className="mt-0.5 shrink-0" />
-                        <span>{paymentError}</span>
-                      </div>
-                    )}
-
-                    {clientSecret && !paymentLoading && (
-                      <Elements
-                        stripe={stripePromise}
-                        options={{
-                          clientSecret,
-                          appearance: {
-                            theme: theme === 'dark' ? 'night' : 'stripe',
-                            variables: {
-                              colorPrimary: '#c8a97e',
-                              borderRadius: '12px',
-                              fontFamily: 'Inter, system-ui, sans-serif',
-                            },
+                  return (
+                    <Elements
+                      stripe={stripePromise}
+                      options={{
+                        mode: 'payment',
+                        amount: totalCents || 50000, // fallback min
+                        currency: 'usd',
+                        appearance: {
+                          theme: theme === 'dark' ? 'night' : 'stripe',
+                          variables: {
+                            colorPrimary: '#C8A97E',
+                            borderRadius: '12px',
+                            fontFamily: '"Inter", system-ui, sans-serif',
                           },
-                          loader: 'auto',
-                        }}
-                      >
-                        <StripeCheckoutForm
-                          bookingSummary={bookingSummary}
-                          onSuccess={advanceToStep3}
-                          theme={theme}
-                        />
-                      </Elements>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {/* STEP 3 — Insurance */}
-            {currentStep === 3 && (
-              <motion.div
-                key="step3"
-                initial={{ opacity: 0, x: 24 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 24 }}
-                transition={{ duration: 0.25, ease: EASE.standard }}
-              >
-                <motion.div
-                  animate={shake ? { x: [0, -6, 6, -5, 5, -3, 3, -1, 1, 0] } : { x: 0 }}
-                  transition={{ duration: 0.5, ease: 'easeOut' }}
-                  className="rounded-2xl border overflow-hidden"
-                  style={{
-                    backgroundColor: 'var(--bg-card)',
-                    borderColor: 'var(--border-subtle)',
-                    borderLeftWidth: '3px',
-                    borderLeftColor: 'var(--accent-color)',
-                  }}
-                >
-                  <form onSubmit={handleSubmit} className="p-6 sm:p-8" noValidate>
-                    <h2
-                      className="text-xl sm:text-2xl font-medium mb-2 flex items-center gap-2.5"
-                      style={{ color: 'var(--text-primary)' }}
-                    >
-                      <Shield size={22} style={{ color: 'var(--accent-color)' }} />
-                      Purchase Rental Insurance
-                    </h2>
-                    <p
-                      className="text-sm sm:text-[15px] leading-relaxed mb-6"
-                      style={{ color: 'var(--text-secondary)' }}
-                    >
-                      Purchase a daily rental insurance policy from Bonzah, then enter your
-                      policy details below to complete your booking.
-                    </p>
-
-                    <a
-                      href={BONZAH_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="group inline-flex items-center gap-2 px-6 sm:px-8 py-3.5 rounded-full font-medium transition-all duration-300 hover:scale-[1.03] hover:-translate-y-px active:scale-95 hover:shadow-lg text-sm sm:text-base mb-8 cursor-pointer"
-                      style={{
-                        backgroundColor: 'var(--bg-card-hover)',
-                        color: 'var(--text-primary)',
-                        border: '1px solid var(--border-medium)',
+                        },
                       }}
                     >
-                      Get Insurance on Bonzah
-                      <ExternalLink
-                        size={15}
-                        className="transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-                      />
-                    </a>
-
-                    <div
-                      className="space-y-5 pt-6"
-                      style={{ borderTop: '1px solid var(--border-subtle)' }}
-                    >
-                      <FormField
-                        id="policyNumber"
-                        label="Bonzah Policy Number"
-                        helper="Found in your Bonzah confirmation email (e.g. BZ-123456)"
-                        error={errors.policyNumber}
-                        isTouched={touched.policyNumber}
-                        value={policyNumber}
-                        placeholder="e.g. BZ-123456"
-                        autoComplete="off"
-                        onChange={(v) => handleFieldChange('policyNumber', v)}
-                        onBlur={() => handleBlur('policyNumber', policyNumber)}
+                      <PaymentForm
+                        bookingSummary={bookingSummary}
+                        draft={draft}
+                        depositAmount={depositAmount}
+                        bookingCode={refCode}
+                        onUpdate={updateDraft}
+                        onBack={() => goToStage(2)}
+                        onSuccess={() => setConfirmed(true)}
                         theme={theme}
                       />
-
-                      <FormField
-                        id="bonzahEmail"
-                        label="Bonzah Account Email"
-                        helper="The email address you used when purchasing on Bonzah"
-                        error={errors.bonzahEmail}
-                        isTouched={touched.bonzahEmail}
-                        value={bonzahEmail}
-                        type="email"
-                        placeholder="you@example.com"
-                        autoComplete="email"
-                        onChange={(v) => handleFieldChange('bonzahEmail', v)}
-                        onBlur={() => handleBlur('bonzahEmail', bonzahEmail)}
-                        theme={theme}
-                      />
-                    </div>
-
-                    {/* Submit error */}
-                    <AnimatePresence>
-                      {submitError && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          transition={{ duration: 0.2 }}
-                          className="mt-5 overflow-hidden"
-                          role="alert"
-                        >
-                          <div
-                            className="flex items-start gap-3 p-4 rounded-xl border text-sm"
-                            style={{
-                              backgroundColor: 'rgba(239,68,68,0.08)',
-                              borderColor: 'rgba(239,68,68,0.25)',
-                              color: '#ef4444',
-                            }}
-                          >
-                            <AlertCircle size={18} className="mt-0.5 shrink-0" />
-                            <span>{submitError}</span>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-
-                    {/* Action buttons */}
-                    <div className="flex flex-col sm:flex-row gap-3 mt-6">
-                      <button
-                        type="button"
-                        onClick={goBackToStep2}
-                        className="group flex items-center justify-center gap-2 px-6 py-3.5 rounded-full font-medium transition-all duration-300 hover:scale-[1.02] active:scale-95 cursor-pointer text-sm sm:text-base"
-                        style={{
-                          backgroundColor: 'var(--bg-card-hover)',
-                          color: 'var(--text-secondary)',
-                          border: '1px solid var(--border-subtle)',
-                        }}
-                      >
-                        <ArrowLeft
-                          size={16}
-                          className="transition-transform duration-300 group-hover:-translate-x-1"
-                        />
-                        Back
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={isSubmitting}
-                        className={`group flex-1 py-4 rounded-full font-medium transition-all duration-300 active:scale-95 flex items-center justify-center gap-2 ${
-                          isSubmitting
-                            ? 'opacity-60 cursor-not-allowed'
-                            : 'hover:scale-[1.02] hover:-translate-y-px hover:shadow-lg cursor-pointer'
-                        }`}
-                        style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
-                      >
-                        {isSubmitting ? (
-                          <>
-                            <Loader2 className="animate-spin" size={18} />
-                            Confirming...
-                          </>
-                        ) : (
-                          <>
-                            Confirm My Booking
-                            <ArrowRight
-                              size={18}
-                              className="transition-transform duration-300 group-hover:translate-x-1"
-                            />
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </form>
-                </motion.div>
-              </motion.div>
-            )}
+                    </Elements>
+                  );
+                })()
+              )}
+            </motion.div>
           </AnimatePresence>
 
-          {/* Help text */}
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.7, ease: EASE.standard }}
-            className="text-center text-xs mt-6"
-            style={{ color: 'var(--text-tertiary)' }}
-          >
-            Need help? Call us at{' '}
-            <a
-              href={`tel:${PHONE_NUMBER.replace(/\D/g, '')}`}
-              className="underline underline-offset-2 transition-opacity hover:opacity-70 cursor-pointer"
-              style={{ color: 'var(--text-secondary)' }}
-            >
-              {PHONE_NUMBER}
-            </a>
-          </motion.p>
+          {/* Help footer */}
+          <div className="mt-8 text-center">
+            <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+              Questions? Call us at{' '}
+              <a href={`tel:${PHONE_NUMBER.replace(/\D/g, '')}`} className="underline" style={{ color: 'var(--accent-color)' }}>
+                {PHONE_NUMBER}
+              </a>
+            </p>
+          </div>
         </div>
-      </main>
-
+      </div>
       <Footer />
     </>
   );
