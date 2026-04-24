@@ -33,40 +33,6 @@
 
 ---
 
----
-
-## 2026-04-24 — Unified Booking Wizard: Agreement → Insurance → Payment
-
-### Changes Made
-- **`src/components/booking/confirm-booking/constants.ts`**: Reordered STEPS array from [Agreement, Payment, Insurance] to [Agreement, Insurance, Payment]. Sublabels updated.
-- **`src/components/booking/confirm-booking/InsuranceStep.tsx`** (new): New Step 2 component with three insurance choice cards (own coverage, Bonzah, later). Validates Bonzah fields, calls `PATCH /bookings/:code/insurance`, shows contextual warnings/confirmations.
-- **`src/components/booking/ConfirmBooking.tsx`**: Complete rewrite of wizard orchestrator. Insurance is now Step 2, Payment is now Step 3. Removed all old inline insurance state/handlers (policyNumber, bonzahEmail, touched, errors, handleSubmit, validateField). Payment success now goes directly to ConfirmedScreen. alreadyPaid skips to confirmation instead of old insurance step.
-- **`src/components/booking/confirm-booking/StripeCheckoutForm.tsx`**: Pay button now shows `totalChargedWithDeposit` (rental + deposit) instead of just `totalCost`, so customer sees exact charge amount.
-
-### API/Data Impact
-- None — all existing backend endpoints unchanged: `POST /agreements/:code/sign`, `POST /stripe/create-payment-intent`, `POST /stripe/confirm-payment`, `PATCH /bookings/:code/insurance`
-- Same Stripe PaymentIntent structure (rental + deposit in single charge)
-- Auto-confirm logic (agreement + payment → confirmed) unchanged
-
-### Files That Need Verification
-- `src/components/booking/ConfirmBooking.tsx` — core wizard (rewritten)
-- `src/components/booking/confirm-booking/InsuranceStep.tsx` — new file
-- `src/components/booking/confirm-booking/constants.ts` — STEPS reordered
-- `src/components/booking/confirm-booking/StripeCheckoutForm.tsx` — pay button total
-
-### Build Status
-- [x] `npm run build` — zero errors (798.84 kB / 211.34 kB gzip)
-
-### Committed
-- [ ] Pending
-
-### Known Issues / Follow-up
-- Browser visual test blocked by environment issue — recommend manual testing with a real approved booking
-- Insurance "I'll handle later" option allows proceeding to payment without coverage — business decision to confirm
-- Bundle size unchanged from pre-existing levels
-
----
-
 ## 2026-04-04 — Safety system + CLAUDE.md required reading block
 
 ### Changes Made

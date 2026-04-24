@@ -11,8 +11,8 @@ export const PHONE_NUMBER = '(772) 985-6667';
 
 export const STEPS = [
   { number: 1, label: 'Agreement', sublabel: 'Sign rental contract' },
-  { number: 2, label: 'Insurance', sublabel: 'Confirm coverage' },
-  { number: 3, label: 'Payment', sublabel: 'One payment, all set' },
+  { number: 2, label: 'Payment', sublabel: 'Pay for your rental' },
+  { number: 3, label: 'Insurance', sublabel: 'Purchase policy' },
 ] as const;
 
 export const stripePromise = loadStripe(
