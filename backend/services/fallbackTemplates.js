@@ -1,0 +1,341 @@
+/**
+ * Fallback email/SMS templates for critical booking stages.
+ *
+ * These fire ONLY when the `email_templates` DB table has no active row
+ * for a given stage. DB templates always take priority.
+ *
+ * Covers Tier 1 (business-critical) and Tier 2 (revenue/protection):
+ *   booking_approved, booking_declined, booking_cancelled,
+ *   payment_confirmed, pickup_reminder, return_reminder,
+ *   late_return_warning, rental_completed
+ */
+
+const FALLBACK_TEMPLATES = {
+
+  // ── TIER 1: Business breaks without these ────────────────────────────────
+
+  booking_approved: {
+    channel: 'both',
+    subject: 'Confirmed: Your {{vehicle}} is reserved — {{booking_code}}',
+    body: `Hi {{first_name}},
+
+Your booking has been approved. Here's your confirmation:
+
+RESERVATION CONFIRMED ✓
+───────────────────────
+Reference:  {{booking_code}}
+Vehicle:    {{vehicle}}
+Pickup:     {{pickup_date}} at {{pickup_time}}
+Return:     {{return_date}} at {{return_time}}
+Duration:   {{rental_days}} days
+Total:      \${{total_cost}}
+
+{{#if vehicle_year_make_model}}YOUR VEHICLE
+───────────────────────
+{{#if vehicle_photo_url}}<img src="{{vehicle_photo_url}}" alt="{{vehicle_year_make_model}}" style="width:100%;max-width:400px;border-radius:12px;margin-bottom:12px;" />
+{{/if}}{{vehicle_year_make_model}}{{#if vehicle_color}}
+Color: {{vehicle_color}}{{/if}}{{#if vehicle_plate}}
+Plate: {{vehicle_plate}}{{/if}}
+{{/if}}
+NEXT STEP
+Please complete your rental agreement and payment to lock in your reservation:
+→ {{confirm_link}}
+
+WHAT TO EXPECT
+• 24 hours before pickup — You'll receive a text with the exact address, lockbox code, and parking location.
+• Day of pickup — A final reminder with directions.
+• During your rental — We're a text or call away if you need anything.
+
+DELIVERY OPTION
+Don't want to come to us? We offer delivery and pickup:
+• Port Saint Lucie / Fort Pierce — $35 each way
+• Vero Beach / Stuart — $45 each way
+Reply to this email or text us to arrange delivery.
+
+Questions? We're here:
+  Matthew: (772) 834-0117
+  Robin:   (772) 834-7637
+
+Annie's Car Rental
+Port Saint Lucie, FL`,
+    sms_body: `Great news, {{first_name}} — your booking is confirmed!
+
+{{vehicle}}
+Pickup: {{pickup_date}} at {{pickup_time}}
+Ref: {{booking_code}}
+
+Complete your agreement & pay here:
+{{confirm_link}}
+
+We'll send you pickup instructions and the lockbox code the day before your rental.
+
+— Annie's Car Rental`,
+  },
+
+  booking_declined: {
+    channel: 'both',
+    subject: 'Update on your booking request — {{booking_code}}',
+    body: `Hi {{first_name}},
+
+We're sorry to let you know that we're unable to confirm your booking at this time.
+
+BOOKING DETAILS
+───────────────
+Reference:  {{booking_code}}
+Vehicle:    {{vehicle}}
+Dates:      {{pickup_date}} – {{return_date}}
+
+REASON
+{{decline_reason}}
+
+WHAT YOU CAN DO
+We may have other vehicles available for your dates. Please give us a call and we'll help find something that works:
+
+  Matthew: (772) 834-0117
+  Robin:   (772) 834-7637
+
+We appreciate your interest and hope to serve you soon.
+
+Annie's Car Rental
+Port Saint Lucie, FL`,
+    sms_body: `Hi {{first_name}}, unfortunately we're unable to confirm your booking for the {{vehicle}} ({{pickup_date}} – {{return_date}}).
+
+{{decline_reason}}
+
+We'd love to help you find an alternative. Give us a call at (772) 834-0117.
+
+— Annie's Car Rental`,
+  },
+
+  payment_confirmed: {
+    channel: 'email',
+    subject: 'Payment received — ${{amount}} for booking {{booking_code}}',
+    body: `Hi {{first_name}},
+
+We've received your payment. Here's your receipt:
+
+PAYMENT RECEIPT
+───────────────
+Amount:     \${{amount}}
+Method:     {{payment_method}}
+Date:       {{payment_date}}
+Booking:    {{booking_code}}
+
+{{#if vehicle_year_make_model}}YOUR VEHICLE
+───────────────
+{{#if vehicle_photo_url}}<img src="{{vehicle_photo_url}}" alt="{{vehicle_year_make_model}}" style="width:100%;max-width:400px;border-radius:12px;margin-bottom:12px;" />
+{{/if}}{{vehicle_year_make_model}}{{#if vehicle_color}}
+Color: {{vehicle_color}}{{/if}}{{#if vehicle_plate}}
+Plate: {{vehicle_plate}}{{/if}}
+{{/if}}
+You're all set. We'll send you pickup instructions the day before your rental.
+
+Questions about billing? Call us at (772) 834-0117.
+
+Annie's Car Rental`,
+    sms_body: null,
+  },
+
+  pickup_reminder: {
+    channel: 'both',
+    subject: 'Pickup tomorrow: Your {{vehicle}} is ready — {{booking_code}}',
+    body: `Hi {{first_name}},
+
+Your rental starts tomorrow. Here's everything you need:
+
+PICKUP DETAILS
+──────────────
+Date:       {{pickup_date}} at {{pickup_time}}
+Vehicle:    {{vehicle}}
+Reference:  {{booking_code}}
+
+{{#if vehicle_year_make_model}}YOUR VEHICLE
+──────────────
+{{#if vehicle_photo_url}}<img src="{{vehicle_photo_url}}" alt="{{vehicle_year_make_model}}" style="width:100%;max-width:400px;border-radius:12px;margin-bottom:12px;" />
+{{/if}}{{vehicle_year_make_model}}{{#if vehicle_color}}
+Color: {{vehicle_color}}{{/if}}{{#if vehicle_plate}}
+Plate: {{vehicle_plate}}{{/if}}{{#if vehicle_vin}}
+VIN:   {{vehicle_vin}}{{/if}}
+{{/if}}
+{{#if handoff_fuel_level}}VEHICLE CONDITION AT HANDOFF
+──────────────────────────
+Fuel Level:  {{handoff_fuel_level}}
+{{#if handoff_odometer}}Odometer:    {{handoff_odometer}} mi{{/if}}
+{{#if handoff_photos}}
+Inspection Photos:
+{{handoff_photos}}{{/if}}
+{{/if}}
+PICKUP LOCATION
+586 NW Mercantile Pl
+Port Saint Lucie, FL 34986
+→ Park and walk to the back of the building.
+
+HOW TO GET YOUR KEYS
+1. Locate your vehicle in the back lot
+2. Find the key lockbox attached to the window
+3. Enter code: {{lockbox_code}}
+4. Remove the lockbox from the window before driving
+
+SELF-SERVICE CHECK-IN
+Once you have the key, complete your check-in through your Rental Portal:
+→ {{portal_link}}
+
+IMPORTANT REMINDERS
+• Fuel — Return the vehicle with the same fuel level you receive it with.
+• No smoking — Vehicles are smoke-free. A $150 cleaning fee applies.
+• No pets — A $150 cleaning fee applies.
+• Text us when you arrive so we know you're all set.
+
+CONTACT
+  Matthew: (772) 834-0117
+  Robin:   (772) 834-7637
+  Aaron:   (772) 985-6667
+
+Annie's Car Rental
+Port Saint Lucie, FL`,
+    sms_body: `Hi {{first_name}}, your {{vehicle}} is ready for pickup tomorrow.
+
+📍 586 NW Mercantile Pl, Port Saint Lucie, FL 34986
+🔑 Lockbox code: {{lockbox_code}}
+🅿️ The car will be parked in the back of the building.
+
+When you arrive:
+1. Go to the back of the building
+2. Find the vehicle with the lockbox on the window
+3. Enter code {{lockbox_code}} to retrieve the keys
+4. Remove the lockbox from the window before driving
+
+Complete your check-in: {{portal_link}}
+
+Need help? Call Matthew at (772) 834-0117.
+
+— Annie's Car Rental`,
+  },
+
+  return_reminder: {
+    channel: 'both',
+    subject: 'Return reminder: {{vehicle}} due back {{return_date}}',
+    body: `Hi {{first_name}},
+
+Your rental is almost over. Here are the details for a smooth return:
+
+RETURN DETAILS
+──────────────
+Date:     {{return_date}} at {{return_time}}
+Vehicle:  {{vehicle}}
+Ref:      {{booking_code}}
+
+RETURN LOCATION
+586 NW Mercantile Pl
+Port Saint Lucie, FL 34986
+
+RETURN CHECKLIST
+☐ Fill fuel to the same level you received the car with
+☐ Park in the back of the building, near the dumpster
+☐ Place the key back in the lockbox (code: {{lockbox_code}})
+☐ Take a photo of where you parked and send it to us
+
+WANT TO EXTEND?
+If your plans have changed, we can often extend your rental or swap you into another vehicle. Just reply to this email or text us.
+
+CONTACT
+  Matthew: (772) 834-0117
+  Robin:   (772) 834-7637
+
+Annie's Car Rental
+Port Saint Lucie, FL`,
+    sms_body: `Hi {{first_name}}, a reminder that your {{vehicle}} is due back tomorrow.
+
+Return by: {{return_date}} at {{return_time}}
+
+📍 586 NW Mercantile Pl, Port Saint Lucie, FL 34986
+
+Please remember:
+• Return with the same fuel level
+• Park in the back, near the dumpster
+• Place the key back in the lockbox (code: {{lockbox_code}})
+• Take a photo of where you parked
+
+Want to extend? Reply to this message and we'll check availability.
+
+— Annie's Car Rental`,
+  },
+
+  // ── TIER 2: Revenue & protection ─────────────────────────────────────────
+
+  late_return_warning: {
+    channel: 'sms',
+    subject: null,
+    body: null,
+    sms_body: `Hi {{first_name}}, we noticed your {{vehicle}} was due back at {{return_time}} today. If you're on your way, no worries — just let us know your ETA.
+
+If you need to extend, reply to this message and we'll check availability.
+
+Return address: 586 NW Mercantile Pl, Port Saint Lucie, FL 34986
+
+— Annie's Car Rental
+(772) 834-0117`,
+  },
+
+  rental_completed: {
+    channel: 'both',
+    subject: 'How was your rental, {{first_name}}?',
+    body: `Hi {{first_name}},
+
+Thank you for renting with Annie's Car Rental. We hope the {{vehicle}} made your trip a little easier.
+
+We're a small, family-run business in Port Saint Lucie, and your feedback helps us grow. If you have a moment, we'd love to hear how it went.
+
+→ Leave a review: {{review_link}}
+
+AS A THANK YOU
+Every guest who leaves a review receives 5% off their next rental. Just mention your review when you book and we'll apply the discount.
+
+We'd love to have you back.
+
+Annie's Car Rental
+Port Saint Lucie, FL
+(772) 834-0117`,
+    sms_body: `Hi {{first_name}}, we hope you enjoyed your {{vehicle}}.
+
+If you have a moment, a review would mean a lot to our small business. As a thank you, we'll give you 5% off your next rental.
+
+Leave a review: {{review_link}}
+
+— Annie's Car Rental`,
+  },
+
+  booking_cancelled: {
+    channel: 'both',
+    subject: 'Booking cancelled — {{booking_code}}',
+    body: `Hi {{first_name}},
+
+Your booking has been cancelled.
+
+CANCELLED BOOKING
+─────────────────
+Reference:  {{booking_code}}
+Vehicle:    {{vehicle}}
+Dates:      {{pickup_date}} – {{return_date}}
+
+If a deposit was collected, it will be refunded to your original payment method within 3–5 business days per our cancellation policy.
+
+If you'd like to rebook or have questions, we're here to help:
+  Matthew: (772) 834-0117
+  Robin:   (772) 834-7637
+
+Annie's Car Rental
+Port Saint Lucie, FL`,
+    sms_body: `Hi {{first_name}}, your booking for the {{vehicle}} ({{pickup_date}} – {{return_date}}) has been cancelled.
+
+Ref: {{booking_code}}
+
+If a deposit was collected, it will be refunded within 3–5 business days.
+
+Questions? Call us at (772) 834-0117.
+
+— Annie's Car Rental`,
+  },
+};
+
+export default FALLBACK_TEMPLATES;

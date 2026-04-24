@@ -11,6 +11,7 @@
 import { supabase } from '../db/supabase.js';
 import { storeLocalMessage } from './messagingService.js';
 import { sendViaResend } from '../utils/mailTransport.js';
+import FALLBACK_TEMPLATES from './fallbackTemplates.js';
 
 const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN;
@@ -270,14 +271,30 @@ export function interpolateTemplate(template, fields, isHtml = false) {
  * Returns { subject, body, sms_body, channel } or null if not found/inactive.
  */
 export async function getRenderedTemplate(stage, bookingPayload) {
-  const { data: template, error } = await supabase
+  let template = null;
+  let isFallback = false;
+
+  // 1. Try DB template first
+  const { data, error } = await supabase
     .from('email_templates')
     .select('*')
     .eq('stage', stage)
     .eq('is_active', true)
     .single();
 
-  if (error || !template) {
+  if (!error && data) {
+    template = data;
+  } else if (FALLBACK_TEMPLATES[stage]) {
+    // 2. Use hardcoded fallback for critical stages
+    console.warn(`[Notify] No DB template for "${stage}" — using hardcoded fallback`);
+    template = {
+      name: `Fallback: ${stage}`,
+      stage,
+      ...FALLBACK_TEMPLATES[stage],
+      trigger_type: 'automated',
+    };
+    isFallback = true;
+  } else {
     console.log(`[Notify] No active template for stage: ${stage}`);
     return null;
   }
@@ -300,6 +317,7 @@ export async function getRenderedTemplate(stage, bookingPayload) {
     body:       interpolateTemplate(template.body, fields, true),
     sms_body:   interpolateTemplate(template.sms_body, fields, false),
     trigger_type: template.trigger_type,
+    isFallback,
   };
 }
 
