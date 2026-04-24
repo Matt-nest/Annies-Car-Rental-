@@ -402,16 +402,55 @@ function wrapInBrandedHTML(subject, plainTextBody) {
   const siteUrl = process.env.SITE_URL || 'https://anniescarrental.com';
   const logoUrl = `${siteUrl}/logo.png`;
 
+  // ── Convert mixed plain-text + HTML body to safe email HTML ──
+  //
+  // Templates contain a mix of plain text (paragraphs, bullet points)
+  // and inline HTML (<img>, <table> for photo galleries, <a> links).
+  // We need to:
+  //   1. Extract and preserve existing HTML blocks
+  //   2. Convert remaining plain text to paragraphs with <br>
+  //   3. Auto-link bare URLs (only in plain text, not inside HTML)
+  //   4. Reassemble
+
+  const raw = plainTextBody || '';
+
+  // Extract HTML blocks: <img .../>, <table>...</table>, <a>...</a>
+  // Replace them with unique placeholders so they survive text processing
+  const htmlBlocks = [];
+  const withPlaceholders = raw.replace(
+    /<(img\b[^>]*\/?>|table[\s\S]*?<\/table>|a\b[^>]*>[\s\S]*?<\/a>)/gi,
+    (match) => {
+      const idx = htmlBlocks.length;
+      htmlBlocks.push(match);
+      return `\x00HTML_BLOCK_${idx}\x00`;
+    }
+  );
+
   // Convert plain text to HTML paragraphs
-  const bodyHtml = (plainTextBody || '')
+  const bodyHtml = withPlaceholders
     .split(/\n\n+/)
     .map(para => {
-      const inner = para.trim()
-        .replace(/\n/g, '<br>')
-        .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#c8a97e;text-decoration:underline;">$1</a>');
+      let inner = para.trim();
+      if (!inner) return '';
+
+      // Convert single line breaks to <br> (but not inside placeholders)
+      inner = inner.replace(/\n/g, '<br>');
+
+      // Auto-link bare URLs (only those NOT inside a placeholder)
+      inner = inner.replace(
+        /(https?:\/\/[^\s<\x00]+)/g,
+        '<a href="$1" style="color:#c8a97e;text-decoration:underline;">$1</a>'
+      );
+
       return `<p style="margin:0 0 16px;color:#44403c;font-size:15px;line-height:1.7;">${inner}</p>`;
     })
     .join('');
+
+  // Restore HTML blocks from placeholders
+  const finalBody = bodyHtml.replace(
+    /\x00HTML_BLOCK_(\d+)\x00/g,
+    (_match, idx) => htmlBlocks[Number(idx)]
+  );
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -432,7 +471,7 @@ function wrapInBrandedHTML(subject, plainTextBody) {
 
     <!-- Body -->
     <div style="padding:32px;">
-      ${bodyHtml}
+      ${finalBody}
     </div>
 
     <!-- Footer -->
