@@ -32,8 +32,12 @@ const STAGE_CTA = {
   pickup_reminder:     { label: 'View Pickup Details',           fieldKey: 'portal_link',   style: 'gold' },
   day_of_pickup:       { label: 'View Pickup Details',           fieldKey: 'portal_link',   style: 'gold' },
   return_reminder:     { label: 'View Return Details',           fieldKey: 'portal_link' },
-  late_return_warning: { label: 'View Booking',                  fieldKey: 'portal_link' },
-  return_confirmed:    { label: 'View Booking Status',           fieldKey: 'status_link' },
+  late_return_warning:      { label: 'View Booking',              fieldKey: 'portal_link' },
+  late_return_escalation:   { label: 'View Booking',              fieldKey: 'portal_link' },
+  mid_rental_checkin:       { label: 'View My Rental',            fieldKey: 'portal_link' },
+  extension_offer:          { label: 'Extend My Rental',          fieldKey: 'portal_link', style: 'gold' },
+  repeat_customer:          { label: 'Book Again →',              fallbackPath: '/#fleet', style: 'gold' },
+  return_confirmed:         { label: 'View Booking Status',       fieldKey: 'status_link' },
   rental_completed:    { label: 'Leave a Review ⭐',              fieldKey: 'review_link',   style: 'gold' },
   deposit_refunded:    { label: 'View Booking Status',           fieldKey: 'status_link' },
   deposit_settled:     { label: 'View Booking Status',           fieldKey: 'status_link' },
@@ -185,6 +189,14 @@ export function buildMergeFields(bookingPayload) {
     deposit_status:  bp.deposit_status || '',
     incidental_total: bp.incidental_total != null ? String(bp.incidental_total) : '',
     // Mileage fields
+    mileage_policy: (() => {
+      const ma = bp.mileage_allowance;
+      if (ma === 'unlimited') return 'Unlimited mileage included with your weekly rental';
+      const days = Number(bp.rental_days) || 1;
+      const total = ma ? parseInt(ma, 10) : days * 150;
+      const perDay = Math.round(total / days);
+      return `${perDay} miles/day (${total} total)`;
+    })(),
     checkin_odometer:  bp.checkin_odometer || '',
     checkout_odometer: bp.checkout_odometer || '',
     total_miles:       bp.total_miles || '',
@@ -378,6 +390,7 @@ export function buildBookingPayload(booking, { handoffRecord } = {}) {
     invoice_total:     booking.invoice_total ?? null,
     invoice_link:      booking.invoice_link || null,
     // Mileage fields
+    mileage_allowance: booking.mileage_allowance || null,
     checkin_odometer:  booking.checkin_odometer || null,
     checkout_odometer: booking.checkout_odometer || null,
     total_miles:       booking.total_miles || null,
@@ -400,7 +413,11 @@ const EVENT_SUMMARIES = {
   day_of_pickup:          'Day-of-pickup reminder sent',
   return_reminder:        'Return reminder sent',
   return_confirmed:       'Vehicle returned — thank you sent',
-  late_return_warning:    'Late return warning',
+  late_return_warning:    'Late return warning sent',
+  late_return_escalation: 'Late return escalation (4 days overdue)',
+  mid_rental_checkin:     'Mid-rental check-in sent',
+  extension_offer:        'Rental extension offer sent',
+  repeat_customer:        'Repeat customer loyalty message sent',
   inspection_complete:    'Inspection completed — settlement pending',
   invoice_sent:           'Invoice sent to customer',
   deposit_refunded:       'Security deposit refunded',

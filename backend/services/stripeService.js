@@ -418,6 +418,10 @@ async function formatBookingSummary(booking) {
     tollAddonFee: Number(booking.toll_addon_fee || 0),
     taxAmount: Number(booking.tax_amount || 0),
     totalCost: Number(booking.total_cost),
+    // Weekly pricing fields
+    rateType: booking.rate_type || 'daily',
+    lineItems: booking.line_items || null,
+    mileageAllowance: booking.mileage_allowance || null,
     insuranceSource,
     insuranceTier,
     insuranceCost,

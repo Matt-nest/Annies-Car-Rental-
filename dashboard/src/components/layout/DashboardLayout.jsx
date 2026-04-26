@@ -60,6 +60,7 @@ export default function DashboardLayout() {
         .then(ov => setAlerts({
           pending_approvals: ov.pending_approvals || 0,
           pending_agreements: ov.pending_agreements || 0,
+          pending_reviews: ov.pending_reviews || 0,
         }))
         .catch(() => {});
     };

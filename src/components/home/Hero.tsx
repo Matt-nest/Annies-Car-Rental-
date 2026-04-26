@@ -2,12 +2,16 @@ import { Star, ArrowRight } from 'lucide-react';
 import { motion, useScroll, useTransform } from 'motion/react';
 import { useTheme } from '../../context/ThemeContext';
 import { EASE, DURATION } from '../../utils/motion';
+import RateToggle from './RateToggle';
+import { RateMode } from '../../types';
 
 interface HeroProps {
   onBrowseFleet: () => void;
+  rateMode: RateMode;
+  onRateModeChange: (mode: RateMode) => void;
 }
 
-export default function Hero({ onBrowseFleet }: HeroProps) {
+export default function Hero({ onBrowseFleet, rateMode, onRateModeChange }: HeroProps) {
   const { theme } = useTheme();
   const { scrollY } = useScroll();
   
@@ -122,11 +126,21 @@ export default function Hero({ onBrowseFleet }: HeroProps) {
             Skip the rental lines. Clean, reliable vehicles delivered directly to you across the Port St. Lucie area.
           </motion.p>
 
+          {/* Rate Toggle — controls the fleet grid below */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: DURATION.slow, ease: EASE.standard, delay: 0.8 }}
+            className="mb-8"
+          >
+            <RateToggle value={rateMode} onChange={onRateModeChange} />
+          </motion.div>
+
           {/* Action Row — CTA flanked tightly by Social Proof */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: DURATION.slow, ease: EASE.standard, delay: 0.9 }}
+            transition={{ duration: DURATION.slow, ease: EASE.standard, delay: 1.0 }}
             className="flex flex-col sm:flex-row items-start sm:items-center gap-6 sm:gap-10"
           >
             <button

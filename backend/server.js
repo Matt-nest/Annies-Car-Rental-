@@ -27,6 +27,10 @@ import incidentalRoutes from './routes/incidentals.js';
 import invoiceRoutes from './routes/invoices.js';
 import addonRoutes from './routes/addons.js';
 import tollRoutes from './routes/tolls.js';
+import monthlyInquiryRoutes from './routes/monthlyInquiries.js';
+import reviewRoutes from './routes/reviews.js';
+import pricingRulesRoutes from './routes/pricingRules.js';
+import loyaltyRoutes from './routes/loyalty.js';
 
 const app = express();
 const PORT = process.env.API_PORT || 3001;
@@ -90,6 +94,10 @@ app.use('/api/v1', incidentalRoutes);
 app.use('/api/v1', invoiceRoutes);
 app.use('/api/v1', addonRoutes);
 app.use('/api/v1', tollRoutes);
+app.use('/api/v1/monthly-inquiries', monthlyInquiryRoutes);
+app.use('/api/v1/reviews', reviewRoutes);
+app.use('/api/v1/pricing-rules', pricingRulesRoutes);
+app.use('/api/v1/loyalty', loyaltyRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ error: `${req.method} ${req.path} not found` }));

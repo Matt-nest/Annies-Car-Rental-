@@ -20,6 +20,12 @@ router.use(verifyCron);
 
 // ─── Helpers ──────────────────────────────────────────────────
 
+function daysAgo(n) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0, 10);
+}
+
 function tomorrow() {
   const d = new Date();
   d.setDate(d.getDate() + 1);
@@ -40,7 +46,12 @@ function today() {
  * - Overdue flags (return_date < today, status = active)
  */
 router.get('/daily', async (req, res) => {
-  const results = { pickupReminders: 0, returnReminders: 0, overdueFlags: 0, autoDeclined: 0, approvalReminders: 0 };
+  const results = {
+    pickupReminders: 0, returnReminders: 0, overdueFlags: 0,
+    autoDeclined: 0, approvalReminders: 0,
+    midRentalCheckins: 0, extensionOffers: 0,
+    reviewRequests: 0, repeatCustomers: 0, lateEscalations: 0,
+  };
 
   try {
     // 1. Pickup reminders
@@ -129,6 +140,67 @@ router.get('/daily', async (req, res) => {
       // No template for approval_reminder yet — just log it
       console.log(`[CRON] Approval reminder for ${b.booking_code} — no template configured`);
       results.approvalReminders++;
+    }
+
+    // 5. Mid-rental check-in — day 3 (pickup_date exactly 2 days ago)
+    const { data: midRentals } = await supabase
+      .from('bookings')
+      .select('*, customers(*), vehicles(*)')
+      .eq('pickup_date', daysAgo(2))
+      .eq('status', 'active');
+
+    for (const b of midRentals || []) {
+      sendBookingNotification('mid_rental_checkin', buildBookingPayload(b));
+      results.midRentalCheckins++;
+    }
+
+    // 6. Extension offer — 1 day before return, rental >= 3 days (avoids 1-2 day annoyance)
+    const { data: extCandidates } = await supabase
+      .from('bookings')
+      .select('*, customers(*), vehicles(*)')
+      .eq('return_date', tomorrow())
+      .eq('status', 'active')
+      .gte('rental_days', 3);
+
+    for (const b of extCandidates || []) {
+      sendBookingNotification('extension_offer', buildBookingPayload(b));
+      results.extensionOffers++;
+    }
+
+    // 7. Review request — return_date was yesterday, status completed
+    const { data: completedYesterday } = await supabase
+      .from('bookings')
+      .select('*, customers(*), vehicles(*)')
+      .eq('return_date', daysAgo(1))
+      .eq('status', 'completed');
+
+    for (const b of completedYesterday || []) {
+      sendBookingNotification('rental_completed', buildBookingPayload(b));
+      results.reviewRequests++;
+    }
+
+    // 8. Repeat customer loyalty — 30 days after return
+    const { data: repeatCandidates } = await supabase
+      .from('bookings')
+      .select('*, customers(*), vehicles(*)')
+      .eq('return_date', daysAgo(30))
+      .eq('status', 'completed');
+
+    for (const b of repeatCandidates || []) {
+      sendBookingNotification('repeat_customer', buildBookingPayload(b));
+      results.repeatCustomers++;
+    }
+
+    // 9. Late return escalation — 4 days overdue (warning already fired on day 1)
+    const { data: escalated } = await supabase
+      .from('bookings')
+      .select('*, customers(*), vehicles(*)')
+      .eq('return_date', daysAgo(4))
+      .eq('status', 'active');
+
+    for (const b of escalated || []) {
+      sendBookingNotification('late_return_escalation', buildBookingPayload(b));
+      results.lateEscalations++;
     }
 
     console.log('[CRON/daily]', results);

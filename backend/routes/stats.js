@@ -18,6 +18,7 @@ router.get('/overview', requireAuth, asyncHandler(async (req, res) => {
     { data: returnsToday },
     { data: confirmedPayments },
     { data: avgRating },
+    { count: pendingReviewsCount },
     { count: monthBookings },
     { count: pendingAgreements },
   ] = await Promise.all([
@@ -31,7 +32,8 @@ router.get('/overview', requireAuth, asyncHandler(async (req, res) => {
     supabase.from('payments').select('amount, payment_type')
       .gte('created_at', `${startOfMonth}T00:00:00`)
       .in('payment_type', ['rental', 'refund']),
-    supabase.from('reviews').select('rating'),
+    supabase.from('reviews').select('rating').eq('approved', true),
+    supabase.from('reviews').select('id', { count: 'exact', head: true }).eq('approved', false),
     supabase.from('bookings').select('*', { count: 'exact', head: true }).gte('created_at', `${startOfMonth}T00:00:00`),
     supabase.from('rental_agreements').select('*', { count: 'exact', head: true })
       .not('customer_signed_at', 'is', null)
@@ -53,6 +55,7 @@ router.get('/overview', requireAuth, asyncHandler(async (req, res) => {
     bookings_this_month: monthBookings || 0,
     average_rating: avgRatingVal,
     pending_agreements: pendingAgreements || 0,
+    pending_reviews: pendingReviewsCount || 0,
   });
 }));
 
@@ -63,7 +66,7 @@ router.get('/revenue', requireAuth, asyncHandler(async (req, res) => {
   // Fetch confirmed payments joined with their booking + vehicle data
   let query = supabase
     .from('payments')
-    .select('amount, payment_type, method, reference_id, created_at, paid_at, booking_id, bookings(booking_code, pickup_date, total_cost, tax_amount, source, vehicle_id, vehicles(year, make, model, category))')
+    .select('amount, payment_type, method, reference_id, created_at, paid_at, booking_id, bookings(booking_code, pickup_date, total_cost, tax_amount, source, vehicle_id, rate_type, rental_days, weekly_discount_applied, vehicles(year, make, model, category))')
     .in('payment_type', ['rental', 'refund']);
 
   if (from) query = query.gte('created_at', `${from}T00:00:00`);
@@ -110,6 +113,45 @@ router.get('/revenue', requireAuth, asyncHandler(async (req, res) => {
     byDay[day] = (byDay[day] || 0) + parseFloat(p.amount);
   }
 
+  // Group by rate type (daily / weekly / weekly_mixed)
+  const byRateType = { daily: 0, weekly: 0, weekly_mixed: 0 };
+  for (const p of payments || []) {
+    const rt = p.bookings?.rate_type || 'daily';
+    const key = byRateType.hasOwnProperty(rt) ? rt : 'daily';
+    byRateType[key] += parseFloat(p.amount);
+  }
+
+  // Booking length distribution (de-duped by booking_id, rental payments only)
+  const daysDistribution = {};
+  const seenDaysBkIds = new Set();
+  const allRentalDays = [];
+  let weeklyDiscountTotal = 0;
+  const seenDiscountBkIds = new Set();
+  for (const p of payments || []) {
+    if (p.payment_type !== 'rental' || seenDaysBkIds.has(p.booking_id)) continue;
+    seenDaysBkIds.add(p.booking_id);
+    const days = p.bookings?.rental_days;
+    if (days) {
+      const bucket = days <= 14 ? String(days) : '15+';
+      daysDistribution[bucket] = (daysDistribution[bucket] || 0) + 1;
+      allRentalDays.push(days);
+    }
+    if (!seenDiscountBkIds.has(p.booking_id) && p.bookings?.weekly_discount_applied) {
+      weeklyDiscountTotal += parseFloat(p.bookings.weekly_discount_applied);
+      seenDiscountBkIds.add(p.booking_id);
+    }
+  }
+  const avgRentalDays = allRentalDays.length
+    ? (allRentalDays.reduce((s, d) => s + d, 0) / allRentalDays.length).toFixed(1)
+    : null;
+
+  // Monthly inquiry funnel
+  const { data: inquiries } = await supabase.from('monthly_inquiries').select('status');
+  const inquiryFunnel = { new: 0, contacted: 0, converted: 0, closed: 0 };
+  for (const i of inquiries || []) {
+    if (inquiryFunnel.hasOwnProperty(i.status)) inquiryFunnel[i.status]++;
+  }
+
   const total = (payments || []).reduce((s, p) => s + parseFloat(p.amount), 0);
 
   // Estimate tax from linked bookings (for reporting only)
@@ -128,7 +170,6 @@ router.get('/revenue', requireAuth, asyncHandler(async (req, res) => {
   const thisMonthRevenue = byMonth[currentMonthKey] || 0;
   const thisMonthBookings = (payments || []).filter(p => p.payment_type === 'rental' && p.bookings?.pickup_date?.startsWith(currentMonthKey)).length;
 
-  // Map payments to transaction-like objects for backward compat with the dashboard
   const transactions = (payments || []).map(p => ({
     booking_code: p.bookings?.booking_code,
     pickup_date: p.bookings?.pickup_date,
@@ -136,6 +177,8 @@ router.get('/revenue', requireAuth, asyncHandler(async (req, res) => {
     tax_amount: p.bookings?.tax_amount || 0,
     source: p.bookings?.source,
     vehicle_id: p.bookings?.vehicle_id,
+    rate_type: p.bookings?.rate_type || 'daily',
+    rental_days: p.bookings?.rental_days || null,
     created_at: p.created_at,
     payment_type: p.payment_type,
     vehicles: p.bookings?.vehicles,
@@ -151,6 +194,11 @@ router.get('/revenue', requireAuth, asyncHandler(async (req, res) => {
     by_vehicle: byVehicle,
     by_category: byCategory,
     by_day: byDay,
+    by_rate_type: byRateType,
+    days_distribution: daysDistribution,
+    avg_rental_days: avgRentalDays,
+    weekly_discount_total: weeklyDiscountTotal.toFixed(2),
+    inquiry_funnel: inquiryFunnel,
     transactions,
   });
 }));

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Car, Calendar, MapPin, Key, Camera, Check, AlertCircle,
   Loader2, Shield, Clock, DollarSign, MessageSquare, ArrowRight,
-  Fuel, Gauge, ChevronRight, ExternalLink, X,
+  Fuel, Gauge, ChevronRight, ExternalLink, X, Star,
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { EASE, DURATION } from '../../utils/motion';
@@ -12,6 +12,7 @@ import Navbar from '../layout/Navbar';
 import Footer from '../layout/Footer';
 import PhotoUploader from './PhotoUploader';
 import SlotPhotoUploader, { type PhotoSlots } from './SlotPhotoUploader';
+import CrispWidget, { openCrispChat } from './CrispWidget';
 
 /* ── Helpers ────────────────────────────────────────────── */
 const fmt = (d: string) => {
@@ -76,6 +77,12 @@ export default function CustomerPortal() {
   const [disputeReason, setDisputeReason] = useState('');
   const [disputeSubmitting, setDisputeSubmitting] = useState(false);
   const [disputeSuccess, setDisputeSuccess] = useState(false);
+
+  // Review form
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewDone, setReviewDone] = useState(false);
 
   const scrollToSection = (section: string) => {
     if (section === 'home') window.location.href = '/';
@@ -743,6 +750,79 @@ export default function CustomerPortal() {
             </motion.div>
           )}
 
+          {/* Review prompt — completed rentals only */}
+          {status === 'completed' && !reviewDone && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, ease: EASE.standard }}
+              style={card(theme)}
+            >
+              <div className="p-5 space-y-4">
+                <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                  <Star size={16} style={{ color: '#D4AF37' }} /> How was your rental?
+                </h3>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map(n => (
+                    <button
+                      key={n}
+                      onClick={() => setReviewRating(n)}
+                      className="transition-transform hover:scale-110 active:scale-95 cursor-pointer"
+                      aria-label={`${n} star${n !== 1 ? 's' : ''}`}
+                    >
+                      <Star
+                        size={28}
+                        fill={n <= reviewRating ? '#D4AF37' : 'none'}
+                        stroke={n <= reviewRating ? '#D4AF37' : 'var(--text-tertiary)'}
+                        strokeWidth={1.5}
+                      />
+                    </button>
+                  ))}
+                </div>
+                <textarea
+                  rows={3}
+                  value={reviewComment}
+                  onChange={e => setReviewComment(e.target.value)}
+                  placeholder="Tell Annie how it went…"
+                  className="w-full px-3 py-2.5 rounded-xl text-sm resize-none"
+                  style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
+                />
+                <button
+                  disabled={reviewSubmitting || !reviewComment.trim()}
+                  onClick={async () => {
+                    setReviewSubmitting(true);
+                    try {
+                      await fetch(`${API_URL}/reviews`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          booking_code: bookingCode,
+                          reviewer_name: booking?.customer_name || 'Guest',
+                          rating: reviewRating,
+                          comment: reviewComment.trim(),
+                          vehicle_name: booking?.vehicle_name || undefined,
+                        }),
+                      });
+                    } catch { /* show success regardless */ }
+                    setReviewDone(true);
+                    setReviewSubmitting(false);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 cursor-pointer"
+                  style={{ backgroundColor: '#D4AF37', color: '#0a0a0a' }}
+                >
+                  {reviewSubmitting ? 'Sending…' : 'Submit Review'}
+                </button>
+              </div>
+            </motion.div>
+          )}
+          {status === 'completed' && reviewDone && (
+            <div className="rounded-2xl p-4 text-center text-sm" style={{
+              backgroundColor: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.2)', color: '#D4AF37',
+            }}>
+              Thank you — Annie appreciates the feedback!
+            </div>
+          )}
+
           {/* Pricing Summary (always visible) */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
@@ -780,12 +860,26 @@ export default function CustomerPortal() {
           </motion.div>
 
           {/* Contact footer */}
-          <div className="text-center text-xs py-4" style={{ color: 'var(--text-tertiary)' }}>
-            Questions? Call <a href="tel:+17729856667" style={{ color: 'var(--accent-color)' }}>(772) 985-6667</a>
+          <div className="flex flex-col items-center gap-3 py-5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+            <button
+              onClick={() => {
+                try { openCrispChat(); }
+                catch { window.location.href = 'tel:+17729856667'; }
+              }}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm transition-all hover:scale-[1.03] active:scale-95 cursor-pointer"
+              style={{ backgroundColor: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.3)', color: '#D4AF37' }}
+            >
+              <MessageSquare size={14} />
+              Message Annie
+            </button>
+            <span>
+              Or call <a href="tel:+17729856667" style={{ color: 'var(--accent-color)' }}>(772) 985-6667</a>
+            </span>
           </div>
         </div>
       </main>
       <Footer />
+      {view === 'dashboard' && <CrispWidget booking={booking} />}
     </>
   );
 }

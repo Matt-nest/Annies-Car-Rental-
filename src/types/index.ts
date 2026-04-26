@@ -1,7 +1,10 @@
 export type VehicleCategory = 'Economy' | 'Sedan' | 'SUV' | 'Premium';
 
+export type RateMode = 'daily' | 'weekly' | 'monthly';
+
 export interface Vehicle {
   id: string;
+  vehicleId?: string;
   vin: string;
   make: string;
   model: string;
@@ -11,6 +14,9 @@ export interface Vehicle {
   tags: VehicleCategory[];
   dailyRate: number;
   weeklyRate: number;
+  weeklyDiscountPercent?: number;
+  weeklyUnlimitedMileage?: boolean;
+  monthlyDisplayPrice?: number | null;
   seats: number;
   fuel: string;
   mpg: number;

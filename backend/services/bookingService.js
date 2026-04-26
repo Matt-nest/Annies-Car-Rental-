@@ -1,7 +1,8 @@
 import { supabase } from '../db/supabase.js';
 import { generateBookingCode } from '../utils/generateBookingCode.js';
 import { checkAvailability } from './availabilityService.js';
-import { calcRentalDays, calcPricing, DELIVERY_FEES } from './pricingService.js';
+import { computeRentalPricing, DELIVERY_FEES, resolveMultiplier } from './pricingService.js';
+import { resolveCustomerLoyalty, LOYALTY_TIERS } from './loyaltyService.js';
 import { sendBookingNotification, buildBookingPayload } from './notifyService.js';
 import { sendBookingConfirmation } from './emailService.js';
 import { createNotification } from './notificationService.js';
@@ -153,16 +154,24 @@ export async function createBooking(payload) {
   }
 
   // 4. Pricing
-  const rentalDays = calcRentalDays(pickup_date, return_date);
-  const mileageAddonFee = unlimited_miles ? 100 : 0;   // $100 flat
+  const mileageAddonFee = unlimited_miles ? 100 : 0;   // $100 flat (zeroed by computeRentalPricing for weekly bookings)
   const tollAddonFee = unlimited_tolls ? 20 : 0;        // $20 flat
-  const pricing = calcPricing({
-    dailyRate: vehicle.daily_rate,
-    weeklyRate: vehicle.weekly_rate,
-    rentalDays,
+  const [{ multiplier: priceMultiplier, name: seasonalRuleName }, { discountPct: loyaltyDiscountPct, tier: loyaltyTier }] = await Promise.all([
+    resolveMultiplier(supabase, pickup_date, return_date, vehicle.id),
+    resolveCustomerLoyalty(supabase, customer.id),
+  ]);
+  const loyaltyTierLabel = loyaltyTier ? (LOYALTY_TIERS.find(t => t.key === loyaltyTier)?.label || null) : null;
+  const pricing = computeRentalPricing({
+    vehicle,
+    pickupDate: pickup_date,
+    returnDate: return_date,
     deliveryFeeAmount,
     mileageAddonFee,
     tollAddonFee,
+    priceMultiplier,
+    seasonalRuleName,
+    loyaltyDiscountPct,
+    loyaltyTierLabel,
   });
 
   // 5. Generate booking code (retry on collision)
@@ -199,7 +208,19 @@ export async function createBooking(payload) {
       return_location: pickup_location,
       delivery_requested: deliveryRequested,
       delivery_address: deliveryRequested ? delivery_address : null,
-      ...pricing,
+      daily_rate:              pricing.daily_rate,
+      rental_days:             pricing.rental_days,
+      rate_type:               pricing.rate_type,
+      weekly_discount_applied: pricing.weekly_discount_applied,
+      subtotal:                pricing.subtotal,
+      discount_amount:         pricing.discount_amount,
+      delivery_fee:            pricing.delivery_fee,
+      mileage_addon_fee:       pricing.mileage_addon_fee,
+      toll_addon_fee:          pricing.toll_addon_fee,
+      tax_amount:              pricing.tax_amount,
+      total_cost:              pricing.total_cost,
+      mileage_allowance:       pricing.mileage_allowance,
+      line_items:              pricing.line_items,
       unlimited_miles: !!unlimited_miles,
       unlimited_tolls: !!unlimited_tolls,
       deposit_amount: vehicle.deposit_amount || 0,

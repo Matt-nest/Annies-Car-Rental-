@@ -1,10 +1,12 @@
 import React, { useState, useRef } from 'react';
 import { ArrowRight, CheckCircle2, Loader2, AlertCircle, Camera, X } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Vehicle, BookingRequest, DeliveryOption } from '../../types';
 import { getVehicleDisplayName } from '../../data/vehicles';
 import { useTheme } from '../../context/ThemeContext';
 import { API_URL, API_KEY } from '../../config';
+import { calcRentalDays, calcPriceBreakdown } from '../../utils/pricing';
+import WeeklyUpsell from './WeeklyUpsell';
 
 
 interface RequestToBookFormProps {
@@ -227,27 +229,29 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
     }
   };
 
-  // Price estimate computed from selected dates + delivery option
+  // Determine if rental is weekly (miles included, hide add-on)
+  const rentalDays = calcRentalDays(formData.startDate, formData.endDate);
+  const isWeeklyRental = rentalDays >= 7;
+  const milesIncludedInWeekly = isWeeklyRental && (vehicle.weeklyUnlimitedMileage !== false);
+
+  // Price estimate using accurate weekly block math
   const priceEstimate = (() => {
-    if (!formData.startDate || !formData.endDate) return null;
-    const start = new Date(formData.startDate);
-    const end = new Date(formData.endDate);
-    const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-    if (days <= 0) return null;
-    let subtotal: number;
-    if (days >= 7 && vehicle.weeklyRate) {
-      const weeks = Math.floor(days / 7);
-      const remainingDays = days % 7;
-      subtotal = weeks * vehicle.weeklyRate + remainingDays * vehicle.dailyRate;
-    } else {
-      subtotal = days * vehicle.dailyRate;
-    }
+    if (!formData.startDate || !formData.endDate || rentalDays <= 0) return null;
     const deliveryFee = DELIVERY_FEES[formData.deliveryOption];
-    const mileageFee = formData.unlimitedMiles ? 100 : 0;
+    const mileageFee = milesIncludedInWeekly ? 0 : (formData.unlimitedMiles ? 100 : 0);
     const tollFee = formData.unlimitedTolls ? 20 : 0;
-    const taxable = subtotal + deliveryFee;
-    const tax = taxable * 0.07;
-    return { days, subtotal, deliveryFee, mileageFee, tollFee, tax, total: taxable + tax + mileageFee + tollFee };
+    const bd = calcPriceBreakdown({
+      dailyRate: vehicle.dailyRate,
+      discountPct: vehicle.weeklyDiscountPercent ?? 15,
+      unlimitedMileageEnabled: vehicle.weeklyUnlimitedMileage !== false,
+      startDate: formData.startDate,
+      endDate: formData.endDate,
+      deliveryFee,
+      mileageFee,
+      tollFee,
+    });
+    if (!bd) return null;
+    return { days: bd.rentalDays, subtotal: bd.subtotal, deliveryFee, mileageFee, tollFee, tax: bd.tax, total: bd.total, rateType: bd.rateType, savingsVsDaily: bd.savingsVsDaily };
   })();
 
   const formatTime = (t: string) => {
@@ -406,6 +410,19 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
           </div>
         </div>
 
+        {/* Weekly upsell nudge */}
+        <AnimatePresence>
+          {formData.startDate && formData.endDate && (
+            <WeeklyUpsell
+              startDate={formData.startDate}
+              endDate={formData.endDate}
+              dailyRate={vehicle.dailyRate}
+              weeklyDiscountPercent={vehicle.weeklyDiscountPercent ?? 15}
+              unlimitedMileageEnabled={vehicle.weeklyUnlimitedMileage !== false}
+            />
+          )}
+        </AnimatePresence>
+
         {/* Price estimate */}
         {priceEstimate && (
           <div
@@ -536,33 +553,36 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
         <div>
           <label className="text-[10px] uppercase tracking-widest mb-2 block ml-1" style={{ color: 'var(--text-tertiary)' }}>Optional Add-Ons</label>
           <div className="space-y-2">
-            <button
-              type="button"
-              onClick={() => setFormData(prev => ({ ...prev, unlimitedMiles: !prev.unlimitedMiles }))}
-              className="w-full flex items-center justify-between p-3.5 rounded-xl border transition-all duration-300 cursor-pointer text-left"
-              style={{
-                backgroundColor: formData.unlimitedMiles ? 'rgba(200,169,126,0.08)' : (theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'),
-                borderColor: formData.unlimitedMiles ? 'var(--accent)' : 'var(--border-subtle)',
-              }}
-            >
-              <div>
-                <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Unlimited Miles</p>
-                <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>No mileage cap for your entire rental</p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-sm font-semibold" style={{ color: 'var(--accent-color)' }}>$100</span>
-                <div
-                  className="w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all"
-                  style={{
-                    backgroundColor: formData.unlimitedMiles ? 'var(--accent)' : 'transparent',
-                    borderColor: formData.unlimitedMiles ? 'var(--accent)' : 'var(--border-subtle)',
-                    color: formData.unlimitedMiles ? 'var(--accent-fg)' : 'transparent',
-                  }}
-                >
-                  {formData.unlimitedMiles && '✓'}
+            {/* Unlimited Miles: hidden for weekly rentals (already included) */}
+            {!milesIncludedInWeekly && (
+              <button
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, unlimitedMiles: !prev.unlimitedMiles }))}
+                className="w-full flex items-center justify-between p-3.5 rounded-xl border transition-all duration-300 cursor-pointer text-left"
+                style={{
+                  backgroundColor: formData.unlimitedMiles ? 'rgba(200,169,126,0.08)' : (theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'),
+                  borderColor: formData.unlimitedMiles ? 'var(--accent)' : 'var(--border-subtle)',
+                }}
+              >
+                <div>
+                  <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Unlimited Miles</p>
+                  <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>No mileage cap for your entire rental</p>
                 </div>
-              </div>
-            </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-sm font-semibold" style={{ color: 'var(--accent-color)' }}>$100</span>
+                  <div
+                    className="w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all"
+                    style={{
+                      backgroundColor: formData.unlimitedMiles ? 'var(--accent)' : 'transparent',
+                      borderColor: formData.unlimitedMiles ? 'var(--accent)' : 'var(--border-subtle)',
+                      color: formData.unlimitedMiles ? 'var(--accent-fg)' : 'transparent',
+                    }}
+                  >
+                    {formData.unlimitedMiles && '✓'}
+                  </div>
+                </div>
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setFormData(prev => ({ ...prev, unlimitedTolls: !prev.unlimitedTolls }))}

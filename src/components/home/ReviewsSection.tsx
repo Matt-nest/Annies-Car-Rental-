@@ -2,8 +2,9 @@ import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react'
 import { Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useTheme } from '../../context/ThemeContext';
-import { TOTAL_REVIEW_COUNT, REVIEWS } from '../../data/reviews';
+import { REVIEWS } from '../../data/reviews';
 import { EASE } from '../../utils/motion';
+import { API_URL } from '../../config';
 
 // Aggregate category scores (Turo-style)
 const CATEGORY_SCORES = [
@@ -13,9 +14,6 @@ const CATEGORY_SCORES = [
   { label: 'Convenience', score: 5.0 },
   { label: 'Accuracy', score: 5.0 },
 ];
-
-const OVERALL_RATING = 4.88;
-const TOTAL_RATINGS = REVIEWS.length;
 
 function StarRating({ rating, size = 14 }: { rating: number; size?: number }) {
   return (
@@ -39,6 +37,32 @@ const CAROUSEL_CAP = 50;
 
 export default function ReviewsSection() {
   const { theme } = useTheme();
+
+  // Live reviews merged with static seed
+  const [liveReviews, setLiveReviews] = useState<typeof REVIEWS>([]);
+  useEffect(() => {
+    fetch(`${API_URL}/reviews`)
+      .then(r => r.ok ? r.json() : [])
+      .then((data: any[]) => {
+        const normalized = data.map(r => ({
+          id: r.id,
+          vehicleId: '',
+          reviewerName: r.reviewer_name,
+          rating: r.rating,
+          comment: r.comment,
+          avatar: undefined,
+          date: new Date(r.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+        }));
+        setLiveReviews(normalized);
+      })
+      .catch(() => { /* silently fall back to static */ });
+  }, []);
+
+  const allReviews = useMemo(() => [...liveReviews, ...REVIEWS], [liveReviews]);
+  const overallRating = useMemo(() => {
+    if (!allReviews.length) return 4.88;
+    return Math.round((allReviews.reduce((s, r) => s + r.rating, 0) / allReviews.length) * 100) / 100;
+  }, [allReviews]);
 
   const sliderRef = useRef<HTMLDivElement>(null);
   const [isPaused, setIsPaused] = useState(false);
@@ -107,9 +131,9 @@ export default function ReviewsSection() {
 
   // Shuffle and cap reviews, memoized to prevent re-shuffle on re-render
   const carouselReviews = useMemo(() => {
-    const shuffled = [...REVIEWS].sort(() => Math.random() - 0.5).slice(0, CAROUSEL_CAP);
+    const shuffled = [...allReviews].sort(() => Math.random() - 0.5).slice(0, CAROUSEL_CAP);
     return [...shuffled, ...shuffled]; // duplicate for seamless loop
-  }, []);
+  }, [allReviews]);
 
   // Duplicate reviews for seamless infinite scrolling
   const displayReviews = carouselReviews;
@@ -156,12 +180,12 @@ export default function ReviewsSection() {
             <div className="text-center md:text-left">
               <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
                 <span className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-                  {OVERALL_RATING}
+                  {overallRating}
                 </span>
                 <Star size={28} fill="var(--accent-color)" stroke="var(--accent-color)" />
               </div>
               <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
-                ({TOTAL_RATINGS} ratings)
+                ({allReviews.length} ratings)
               </p>
               <StarRating rating={5} size={18} />
             </div>
@@ -189,7 +213,7 @@ export default function ReviewsSection() {
                 </div>
               ))}
               <p className="text-xs pt-2" style={{ color: 'var(--text-tertiary)' }}>
-                Based on {TOTAL_RATINGS} guest ratings
+                Based on {allReviews.length} guest ratings
               </p>
             </div>
           </div>
@@ -201,7 +225,7 @@ export default function ReviewsSection() {
       <div className="mt-8 md:mt-16 w-full">
         <div className="flex items-center justify-between mb-8 max-w-5xl mx-auto px-2">
           <h3 className="text-xs uppercase tracking-[0.2em] font-semibold" style={{ color: 'var(--text-secondary)' }}>
-            {REVIEWS.length} Reviews
+            {allReviews.length} Reviews
           </h3>
           <div className="flex items-center gap-3">
             <button

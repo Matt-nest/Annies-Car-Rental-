@@ -93,7 +93,13 @@ router.get('/:bookingCode', asyncHandler(async (req, res) => {
       vehicleState: vehicle.state || 'FL',
       color: vehicle.color || '',
       dailyRate: Number(booking.daily_rate),
-      weeklyRate: vehicle.weekly_rate ? Number(vehicle.weekly_rate) : null,
+      weeklyDiscountPercent: vehicle.weekly_discount_percent ?? 15,
+      weeklyRate: vehicle.daily_rate && vehicle.weekly_discount_percent != null
+        ? parseFloat(((Number(vehicle.daily_rate) * 7) * (1 - (vehicle.weekly_discount_percent / 100))).toFixed(2))
+        : null,
+      rateType: booking.rate_type || 'daily',
+      mileageAllowance: booking.mileage_allowance || null,
+      lineItems: booking.line_items || null,
       milesPerDay: vehicle.mileage_limit_per_day || 150,
       rentalDays: booking.rental_days,
       subtotal: Number(booking.subtotal),
@@ -149,6 +155,7 @@ router.post('/:bookingCode/sign', asyncHandler(async (req, res) => {
     insurance_company, insurance_policy_number, insurance_expiry,
     insurance_agent_name, insurance_agent_phone, insurance_vehicle_description,
     signature_data, signature_type,
+    license_photo_paths,
   } = req.body;
 
   // Validate required fields
@@ -188,6 +195,9 @@ router.post('/:bookingCode/sign', asyncHandler(async (req, res) => {
       customer_signature_type: signature_type || 'drawn',
       customer_signed_at: new Date().toISOString(),
       customer_ip: signerIp,
+      license_photo_paths: Array.isArray(license_photo_paths) && license_photo_paths.length
+        ? license_photo_paths
+        : null,
     })
     .select()
     .single();

@@ -7,6 +7,7 @@ import { SkeletonDashboard } from '../components/shared/Skeleton';
 import Modal from '../components/shared/Modal';
 import Section from '../components/shared/Section';
 import Field from '../components/shared/Field';
+import WeeklyPricingSection from '../components/vehicles/WeeklyPricingSection';
 import { format } from 'date-fns';
 
 const MAIN_SITE = 'https://www.anniescarrental.com';
@@ -49,6 +50,9 @@ export default function VehicleDetailPage() {
       setEditForm({
         make: v.make, model: v.model, year: v.year, category: v.category,
         daily_rate: v.daily_rate, weekly_rate: v.weekly_rate || '',
+        weekly_discount_percent: v.weekly_discount_percent ?? 15,
+        weekly_unlimited_mileage_enabled: v.weekly_unlimited_mileage_enabled !== false,
+        monthly_display_price: v.monthly_display_price ?? '',
         seats: v.seats, fuel_type: v.fuel_type, transmission: v.transmission,
         thumbnail_url: v.thumbnail_url || '', notes: v.notes || '',
         mileage_limit_per_day: v.mileage_limit_per_day || 150,
@@ -240,6 +244,9 @@ export default function VehicleDetailPage() {
           )}
         </Section>
       </div>
+
+      {/* Weekly Pricing */}
+      <WeeklyPricingSection vehicle={vehicle} onSaved={load} />
 
       {/* Blocked Dates */}
       <Section title="Blocked Dates" icon={Calendar}

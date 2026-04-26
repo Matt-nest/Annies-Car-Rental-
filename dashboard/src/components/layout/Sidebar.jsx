@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Calendar, Car, Users, BookOpen,
   TrendingUp, Settings, X, LogOut, AlertTriangle, CreditCard, Landmark, MessageSquare,
-  ArrowUpFromLine,
+  ArrowUpFromLine, CalendarClock, Star, Percent, Crown,
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
 
@@ -17,6 +17,10 @@ const MAIN_NAV = [
   { to: '/payments',  label: 'Payments',  icon: CreditCard },
   { to: '/revenue',   label: 'Revenue',   icon: TrendingUp },
   { to: '/messaging', label: 'Messaging',  icon: MessageSquare },
+  { to: '/monthly-inquiries', label: 'Monthly Leads', icon: CalendarClock },
+  { to: '/reviews',           label: 'Reviews',       icon: Star, alertKey: 'pending_reviews' },
+  { to: '/pricing-rules',     label: 'Pricing Rules', icon: Percent },
+  { to: '/loyalty',           label: 'Loyalty',       icon: Crown },
 ];
 
 const SYSTEM_NAV = [
@@ -97,6 +101,45 @@ function NavItem({ to, label, icon: Icon, end, alertKey, alerts, onClose, showLa
           </>
         )}
       </NavLink>
+    </li>
+  );
+}
+
+/* ─── External link nav item (opens in new tab) ──────────────────────────── */
+function ExternalNavItem({ href, label, icon: Icon, showLabels }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <li>
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        title={!showLabels ? label : undefined}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        className={`group relative flex items-center w-full gap-3 font-medium rounded-lg text-sm transition-all duration-200 text-[var(--sidebar-text)] hover:text-[var(--text-primary)] ${
+          showLabels ? 'px-4 py-2.5' : 'justify-center px-2 py-2.5'
+        }`}
+        style={{
+          ...(showLabels && hovered ? {
+            transform: 'translateX(4px) scale(1.02)',
+            backgroundColor: 'var(--sidebar-hover)',
+          } : {}),
+          transition: 'all 0.2s cubic-bezier(0.4,0,0.2,1)',
+          textDecoration: 'none',
+        }}
+      >
+        <Icon
+          size={20}
+          strokeWidth={1.8}
+          className="text-[var(--sidebar-text-muted)] group-hover:text-[var(--sidebar-text)] shrink-0"
+          style={{
+            transform: !showLabels && hovered ? 'scale(1.2)' : 'scale(1)',
+            transition: 'transform 0.2s ease',
+          }}
+        />
+        {showLabels && <span className="flex-1 truncate">{label}</span>}
+      </a>
     </li>
   );
 }
@@ -277,6 +320,12 @@ export default function Sidebar({ open, onClose, alerts = {}, pinned }) {
                   {SYSTEM_NAV.map(item => (
                     <NavItem key={item.to} {...item} alerts={alerts} onClose={onClose} showLabels={isWide} />
                   ))}
+                  <ExternalNavItem
+                    href="https://app.crisp.chat"
+                    label="Crisp Chat"
+                    icon={MessageSquare}
+                    showLabels={isWide}
+                  />
                 </ul>
               </div>
               )}

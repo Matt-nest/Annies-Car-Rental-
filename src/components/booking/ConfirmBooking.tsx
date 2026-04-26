@@ -91,6 +91,7 @@ function PaymentForm({
         insurance_vehicle_description: draft.personalInsurance.vehicleDescription || null,
         signature_data: draft.signature.data,
         signature_type: draft.signature.mode === 'draw' ? 'drawn' : 'typed',
+        license_photo_paths: draft.licensePhotoPaths?.length ? draft.licensePhotoPaths : undefined,
       };
 
       const agRes = await fetch(`${API_URL}/agreements/${bookingCode}/sign`, {

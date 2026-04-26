@@ -28,6 +28,7 @@ Vehicle:    {{vehicle}}
 Pickup:     {{pickup_date}} at {{pickup_time}}
 Return:     {{return_date}} at {{return_time}}
 Duration:   {{rental_days}} days
+Mileage:    {{mileage_policy}}
 Total:      \${{total_cost}}
 
 {{#if vehicle_year_make_model}}YOUR VEHICLE
@@ -120,6 +121,7 @@ Amount:     \${{amount}}
 Method:     {{payment_method}}
 Date:       {{payment_date}}
 Booking:    {{booking_code}}
+Mileage:    {{mileage_policy}}
 
 {{#if vehicle_year_make_model}}YOUR VEHICLE
 ───────────────
@@ -181,6 +183,7 @@ Once you have the key, complete your check-in through your Rental Portal:
 → {{portal_link}}
 
 IMPORTANT REMINDERS
+• Mileage — {{mileage_policy}}.
 • Fuel — Return the vehicle with the same fuel level you receive it with.
 • No smoking — Vehicles are smoke-free. A $150 cleaning fee applies.
 • No pets — A $150 cleaning fee applies.
@@ -195,6 +198,7 @@ Annie's Car Rental
 Port Saint Lucie, FL`,
     sms_body: `Hi {{first_name}}, your {{vehicle}} is ready for pickup tomorrow.
 
+Mileage: {{mileage_policy}}.
 📍 586 NW Mercantile Pl, Port Saint Lucie, FL 34986
 🔑 Lockbox code: {{lockbox_code}}
 🅿️ The car will be parked in the back of the building.

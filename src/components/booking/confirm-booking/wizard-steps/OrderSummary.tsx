@@ -51,44 +51,59 @@ export default function OrderSummary({ bookingSummary: bs, draft, depositAmount,
 
       {/* Line items */}
       <div className="space-y-2 text-sm" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '12px' }}>
-        <div className="flex justify-between">
-          <span style={{ color: 'var(--text-secondary)' }}>Rental ({rentalDays} day{rentalDays !== 1 ? 's' : ''} × {formatCurrency(bs?.dailyRate || 0)}/day)</span>
-          <span style={{ color: 'var(--text-primary)' }}>{formatCurrency(bs?.subtotal || 0)}</span>
-        </div>
+        {bs?.lineItems?.length > 0 ? (
+          // Weekly/mixed bookings: use the structured line_items from DB
+          bs.lineItems.map((item: { label: string; amount: number }, i: number) => (
+            <div key={i} className="flex justify-between">
+              <span style={{ color: 'var(--text-secondary)' }}>{item.label}</span>
+              <span style={{ color: item.amount < 0 ? '#22c55e' : 'var(--text-primary)' }}>
+                {item.amount < 0 ? `-${formatCurrency(Math.abs(item.amount))}` : formatCurrency(item.amount)}
+              </span>
+            </div>
+          ))
+        ) : (
+          // Legacy/daily fallback: individual named fields
+          <>
+            <div className="flex justify-between">
+              <span style={{ color: 'var(--text-secondary)' }}>Rental ({rentalDays} day{rentalDays !== 1 ? 's' : ''} × {formatCurrency(bs?.dailyRate || 0)}/day)</span>
+              <span style={{ color: 'var(--text-primary)' }}>{formatCurrency(bs?.subtotal || 0)}</span>
+            </div>
 
-        {(bs?.deliveryFee || 0) > 0 && (
-          <div className="flex justify-between">
-            <span style={{ color: 'var(--text-secondary)' }}>Delivery fee</span>
-            <span style={{ color: 'var(--text-primary)' }}>{formatCurrency(bs.deliveryFee)}</span>
-          </div>
-        )}
+            {(bs?.deliveryFee || 0) > 0 && (
+              <div className="flex justify-between">
+                <span style={{ color: 'var(--text-secondary)' }}>Delivery fee</span>
+                <span style={{ color: 'var(--text-primary)' }}>{formatCurrency(bs.deliveryFee)}</span>
+              </div>
+            )}
 
-        {(bs?.discountAmount || 0) > 0 && (
-          <div className="flex justify-between">
-            <span style={{ color: 'var(--text-secondary)' }}>Discount</span>
-            <span style={{ color: '#22c55e' }}>-{formatCurrency(bs.discountAmount)}</span>
-          </div>
-        )}
+            {(bs?.discountAmount || 0) > 0 && (
+              <div className="flex justify-between">
+                <span style={{ color: 'var(--text-secondary)' }}>Discount</span>
+                <span style={{ color: '#22c55e' }}>-{formatCurrency(bs.discountAmount)}</span>
+              </div>
+            )}
 
-        {(bs?.mileageAddonFee || 0) > 0 && (
-          <div className="flex justify-between">
-            <span style={{ color: 'var(--text-secondary)' }}>Unlimited Miles</span>
-            <span style={{ color: 'var(--text-primary)' }}>{formatCurrency(bs.mileageAddonFee)}</span>
-          </div>
-        )}
+            {(bs?.mileageAddonFee || 0) > 0 && (
+              <div className="flex justify-between">
+                <span style={{ color: 'var(--text-secondary)' }}>Unlimited Miles</span>
+                <span style={{ color: 'var(--text-primary)' }}>{formatCurrency(bs.mileageAddonFee)}</span>
+              </div>
+            )}
 
-        {(bs?.tollAddonFee || 0) > 0 && (
-          <div className="flex justify-between">
-            <span style={{ color: 'var(--text-secondary)' }}>Unlimited Tolls</span>
-            <span style={{ color: 'var(--text-primary)' }}>{formatCurrency(bs.tollAddonFee)}</span>
-          </div>
-        )}
+            {(bs?.tollAddonFee || 0) > 0 && (
+              <div className="flex justify-between">
+                <span style={{ color: 'var(--text-secondary)' }}>Unlimited Tolls</span>
+                <span style={{ color: 'var(--text-primary)' }}>{formatCurrency(bs.tollAddonFee)}</span>
+              </div>
+            )}
 
-        {(bs?.taxAmount || 0) > 0 && (
-          <div className="flex justify-between">
-            <span style={{ color: 'var(--text-secondary)' }}>Tax</span>
-            <span style={{ color: 'var(--text-primary)' }}>{formatCurrency(bs.taxAmount)}</span>
-          </div>
+            {(bs?.taxAmount || 0) > 0 && (
+              <div className="flex justify-between">
+                <span style={{ color: 'var(--text-secondary)' }}>Tax</span>
+                <span style={{ color: 'var(--text-primary)' }}>{formatCurrency(bs.taxAmount)}</span>
+              </div>
+            )}
+          </>
         )}
 
         {/* Rental subtotal */}

@@ -1,7 +1,7 @@
 import { memo } from 'react';
-import { Users, Fuel, Gauge, ArrowUpRight } from 'lucide-react';
+import { Users, Fuel, Gauge, ArrowUpRight, Infinity } from 'lucide-react';
 import { motion } from 'motion/react';
-import { Vehicle } from '../../types';
+import { Vehicle, RateMode } from '../../types';
 import { getVehicleDisplayName } from '../../data/vehicles';
 import { useTheme } from '../../context/ThemeContext';
 import { EASE, STAGGER } from '../../utils/motion';
@@ -10,10 +10,17 @@ export interface VehicleCardProps {
   vehicle: Vehicle;
   onClick: () => void;
   index?: number;
+  rateMode?: RateMode;
 }
 
-const VehicleCard = memo(function VehicleCard({ vehicle, onClick, index = 0 }: VehicleCardProps) {
+const VehicleCard = memo(function VehicleCard({ vehicle, onClick, index = 0, rateMode = 'daily' }: VehicleCardProps) {
   const { theme } = useTheme();
+
+  // Monthly mode: hide vehicles without a monthly price
+  if (rateMode === 'monthly' && !vehicle.monthlyDisplayPrice) return null;
+
+  const weeklyRate = vehicle.weeklyRate ?? (vehicle.dailyRate * 7 * 0.85);
+  const weeklySavings = parseFloat(((vehicle.dailyRate * 7) - weeklyRate).toFixed(2));
 
   return (
     <motion.div
@@ -29,7 +36,7 @@ const VehicleCard = memo(function VehicleCard({ vehicle, onClick, index = 0 }: V
         borderColor: 'var(--border-subtle)',
       }}
     >
-      {/* Image — object-contain for studio renders, dark bg for contrast */}
+      {/* Image */}
       <div
         className="aspect-[16/10] overflow-hidden relative"
         style={{ backgroundColor: theme === 'dark' ? '#0a0a0a' : '#f0f0f0' }}
@@ -42,7 +49,6 @@ const VehicleCard = memo(function VehicleCard({ vehicle, onClick, index = 0 }: V
           loading="lazy"
           decoding="async"
         />
-        {/* Gradient overlay on hover */}
         <div
           className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
           style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.4) 0%, transparent 40%)' }}
@@ -60,6 +66,28 @@ const VehicleCard = memo(function VehicleCard({ vehicle, onClick, index = 0 }: V
             {vehicle.category}
           </span>
         </div>
+        {/* Weekly savings badge */}
+        {rateMode === 'weekly' && weeklySavings > 0 && (
+          <div className="absolute top-3 sm:top-4 right-3 sm:right-4">
+            <span
+              className="px-2.5 py-1 text-[10px] rounded-full font-semibold uppercase tracking-widest"
+              style={{ backgroundColor: 'rgba(212,175,55,0.9)', color: '#0a0a0a' }}
+            >
+              Save ${weeklySavings}
+            </span>
+          </div>
+        )}
+        {/* Monthly badge */}
+        {rateMode === 'monthly' && (
+          <div className="absolute top-3 sm:top-4 right-3 sm:right-4">
+            <span
+              className="px-2.5 py-1 text-[10px] rounded-full font-semibold uppercase tracking-widest"
+              style={{ backgroundColor: 'rgba(212,175,55,0.9)', color: '#0a0a0a' }}
+            >
+              Ask Annie
+            </span>
+          </div>
+        )}
         {/* Arrow indicator on hover */}
         <div className="absolute bottom-3 sm:bottom-4 right-3 sm:right-4 opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-2 group-hover:translate-y-0">
           <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/90 text-black flex items-center justify-center">
@@ -73,15 +101,47 @@ const VehicleCard = memo(function VehicleCard({ vehicle, onClick, index = 0 }: V
         <div className="flex justify-between items-start mb-3 sm:mb-4">
           <div className="min-w-0 pr-2">
             <h3 className="text-[15px] sm:text-[17px] font-medium leading-snug mb-1 truncate">{getVehicleDisplayName(vehicle)}</h3>
-            {vehicle.weeklyRate && (
+            {rateMode === 'weekly' && vehicle.weeklyUnlimitedMileage && (
+              <span
+                className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full border"
+                style={{ color: '#D4AF37', borderColor: 'rgba(212,175,55,0.4)', backgroundColor: 'rgba(212,175,55,0.08)' }}
+              >
+                <Infinity size={10} /> Unlimited mileage
+              </span>
+            )}
+            {rateMode === 'daily' && vehicle.weeklyRate && (
               <span className="text-[10px] sm:text-[11px] font-medium uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>
                 Weekly available
               </span>
             )}
+            {rateMode === 'monthly' && (
+              <span className="text-[10px] sm:text-[11px] font-medium uppercase tracking-widest" style={{ color: '#D4AF37' }}>
+                Inquire for pricing
+              </span>
+            )}
           </div>
           <div className="text-right shrink-0">
-            <span className="text-xl sm:text-2xl font-light">${vehicle.dailyRate}</span>
-            <span className="text-xs sm:text-sm block" style={{ color: 'var(--text-tertiary)' }}>/ day</span>
+            {rateMode === 'daily' && (
+              <>
+                <span className="text-xl sm:text-2xl font-light">${vehicle.dailyRate}</span>
+                <span className="text-xs sm:text-sm block" style={{ color: 'var(--text-tertiary)' }}>/ day</span>
+              </>
+            )}
+            {rateMode === 'weekly' && (
+              <>
+                <span className="text-xl sm:text-2xl font-light">${weeklyRate.toFixed(0)}</span>
+                <span className="text-xs sm:text-sm block" style={{ color: 'var(--text-tertiary)' }}>/ week</span>
+                <span className="text-[10px] line-through block" style={{ color: 'var(--text-tertiary)' }}>
+                  ${(vehicle.dailyRate * 7).toFixed(0)}
+                </span>
+              </>
+            )}
+            {rateMode === 'monthly' && vehicle.monthlyDisplayPrice && (
+              <>
+                <span className="text-xl sm:text-2xl font-light">${vehicle.monthlyDisplayPrice.toLocaleString()}</span>
+                <span className="text-xs sm:text-sm block" style={{ color: 'var(--text-tertiary)' }}>/ mo</span>
+              </>
+            )}
           </div>
         </div>
         <div
@@ -107,4 +167,3 @@ const VehicleCard = memo(function VehicleCard({ vehicle, onClick, index = 0 }: V
 });
 
 export default VehicleCard;
-

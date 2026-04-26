@@ -29,6 +29,10 @@ import invoiceRoutes from '../routes/invoices.js';
 import tollRoutes from '../routes/tolls.js';
 import disputeRoutes from '../routes/disputes.js';
 import portalRoutes from '../routes/portal.js';
+import monthlyInquiryRoutes from '../routes/monthlyInquiries.js';
+import reviewRoutes from '../routes/reviews.js';
+import pricingRulesRoutes from '../routes/pricingRules.js';
+import loyaltyRoutes from '../routes/loyalty.js';
 
 const app = express();
 
@@ -80,6 +84,10 @@ app.use('/api/v1', invoiceRoutes);
 app.use('/api/v1', tollRoutes);
 app.use('/api/v1/disputes', disputeRoutes);
 app.use('/api/v1/portal', portalRoutes);
+app.use('/api/v1/monthly-inquiries', monthlyInquiryRoutes);
+app.use('/api/v1/reviews', reviewRoutes);
+app.use('/api/v1/pricing-rules', pricingRulesRoutes);
+app.use('/api/v1/loyalty', loyaltyRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ error: `${req.method} ${req.path} not found` }));

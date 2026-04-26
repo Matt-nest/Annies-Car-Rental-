@@ -23,7 +23,7 @@ router.get('/', requireAuth, asyncHandler(async (req, res) => {
 router.get('/catalog', asyncHandler(async (req, res) => {
   const { data, error } = await supabase
     .from('vehicles')
-    .select('vehicle_code, vin, make, model, year, trim, category, daily_rate, weekly_rate, seats, fuel_type, transmission, thumbnail_url, photo_urls, features, notes, mileage_limit_per_day')
+    .select('id, vehicle_code, vin, make, model, year, trim, category, daily_rate, weekly_discount_percent, weekly_unlimited_mileage_enabled, monthly_display_price, seats, fuel_type, transmission, thumbnail_url, photo_urls, features, notes, mileage_limit_per_day')
     .neq('status', 'retired')
     .neq('status', 'turo')
     .eq('status', 'available')
@@ -53,6 +53,7 @@ router.get('/catalog', asyncHandler(async (req, res) => {
 
     return {
       id: v.vehicle_code,
+      vehicleId: v.id,
       vin: vin || '',
       make: v.make,
       model: v.model,
@@ -61,7 +62,10 @@ router.get('/catalog', asyncHandler(async (req, res) => {
       category,
       tags,
       dailyRate: parseFloat(v.daily_rate),
-      weeklyRate: v.weekly_rate ? parseFloat(v.weekly_rate) : undefined,
+      weeklyDiscountPercent: v.weekly_discount_percent ?? 15,
+      weeklyRate: parseFloat(((parseFloat(v.daily_rate) * 7) * (1 - ((v.weekly_discount_percent ?? 15) / 100))).toFixed(2)),
+      weeklyUnlimitedMileage: v.weekly_unlimited_mileage_enabled !== false,
+      monthlyDisplayPrice: v.monthly_display_price ?? null,
       seats: v.seats,
       fuel: v.fuel_type === 'gasoline' ? 'Gas' : v.fuel_type,
       mpg: 30,

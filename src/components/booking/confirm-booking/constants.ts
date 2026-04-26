@@ -87,6 +87,9 @@ export interface WizardDraft {
   insuranceChoice: 'own' | 'annies' | null;
   anniesTier: string | null;
 
+  // Stage 1 — License photo uploads (optional, stored as storage paths)
+  licensePhotoPaths: string[];
+
   // Completed flags
   completedStages: number[];
 }
@@ -107,6 +110,7 @@ export function getDefaultDraft(): WizardDraft {
     },
     insuranceChoice: null,
     anniesTier: null,
+    licensePhotoPaths: [],
     completedStages: [],
   };
 }

@@ -19,6 +19,10 @@ import WebhookFailuresPage from './pages/WebhookFailuresPage';
 import StripePage from './pages/StripePage';
 import MessagingPage from './pages/MessagingPage';
 import CheckInsPage from './pages/CheckInsPage';
+import MonthlyInquiriesPage from './pages/MonthlyInquiriesPage';
+import ReviewsPage from './pages/ReviewsPage';
+import PricingRulesPage from './pages/PricingRulesPage';
+import LoyaltyPage from './pages/LoyaltyPage';
 
 export default function App() {
   return (
@@ -49,6 +53,10 @@ export default function App() {
             <Route path="/stripe"     element={<StripePage />} />
             <Route path="/messaging"  element={<MessagingPage />} />
             <Route path="/webhook-failures" element={<WebhookFailuresPage />} />
+            <Route path="/monthly-inquiries" element={<MonthlyInquiriesPage />} />
+            <Route path="/reviews" element={<ReviewsPage />} />
+            <Route path="/pricing-rules" element={<PricingRulesPage />} />
+            <Route path="/loyalty" element={<LoyaltyPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

@@ -6,7 +6,7 @@ import { requireApiKey } from '../middleware/apiKey.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { validateBookingPayload } from '../utils/validators.js';
 import { createBooking, transitionBooking, getBookingDetail } from '../services/bookingService.js';
-import { calcRentalDays, calcPricing, DELIVERY_FEES } from '../services/pricingService.js';
+import { computeRentalPricing, DELIVERY_FEES } from '../services/pricingService.js';
 
 const router = Router();
 
@@ -208,11 +208,16 @@ router.post('/:id/return', requireAuth, asyncHandler(async (req, res) => {
   };
 
   if (todayStr > booking.return_date) {
-    const actualDays = calcRentalDays(booking.pickup_date, todayStr);
-    const pricing = calcPricing({
-      dailyRate: Number(booking.daily_rate),
-      weeklyRate: booking.vehicles?.weekly_rate ? Number(booking.vehicles.weekly_rate) : null,
-      rentalDays: actualDays,
+    // Reconstruct vehicle shape for computeRentalPricing using stored + current vehicle data
+    const lateVehicle = {
+      daily_rate: Number(booking.daily_rate),
+      weekly_discount_percent: booking.weekly_discount_applied ?? booking.vehicles?.weekly_discount_percent ?? 15,
+      weekly_unlimited_mileage_enabled: booking.vehicles?.weekly_unlimited_mileage_enabled ?? true,
+    };
+    const pricing = computeRentalPricing({
+      vehicle: lateVehicle,
+      pickupDate: booking.pickup_date,
+      returnDate: todayStr,
       deliveryFeeAmount: DELIVERY_FEES[booking.delivery_type] ?? Number(booking.delivery_fee || 0),
       discountAmount: Number(booking.discount_amount || 0),
       mileageAddonFee: Number(booking.mileage_addon_fee || 0),
@@ -220,10 +225,14 @@ router.post('/:id/return', requireAuth, asyncHandler(async (req, res) => {
     });
     Object.assign(extraFields, {
       return_date: todayStr,
-      rental_days: actualDays,
+      rental_days: pricing.rental_days,
+      rate_type: pricing.rate_type,
+      weekly_discount_applied: pricing.weekly_discount_applied,
       subtotal: pricing.subtotal,
       tax_amount: pricing.tax_amount,
       total_cost: pricing.total_cost,
+      mileage_allowance: pricing.mileage_allowance,
+      line_items: pricing.line_items,
       late_return: true,
     });
   }

@@ -5,6 +5,228 @@
 
 ---
 
+## 2026-04-26 — Phase 8: Loyalty / Repeat Customer
+
+**Scope:** Automatic tier-based discounts at booking creation + admin Loyalty dashboard. 9 files (3 new, 6 modified).
+**Blast Radius:** MEDIUM — pricing chain modified (pricingService → bookingService); no existing bookings affected.
+
+### Backend (6 files)
+- `backend/services/loyaltyService.js` — NEW. `LOYALTY_TIERS` config (Bronze 1+ → 5%, Silver 3+ → 8%, Gold 5+ → 10%, VIP 10+ → 15%). `resolveCustomerLoyalty(supabase, customerId)` counts completed bookings and returns `{ tier, discountPct, completedCount }`
+- `backend/routes/loyalty.js` — NEW. `GET /loyalty/customers` (admin): aggregates bookings per customer, returns tier + total spent + last rental + breakdown counts
+- `backend/api/index.js` + `backend/server.js` — registered `/api/v1/loyalty`
+- `backend/services/pricingService.js` — `computeRentalPricing()` gains `loyaltyDiscountPct` + `loyaltyTierLabel` params. Discount applied post-seasonal, pre-tax. Shows as named line item (e.g. *"Gold loyalty (10% off)"*) on invoice
+- `backend/services/bookingService.js` — `resolveMultiplier` + `resolveCustomerLoyalty` called in parallel (`Promise.all`) before pricing; results passed to `computeRentalPricing`
+
+### Dashboard (3 files)
+- `dashboard/src/pages/LoyaltyPage.jsx` — NEW. 4 tier stat cards (click to filter), searchable table: tier badge, completed count, total spent, last rental date. Row click → CustomerDetail
+- `dashboard/src/App.jsx` — `/loyalty` route added
+- `dashboard/src/components/layout/Sidebar.jsx` — "Loyalty" nav item (Crown icon)
+
+**No migration required** — loyalty tier computed from existing `bookings` table.
+**Builds:** ✅ Dashboard 1,420.22 kB — zero errors
+
+---
+
+## 2026-04-26 — Phase 7: Dynamic / Seasonal Pricing
+
+**Scope:** Date-range pricing rules applied automatically at booking creation. 8 files (3 new, 5 modified).
+**Blast Radius:** MEDIUM — pricing chain modified (pricingService → bookingService); no existing bookings retroactively repriced.
+
+### Backend (6 files)
+- `backend/routes/pricingRules.js` — NEW. CRUD (admin-only): `GET`, `POST`, `PATCH /:id`, `DELETE /:id`
+- `backend/api/index.js` + `backend/server.js` — registered `/api/v1/pricing-rules`
+- `backend/services/pricingService.js` — `resolveMultiplier(supabase, pickup, return, vehicleId)` helper exported. `computeRentalPricing()` gains `priceMultiplier` + `seasonalRuleName` params. Multiplier applies to subtotal; shows as named line item (e.g. *"Spring Break (+25%)"*)
+- `backend/services/bookingService.js` — calls `resolveMultiplier` before pricing; multiplier + name passed through
+
+### Dashboard (2 files)
+- `dashboard/src/pages/PricingRulesPage.jsx` — NEW. Rule cards grouped Active Now / Upcoming / Past. Amber "LIVE" badge. Active toggle. Create/edit modal with live `+25%` / `-10%` multiplier preview. Amber banner when rule is firing
+- `dashboard/src/App.jsx` — `/pricing-rules` route; Sidebar "Pricing Rules" (Percent icon)
+
+**Migration (already applied):**
+```sql
+CREATE TABLE pricing_rules (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), name text NOT NULL, start_date date NOT NULL, end_date date NOT NULL, multiplier decimal(4,3) NOT NULL DEFAULT 1.0, vehicle_ids jsonb, active boolean NOT NULL DEFAULT true, created_at timestamptz NOT NULL DEFAULT now());
+```
+**Builds:** ✅ Dashboard 1,412.08 kB — zero errors
+
+---
+
+## 2026-04-26 — Phase 6: Driver's License Verification
+
+**Scope:** Front/back license photo upload in booking wizard + admin signed-URL viewer. 5 files modified.
+**Blast Radius:** LOW — additive only; wizard gains optional upload step; admin viewer falls back gracefully for old bookings.
+
+### Customer Site (3 files)
+- `src/components/booking/confirm-booking/wizard-steps/LicenseStep.tsx` — Front/back photo upload slots added. Uploads to `POST /uploads/id-photo`. Shows preview thumbnail + remove button. Upload is optional ("speeds up check-in")
+- `src/components/booking/confirm-booking/constants.ts` — `licensePhotoPaths: string[]` added to `WizardDraft` interface + `getDefaultDraft()`
+- `src/components/booking/ConfirmBooking.tsx` — `license_photo_paths` included in agreement sign payload
+
+### Backend (1 file)
+- `backend/routes/agreements.js` — `license_photo_paths` destructured from body, stored as JSONB in `rental_agreements.license_photo_paths`
+
+### Dashboard (1 file)
+- `dashboard/src/pages/BookingDetailPage.jsx` — `IdPhotoGallery` component: handles new multi-path array (fetches 2-hr admin signed URLs on click) + legacy `c.id_photo_url` fallback. `hasIdPhoto` updated to check `ag?.license_photo_paths`
+
+**Migration (already applied):**
+```sql
+ALTER TABLE rental_agreements ADD COLUMN IF NOT EXISTS license_photo_paths JSONB;
+```
+**Builds:** ✅ Dashboard 1,400.47 kB — zero errors
+
+---
+
+## 2026-04-26 — Phase 5: Automated Message Sequences
+
+**Scope:** 5 new lifecycle triggers in the daily cron + notifyService additions + Sequences dashboard tab. 3 files modified (backend only — no customer site changes).
+**Blast Radius:** LOW — additive only, no existing logic modified.
+
+### Backend (2 files)
+- `backend/routes/cron.js` — 5 new sequences added to `/daily`:
+  - **Mid-rental check-in** — `pickup_date = 2 days ago`, status `active`
+  - **Extension offer** — `return_date = tomorrow`, status `active`, `rental_days >= 3`
+  - **Review request** (`rental_completed`) — `return_date = yesterday`, status `completed`
+  - **Repeat customer** — `return_date = 30 days ago`, status `completed`
+  - **Late return escalation** — `return_date = 4 days ago`, status `active` (single fire vs. daily warning)
+  - Added `daysAgo(n)` helper; results object extended
+- `backend/services/notifyService.js` — added `STAGE_CTA` entries for `late_return_escalation`, `mid_rental_checkin`, `extension_offer`, `repeat_customer`; added all 4 to `EVENT_SUMMARIES`
+
+### Dashboard (1 file)
+- `dashboard/src/pages/MessagingPage.jsx` — 3rd tab "Sequences" added; `SequencesTab` component lists all 8 automated sequences with trigger logic, color coding, and stage ID; `SEQUENCES` const mirrors cron implementation for admin visibility
+
+**Deduplication note:** All sequences use exact-date matching (e.g. `pickup_date = 2 days ago`) so each booking matches at most once per sequence. No `notifications_log` table required.
+
+**Builds:** ✅ Dashboard 1,398.89 kB — zero errors
+
+---
+
+## 2026-04-26 — Phase 4: Analytics Hardening
+
+**Scope:** Wire Phase 1 rate_type data into Revenue dashboard. New charts + inquiry funnel + Reviews badge. 3 files modified.
+**Blast Radius:** LOW — backend stats route + dashboard layout alerts + revenue page only.
+
+### Backend (1 file)
+- `backend/routes/stats.js`:
+  - `/overview` — added `pending_reviews` count (unapproved reviews); used by sidebar badge
+  - `/revenue` — added `rate_type`, `rental_days`, `weekly_discount_applied` to bookings join; new response fields: `by_rate_type`, `days_distribution`, `avg_rental_days`, `weekly_discount_total`, `inquiry_funnel`; transactions now include `rate_type` + `rental_days`
+
+### Dashboard (2 files)
+- `dashboard/src/components/layout/DashboardLayout.jsx` — `pending_reviews` added to alerts object (feeds sidebar Reviews badge)
+- `dashboard/src/pages/RevenuePage.jsx`:
+  - New KPI card: Avg Rental Length + weekly discount total
+  - New: Monthly Lead Funnel (4-step pill cards: new/contacted/converted/closed)
+  - New: Revenue by Rate Type donut (daily=indigo, weekly=gold, weekly_mixed=amber)
+  - New: Booking Length Distribution bar chart (7+ days highlighted gold)
+  - Transactions table: Rate column with colored pill + day count
+  - CSV export: added Rate Type + Days columns
+
+**Builds:** ✅ Dashboard 1,395.34 kB — zero errors
+
+---
+
+## 2026-04-26 — Phase 3: Reviews & Social Proof
+
+**Scope:** Post-rental review collection + live display + admin approval queue. 9 files changed (2 new, 7 modified).
+**Blast Radius:** MEDIUM — portal, homepage ReviewsSection, dashboard.
+
+### Backend (3 files)
+- `backend/routes/reviews.js` — NEW. `POST /reviews` (public, 5/hr rate limit), `GET /reviews` (approved only), `GET /reviews/pending` (admin), `PATCH /reviews/:id` (approve/reject), `DELETE /reviews/:id`
+- `backend/api/index.js` — registered `/api/v1/reviews`
+- `backend/server.js` — registered `/api/v1/reviews`
+
+### Customer Site (2 files)
+- `src/components/portal/CustomerPortal.tsx` — Star rating + comment form shown when `status === 'completed'`; thank-you state after submit
+- `src/components/home/ReviewsSection.tsx` — Fetches live approved reviews from API on mount; merges with static seed; overall rating + count computed dynamically
+
+### Dashboard (4 files)
+- `dashboard/src/pages/ReviewsPage.jsx` — NEW. Pending queue (approve/reject) + Live tab (remove). Badge shows pending count.
+- `dashboard/src/App.jsx` — `/reviews` route added
+- `dashboard/src/components/layout/Sidebar.jsx` — Reviews nav item with `pending_reviews` alert badge
+- `dashboard/src/api/client.js` — `getReviews`, `getReviewsPending`, `updateReview`, `deleteReview`
+
+### DB Migration Required
+Run before deploying — create `reviews` table:
+```sql
+create table reviews (
+  id uuid primary key default gen_random_uuid(),
+  booking_id uuid references bookings(id) on delete set null,
+  booking_code text,
+  reviewer_name text not null,
+  rating int not null check (rating between 1 and 5),
+  comment text not null,
+  vehicle_name text,
+  approved boolean not null default false,
+  created_at timestamptz not null default now()
+);
+create index on reviews (approved, created_at desc);
+```
+
+**Builds:** ✅ Customer site 828.47 kB · Dashboard 1,390.47 kB — zero errors
+
+---
+
+## 2026-04-25 — Phase 2: Crisp Live Chat Embed
+
+**Scope:** Portal-only Crisp widget with user identification + dashboard sidebar/messaging page updates. 5 files changed (1 new, 4 modified).
+**Blast Radius:** LOW — contained to portal component, config, dashboard page/sidebar.
+
+### Customer Site (3 files)
+- `src/config.ts` — Added `CRISP_WEBSITE_ID` export from `VITE_CRISP_WEBSITE_ID`
+- `src/components/portal/CrispWidget.tsx` — NEW. Dynamic script injection, user identification (email/name/phone + session data: booking_code, vehicle, status, dates), cleanup on unmount, `openCrispChat()` exported helper
+- `src/components/portal/CustomerPortal.tsx` — Imports CrispWidget; mounts it only when `view === 'dashboard'`; "Message Annie" gold button (falls back to `tel:` if Crisp unavailable)
+
+### Dashboard (2 files)
+- `dashboard/src/pages/MessagingPage.jsx` — Header renamed "SMS Conversations"; "Open Crisp Dashboard" external link added
+- `dashboard/src/components/layout/Sidebar.jsx` — `ExternalNavItem` component added; "Crisp Chat" link in System section (owner/admin only) → opens `https://app.crisp.chat` in new tab
+
+### Config
+- `.env` — `VITE_CRISP_WEBSITE_ID=fa6bac7f-c9a8-46af-8f35-c158a7ff4ef7` (customer site only)
+- Vercel env var required: add `VITE_CRISP_WEBSITE_ID` to customer site project (Production + Preview)
+
+**Builds:** ✅ Customer site 826.05 kB · Dashboard 1,385.56 kB — zero errors
+
+---
+
+## 2026-04-24 — Phase 1: Weekly Pricing Engine + Monthly Lead-Gen
+
+**Scope:** Full backend pricing refactor + customer site rate toggle/upsell + dashboard weekly pricing editor + monthly inquiries admin. 21 files changed (7 new, 14 modified).
+**Blast Radius:** HIGH — pricing logic, customer booking form, email notifications, fleet display.
+
+### Backend Changes (8 files)
+- `backend/services/pricingService.js` — Full rewrite: `computeRentalPricing()` with weekly block math, `line_items` JSONB, `mileage_allowance`, `rate_type`, savings display fields
+- `backend/services/bookingService.js` — Updated to call `computeRentalPricing()`, explicit DB column assignment (no spread of display-only fields)
+- `backend/routes/bookings.js` — Late-return recalc uses `computeRentalPricing()`
+- `backend/routes/vehicles.js` — Catalog: computes `weeklyRate` from formula, adds `vehicleId`, `weeklyDiscountPercent`, `weeklyUnlimitedMileage`, `monthlyDisplayPrice`; includes `id` in select
+- `backend/routes/agreements.js` — Auto-fill expanded with `weeklyRate`, `rateType`, `mileageAllowance`, `lineItems`
+- `backend/services/notifyService.js` — `mileage_policy` merge field derived from `mileage_allowance`
+- `backend/services/fallbackTemplates.js` — `{{mileage_policy}}` in 4 locations
+- `backend/routes/monthlyInquiries.js` (NEW) — POST (rate-limited 3/hr), GET (admin list), PATCH (status/notes); registered in both `server.js` and `api/index.js`
+- `backend/tests/pricingService.test.js` (NEW) — 8 passing tests
+
+### Customer Site Changes (9 files)
+- `src/types/index.ts` — `RateMode` type; Vehicle: `vehicleId`, `weeklyDiscountPercent`, `weeklyUnlimitedMileage`, `monthlyDisplayPrice`
+- `src/utils/pricing.ts` (NEW) — `calcRentalDays`, `calcWeeklyRate`, `calcPriceBreakdown` — mirrors backend logic
+- `src/components/home/RateToggle.tsx` (NEW) — Framer Motion sliding gold pill (Daily/Weekly/Monthly)
+- `src/components/home/VehicleCard.tsx` — `rateMode` prop: 3 display modes, savings badge, unlimited mileage pill, monthly hidden if no price
+- `src/components/home/MonthlyInquiryModal.tsx` (NEW) — Phone-first bottom-sheet inquiry form
+- `src/components/home/FleetGrid.tsx` — `rateMode` prop, monthly click opens modal, monthly-empty state
+- `src/components/home/Hero.tsx` — `RateToggle` between subtitle and CTA
+- `src/App.tsx` — `rateMode` state lifted; passes to Hero + FleetGrid
+- `src/components/vehicle/WeeklyUpsell.tsx` (NEW) — 5-6 day gold nudge / 7+ day green success
+- `src/components/vehicle/RequestToBookForm.tsx` — WeeklyUpsell wired, miles checkbox hidden for weekly, `calcPriceBreakdown` for price estimate
+
+### Dashboard Changes (5 files)
+- `dashboard/src/api/client.js` — Added `getMonthlyInquiries`, `updateMonthlyInquiry`
+- `dashboard/src/components/vehicles/WeeklyPricingSection.jsx` (NEW) — Discount slider, live calculator, unlimited mileage toggle, monthly display price
+- `dashboard/src/pages/VehicleDetailPage.jsx` — WeeklyPricingSection below details; editForm includes weekly/monthly fields
+- `dashboard/src/pages/MonthlyInquiriesPage.jsx` (NEW) — Admin list with status workflow, inline notes, filter
+- `dashboard/src/components/layout/Sidebar.jsx` — Monthly Leads nav link
+- `dashboard/src/App.jsx` — `/monthly-inquiries` route
+
+### Build
+- Customer site: ✅ zero errors
+- Dashboard: ✅ zero errors
+
+---
+
 ## 2026-04-24 — Unified Booking Wizard (Agreement + Insurance + Payment)
 
 **Scope:** Replaced 3-page `/confirm` flow with single unified wizard. 14 files touched (9 new, 5 modified).

@@ -185,4 +185,14 @@ export const api = {
 
   // System
   getSystemHealth: () => request('/system/health'),
+
+  // Monthly Inquiries
+  getMonthlyInquiries: (params = {}) => request(`/monthly-inquiries?${new URLSearchParams(params)}`),
+  updateMonthlyInquiry: (id, body) => request(`/monthly-inquiries/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+
+  // Reviews
+  getReviews: () => request('/reviews'),
+  getReviewsPending: () => request('/reviews/pending'),
+  updateReview: (id, body) => request(`/reviews/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteReview: (id) => request(`/reviews/${id}`, { method: 'DELETE' }),
 };

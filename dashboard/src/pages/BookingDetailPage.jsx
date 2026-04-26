@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Phone, Mail, Car, MapPin, CheckCircle, XCircle, Package, RotateCcw, Flag, DollarSign, FileText, Shield, CreditCard, User, ClipboardCheck, Receipt, Navigation } from 'lucide-react';
 import { api } from '../api/client';
+import { supabase } from '../auth/supabaseClient';
 import StatusBadge from '../components/shared/StatusBadge';
 import { SkeletonDashboard } from '../components/shared/Skeleton';
 import AgreementSection from '../components/shared/AgreementSection';
@@ -23,6 +24,82 @@ const TABS = [
   { id: 'checkout',   label: 'Check-Out',  icon: ClipboardCheck },
   { id: 'invoice',    label: 'Invoice',    icon: Receipt     },
 ];
+
+/* ────────────────────────────────────────────────────────
+   ID Photo Gallery — handles new multi-path + legacy single URL
+   ──────────────────────────────────────────────────────── */
+const BASE_API = import.meta.env.VITE_API_URL || '/api/v1';
+
+function IdPhotoGallery({ paths, legacyUrl, onView }) {
+  const [signedUrls, setSignedUrls] = useState({});
+  const [loading, setLoading] = useState({});
+
+  const fetchSignedUrl = async (path, idx) => {
+    if (signedUrls[idx] || loading[idx]) return;
+    setLoading(prev => ({ ...prev, [idx]: true }));
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const res = await fetch(
+        `${BASE_API}/uploads/signed-url?bucket=id-photos&path=${encodeURIComponent(path)}`,
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      );
+      const { url } = await res.json();
+      setSignedUrls(prev => ({ ...prev, [idx]: url }));
+      onView(url);
+    } catch {
+      /* silent */
+    } finally {
+      setLoading(prev => ({ ...prev, [idx]: false }));
+    }
+  };
+
+  // New system: array of storage paths
+  if (paths?.length > 0) {
+    const labels = ['Front', 'Back'];
+    return (
+      <div className="flex flex-wrap gap-3">
+        {paths.map((path, idx) => (
+          <div key={idx} className="flex flex-col items-start gap-1">
+            <span className="text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">{labels[idx] ?? `Photo ${idx + 1}`}</span>
+            <button
+              onClick={() => fetchSignedUrl(path, idx)}
+              disabled={loading[idx]}
+              className="h-24 w-36 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-hover)] flex items-center justify-center text-xs text-[var(--text-secondary)] hover:opacity-80 transition-all cursor-pointer overflow-hidden"
+            >
+              {loading[idx] ? (
+                <span className="animate-pulse">Loading…</span>
+              ) : signedUrls[idx] ? (
+                <img src={signedUrls[idx]} alt={`License ${labels[idx] ?? idx + 1}`} className="h-full w-full object-cover" />
+              ) : (
+                <span>View</span>
+              )}
+            </button>
+          </div>
+        ))}
+        <p className="w-full text-xs text-[var(--text-tertiary)] -mt-1">Click to load & enlarge</p>
+      </div>
+    );
+  }
+
+  // Legacy: single pre-signed URL stored on customer record
+  if (legacyUrl) {
+    return (
+      <div>
+        <button onClick={() => onView(legacyUrl)} className="cursor-pointer">
+          <img
+            src={legacyUrl}
+            alt="Customer photo ID"
+            className="h-28 w-auto rounded-lg border border-[var(--border-subtle)] object-cover hover:opacity-80 hover:shadow-md transition-all"
+          />
+        </button>
+        <p className="text-xs text-[var(--text-tertiary)] mt-1">Click to enlarge</p>
+      </div>
+    );
+  }
+
+  return null;
+}
 
 /* ────────────────────────────────────────────────────────
    Main Component
@@ -320,7 +397,7 @@ function OverviewTab({ booking, c, v, id, load, setModal, setPaymentForm, setLig
         const ag = booking.rental_agreements?.[0];
         const hasDL = ag?.driver_license_number || c?.driver_license_number;
         const hasAddress = ag?.address_line1 || c?.address_line1;
-        const hasIdPhoto = c?.id_photo_url;
+        const hasIdPhoto = (ag?.license_photo_paths?.length > 0) || c?.id_photo_url;
         if (!hasDL && !hasAddress && !hasIdPhoto && !ag) return null;
         return (
           <Section title="Customer Documents">
@@ -357,14 +434,11 @@ function OverviewTab({ booking, c, v, id, load, setModal, setPaymentForm, setLig
                 <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2 flex items-center gap-1.5">
                   <User size={12} /> Photo ID
                 </p>
-                <button onClick={() => setLightboxUrl(c.id_photo_url)} className="cursor-pointer">
-                  <img
-                    src={c.id_photo_url}
-                    alt="Customer photo ID"
-                    className="h-28 w-auto rounded-lg border border-[var(--border-subtle)] object-cover hover:opacity-80 hover:shadow-md transition-all"
-                  />
-                </button>
-                <p className="text-xs text-[var(--text-tertiary)] mt-1">Click to enlarge</p>
+                <IdPhotoGallery
+                  paths={ag?.license_photo_paths}
+                  legacyUrl={c?.id_photo_url}
+                  onView={setLightboxUrl}
+                />
               </div>
             )}
           </Section>

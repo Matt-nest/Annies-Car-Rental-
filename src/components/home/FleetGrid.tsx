@@ -1,22 +1,25 @@
 import { useState, useMemo } from 'react';
 import { ArrowUpDown, ChevronDown } from 'lucide-react';
-import { motion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useVehicles } from '../../hooks/useVehicles';
-import { Vehicle, SortOption, FilterCategory } from '../../types';
+import { Vehicle, SortOption, FilterCategory, RateMode } from '../../types';
 import VehicleCard from './VehicleCard';
+import MonthlyInquiryModal from './MonthlyInquiryModal';
 import { useTheme } from '../../context/ThemeContext';
 import { EASE } from '../../utils/motion';
 
 interface FleetGridProps {
   onSelectVehicle: (vehicle: Vehicle) => void;
+  rateMode?: RateMode;
 }
 
-export default function FleetGrid({ onSelectVehicle }: FleetGridProps) {
+export default function FleetGrid({ onSelectVehicle, rateMode = 'daily' }: FleetGridProps) {
   const { theme } = useTheme();
   const { vehicles } = useVehicles();
   const [sortBy, setSortBy] = useState<SortOption>('default');
   const [filterCategory, setFilterCategory] = useState<FilterCategory>('all');
   const [showAll, setShowAll] = useState(false);
+  const [monthlyVehicle, setMonthlyVehicle] = useState<Vehicle | null>(null);
 
   const categories: { label: string; value: FilterCategory }[] = [
     { label: 'All Vehicles', value: 'all' },
@@ -37,7 +40,25 @@ export default function FleetGrid({ onSelectVehicle }: FleetGridProps) {
     return result;
   }, [vehicles, sortBy, filterCategory]);
 
-  const displayedVehicles = showAll ? filteredAndSorted : filteredAndSorted.slice(0, 9);
+  // In monthly mode, filter out vehicles without a monthly price
+  const displayableVehicles = useMemo(() => {
+    if (rateMode !== 'monthly') return filteredAndSorted;
+    return filteredAndSorted.filter(v => v.monthlyDisplayPrice != null);
+  }, [filteredAndSorted, rateMode]);
+
+  const displayedVehicles = showAll ? displayableVehicles : displayableVehicles.slice(0, 9);
+
+  const handleCardClick = (vehicle: Vehicle) => {
+    if (rateMode === 'monthly') {
+      setMonthlyVehicle(vehicle);
+    } else {
+      onSelectVehicle(vehicle);
+    }
+  };
+
+  const monthlySubtitle = rateMode === 'monthly'
+    ? `${displayableVehicles.length} vehicle${displayableVehicles.length !== 1 ? 's' : ''} available for monthly rental`
+    : `${vehicles.length} vehicles ready for daily and weekly rental.`;
 
   return (
     <section id="fleet" className="pt-16 pb-24 sm:pb-32 px-4 sm:px-6 max-w-7xl mx-auto">
@@ -70,7 +91,7 @@ export default function FleetGrid({ onSelectVehicle }: FleetGridProps) {
             className="text-lg"
             style={{ color: 'var(--text-secondary)' }}
           >
-            {vehicles.length} vehicles ready for daily and weekly rental.
+            {monthlySubtitle}
           </motion.p>
         </div>
 
@@ -103,7 +124,7 @@ export default function FleetGrid({ onSelectVehicle }: FleetGridProps) {
           <button
             key={cat.value}
             onClick={() => { setFilterCategory(cat.value); setShowAll(false); }}
-            className="snap-start px-5 sm:px-6 py-3 md:py-2.5 rounded-full text-sm font-medium border transition-all duration-500 hover:scale-[1.03] active:scale-95 whitespace-nowrap shrink-0"
+            className="snap-start px-5 sm:px-6 py-3 md:py-2.5 rounded-full text-sm font-medium border transition-all duration-500 hover:scale-[1.03] active:scale-95 whitespace-nowrap shrink-0 cursor-pointer"
             style={{
               backgroundColor: filterCategory === cat.value ? 'var(--accent)' : 'var(--bg-card)',
               color: filterCategory === cat.value ? 'var(--accent-fg)' : 'var(--text-secondary)',
@@ -118,25 +139,42 @@ export default function FleetGrid({ onSelectVehicle }: FleetGridProps) {
       {/* Grid */}
       {displayedVehicles.length === 0 ? (
         <div className="text-center py-20">
-          <p style={{ color: 'var(--text-tertiary)' }} className="text-lg">No vehicles match your current filters.</p>
-          <button
-            onClick={() => setFilterCategory('all')}
-            className="mt-4 underline underline-offset-4"
-            style={{ color: 'var(--text-primary)' }}
-          >
-            Clear filters
-          </button>
+          {rateMode === 'monthly' ? (
+            <>
+              <p style={{ color: 'var(--text-tertiary)' }} className="text-lg">Monthly pricing not yet set for this category.</p>
+              <p className="text-sm mt-2" style={{ color: 'var(--text-tertiary)' }}>
+                Call <a href="tel:+17729856667" className="underline underline-offset-2" style={{ color: 'var(--accent-color)' }}>(772) 985-6667</a> — Annie can work out a monthly arrangement for any vehicle.
+              </p>
+            </>
+          ) : (
+            <>
+              <p style={{ color: 'var(--text-tertiary)' }} className="text-lg">No vehicles match your current filters.</p>
+              <button
+                onClick={() => setFilterCategory('all')}
+                className="mt-4 underline underline-offset-4"
+                style={{ color: 'var(--text-primary)' }}
+              >
+                Clear filters
+              </button>
+            </>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-8">
           {displayedVehicles.map((v: Vehicle, i: number) => (
-            <VehicleCard key={v.id} vehicle={v} onClick={() => onSelectVehicle(v)} index={i} />
+            <VehicleCard
+              key={v.id}
+              vehicle={v}
+              onClick={() => handleCardClick(v)}
+              index={i}
+              rateMode={rateMode}
+            />
           ))}
         </div>
       )}
 
       {/* Show More */}
-      {filteredAndSorted.length > 9 && (
+      {displayableVehicles.length > 9 && (
         <motion.div
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
@@ -145,13 +183,23 @@ export default function FleetGrid({ onSelectVehicle }: FleetGridProps) {
         >
           <button
             onClick={() => setShowAll(!showAll)}
-            className="px-10 py-4 rounded-full border transition-all duration-500 font-medium active:scale-95 hover:scale-[1.03] hover:bg-[var(--bg-card-hover)]"
+            className="px-10 py-4 rounded-full border transition-all duration-500 font-medium active:scale-95 hover:scale-[1.03] hover:bg-[var(--bg-card-hover)] cursor-pointer"
             style={{ borderColor: 'var(--border-medium)', color: 'var(--text-secondary)' }}
           >
-            {showAll ? 'Show Less' : `View All ${filteredAndSorted.length} Vehicles`}
+            {showAll ? 'Show Less' : `View All ${displayableVehicles.length} Vehicles`}
           </button>
         </motion.div>
       )}
+
+      {/* Monthly Inquiry Modal */}
+      <AnimatePresence>
+        {monthlyVehicle && (
+          <MonthlyInquiryModal
+            vehicle={monthlyVehicle}
+            onClose={() => setMonthlyVehicle(null)}
+          />
+        )}
+      </AnimatePresence>
     </section>
   );
 }

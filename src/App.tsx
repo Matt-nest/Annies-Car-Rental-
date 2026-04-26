@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AnimatePresence, motion } from 'motion/react';
-import { Vehicle } from './types';
+import { Vehicle, RateMode } from './types';
 import { EASE } from './utils/motion';
 import { ThemeProvider } from './context/ThemeContext';
 import Navbar from './components/layout/Navbar';
@@ -37,6 +37,7 @@ export default function App() {
   });
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [quickViewVehicle, setQuickViewVehicle] = useState<Vehicle | null>(null);
+  const [rateMode, setRateMode] = useState<RateMode>('daily');
 
   useEffect(() => {
     const handlePop = () => {
@@ -165,9 +166,9 @@ export default function App() {
             transition={{ duration: 0.3, ease: EASE.standard }}
           >
             <Navbar onNavigate={scrollToSection} isHomePage />
-            <Hero onBrowseFleet={handleBrowseFleet} />
+            <Hero onBrowseFleet={handleBrowseFleet} rateMode={rateMode} onRateModeChange={setRateMode} />
             <HowItWorks />
-            <FleetGrid onSelectVehicle={handleQuickView} />
+            <FleetGrid onSelectVehicle={handleQuickView} rateMode={rateMode} />
             <TrustSection />
             <ReviewsSection />
             <InsuranceSection />

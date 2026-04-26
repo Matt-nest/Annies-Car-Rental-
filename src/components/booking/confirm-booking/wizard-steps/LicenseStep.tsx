@@ -1,6 +1,7 @@
 import React from 'react';
-import { CreditCard } from 'lucide-react';
+import { CreditCard, Upload, X, CheckCircle } from 'lucide-react';
 import { US_STATES } from '../../../../data/rentalTerms';
+import { API_URL } from '../constants';
 import type { WizardDraft } from '../constants';
 
 interface Props {
@@ -11,8 +12,14 @@ interface Props {
   theme: string;
 }
 
+type PhotoSide = 'front' | 'back';
+
 export default function LicenseStep({ draft, onUpdate, onContinue, onBack, theme }: Props) {
   const [errors, setErrors] = React.useState<Record<string, string>>({});
+  const [uploading, setUploading] = React.useState<Record<PhotoSide, boolean>>({ front: false, back: false });
+  const [previews, setPreviews] = React.useState<Record<PhotoSide, string | null>>({ front: null, back: null });
+  const frontRef = React.useRef<HTMLInputElement>(null);
+  const backRef = React.useRef<HTMLInputElement>(null);
 
   const inputStyle: React.CSSProperties = {
     backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.04)',
@@ -31,6 +38,37 @@ export default function LicenseStep({ draft, onUpdate, onContinue, onBack, theme
     if (errors[key]) setErrors(prev => { const n = { ...prev }; delete n[key]; return n; });
   };
 
+  const handlePhotoUpload = async (side: PhotoSide, file: File) => {
+    setUploading(prev => ({ ...prev, [side]: true }));
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch(`${API_URL}/uploads/id-photo`, { method: 'POST', body: form });
+      if (!res.ok) throw new Error('Upload failed');
+      const { url, path } = await res.json();
+
+      const currentPaths = draft.licensePhotoPaths || [];
+      // Replace existing slot for this side (front = index 0, back = index 1)
+      const newPaths = [...currentPaths];
+      const idx = side === 'front' ? 0 : 1;
+      newPaths[idx] = path;
+      onUpdate({ licensePhotoPaths: newPaths.filter(Boolean) });
+      setPreviews(prev => ({ ...prev, [side]: url }));
+    } catch {
+      // silently fail — photos are optional
+    } finally {
+      setUploading(prev => ({ ...prev, [side]: false }));
+    }
+  };
+
+  const removePhoto = (side: PhotoSide) => {
+    const idx = side === 'front' ? 0 : 1;
+    const newPaths = [...(draft.licensePhotoPaths || [])];
+    newPaths[idx] = '';
+    onUpdate({ licensePhotoPaths: newPaths.filter(Boolean) });
+    setPreviews(prev => ({ ...prev, [side]: null }));
+  };
+
   const validate = () => {
     const errs: Record<string, string> = {};
     if (!draft.license.number.trim()) errs.number = 'Required';
@@ -42,6 +80,63 @@ export default function LicenseStep({ draft, onUpdate, onContinue, onBack, theme
 
   const handleContinue = () => {
     if (validate()) onContinue();
+  };
+
+  const PhotoUploadSlot = ({ side, label }: { side: PhotoSide; label: string }) => {
+    const ref = side === 'front' ? frontRef : backRef;
+    const preview = previews[side];
+    const isUploading = uploading[side];
+
+    return (
+      <div className="flex-1">
+        <p className="text-[10px] uppercase tracking-[0.15em] mb-1.5 ml-0.5" style={{ color: 'var(--text-tertiary)' }}>{label}</p>
+        {preview ? (
+          <div className="relative rounded-xl overflow-hidden border" style={{ borderColor: 'var(--accent-color)', aspectRatio: '16/10' }}>
+            <img src={preview} alt={`License ${side}`} className="w-full h-full object-cover" />
+            <button
+              type="button"
+              onClick={() => removePhoto(side)}
+              className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center cursor-pointer"
+              style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+            >
+              <X size={12} className="text-white" />
+            </button>
+            <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1">
+              <CheckCircle size={12} style={{ color: 'var(--accent-color)' }} />
+              <span className="text-[10px] font-medium" style={{ color: 'var(--accent-color)' }}>Uploaded</span>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => ref.current?.click()}
+            disabled={isUploading}
+            className="w-full rounded-xl border border-dashed flex flex-col items-center justify-center gap-1.5 py-4 transition-all cursor-pointer hover:opacity-80"
+            style={{ borderColor: 'var(--border-subtle)', backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', aspectRatio: '16/10' }}
+          >
+            {isUploading ? (
+              <div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--accent-color)', borderTopColor: 'transparent' }} />
+            ) : (
+              <Upload size={16} style={{ color: 'var(--text-tertiary)' }} />
+            )}
+            <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+              {isUploading ? 'Uploading…' : 'Tap to upload'}
+            </span>
+          </button>
+        )}
+        <input
+          ref={ref}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+          className="hidden"
+          onChange={e => {
+            const file = e.target.files?.[0];
+            if (file) handlePhotoUpload(side, file);
+            e.target.value = '';
+          }}
+        />
+      </div>
+    );
   };
 
   return (
@@ -77,6 +172,17 @@ export default function LicenseStep({ draft, onUpdate, onContinue, onBack, theme
               <input type="date" className={inputClass('expiry')} style={{ ...inputStyle, ...borderStyle('expiry') }}
                 value={draft.license.expiry} onChange={e => updateLicense('expiry', e.target.value)} />
               {errors.expiry && <p className="text-red-400 text-xs mt-0.5 ml-0.5">{errors.expiry}</p>}
+            </div>
+          </div>
+
+          {/* Photo upload — optional */}
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.15em] mb-2 ml-0.5" style={{ color: 'var(--text-tertiary)' }}>
+              License Photos <span className="normal-case opacity-60">(optional — speeds up check-in)</span>
+            </p>
+            <div className="flex gap-3">
+              <PhotoUploadSlot side="front" label="Front" />
+              <PhotoUploadSlot side="back" label="Back" />
             </div>
           </div>
         </div>
