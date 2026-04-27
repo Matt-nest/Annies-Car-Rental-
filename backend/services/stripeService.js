@@ -127,17 +127,34 @@ export async function createPaymentIntent(bookingCode, { insurance_selection, ex
 
 /**
  * Build the payment_confirmed payload and send the itemized receipt.
- * Awaited so the dispatch isn't killed by Vercel's serverless lifecycle when
- * the parent handler returns. Errors are logged but never thrown — the
- * payment ledger has already been written by the time this runs.
+ *
+ * Idempotent across all three trigger paths (Stripe webhook, confirmPayment,
+ * frontend post-success retry). Uses the PaymentIntent's own `metadata.receipt_sent_at`
+ * as the idempotency key — set after a successful send so subsequent calls skip.
+ *
+ * Awaited so the dispatch isn't killed by Vercel's serverless lifecycle.
+ * Errors are logged but never thrown.
  */
-async function sendPaymentReceipt(bookingId, pi, rentalDollars, depositDollars) {
+export async function sendPaymentReceipt(bookingId, pi, rentalDollars, depositDollars) {
   try {
+    // Re-fetch the PI to get the freshest metadata (idempotency check).
+    // Skip if a receipt has already been dispatched for this PI.
+    const fresh = await stripe.paymentIntents.retrieve(pi.id);
+    if (fresh.metadata?.receipt_sent_at) {
+      console.log(`[Stripe] Receipt already sent for ${pi.id} at ${fresh.metadata.receipt_sent_at} — skipping`);
+      return { skipped: true, reason: 'already_sent' };
+    }
+
     const paidBooking = await getBookingDetail(bookingId);
     if (!paidBooking) {
       console.warn(`[Stripe] sendPaymentReceipt: booking ${bookingId} not found, skipping receipt`);
-      return;
+      return { skipped: true, reason: 'booking_not_found' };
     }
+    if (!paidBooking.customers?.email) {
+      console.warn(`[Stripe] sendPaymentReceipt: booking ${bookingId} has no customer email, skipping receipt`);
+      return { skipped: true, reason: 'no_email' };
+    }
+
     const payload = buildBookingPayload(paidBooking);
     payload.amount = rentalDollars.toFixed(2);
     payload.deposit_amount = depositDollars.toFixed(2);
@@ -151,10 +168,40 @@ async function sendPaymentReceipt(bookingId, pi, rentalDollars, depositDollars) 
     payload.rental_days = paidBooking.pickup_date && paidBooking.return_date ? Math.ceil((new Date(paidBooking.return_date) - new Date(paidBooking.pickup_date)) / (1000 * 60 * 60 * 24)) : '';
     payload.total_miles = payload.rental_days ? (Number(payload.rental_days) * 200).toLocaleString() : '—';
     payload.tax_amount = paidBooking.tax_amount ? parseFloat(paidBooking.tax_amount).toFixed(2) : '0.00';
+
     await sendBookingNotification('payment_confirmed', payload);
+
+    // Mark the PI as having had its receipt sent — prevents double-dispatch
+    // from the multiple trigger paths (webhook, confirmPayment, frontend retry).
+    await stripe.paymentIntents.update(pi.id, {
+      metadata: { ...fresh.metadata, receipt_sent_at: new Date().toISOString() },
+    }).catch(e => console.warn(`[Stripe] Failed to mark receipt_sent_at on ${pi.id}:`, e.message));
+
+    console.log(`[Stripe] Receipt sent for booking ${bookingId} (PI ${pi.id})`);
+    return { sent: true };
   } catch (err) {
     console.error(`[Stripe] sendPaymentReceipt failed for booking ${bookingId}:`, err.message);
+    return { error: err.message };
   }
+}
+
+/**
+ * Trigger a payment receipt by PI id. Used by the frontend after a successful
+ * Stripe confirmation to guarantee the receipt is dispatched, independent of
+ * whether the webhook arrives (or arrives in time). Idempotent.
+ */
+export async function triggerReceiptByPaymentIntent(paymentIntentId) {
+  const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+  if (pi.status !== 'succeeded') {
+    throw Object.assign(new Error(`Payment is not succeeded (status: ${pi.status})`), { status: 400 });
+  }
+  const bookingId = pi.metadata?.booking_id;
+  if (!bookingId) {
+    throw Object.assign(new Error('No booking linked to this payment'), { status: 400 });
+  }
+  const depositCents = Number(pi.metadata.deposit_cents) || 0;
+  const rentalCents = Number(pi.metadata.rental_cents) || pi.amount;
+  return sendPaymentReceipt(bookingId, pi, rentalCents / 100, depositCents / 100);
 }
 
 /**

@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Car, Calendar, MapPin, Key, Camera, Check, AlertCircle,
-  Loader2, Shield, Clock, DollarSign, MessageSquare, ArrowRight,
-  Fuel, Gauge, ChevronRight, ExternalLink, X, Star, Phone, FileText, Timer,
+  Loader2, Shield, DollarSign, MessageSquare, ArrowRight,
+  Fuel, Gauge, ChevronRight, ChevronDown, ExternalLink, X, Star, Phone, Receipt, CreditCard,
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { EASE, DURATION } from '../../utils/motion';
@@ -40,6 +40,72 @@ const card = (theme: string) => ({
   borderRadius: '16px',
   overflow: 'hidden' as const,
 });
+
+/* ── Collapsible section ─────────────────────────────────── */
+function CollapsibleSection({
+  title,
+  icon: Icon,
+  defaultOpen = false,
+  children,
+  rightHint,
+}: {
+  title: string;
+  icon: React.ComponentType<{ size?: number; style?: React.CSSProperties }>;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+  rightHint?: string;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ ease: EASE.standard }}
+      style={{
+        backgroundColor: 'var(--bg-card)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: '16px',
+        overflow: 'hidden',
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-[var(--bg-card-hover)]"
+        aria-expanded={open}
+      >
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: 'var(--bg-card-hover)' }}>
+          <Icon size={16} style={{ color: 'var(--text-secondary)' }} />
+        </div>
+        <span className="flex-1 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</span>
+        {rightHint && <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{rightHint}</span>}
+        <ChevronDown
+          size={16}
+          style={{
+            color: 'var(--text-tertiary)',
+            transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform 220ms ease',
+          }}
+        />
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: EASE.smooth }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div className="px-5 pb-5 pt-0" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+              {children}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
 
 /* ── Main Component ─────────────────────────────────────── */
 export default function CustomerPortal() {
@@ -401,7 +467,7 @@ export default function CustomerPortal() {
       <main className="min-h-screen px-4 sm:px-6" style={{ paddingTop: '100px', paddingBottom: '80px' }}>
         <div className="max-w-lg mx-auto space-y-5">
 
-          {/* Status Header */}
+          {/* Compact identity header — name + booking code */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -409,17 +475,17 @@ export default function CustomerPortal() {
             className="text-center"
           >
             <div
-              className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold mb-4"
+              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-3"
               style={{ backgroundColor: sc.bg, color: sc.color, border: `1px solid ${sc.color}30` }}
             >
-              <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: sc.color }} />
+              <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: sc.color }} />
               {sc.label}
             </div>
-            <h1 className="text-2xl sm:text-3xl font-light mb-1" style={{ color: 'var(--text-primary)' }}>
-              Booking <span className="font-mono font-bold" style={{ color: 'var(--accent-color)' }}>{booking.booking_code}</span>
-            </h1>
-            <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
+            <h1 className="text-xl sm:text-2xl font-light" style={{ color: 'var(--text-primary)' }}>
               {c?.first_name} {c?.last_name}
+            </h1>
+            <p className="text-xs font-mono mt-1" style={{ color: 'var(--text-tertiary)' }}>
+              {booking.booking_code}
             </p>
           </motion.div>
 
@@ -451,59 +517,19 @@ export default function CustomerPortal() {
             </div>
           )}
 
-          {/* Vehicle Card */}
+          {/* ── Unified Rental Card: photo + vehicle + dates + progress bar ── */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1, ease: EASE.standard }}
             style={card(theme)}
           >
-            <div className="p-5">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--accent-glow)' }}>
-                  <Car size={22} style={{ color: 'var(--accent-color)' }} />
-                </div>
-                <div>
-                  <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{v?.year} {v?.make} {v?.model}</p>
-                  <p className="text-xs font-mono" style={{ color: 'var(--text-tertiary)' }}>{v?.vehicle_code}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
-                  <Calendar size={14} style={{ color: 'var(--text-tertiary)' }} />
-                  <div>
-                    <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Pickup</p>
-                    <p>{fmt(booking.pickup_date)} · {fmtTime(booking.pickup_time)}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
-                  <Calendar size={14} style={{ color: 'var(--text-tertiary)' }} />
-                  <div>
-                    <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Return</p>
-                    <p>{fmt(booking.return_date)} · {fmtTime(booking.return_time)}</p>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-3 flex items-start gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                <MapPin size={14} className="mt-0.5 shrink-0" style={{ color: 'var(--text-tertiary)' }} />
-                <span>{booking.pickup_location}</span>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* ── Vehicle Hero Photo ─────────────────────────── */}
-          {v?.vehicle_code && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.12, ease: EASE.smooth }}
-              className="rounded-2xl overflow-hidden"
-              style={{
-                backgroundColor: theme === 'dark' ? '#0a0a0a' : '#f5f5f4',
-                border: '1px solid var(--border-subtle)',
-              }}
-            >
-              <div className="aspect-[16/9] flex items-center justify-center p-4">
+            {/* Vehicle hero photo */}
+            {v?.vehicle_code && (
+              <div
+                className="aspect-[16/9] flex items-center justify-center p-4"
+                style={{ backgroundColor: theme === 'dark' ? '#0a0a0a' : '#f5f5f4', borderBottom: '1px solid var(--border-subtle)' }}
+              >
                 <img
                   src={`/fleet/${v.vehicle_code}/hero.png`}
                   alt={`${v.year} ${v.make} ${v.model}`}
@@ -512,96 +538,117 @@ export default function CustomerPortal() {
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
               </div>
-            </motion.div>
-          )}
+            )}
 
-          {/* ── Status Timeline ───────────────────────────────── */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15, ease: EASE.standard }}
-            style={card(theme)}
-          >
-            <div className="p-5">
-              <h3 className="text-xs font-bold uppercase tracking-[0.15em] mb-4" style={{ color: 'var(--text-tertiary)' }}>
-                Rental Progress
-              </h3>
+            <div className="p-5 space-y-4">
+              {/* Vehicle name */}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: 'var(--accent-glow)' }}>
+                  <Car size={18} style={{ color: 'var(--accent-color)' }} />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{v?.year} {v?.make} {v?.model}</p>
+                  <p className="text-xs font-mono truncate" style={{ color: 'var(--text-tertiary)' }}>{v?.vehicle_code}</p>
+                </div>
+              </div>
+
+              {/* Dates + location */}
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="flex items-start gap-2" style={{ color: 'var(--text-secondary)' }}>
+                  <Calendar size={14} className="mt-0.5 shrink-0" style={{ color: 'var(--text-tertiary)' }} />
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Pickup</p>
+                    <p>{fmt(booking.pickup_date)}</p>
+                    <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{fmtTime(booking.pickup_time)}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2" style={{ color: 'var(--text-secondary)' }}>
+                  <Calendar size={14} className="mt-0.5 shrink-0" style={{ color: 'var(--text-tertiary)' }} />
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Return</p>
+                    <p>{fmt(booking.return_date)}</p>
+                    <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{fmtTime(booking.return_time)}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-start gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                <MapPin size={14} className="mt-0.5 shrink-0" style={{ color: 'var(--text-tertiary)' }} />
+                <span>{booking.pickup_location}</span>
+              </div>
+
+              {/* Trimmed 4-step progress bar — only the milestones the customer experiences */}
               {(() => {
                 const steps = [
-                  { key: 'booked', label: 'Booked' },
                   { key: 'confirmed', label: 'Confirmed' },
                   { key: 'ready', label: 'Ready' },
-                  { key: 'checkin', label: 'Check-In' },
                   { key: 'active', label: 'Active' },
                   { key: 'returned', label: 'Returned' },
-                  { key: 'completed', label: 'Complete' },
                 ];
                 const statusToStep: Record<string, number> = {
-                  pending_approval: 0, approved: 0, confirmed: 1, ready_for_pickup: 2, active: 4, returned: 5, completed: 6, cancelled: -1, declined: -1,
+                  pending_approval: 0, approved: 0, confirmed: 0,
+                  ready_for_pickup: 1, active: 2, returned: 3, completed: 3,
+                  cancelled: -1, declined: -1,
                 };
                 const current = statusToStep[status] ?? 0;
-                if (current < 0) return null; // cancelled/declined — no timeline
+                if (current < 0) return null;
 
                 return (
-                  <div className="flex items-center gap-0" style={{ overflow: 'hidden' }}>
-                    {steps.map((step, i) => {
-                      const done = i <= current;
-                      const isCurrent = i === current;
-                      return (
-                        <div key={step.key} className="flex items-center" style={{ flex: i < steps.length - 1 ? 1 : 'none' }}>
-                          <div className="flex flex-col items-center" style={{ minWidth: 28 }}>
-                            <div
-                              className="flex items-center justify-center rounded-full transition-all"
-                              style={{
-                                width: isCurrent ? 28 : 20,
-                                height: isCurrent ? 28 : 20,
-                                backgroundColor: done ? (isCurrent ? 'var(--accent-color)' : '#22c55e') : 'var(--bg-card-hover)',
-                                border: done ? 'none' : '2px solid var(--border-subtle)',
-                                boxShadow: isCurrent ? '0 0 12px rgba(212,175,55,0.4)' : 'none',
-                              }}
-                            >
-                              {done && !isCurrent && <Check size={10} color="#fff" strokeWidth={3} />}
-                              {isCurrent && <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#1c1917' }} />}
+                  <div className="pt-2" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                    <p className="text-[10px] uppercase tracking-[0.15em] font-bold mb-3" style={{ color: 'var(--text-tertiary)' }}>
+                      Rental Progress
+                    </p>
+                    <div className="flex items-center gap-0" style={{ overflow: 'hidden' }}>
+                      {steps.map((step, i) => {
+                        const done = i <= current;
+                        const isCurrent = i === current;
+                        return (
+                          <div key={step.key} className="flex items-center" style={{ flex: i < steps.length - 1 ? 1 : 'none' }}>
+                            <div className="flex flex-col items-center" style={{ minWidth: 36 }}>
+                              <div
+                                className="flex items-center justify-center rounded-full transition-all"
+                                style={{
+                                  width: isCurrent ? 28 : 20,
+                                  height: isCurrent ? 28 : 20,
+                                  backgroundColor: done ? (isCurrent ? 'var(--accent-color)' : '#22c55e') : 'var(--bg-card-hover)',
+                                  border: done ? 'none' : '2px solid var(--border-subtle)',
+                                  boxShadow: isCurrent ? '0 0 12px rgba(212,175,55,0.4)' : 'none',
+                                }}
+                              >
+                                {done && !isCurrent && <Check size={10} color="#fff" strokeWidth={3} />}
+                                {isCurrent && <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#1c1917' }} />}
+                              </div>
+                              <span
+                                className="text-[10px] font-semibold mt-1.5 whitespace-nowrap"
+                                style={{ color: isCurrent ? 'var(--accent-color)' : done ? '#22c55e' : 'var(--text-tertiary)' }}
+                              >
+                                {step.label}
+                              </span>
                             </div>
-                            <span
-                              className="text-[9px] font-semibold mt-1 whitespace-nowrap"
-                              style={{ color: isCurrent ? 'var(--accent-color)' : done ? '#22c55e' : 'var(--text-tertiary)' }}
-                            >
-                              {step.label}
-                            </span>
+                            {i < steps.length - 1 && (
+                              <div
+                                style={{
+                                  flex: 1,
+                                  height: 2,
+                                  backgroundColor: i < current ? '#22c55e' : 'var(--border-subtle)',
+                                  marginTop: -14,
+                                  minWidth: 8,
+                                }}
+                              />
+                            )}
                           </div>
-                          {i < steps.length - 1 && (
-                            <div
-                              style={{
-                                flex: 1,
-                                height: 2,
-                                backgroundColor: i < current ? '#22c55e' : 'var(--border-subtle)',
-                                marginTop: -12,
-                                minWidth: 8,
-                              }}
-                            />
-                          )}
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
                 );
               })()}
             </div>
           </motion.div>
 
-          {/* ── Add-Ons Display ───────────────────────────────── */}
+          {/* ── Add-Ons (collapsed) ───────────────────────────── */}
           {(booking.unlimited_miles || booking.unlimited_tolls || (booking.addons && booking.addons.length > 0)) && (
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.18, ease: EASE.standard }}
-              style={card(theme)}
-            >
-              <div className="p-5">
-                <h3 className="text-xs font-bold uppercase tracking-[0.15em] mb-3" style={{ color: 'var(--text-tertiary)' }}>
-                  Your Add-Ons
-                </h3>
+            <CollapsibleSection title="Your add-ons" icon={Gauge}>
+              <div className="space-y-2 pt-3">
                 <div className="space-y-2">
                   {(booking.unlimited_miles || booking.addons.some((a: any) => a.addon_type === 'unlimited_miles')) && (
                     <div className="flex items-center gap-3 p-3 rounded-xl" style={{ backgroundColor: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.15)' }}>
@@ -627,7 +674,7 @@ export default function CustomerPortal() {
                   )}
                 </div>
               </div>
-            </motion.div>
+            </CollapsibleSection>
           )}
 
           {/* ── Pickup Guide (ready_for_pickup only) ──────────── */}
@@ -771,34 +818,20 @@ export default function CustomerPortal() {
             );
           })()}
 
-          {/* ── Customer Check-In Photos Gallery (active / returned / completed) ── */}
+          {/* ── Customer Check-In Record (collapsed; active / returned / completed) ── */}
           {['active', 'returned', 'completed'].includes(status) && booking.checkinRecords && (() => {
             const customerCheckin = booking.checkinRecords.find((r: any) => r.record_type === 'customer_checkin');
             if (!customerCheckin) return null;
-            const slots = customerCheckin.photo_slots || {};
             const allPhotos = customerCheckin.photo_urls || [];
             const fuelLabels: Record<string, string> = { full: 'Full', three_quarter: '¾ Tank', half: '½ Tank', quarter: '¼ Tank', empty: 'Empty' };
 
             return (
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2, ease: EASE.standard }}
-                style={card(theme)}
+              <CollapsibleSection
+                title="Your check-in record"
+                icon={Camera}
+                rightHint={customerCheckin.created_at ? fmt(customerCheckin.created_at) : undefined}
               >
-                <div className="p-5 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--accent-glow)' }}>
-                      <Camera size={16} style={{ color: 'var(--accent-color)' }} />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Your Check-In Record</h3>
-                      <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
-                        Documented at pickup · {customerCheckin.created_at ? fmt(customerCheckin.created_at) : ''}
-                      </p>
-                    </div>
-                  </div>
-
+                <div className="space-y-3 pt-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-card-hover)' }}>
                       <p className="text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--text-tertiary)' }}>
@@ -818,11 +851,10 @@ export default function CustomerPortal() {
                     </div>
                   </div>
 
-                  {/* Photo grid */}
                   {allPhotos.length > 0 && (
                     <div>
                       <p className="text-[10px] uppercase tracking-wider font-bold mb-2" style={{ color: 'var(--text-tertiary)' }}>
-                        Your Pickup Photos
+                        Pickup photos
                       </p>
                       <div className="grid grid-cols-3 gap-1.5">
                         {allPhotos.map((url: string, i: number) => (
@@ -834,7 +866,7 @@ export default function CustomerPortal() {
                     </div>
                   )}
                 </div>
-              </motion.div>
+              </CollapsibleSection>
             );
           })()}
 
@@ -974,107 +1006,56 @@ export default function CustomerPortal() {
             )}
           </AnimatePresence>
 
-          {/* ── Countdown Timer (active) ──────────────────────── */}
-          {status === 'active' && booking.return_date && (() => {
-            const returnDateTime = new Date(`${booking.return_date}T${booking.return_time || '10:00'}:00`);
-            const now = new Date();
-            const diffMs = returnDateTime.getTime() - now.getTime();
-            if (diffMs <= 0) return null;
-            const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-            const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const isUrgent = days === 0 && hours < 6;
-
-            return (
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.22, ease: EASE.standard }}
-                className="p-5 rounded-2xl"
-                style={{
-                  backgroundColor: isUrgent ? 'rgba(239,68,68,0.06)' : 'rgba(59,130,246,0.06)',
-                  border: `1px solid ${isUrgent ? 'rgba(239,68,68,0.2)' : 'rgba(59,130,246,0.15)'}`,
-                }}
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center"
-                    style={{ backgroundColor: isUrgent ? 'rgba(239,68,68,0.12)' : 'rgba(59,130,246,0.12)' }}
-                  >
-                    <Timer size={20} style={{ color: isUrgent ? '#ef4444' : '#3b82f6' }} />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-xs font-bold uppercase tracking-wider" style={{ color: isUrgent ? '#ef4444' : '#3b82f6' }}>
-                      {isUrgent ? 'Return Soon' : 'Return In'}
-                    </p>
-                    <p className="text-lg font-bold font-mono" style={{ color: 'var(--text-primary)' }}>
-                      {days > 0 ? `${days}d ${hours}h` : `${hours} hours`}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Due</p>
-                    <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-                      {fmt(booking.return_date)} · {fmtTime(booking.return_time)}
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
-            );
-          })()}
-
-          {/* ── Emergency Info (active) ───────────────────────── */}
+          {/* ── Emergency tap-to-call (active, always visible) ── */}
           {status === 'active' && (
-            <motion.div
+            <motion.a
+              href="tel:+17729856667"
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.25, ease: EASE.standard }}
-              style={card(theme)}
+              transition={{ delay: 0.22, ease: EASE.standard }}
+              className="flex items-center gap-3 p-4 rounded-2xl transition-all hover:scale-[1.01] active:scale-[0.99]"
+              style={{
+                backgroundColor: 'rgba(239,68,68,0.06)',
+                border: '1px solid rgba(239,68,68,0.2)',
+              }}
             >
-              <div className="p-5 space-y-3">
-                <h3 className="text-xs font-bold uppercase tracking-[0.15em]" style={{ color: 'var(--text-tertiary)' }}>
-                  Emergency & Help
-                </h3>
-                <div className="space-y-2">
-                  {/* Annie's direct line */}
-                  <a
-                    href="tel:+17729856667"
-                    className="flex items-center gap-3 p-3 rounded-xl transition-all hover:scale-[1.01] active:scale-[0.99]"
-                    style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)' }}
-                  >
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(34,197,94,0.1)' }}>
-                      <Phone size={14} style={{ color: '#22c55e' }} />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Annie's Car Rental</p>
-                      <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>(772) 985-6667 — available 24/7</p>
-                    </div>
-                    <ChevronRight size={14} style={{ color: 'var(--text-tertiary)' }} />
-                  </a>
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: 'rgba(239,68,68,0.12)' }}>
+                <Phone size={16} style={{ color: '#ef4444' }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] uppercase tracking-wider font-bold" style={{ color: '#ef4444' }}>Emergency · Tap to call</p>
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>(772) 985-6667</p>
+              </div>
+              <ChevronRight size={14} style={{ color: 'var(--text-tertiary)' }} />
+            </motion.a>
+          )}
 
-                  {/* Accident info */}
-                  <div className="p-3 rounded-xl" style={{ backgroundColor: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.1)' }}>
-                    <p className="text-xs font-semibold mb-1" style={{ color: '#f59e0b' }}>
-                      <AlertCircle size={11} className="inline mr-1 -mt-0.5" /> If You're in an Accident
-                    </p>
-                    <ol className="text-xs leading-relaxed space-y-0.5 pl-4" style={{ color: 'var(--text-secondary)', listStyleType: 'decimal' }}>
-                      <li>Ensure everyone is safe — call 911 if needed</li>
-                      <li>Exchange info with the other driver</li>
-                      <li>Take photos of all vehicles and the scene</li>
-                      <li>Call Annie at (772) 985-6667 immediately</li>
-                    </ol>
-                  </div>
+          {/* ── Safety & return guide (active, collapsed) ── */}
+          {status === 'active' && (
+            <CollapsibleSection title="Safety & return guide" icon={Shield}>
+              <div className="space-y-2 pt-3">
+                <div className="p-3 rounded-xl" style={{ backgroundColor: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.1)' }}>
+                  <p className="text-xs font-semibold mb-1" style={{ color: '#f59e0b' }}>
+                    <AlertCircle size={11} className="inline mr-1 -mt-0.5" /> If You're in an Accident
+                  </p>
+                  <ol className="text-xs leading-relaxed space-y-0.5 pl-4" style={{ color: 'var(--text-secondary)', listStyleType: 'decimal' }}>
+                    <li>Ensure everyone is safe — call 911 if needed</li>
+                    <li>Exchange info with the other driver</li>
+                    <li>Take photos of all vehicles and the scene</li>
+                    <li>Call Annie at (772) 985-6667 immediately</li>
+                  </ol>
+                </div>
 
-                  {/* Return instructions */}
-                  <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)' }}>
-                    <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
-                      <Key size={11} className="inline mr-1 -mt-0.5" style={{ color: 'var(--accent-color)' }} /> Returning the Vehicle
-                    </p>
-                    <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                      Park at the pickup location, place the key back in the lockbox, and complete the return form below.
-                    </p>
-                  </div>
+                <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)' }}>
+                  <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+                    <Key size={11} className="inline mr-1 -mt-0.5" style={{ color: 'var(--accent-color)' }} /> Returning the Vehicle
+                  </p>
+                  <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                    Park at the pickup location, place the key back in the lockbox, and complete the return form below.
+                  </p>
                 </div>
               </div>
-            </motion.div>
+            </CollapsibleSection>
           )}
 
           {/* Self-Service Check-Out (active) */}
@@ -1303,41 +1284,130 @@ export default function CustomerPortal() {
             </div>
           )}
 
-          {/* Pricing Summary (always visible) */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, ease: EASE.standard }}
-            style={card(theme)}
-          >
-            <div className="p-5">
-              <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Pricing</h3>
-              <div className="space-y-1.5 text-sm">
-                <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>
-                  <span>${booking.daily_rate}/day × {booking.rental_days} days</span>
-                  <span>${booking.subtotal}</span>
-                </div>
-                {Number(booking.delivery_fee) > 0 && (
-                  <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>
-                    <span>Delivery</span><span>${booking.delivery_fee}</span>
+          {/* ── Itemized Receipt (collapsed) ──────────────────── */}
+          {(() => {
+            const fmtMoney = (n: any) => `$${Number(n || 0).toFixed(2)}`;
+            const rentalPayment = (booking.payments || []).find((p: any) => p.payment_type === 'rental' && p.status === 'completed');
+            const depositPayment = (booking.payments || []).find((p: any) => p.payment_type === 'deposit' && p.status === 'completed');
+            const totalPaid = (booking.payments || [])
+              .filter((p: any) => p.status === 'completed')
+              .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+            const paidAt = rentalPayment?.paid_at || depositPayment?.paid_at;
+            const methodLabel = rentalPayment
+              ? (rentalPayment.method === 'stripe' ? 'Card via Stripe' : rentalPayment.method)
+              : null;
+            const totalHint = totalPaid > 0 ? fmtMoney(totalPaid) : fmtMoney(booking.total_cost);
+
+            return (
+              <CollapsibleSection title="Itemized receipt" icon={Receipt} rightHint={totalHint}>
+                <div className="space-y-4 pt-3 text-sm">
+                  {/* Payment header */}
+                  {(methodLabel || paidAt) && (
+                    <div
+                      className="flex items-center gap-3 p-3 rounded-xl"
+                      style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)' }}
+                    >
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: 'var(--accent-glow)' }}>
+                        <CreditCard size={14} style={{ color: 'var(--accent-color)' }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{methodLabel || 'Payment on file'}</p>
+                        {paidAt && (
+                          <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+                            Paid {fmt(paidAt)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Charges */}
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider font-bold mb-2" style={{ color: 'var(--text-tertiary)' }}>Rental Charges</p>
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>
+                        <span>{fmtMoney(booking.daily_rate)}/day × {booking.rental_days} day{booking.rental_days !== 1 ? 's' : ''}</span>
+                        <span>{fmtMoney(booking.subtotal)}</span>
+                      </div>
+                      {Number(booking.delivery_fee) > 0 && (
+                        <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>
+                          <span>Delivery fee</span>
+                          <span>{fmtMoney(booking.delivery_fee)}</span>
+                        </div>
+                      )}
+                      {Number(booking.mileage_addon_fee) > 0 && (
+                        <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>
+                          <span>Unlimited miles add-on</span>
+                          <span>{fmtMoney(booking.mileage_addon_fee)}</span>
+                        </div>
+                      )}
+                      {Number(booking.toll_addon_fee) > 0 && (
+                        <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>
+                          <span>Unlimited tolls add-on</span>
+                          <span>{fmtMoney(booking.toll_addon_fee)}</span>
+                        </div>
+                      )}
+                      {Number(booking.discount_amount) > 0 && (
+                        <div className="flex justify-between" style={{ color: '#22c55e' }}>
+                          <span>Discount</span>
+                          <span>-{fmtMoney(booking.discount_amount)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>
+                        <span>FL sales tax</span>
+                        <span>{fmtMoney(booking.tax_amount)}</span>
+                      </div>
+                      <div className="flex justify-between font-semibold pt-2" style={{
+                        borderTop: '1px solid var(--border-subtle)', color: 'var(--text-primary)',
+                      }}>
+                        <span>Rental total</span>
+                        <span>{fmtMoney(booking.total_cost)}</span>
+                      </div>
+                    </div>
                   </div>
-                )}
-                {Number(booking.discount_amount) > 0 && (
-                  <div className="flex justify-between" style={{ color: '#22c55e' }}>
-                    <span>Discount</span><span>-${booking.discount_amount}</span>
-                  </div>
-                )}
-                <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>
-                  <span>Tax</span><span>${booking.tax_amount}</span>
+
+                  {/* Deposit */}
+                  {Number(booking.deposit_amount) > 0 && (
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider font-bold mb-2" style={{ color: 'var(--text-tertiary)' }}>Security Deposit</p>
+                      <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>
+                        <span>Refundable hold</span>
+                        <span>{fmtMoney(booking.deposit_amount)}</span>
+                      </div>
+                      <p className="text-[11px] mt-1" style={{ color: 'var(--text-tertiary)' }}>
+                        Returned 3–5 business days after vehicle inspection.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Total charged */}
+                  {totalPaid > 0 && (
+                    <div className="flex justify-between font-bold pt-3" style={{
+                      borderTop: '1px solid var(--border-subtle)', color: 'var(--text-primary)',
+                    }}>
+                      <span>Total charged</span>
+                      <span className="font-mono">{fmtMoney(totalPaid)}</span>
+                    </div>
+                  )}
+
+                  {/* Payment ledger */}
+                  {(booking.payments || []).length > 0 && (
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider font-bold mb-2" style={{ color: 'var(--text-tertiary)' }}>Payment History</p>
+                      <div className="space-y-1.5">
+                        {booking.payments.map((p: any) => (
+                          <div key={p.id} className="flex items-center justify-between text-xs" style={{ color: 'var(--text-secondary)' }}>
+                            <span className="capitalize">{p.payment_type} · {p.status}{p.paid_at ? ` · ${fmt(p.paid_at)}` : ''}</span>
+                            <span className="font-mono">{fmtMoney(p.amount)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="flex justify-between font-semibold pt-2" style={{
-                  borderTop: '1px solid var(--border-subtle)', color: 'var(--text-primary)',
-                }}>
-                  <span>Total</span><span>${booking.total_cost}</span>
-                </div>
-              </div>
-            </div>
-          </motion.div>
+              </CollapsibleSection>
+            );
+          })()}
 
           {/* Contact footer */}
           <div className="flex flex-col items-center gap-3 py-5 text-xs" style={{ color: 'var(--text-tertiary)' }}>

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createPaymentIntent, confirmPayment, handleWebhookEvent } from '../services/stripeService.js';
+import { createPaymentIntent, confirmPayment, handleWebhookEvent, triggerReceiptByPaymentIntent } from '../services/stripeService.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { requireAuth } from '../middleware/auth.js';
 import { getStripe } from '../utils/stripe.js';
@@ -37,6 +37,24 @@ router.post('/confirm-payment', asyncHandler(async (req, res) => {
   }
 
   const result = await confirmPayment(payment_intent_id);
+  res.json(result);
+}));
+
+/**
+ * POST /stripe/send-receipt
+ * Frontend-driven receipt dispatch. Called from the success screen after
+ * Stripe confirms a payment, with retry on the client side. Idempotent —
+ * sendPaymentReceipt uses the PaymentIntent's metadata.receipt_sent_at as
+ * the lock so multiple triggers (webhook, confirmPayment, this endpoint)
+ * dispatch at most one email per PI.
+ * Body: { payment_intent_id: "pi_xxx" }
+ */
+router.post('/send-receipt', asyncHandler(async (req, res) => {
+  const { payment_intent_id } = req.body;
+  if (!payment_intent_id) {
+    return res.status(400).json({ error: 'payment_intent_id is required' });
+  }
+  const result = await triggerReceiptByPaymentIntent(payment_intent_id);
   res.json(result);
 }));
 
