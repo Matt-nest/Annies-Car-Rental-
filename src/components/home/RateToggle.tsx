@@ -1,9 +1,11 @@
+import { useId } from 'react';
 import { motion } from 'motion/react';
 import { RateMode } from '../../types';
 
 interface RateToggleProps {
   value: RateMode;
   onChange: (mode: RateMode) => void;
+  compact?: boolean;
 }
 
 const OPTIONS: { value: RateMode; label: string }[] = [
@@ -12,14 +14,15 @@ const OPTIONS: { value: RateMode; label: string }[] = [
   { value: 'monthly', label: 'Monthly' },
 ];
 
-export default function RateToggle({ value, onChange }: RateToggleProps) {
+export default function RateToggle({ value, onChange, compact = false }: RateToggleProps) {
+  const uid = useId();
+
   return (
     <div
       className="inline-flex items-center relative rounded-full p-1 gap-0.5"
       style={{
-        backgroundColor: 'rgba(0,0,0,0.25)',
-        border: '1px solid rgba(212,175,55,0.2)',
-        backdropFilter: 'blur(12px)',
+        backgroundColor: 'var(--bg-card)',
+        border: '1px solid var(--border-medium)',
       }}
       role="group"
       aria-label="Rate period"
@@ -28,17 +31,19 @@ export default function RateToggle({ value, onChange }: RateToggleProps) {
         <button
           key={opt.value}
           onClick={() => onChange(opt.value)}
-          className="relative z-10 px-5 py-2 rounded-full text-sm font-medium tracking-wide transition-colors duration-200 cursor-pointer"
+          className={`relative z-10 rounded-full font-medium tracking-wide transition-colors duration-200 cursor-pointer ${
+            compact ? 'px-3.5 py-1.5 text-xs' : 'px-5 py-2 text-sm'
+          }`}
           style={{
-            color: value === opt.value ? '#0a0a0a' : 'rgba(255,255,255,0.65)',
+            color: value === opt.value ? '#0a0a0a' : 'var(--text-secondary)',
           }}
           aria-pressed={value === opt.value}
         >
           {value === opt.value && (
             <motion.span
-              layoutId="rate-pill"
+              layoutId={`rate-pill-${uid}`}
               className="absolute inset-0 rounded-full"
-              style={{ backgroundColor: '#D4AF37' }}
+              style={{ backgroundColor: 'var(--accent-color)' }}
               transition={{ type: 'spring', stiffness: 400, damping: 30 }}
             />
           )}

@@ -2,11 +2,12 @@ import React from 'react';
 import { X, Users, Fuel, Gauge, Settings2, ArrowRight, Phone, ChevronLeft, ChevronRight, Star, MapPin } from 'lucide-react';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Vehicle } from '../../types';
+import { Vehicle, RateMode } from '../../types';
 import { getVehicleDisplayName } from '../../data/vehicles';
 import { getReviewsForVehicle } from '../../data/reviews';
 import { useTheme } from '../../context/ThemeContext';
 import { EASE, DURATION } from '../../utils/motion';
+import RateToggle from '../home/RateToggle';
 
 interface QuickViewModalProps {
   vehicle: Vehicle;
@@ -17,6 +18,7 @@ interface QuickViewModalProps {
 export default function QuickViewModal({ vehicle, onClose, onViewDetails }: QuickViewModalProps) {
   const { theme } = useTheme();
   const [imgIndex, setImgIndex] = useState(0);
+  const [quickRateMode, setQuickRateMode] = useState<RateMode>('daily');
   const reviews = getReviewsForVehicle(vehicle.id);
   const displayName = getVehicleDisplayName(vehicle);
 
@@ -141,7 +143,7 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
 
         {/* Content — compact, no scroll */}
         <div className="p-4 sm:p-5 md:px-7 md:py-5 space-y-3 sm:space-y-4 flex-1 overflow-y-auto">
-          {/* Row 1: Title + stars on left, Price on right */}
+          {/* Row 1: Title + stars on left, Rate Toggle on right */}
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <h2 className="text-lg sm:text-xl md:text-2xl font-light tracking-tight leading-tight">{displayName}</h2>
@@ -156,18 +158,93 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
                 </div>
               )}
             </div>
-            <div className="text-right shrink-0">
-              <div className="flex items-baseline gap-1">
-                <span className="text-2xl md:text-3xl font-light">${vehicle.dailyRate}</span>
-                <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>/ day</span>
-              </div>
-              {vehicle.weeklyRate && (
-                <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
-                  ${vehicle.weeklyRate} / week
-                </p>
-              )}
-            </div>
+            <RateToggle value={quickRateMode} onChange={setQuickRateMode} compact />
           </div>
+
+          {/* Price display — animates on rate mode change */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={quickRateMode}
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -5 }}
+              transition={{ duration: 0.18 }}
+              className="flex items-center gap-3 flex-wrap"
+            >
+              {quickRateMode === 'daily' && (
+                <>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-2xl md:text-3xl font-light">${vehicle.dailyRate}</span>
+                    <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>/day</span>
+                  </div>
+                  <span
+                    className="text-xs font-medium px-2.5 py-1 rounded-full border"
+                    style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}
+                  >
+                    200 mi/day
+                  </span>
+                </>
+              )}
+
+              {quickRateMode === 'weekly' && (
+                <>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-2xl md:text-3xl font-light">${vehicle.weeklyRate}</span>
+                    <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>/week</span>
+                  </div>
+                  <div className="flex gap-1.5 flex-wrap">
+                    <span
+                      className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                      style={{ backgroundColor: 'rgba(212,175,55,0.15)', color: 'var(--accent-color)' }}
+                    >
+                      Save ${Math.round(vehicle.dailyRate * 7 - vehicle.weeklyRate)}
+                    </span>
+                    {vehicle.weeklyUnlimitedMileage && (
+                      <span
+                        className="text-xs font-medium px-2.5 py-1 rounded-full border"
+                        style={{ borderColor: 'var(--border-medium)', color: 'var(--text-secondary)' }}
+                      >
+                        ∞ Unlimited miles
+                      </span>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {quickRateMode === 'monthly' && (
+                <>
+                  {vehicle.monthlyDisplayPrice ? (
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-2xl md:text-3xl font-light">${vehicle.monthlyDisplayPrice.toLocaleString()}</span>
+                      <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>/mo</span>
+                    </div>
+                  ) : (
+                    <a
+                      href="tel:+17729856667"
+                      className="text-base font-medium hover:opacity-70 transition-opacity"
+                      style={{ color: 'var(--accent-color)' }}
+                    >
+                      Call Annie for pricing
+                    </a>
+                  )}
+                  <div className="flex gap-1.5 flex-wrap">
+                    <span
+                      className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                      style={{ backgroundColor: 'rgba(212,175,55,0.15)', color: 'var(--accent-color)' }}
+                    >
+                      Best rate
+                    </span>
+                    <span
+                      className="text-xs font-medium px-2.5 py-1 rounded-full border"
+                      style={{ borderColor: 'var(--border-medium)', color: 'var(--text-secondary)' }}
+                    >
+                      ∞ Unlimited miles
+                    </span>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          </AnimatePresence>
 
           {/* Row 2: Specs inline — compact horizontal strip */}
           <div className="grid grid-cols-4 gap-1.5 sm:gap-2">

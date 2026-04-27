@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { ArrowUpDown, ChevronDown } from 'lucide-react';
+import RateToggle from './RateToggle';
 import { AnimatePresence, motion } from 'motion/react';
 import { useVehicles } from '../../hooks/useVehicles';
 import { Vehicle, SortOption, FilterCategory, RateMode } from '../../types';
@@ -11,9 +12,10 @@ import { EASE } from '../../utils/motion';
 interface FleetGridProps {
   onSelectVehicle: (vehicle: Vehicle) => void;
   rateMode?: RateMode;
+  onRateModeChange?: (mode: RateMode) => void;
 }
 
-export default function FleetGrid({ onSelectVehicle, rateMode = 'daily' }: FleetGridProps) {
+export default function FleetGrid({ onSelectVehicle, rateMode = 'daily', onRateModeChange }: FleetGridProps) {
   const { theme } = useTheme();
   const { vehicles } = useVehicles();
   const [sortBy, setSortBy] = useState<SortOption>('default');
@@ -58,12 +60,12 @@ export default function FleetGrid({ onSelectVehicle, rateMode = 'daily' }: Fleet
 
   const monthlySubtitle = rateMode === 'monthly'
     ? `${displayableVehicles.length} vehicle${displayableVehicles.length !== 1 ? 's' : ''} available for monthly rental`
-    : `${vehicles.length} vehicles ready for daily and weekly rental.`;
+    : `${vehicles.length} vehicle${vehicles.length !== 1 ? 's' : ''} ready to rent.`;
 
   return (
     <section id="fleet" className="pt-16 pb-24 sm:pb-32 px-4 sm:px-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-14">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-6">
         <div className="max-w-2xl">
           <motion.span
             initial={{ opacity: 0 }}
@@ -116,6 +118,16 @@ export default function FleetGrid({ onSelectVehicle, rateMode = 'daily' }: Fleet
           <ArrowUpDown className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-tertiary)' }} size={14} />
           <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-tertiary)' }} size={14} />
         </div>
+      </div>
+
+      {/* Rate Toggle Row */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-8">
+        <RateToggle value={rateMode} onChange={onRateModeChange ?? (() => {})} />
+        <p className="text-xs font-medium" style={{ color: rateMode === 'daily' ? 'var(--text-tertiary)' : 'var(--accent-color)' }}>
+          {rateMode === 'daily' && 'Weekly & monthly rentals save more — try the toggle'}
+          {rateMode === 'weekly' && '∞ Unlimited mileage on all weekly rentals'}
+          {rateMode === 'monthly' && 'Best rates for long stays — call Annie to arrange'}
+        </p>
       </div>
 
       {/* Category Filter Pills */}

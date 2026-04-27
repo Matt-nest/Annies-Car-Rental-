@@ -142,6 +142,73 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
               {vehicle.description}
             </motion.p>
 
+            {/* Pricing Tiers */}
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, ease: EASE.standard }}
+              className="grid grid-cols-3 gap-3 md:gap-4"
+            >
+              {/* Daily */}
+              <div
+                className="rounded-2xl border p-4 md:p-5 space-y-2"
+                style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}
+              >
+                <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>Daily</p>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-2xl font-light">${vehicle.dailyRate}</span>
+                  <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>/day</span>
+                </div>
+                <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>200 miles/day included</p>
+              </div>
+
+              {/* Weekly — recommended */}
+              <div
+                className="rounded-2xl p-4 md:p-5 space-y-2 relative"
+                style={{ backgroundColor: 'rgba(212,175,55,0.06)', border: '2px solid var(--accent-color)' }}
+              >
+                <div
+                  className="absolute -top-3 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap"
+                  style={{ backgroundColor: 'var(--accent-color)', color: '#0a0a0a' }}
+                >
+                  Most Popular
+                </div>
+                <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>Weekly</p>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-2xl font-light">${vehicle.weeklyRate}</span>
+                  <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>/week</span>
+                </div>
+                <p className="text-xs font-medium" style={{ color: 'var(--accent-color)' }}>
+                  Save ${Math.round(vehicle.dailyRate * 7 - vehicle.weeklyRate)} vs daily
+                </p>
+                <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>∞ Unlimited mileage</p>
+              </div>
+
+              {/* Monthly */}
+              <div
+                className="rounded-2xl border p-4 md:p-5 space-y-2"
+                style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}
+              >
+                <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>Monthly</p>
+                {vehicle.monthlyDisplayPrice ? (
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-light">${vehicle.monthlyDisplayPrice.toLocaleString()}</span>
+                    <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>/mo</span>
+                  </div>
+                ) : (
+                  <a
+                    href="tel:+17729856667"
+                    className="text-base font-medium transition-opacity hover:opacity-70 block"
+                    style={{ color: 'var(--accent-color)' }}
+                  >
+                    Call Annie
+                  </a>
+                )}
+                <p className="text-xs font-medium" style={{ color: 'var(--accent-color)' }}>Best rate</p>
+                <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>∞ Unlimited mileage</p>
+              </div>
+            </motion.div>
+
             {/* Specs Row */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {specs.map((spec, i) => (

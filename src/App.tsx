@@ -166,9 +166,9 @@ export default function App() {
             transition={{ duration: 0.3, ease: EASE.standard }}
           >
             <Navbar onNavigate={scrollToSection} isHomePage />
-            <Hero onBrowseFleet={handleBrowseFleet} rateMode={rateMode} onRateModeChange={setRateMode} />
+            <Hero onBrowseFleet={handleBrowseFleet} />
             <HowItWorks />
-            <FleetGrid onSelectVehicle={handleQuickView} rateMode={rateMode} />
+            <FleetGrid onSelectVehicle={handleQuickView} rateMode={rateMode} onRateModeChange={setRateMode} />
             <TrustSection />
             <ReviewsSection />
             <InsuranceSection />
