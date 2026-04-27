@@ -173,7 +173,7 @@ export default function LongTermSection() {
                 style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
               >
                 <Phone size={14} />
-                Call Annie — (772) 985-6667
+                Call Annie
               </a>
               <a
                 href="sms:+17729856667"
