@@ -697,25 +697,34 @@ export default function CheckOutTab({ booking, onReload }) {
             )}
           </Section>
 
-          {/* Invoice Preview */}
+          {/* Settlement Preview */}
           {invoice && (
-            <Section title="Invoice Summary">
+            <Section title="Deposit Settlement">
               <div className="space-y-1.5">
                 {(invoice.items || []).map((item, i) => (
                   <div key={i} className="flex justify-between text-sm py-1.5 border-b border-[var(--border-subtle)] last:border-0">
                     <span className="text-[var(--text-secondary)]">{item.description}</span>
-                    <span className={`font-semibold tabular-nums ${item.type === 'incidental' ? 'text-[var(--danger-color)]' : 'text-[var(--text-primary)]'}`}>
+                    <span className={`font-semibold tabular-nums ${
+                      item.type === 'deposit' ? 'text-emerald-500' :
+                      item.type === 'incidental' ? 'text-[var(--danger-color)]' :
+                      'text-[var(--text-primary)]'
+                    }`}>
                       ${(item.amount / 100).toFixed(2)}
                     </span>
                   </div>
                 ))}
               </div>
-              {invoice.amount_due !== undefined && (
+              {invoice.amount_due !== undefined && invoice.amount_due !== 0 && (
                 <div className="flex justify-between text-base font-bold pt-3 mt-3 border-t border-[var(--border-subtle)]">
-                  <span className="text-[var(--text-primary)]">{invoice.amount_due > 0 ? 'Amount Due' : 'Refund Due'}</span>
+                  <span className="text-[var(--text-primary)]">{invoice.amount_due > 0 ? 'Balance Due' : 'Refund Due'}</span>
                   <span className={`tabular-nums ${invoice.amount_due > 0 ? 'text-[var(--danger-color)]' : 'text-emerald-500'}`}>
                     ${(Math.abs(invoice.amount_due) / 100).toFixed(2)}
                   </span>
+                </div>
+              )}
+              {invoice.amount_due === 0 && invoice.deposit_applied > 0 && (
+                <div className="pt-3 mt-3 border-t border-[var(--border-subtle)]">
+                  <p className="text-sm text-emerald-500 font-medium">✓ No charges — full deposit refund</p>
                 </div>
               )}
             </Section>

@@ -1,7 +1,18 @@
 import { supabase } from '../db/supabase.js';
 import { getStripe } from '../utils/stripe.js';
+import { sendBookingNotification, buildBookingPayload } from './notifyService.js';
 
 const stripe = getStripe();
+
+/** Fetch a booking with customer + vehicle joins for notification payloads */
+async function getBookingForNotify(bookingId) {
+  const { data } = await supabase
+    .from('bookings')
+    .select('*, customers(*), vehicles(*)')
+    .eq('id', bookingId)
+    .single();
+  return data;
+}
 
 /**
  * Get the deposit configuration for a vehicle.
@@ -162,6 +173,20 @@ export async function releaseDeposit(bookingId, { refundedBy = 'system' } = {}) 
     .update({ deposit_status: 'refunded' })
     .eq('id', bookingId);
 
+  // Notify customer (fire-and-forget)
+  try {
+    const booking = await getBookingForNotify(bookingId);
+    if (booking) {
+      const payload = buildBookingPayload(booking);
+      payload.deposit_amount = (deposit.amount / 100).toFixed(2);
+      payload.refund_amount = (deposit.amount / 100).toFixed(2);
+      payload.deposit_status = 'refunded';
+      sendBookingNotification('deposit_refunded', payload);
+    }
+  } catch (e) {
+    console.error('[Deposit] Failed to send refund notification:', e.message);
+  }
+
   return { success: true, refundedAmount: deposit.amount };
 }
 
@@ -213,6 +238,21 @@ export async function settleDeposit(bookingId, { incidentalTotal = 0, refundedBy
     .from('bookings')
     .update({ deposit_status: refundAmount > 0 ? 'refunded' : 'forfeited' })
     .eq('id', bookingId);
+
+  // Notify customer (fire-and-forget)
+  try {
+    const booking = await getBookingForNotify(bookingId);
+    if (booking) {
+      const payload = buildBookingPayload(booking);
+      payload.deposit_amount = (deposit.amount / 100).toFixed(2);
+      payload.refund_amount = (refundAmount / 100).toFixed(2);
+      payload.incidental_total = (incidentalTotal / 100).toFixed(2);
+      payload.deposit_status = newStatus;
+      sendBookingNotification('deposit_settled', payload);
+    }
+  } catch (e) {
+    console.error('[Deposit] Failed to send settlement notification:', e.message);
+  }
 
   return {
     success: true,

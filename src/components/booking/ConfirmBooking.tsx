@@ -65,6 +65,26 @@ function PaymentForm({
   const rentalTotal = bookingSummary?.totalCost || 0;
   const grandTotal = rentalTotal + insuranceCost + depositAmount;
 
+  /** Idempotent receipt dispatch with retries — backend dedupes via PI metadata */
+  async function triggerReceiptWithRetry(piId: string, attempt = 0): Promise<void> {
+    try {
+      const res = await fetch(`${API_URL}/stripe/send-receipt`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payment_intent_id: piId }),
+      });
+      if (res.ok) return;
+      throw new Error(`Receipt dispatch returned ${res.status}`);
+    } catch (err) {
+      if (attempt >= 2) {
+        console.warn('Receipt dispatch failed after retries:', err);
+        return;
+      }
+      await new Promise(r => setTimeout(r, 800 * (attempt + 1)));
+      return triggerReceiptWithRetry(piId, attempt + 1);
+    }
+  }
+
   const handlePayNow = async () => {
     if (!stripe || !elements) return;
     setSubmitting(true);
@@ -179,6 +199,15 @@ function PaymentForm({
       } catch {
         // Non-critical: webhook will catch it
         console.warn('Could not confirm payment with backend');
+      }
+
+      // Fire the receipt dispatch on a separate, idempotent endpoint with
+      // retries. The backend dedupes via PI metadata, so multiple triggers
+      // (webhook, confirm-payment, this) yield at most one email.
+      if (piId) {
+        triggerReceiptWithRetry(piId).catch(() => {
+          // Receipt failures must never block the success UX.
+        });
       }
 
       setSubmitStep('done');

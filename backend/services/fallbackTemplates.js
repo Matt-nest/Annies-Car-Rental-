@@ -403,6 +403,80 @@ Questions? Call us at (772) 834-0117.
 
 — Annie's Car Rental`,
   },
+
+  // ── TIER 2 (continued): Deposit Notifications ────────────────────────────
+
+  deposit_refunded: {
+    channel: 'both',
+    subject: 'Your ${{deposit_amount}} deposit has been refunded — {{booking_code}}',
+    body: `Hi {{first_name}},
+
+Great news — your security deposit has been fully refunded.
+
+DEPOSIT REFUND
+──────────────
+Reference:     {{booking_code}}
+Vehicle:       {{vehicle}}
+Deposit Held:  \${{deposit_amount}}
+Refund Amount: \${{refund_amount}}
+Status:        ✅ Full Refund
+
+Your refund of \${{refund_amount}} will be returned to your original payment method within 5–10 business days.
+
+Thank you for taking great care of the vehicle — we hope to see you again soon.
+
+Questions? We're always here:
+  Matthew: (772) 834-0117
+  Robin:   (772) 834-7637
+
+Annie's Car Rental
+Port Saint Lucie, FL`,
+    sms_body: `Hi {{first_name}}, your ${{deposit_amount}} security deposit for the {{vehicle}} has been fully refunded! ✅
+
+Ref: {{booking_code}}
+
+The refund will appear on your statement within 5–10 business days.
+
+— Annie's Car Rental`,
+  },
+
+  deposit_settled: {
+    channel: 'both',
+    subject: 'Deposit settlement details — {{booking_code}}',
+    body: `Hi {{first_name}},
+
+Your security deposit has been settled. Here are the details:
+
+DEPOSIT SETTLEMENT
+──────────────────
+Reference:       {{booking_code}}
+Vehicle:         {{vehicle}}
+Deposit Held:    \${{deposit_amount}}
+Charges Applied: \${{incidental_total}}
+Refund Amount:   \${{refund_amount}}
+
+{{#if refund_amount}}Your refund of \${{refund_amount}} will be returned to your original payment method within 5–10 business days.{{/if}}
+
+If you have any questions about the charges applied to your deposit, please don't hesitate to reach out. You can also view your booking details and submit a dispute through your Customer Portal.
+
+Contact us anytime:
+  Matthew: (772) 834-0117
+  Robin:   (772) 834-7637
+
+Annie's Car Rental
+Port Saint Lucie, FL`,
+    sms_body: `Hi {{first_name}}, your deposit for the {{vehicle}} has been settled.
+
+Deposit: ${{deposit_amount}}
+Charges: ${{incidental_total}}
+Refund:  ${{refund_amount}}
+
+Ref: {{booking_code}}
+
+The refund will appear on your statement within 5–10 business days. Questions? Call (772) 834-0117.
+
+— Annie's Car Rental`,
+  },
 };
 
 export default FALLBACK_TEMPLATES;

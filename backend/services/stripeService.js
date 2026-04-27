@@ -348,8 +348,7 @@ export async function confirmPayment(paymentIntentId) {
     throw Object.assign(new Error('No booking linked to this payment'), { status: 400 });
   }
 
-  // Check if we already recorded this payment (idempotent — the webhook
-  // covers the receipt send, so we can safely short-circuit here).
+  // Check if we already recorded this payment (idempotent).
   const { data: existing } = await supabase
     .from('payments')
     .select('id')
@@ -357,6 +356,9 @@ export async function confirmPayment(paymentIntentId) {
     .maybeSingle();
 
   if (existing) {
+    // Payment already recorded (by webhook). Still ensure the receipt
+    // was dispatched — sendPaymentReceipt is idempotent via PI metadata.
+    await sendPaymentReceipt(bookingId, pi, rentalCents / 100, depositCents / 100);
     return { success: true, alreadyRecorded: true };
   }
 

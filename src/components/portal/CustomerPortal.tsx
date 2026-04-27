@@ -1155,10 +1155,12 @@ export default function CustomerPortal() {
                         <span className="font-medium tabular-nums" style={{ color: 'var(--text-primary)' }}>{money(item.amount)}</span>
                       </div>
                     ))}
-                    {booking.invoice.amount_due > 0 && (
+                    {booking.invoice.amount_due !== 0 && (
                       <div className="flex justify-between font-semibold pt-2" style={{ color: 'var(--text-primary)' }}>
-                        <span>Amount Due</span>
-                        <span className="tabular-nums">{money(booking.invoice.amount_due)}</span>
+                        <span>{booking.invoice.amount_due > 0 ? 'Amount Due' : 'Refund Due'}</span>
+                        <span className={`tabular-nums ${booking.invoice.amount_due > 0 ? 'text-red-500' : 'text-emerald-500'}`}>
+                          {money(Math.abs(booking.invoice.amount_due))}
+                        </span>
                       </div>
                     )}
                   </div>
