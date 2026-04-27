@@ -4,46 +4,42 @@ import { useTheme } from '../../context/ThemeContext';
 import { EASE, STAGGER } from '../../utils/motion';
 
 const rideshareDriverImg = new URL('/rideshare-driver.jpeg', import.meta.url).href;
+const uberImg = new URL('/UBER.png', import.meta.url).href;
+const doordashImg = new URL('/Doordash.png', import.meta.url).href;
+const lyftImg = new URL('/Lyft.png', import.meta.url).href;
 
-// App icon component — uses brand colors + initial letters
-function AppIcon({ label, bg, text, letter }: { label: string; bg: string; text: string; letter: string }) {
-  return (
-    <div
-      title={label}
-      className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shrink-0"
-      style={{ backgroundColor: bg, color: text }}
-    >
-      {letter}
-    </div>
-  );
-}
+const appLogos = [
+  { src: uberImg, alt: 'Uber' },
+  { src: doordashImg, alt: 'DoorDash' },
+  { src: lyftImg, alt: 'Lyft' },
+];
+
+const points = [
+  {
+    icon: Car,
+    title: 'Snowbird Season Ready',
+    desc: 'October through April, we specialize in stays from a few weeks to the full season. Extend any time — no platform restrictions, no 30-day cap.',
+  },
+  {
+    icon: Infinity,
+    title: 'Rideshare Partner Plans',
+    desc: 'We partner with Uber, DoorDash, and Lyft drivers. Weekly rates, unlimited mileage, and a reliable vehicle that keeps you earning.',
+  },
+  {
+    icon: DollarSign,
+    title: 'No Platform Fees',
+    desc: 'Book directly with Annie. No Turo, no middleman, no 20% surcharge. A fair deal, negotiated personally.',
+  },
+];
 
 export default function LongTermSection() {
   const { theme } = useTheme();
-
-  const points = [
-    {
-      icon: Car,
-      title: 'Snowbird Season Ready',
-      desc: 'October through April, we specialize in stays from a few weeks to the full season. Extend any time — no platform restrictions, no 30-day cap.',
-    },
-    {
-      icon: Infinity,
-      title: 'Rideshare Partner Plans',
-      desc: 'We partner with Uber, Lyft, and DoorDash drivers. Weekly rates, unlimited mileage, and a reliable vehicle that keeps you earning.',
-    },
-    {
-      icon: DollarSign,
-      title: 'No Platform Fees',
-      desc: 'Book directly with Annie. No Turo, no middleman, no 20% surcharge. A fair deal, negotiated personally.',
-    },
-  ];
 
   return (
     <section id="longterm" className="py-16 sm:py-28 px-4 sm:px-6 max-w-7xl mx-auto">
       <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center">
 
-        {/* Image — LEFT column */}
+        {/* Image — LEFT column (mirrors TrustSection but image first) */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           whileInView={{ opacity: 1, scale: 1 }}
@@ -62,18 +58,9 @@ export default function LongTermSection() {
               loading="lazy"
               decoding="async"
             />
-            {/* CSS overlay to cover bottom-left shield icon in the source photo */}
-            <div
-              className="absolute bottom-0 left-0 w-24 h-24 pointer-events-none"
-              style={{
-                background: theme === 'dark'
-                  ? 'linear-gradient(135deg, rgba(10,10,10,0.95) 30%, transparent 100%)'
-                  : 'linear-gradient(135deg, rgba(240,240,240,0.95) 30%, transparent 100%)',
-              }}
-            />
           </div>
 
-          {/* Floating app icons card — bottom-RIGHT */}
+          {/* Floating app logos card — bottom-RIGHT */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -86,24 +73,33 @@ export default function LongTermSection() {
               boxShadow: theme === 'dark'
                 ? '0 12px 40px rgba(0,0,0,0.5)'
                 : '0 12px 40px rgba(0,0,0,0.1)',
-              padding: '16px 20px',
+              padding: '16px 24px',
             }}
           >
-            <div className="flex items-center gap-2.5">
-              <AppIcon label="Uber" bg="#000000" text="#ffffff" letter="U" />
-              <AppIcon label="Lyft" bg="#FF00BF" text="#ffffff" letter="L" />
-              <AppIcon label="DoorDash" bg="#FF3008" text="#ffffff" letter="D" />
+            <div className="flex items-center gap-3">
+              {appLogos.map((logo, i) => (
+                <motion.img
+                  key={logo.alt}
+                  src={logo.src}
+                  alt={logo.alt}
+                  className="w-10 h-10 rounded-xl object-contain"
+                  animate={{ y: [0, -5, 0] }}
+                  transition={{
+                    duration: 2.8,
+                    repeat: Infinity,
+                    ease: 'easeInOut',
+                    delay: i * 0.35,
+                  }}
+                />
+              ))}
             </div>
-            <p className="text-sm mt-3 font-medium" style={{ color: 'var(--text-primary)' }}>
+            <p className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>
               We partner with rideshare drivers
-            </p>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
-              Weekly plans · Unlimited mileage
             </p>
           </motion.div>
         </motion.div>
 
-        {/* Text — RIGHT column */}
+        {/* Text — RIGHT column (mirrors TrustSection left column exactly) */}
         <div>
           <motion.span
             initial={{ opacity: 0 }}
@@ -120,28 +116,13 @@ export default function LongTermSection() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ ease: EASE.standard }}
-            className="text-3xl sm:text-4xl md:text-5xl font-light mb-5 leading-tight"
+            className="text-3xl sm:text-4xl md:text-5xl font-light mb-8 sm:mb-10 leading-tight"
           >
             Staying the season.<br />
             <span className="italic font-serif">Working the apps.</span>
           </motion.h2>
 
-          <motion.p
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.1, ease: EASE.standard }}
-            className="text-base sm:text-lg leading-relaxed mb-8 sm:mb-10"
-            style={{ color: 'var(--text-secondary)' }}
-          >
-            Every long-term rental is personal — every situation is different.
-            Whether you're a snowbird settling in for the winter, between vehicles and
-            need reliable wheels, or a rideshare driver who runs Uber, Lyft, or DoorDash,
-            Annie puts together a rate that actually makes sense. No platform fees. No fine print.
-            Just a fair deal, directly with the owner. We'll remember you next season.
-          </motion.p>
-
-          <div className="space-y-7">
+          <div className="space-y-8">
             {points.map((item, i) => (
               <motion.div
                 key={i}
@@ -165,29 +146,25 @@ export default function LongTermSection() {
             ))}
           </div>
 
-          {/* CTA */}
+          {/* Stats row — matches TrustSection exactly */}
           <motion.div
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
-            transition={{ delay: 0.5, ease: EASE.standard }}
-            className="flex flex-col sm:flex-row gap-3 mt-10 sm:mt-12 pt-8"
+            transition={{ delay: 0.4, ease: EASE.standard }}
+            className="flex gap-6 sm:gap-10 mt-10 sm:mt-12 pt-6 sm:pt-8"
             style={{ borderTop: '1px solid var(--border-subtle)' }}
           >
-            <a
-              href="tel:+17729856667"
-              className="px-8 py-4 rounded-full font-medium transition-all duration-500 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 text-sm"
-              style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
-            >
-              Call Annie — (772) 985-6667
-            </a>
-            <a
-              href="sms:+17729856667"
-              className="px-8 py-4 rounded-full font-medium border transition-all duration-500 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 text-sm"
-              style={{ borderColor: 'var(--border-medium)', color: 'var(--text-secondary)' }}
-            >
-              Text Us
-            </a>
+            {[
+              { val: '30–90 days', label: 'Avg Long-Term Stay' },
+              { val: '∞ miles', label: 'Weekly & Monthly' },
+              { val: 'No fees', label: 'Book Direct' },
+            ].map((stat, i) => (
+              <div key={i}>
+                <span className="text-3xl font-light">{stat.val}</span>
+                <p className="text-sm mt-1" style={{ color: 'var(--text-tertiary)' }}>{stat.label}</p>
+              </div>
+            ))}
           </motion.div>
         </div>
       </div>
