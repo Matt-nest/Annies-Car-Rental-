@@ -471,6 +471,329 @@ export default function CustomerPortal() {
             </div>
           </motion.div>
 
+          {/* ── Status Timeline ───────────────────────────────── */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15, ease: EASE.standard }}
+            style={card(theme)}
+          >
+            <div className="p-5">
+              <h3 className="text-xs font-bold uppercase tracking-[0.15em] mb-4" style={{ color: 'var(--text-tertiary)' }}>
+                Rental Progress
+              </h3>
+              {(() => {
+                const steps = [
+                  { key: 'booked', label: 'Booked' },
+                  { key: 'confirmed', label: 'Confirmed' },
+                  { key: 'ready', label: 'Ready' },
+                  { key: 'checkin', label: 'Check-In' },
+                  { key: 'active', label: 'Active' },
+                  { key: 'returned', label: 'Returned' },
+                  { key: 'completed', label: 'Complete' },
+                ];
+                const statusToStep: Record<string, number> = {
+                  pending_approval: 0, approved: 0, confirmed: 1, ready_for_pickup: 2, active: 4, returned: 5, completed: 6, cancelled: -1, declined: -1,
+                };
+                const current = statusToStep[status] ?? 0;
+                if (current < 0) return null; // cancelled/declined — no timeline
+
+                return (
+                  <div className="flex items-center gap-0" style={{ overflow: 'hidden' }}>
+                    {steps.map((step, i) => {
+                      const done = i <= current;
+                      const isCurrent = i === current;
+                      return (
+                        <div key={step.key} className="flex items-center" style={{ flex: i < steps.length - 1 ? 1 : 'none' }}>
+                          <div className="flex flex-col items-center" style={{ minWidth: 28 }}>
+                            <div
+                              className="flex items-center justify-center rounded-full transition-all"
+                              style={{
+                                width: isCurrent ? 28 : 20,
+                                height: isCurrent ? 28 : 20,
+                                backgroundColor: done ? (isCurrent ? 'var(--accent-color)' : '#22c55e') : 'var(--bg-card-hover)',
+                                border: done ? 'none' : '2px solid var(--border-subtle)',
+                                boxShadow: isCurrent ? '0 0 12px rgba(212,175,55,0.4)' : 'none',
+                              }}
+                            >
+                              {done && !isCurrent && <Check size={10} color="#fff" strokeWidth={3} />}
+                              {isCurrent && <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#1c1917' }} />}
+                            </div>
+                            <span
+                              className="text-[9px] font-semibold mt-1 whitespace-nowrap"
+                              style={{ color: isCurrent ? 'var(--accent-color)' : done ? '#22c55e' : 'var(--text-tertiary)' }}
+                            >
+                              {step.label}
+                            </span>
+                          </div>
+                          {i < steps.length - 1 && (
+                            <div
+                              style={{
+                                flex: 1,
+                                height: 2,
+                                backgroundColor: i < current ? '#22c55e' : 'var(--border-subtle)',
+                                marginTop: -12,
+                                minWidth: 8,
+                              }}
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+          </motion.div>
+
+          {/* ── Add-Ons Display ───────────────────────────────── */}
+          {(booking.unlimited_miles || booking.unlimited_tolls || (booking.addons && booking.addons.length > 0)) && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.18, ease: EASE.standard }}
+              style={card(theme)}
+            >
+              <div className="p-5">
+                <h3 className="text-xs font-bold uppercase tracking-[0.15em] mb-3" style={{ color: 'var(--text-tertiary)' }}>
+                  Your Add-Ons
+                </h3>
+                <div className="space-y-2">
+                  {(booking.unlimited_miles || booking.addons.some((a: any) => a.addon_type === 'unlimited_miles')) && (
+                    <div className="flex items-center gap-3 p-3 rounded-xl" style={{ backgroundColor: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.15)' }}>
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(34,197,94,0.15)' }}>
+                        <Gauge size={16} style={{ color: '#22c55e' }} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Unlimited Miles</p>
+                        <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>No mileage restrictions — drive as far as you want</p>
+                      </div>
+                    </div>
+                  )}
+                  {(booking.unlimited_tolls || booking.addons.some((a: any) => a.addon_type === 'unlimited_tolls')) && (
+                    <div className="flex items-center gap-3 p-3 rounded-xl" style={{ backgroundColor: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)' }}>
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(59,130,246,0.15)' }}>
+                        <Shield size={16} style={{ color: '#3b82f6' }} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Unlimited Tolls</p>
+                        <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>SunPass/toll coverage included</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── Pickup Guide (ready_for_pickup only) ──────────── */}
+          {status === 'ready_for_pickup' && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2, ease: EASE.standard }}
+              className="rounded-2xl overflow-hidden"
+              style={{ border: '2px solid rgba(6,182,212,0.2)', backgroundColor: 'rgba(6,182,212,0.04)' }}
+            >
+              <div className="p-5 space-y-4">
+                {/* Pickup Address */}
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <MapPin size={18} style={{ color: '#06b6d4' }} />
+                    <h3 className="text-sm font-bold uppercase tracking-wider" style={{ color: '#06b6d4' }}>
+                      Pickup Location
+                    </h3>
+                  </div>
+                  <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
+                    1422 SW Giverny Ln (back of building)
+                  </p>
+                  <p className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>
+                    Port Saint Lucie, FL 34953
+                  </p>
+                  <a
+                    href="https://maps.google.com/?q=1422+SW+Giverny+Ln+Port+Saint+Lucie+FL+34953"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all hover:scale-105 active:scale-95"
+                    style={{ backgroundColor: 'rgba(6,182,212,0.12)', color: '#06b6d4' }}
+                  >
+                    <ExternalLink size={12} />
+                    Open in Maps
+                  </a>
+                </div>
+
+                {/* Step-by-step */}
+                <div style={{ borderTop: '1px solid rgba(6,182,212,0.15)', paddingTop: 16 }}>
+                  <h4 className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: '#06b6d4' }}>
+                    How Pickup Works
+                  </h4>
+                  <div className="space-y-3">
+                    {[
+                      { num: '1', text: 'Walk to the back of the building' },
+                      { num: '2', text: `Find your ${v?.year || ''} ${v?.make || ''} ${v?.model || ''} — it's parked and ready` },
+                      { num: '3', text: 'Inspect the vehicle and complete the check-in form below' },
+                      { num: '4', text: 'Once submitted, your lockbox code will be revealed' },
+                      { num: '5', text: 'Open the lockbox, grab the key, and you\'re off!' },
+                    ].map((step) => (
+                      <div key={step.num} className="flex items-start gap-3">
+                        <div
+                          className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-xs font-bold"
+                          style={{ backgroundColor: 'rgba(6,182,212,0.15)', color: '#06b6d4' }}
+                        >
+                          {step.num}
+                        </div>
+                        <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                          {step.text}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Why photos */}
+                <div className="p-3 rounded-xl" style={{ backgroundColor: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.12)' }}>
+                  <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                    <Camera size={12} className="inline mr-1 -mt-0.5" style={{ color: '#f59e0b' }} />
+                    <strong style={{ color: 'var(--text-primary)' }}>Why we ask for photos:</strong> They document the vehicle's condition at pickup, protecting you from being charged for any pre-existing damage.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── Admin Vehicle Prep Report (ready_for_pickup) ──── */}
+          {status === 'ready_for_pickup' && booking.checkinRecords && (() => {
+            const prepRecord = booking.checkinRecords.find((r: any) => r.record_type === 'admin_prep');
+            if (!prepRecord) return null;
+            const fuelLabels: Record<string, string> = { full: 'Full', three_quarter: '¾ Tank', half: '½ Tank', quarter: '¼ Tank', empty: 'Empty' };
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.25, ease: EASE.standard }}
+                style={card(theme)}
+              >
+                <div className="p-5 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(34,197,94,0.1)' }}>
+                      <Shield size={16} style={{ color: '#22c55e' }} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Vehicle Prep Report</h3>
+                      <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>Your vehicle has been inspected and prepared</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    {prepRecord.fuel_level && (
+                      <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-card-hover)' }}>
+                        <p className="text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--text-tertiary)' }}>
+                          <Fuel size={10} className="inline mr-1" />Fuel Level
+                        </p>
+                        <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                          {fuelLabels[prepRecord.fuel_level] || prepRecord.fuel_level}
+                        </p>
+                      </div>
+                    )}
+                    {prepRecord.odometer && (
+                      <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-card-hover)' }}>
+                        <p className="text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--text-tertiary)' }}>
+                          <Gauge size={10} className="inline mr-1" />Odometer
+                        </p>
+                        <p className="text-sm font-semibold font-mono" style={{ color: 'var(--text-primary)' }}>
+                          {Number(prepRecord.odometer).toLocaleString()} mi
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Admin prep photos */}
+                  {prepRecord.photo_urls && prepRecord.photo_urls.length > 0 && (
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider font-bold mb-2" style={{ color: 'var(--text-tertiary)' }}>
+                        <Camera size={10} className="inline mr-1" />Inspection Photos
+                      </p>
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {prepRecord.photo_urls.slice(0, 4).map((url: string, i: number) => (
+                          <div key={i} className="aspect-square rounded-lg overflow-hidden" style={{ border: '1px solid var(--border-subtle)' }}>
+                            <img src={url} alt={`Prep ${i + 1}`} className="w-full h-full object-cover" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            );
+          })()}
+
+          {/* ── Customer Check-In Photos Gallery (active / returned / completed) ── */}
+          {['active', 'returned', 'completed'].includes(status) && booking.checkinRecords && (() => {
+            const customerCheckin = booking.checkinRecords.find((r: any) => r.record_type === 'customer_checkin');
+            if (!customerCheckin) return null;
+            const slots = customerCheckin.photo_slots || {};
+            const allPhotos = customerCheckin.photo_urls || [];
+            const fuelLabels: Record<string, string> = { full: 'Full', three_quarter: '¾ Tank', half: '½ Tank', quarter: '¼ Tank', empty: 'Empty' };
+
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2, ease: EASE.standard }}
+                style={card(theme)}
+              >
+                <div className="p-5 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--accent-glow)' }}>
+                      <Camera size={16} style={{ color: 'var(--accent-color)' }} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Your Check-In Record</h3>
+                      <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+                        Documented at pickup · {customerCheckin.created_at ? fmt(customerCheckin.created_at) : ''}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-card-hover)' }}>
+                      <p className="text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--text-tertiary)' }}>
+                        <Gauge size={10} className="inline mr-1" />Odometer
+                      </p>
+                      <p className="text-sm font-semibold font-mono" style={{ color: 'var(--text-primary)' }}>
+                        {customerCheckin.odometer ? Number(customerCheckin.odometer).toLocaleString() : '—'} mi
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-card-hover)' }}>
+                      <p className="text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--text-tertiary)' }}>
+                        <Fuel size={10} className="inline mr-1" />Fuel Level
+                      </p>
+                      <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                        {fuelLabels[customerCheckin.fuel_level] || customerCheckin.fuel_level || '—'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Photo grid */}
+                  {allPhotos.length > 0 && (
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider font-bold mb-2" style={{ color: 'var(--text-tertiary)' }}>
+                        Your Pickup Photos
+                      </p>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {allPhotos.map((url: string, i: number) => (
+                          <div key={i} className="aspect-square rounded-lg overflow-hidden" style={{ border: '1px solid var(--border-subtle)' }}>
+                            <img src={url} alt={`Check-in ${i + 1}`} className="w-full h-full object-cover" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            );
+          })()}
+
           {/* Self-Service Check-In (ready_for_pickup) */}
           {status === 'ready_for_pickup' && (
             <motion.div
