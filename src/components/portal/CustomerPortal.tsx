@@ -45,9 +45,11 @@ const card = (theme: string) => ({
 export default function CustomerPortal() {
   const { theme } = useTheme();
   const params = new URLSearchParams(window.location.search);
-  const bookingCode = params.get('code') || params.get('ref') || '';
+  const initialBookingCode = params.get('code') || params.get('ref') || '';
   const initialEmail = params.get('email') || '';
+  const codeFromUrl = !!initialBookingCode;
 
+  const [bookingCode, setBookingCode] = useState(initialBookingCode);
   const [email, setEmail] = useState(initialEmail);
   const [token, setToken] = useState<string | null>(null);
   const [booking, setBooking] = useState<any>(null);
@@ -264,7 +266,7 @@ export default function CustomerPortal() {
               style={card(theme)}
             >
               <div className="p-6 sm:p-8">
-                {bookingCode ? (
+                {codeFromUrl && (
                   <div className="mb-6 text-center">
                     <span
                       className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium"
@@ -277,18 +279,36 @@ export default function CustomerPortal() {
                       Booking: <span className="font-mono font-bold tracking-wider">{bookingCode}</span>
                     </span>
                   </div>
-                ) : (
-                  <div className="mb-6 p-4 rounded-xl text-sm" style={{
-                    backgroundColor: 'rgba(239,68,68,0.08)',
-                    border: '1px solid rgba(239,68,68,0.2)',
-                    color: '#ef4444',
-                  }}>
-                    <AlertCircle size={16} className="inline mr-2" />
-                    No booking code found. Please use the link from your confirmation email.
-                  </div>
                 )}
 
                 <form onSubmit={handleVerify} className="space-y-4">
+                  {!codeFromUrl && (
+                    <div>
+                      <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                        Booking Code
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        autoCapitalize="characters"
+                        className="w-full px-4 py-3 rounded-xl text-sm font-mono tracking-wider transition-all duration-200"
+                        style={{
+                          backgroundColor: 'var(--bg-card-hover)',
+                          border: '1px solid var(--border-subtle)',
+                          color: 'var(--text-primary)',
+                          outline: 'none',
+                        }}
+                        placeholder="e.g. BK-20260427-MJS3"
+                        value={bookingCode}
+                        onChange={e => setBookingCode(e.target.value.trim())}
+                        onFocus={e => (e.target.style.borderColor = 'var(--accent-color)')}
+                        onBlur={e => (e.target.style.borderColor = 'var(--border-subtle)')}
+                      />
+                      <p className="text-xs mt-1.5" style={{ color: 'var(--text-tertiary)' }}>
+                        Find this in your confirmation email or text.
+                      </p>
+                    </div>
+                  )}
                   <div>
                     <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
                       Email Address
