@@ -126,7 +126,10 @@ router.get('/bookings/:id/lockbox', requireAuth, asyncHandler(async (req, res) =
     return res.status(403).json({ error: 'Lockbox code not available for this booking status' });
   }
 
-  const lockboxCode = booking.vehicles?.lockbox_code || '2580'; // fallback default
+  const lockboxCode = booking.vehicles?.lockbox_code;
+  if (!lockboxCode) {
+    return res.status(503).json({ error: 'Lockbox code not configured for this vehicle. Set it in the fleet manager.' });
+  }
   res.json({ lockbox_code: lockboxCode });
 }));
 

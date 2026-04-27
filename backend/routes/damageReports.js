@@ -20,12 +20,20 @@ router.post('/bookings/:bookingId/damage', requireAuth, asyncHandler(async (req,
 
   if (!booking) return res.status(404).json({ error: 'Booking not found' });
 
+  // Whitelist allowed fields — prevent arbitrary column injection
+  const { description, severity, location, photos, damage_type, estimated_cost } = req.body;
+
   const { data, error } = await supabase
     .from('damage_reports')
     .insert({
       booking_id: req.params.bookingId,
       vehicle_id: booking.vehicle_id,
-      ...req.body,
+      description,
+      severity,
+      location,
+      photos,
+      damage_type: damage_type || null,
+      estimated_cost: estimated_cost || null,
     })
     .select()
     .single();
