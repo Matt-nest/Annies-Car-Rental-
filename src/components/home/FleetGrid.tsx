@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { ArrowUpDown, ChevronDown } from 'lucide-react';
+import { ArrowUpDown, ChevronDown, TrendingUp, ArrowRight, Phone, MessageSquare } from 'lucide-react';
 import RateToggle from './RateToggle';
 import { AnimatePresence, motion } from 'motion/react';
 import { useVehicles } from '../../hooks/useVehicles';
@@ -123,11 +123,55 @@ export default function FleetGrid({ onSelectVehicle, rateMode = 'daily', onRateM
       {/* Rate Toggle Row */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-8">
         <RateToggle value={rateMode} onChange={onRateModeChange ?? (() => {})} />
-        <p className="text-xs font-medium" style={{ color: rateMode === 'daily' ? 'var(--text-tertiary)' : 'var(--accent-color)' }}>
-          {rateMode === 'daily' && 'Weekly & monthly rentals save more — try the toggle'}
-          {rateMode === 'weekly' && '∞ Unlimited mileage on all weekly rentals'}
-          {rateMode === 'monthly' && 'Best rates for long stays — call Annie to arrange'}
-        </p>
+
+        <AnimatePresence mode="wait">
+          {rateMode === 'daily' && (
+            <motion.button
+              key="daily-hint"
+              initial={{ opacity: 0, x: 8 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 8 }}
+              transition={{ duration: 0.25 }}
+              onClick={() => onRateModeChange?.('weekly')}
+              className="flex items-center gap-2 px-4 py-2 rounded-full border text-xs font-medium transition-all duration-300 hover:scale-[1.02] active:scale-95 cursor-pointer self-start sm:self-auto"
+              style={{
+                backgroundColor: 'rgba(212,175,55,0.08)',
+                borderColor: 'rgba(212,175,55,0.35)',
+                color: 'var(--accent-color)',
+              }}
+            >
+              <TrendingUp size={12} />
+              Weekly &amp; monthly save more — see the difference
+              <ArrowRight size={12} />
+            </motion.button>
+          )}
+          {rateMode === 'weekly' && (
+            <motion.p
+              key="weekly-hint"
+              initial={{ opacity: 0, x: 8 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 8 }}
+              transition={{ duration: 0.25 }}
+              className="text-xs font-medium"
+              style={{ color: 'var(--accent-color)' }}
+            >
+              ∞ Unlimited mileage on all weekly rentals
+            </motion.p>
+          )}
+          {rateMode === 'monthly' && (
+            <motion.p
+              key="monthly-hint"
+              initial={{ opacity: 0, x: 8 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 8 }}
+              transition={{ duration: 0.25 }}
+              className="text-xs font-medium"
+              style={{ color: 'var(--accent-color)' }}
+            >
+              Every long-term rental is personal — call Annie for your rate
+            </motion.p>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Category Filter Pills */}
@@ -150,24 +194,77 @@ export default function FleetGrid({ onSelectVehicle, rateMode = 'daily', onRateM
 
       {/* Grid */}
       {displayedVehicles.length === 0 ? (
-        <div className="text-center py-20">
+        <div className="py-8">
           {rateMode === 'monthly' ? (
-            <>
-              <p style={{ color: 'var(--text-tertiary)' }} className="text-lg">Monthly pricing not yet set for this category.</p>
-              <p className="text-sm mt-2" style={{ color: 'var(--text-tertiary)' }}>
-                Call <a href="tel:+17729856667" className="underline underline-offset-2" style={{ color: 'var(--accent-color)' }}>(772) 985-6667</a> — Annie can work out a monthly arrangement for any vehicle.
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, ease: EASE.standard }}
+              className="max-w-2xl mx-auto rounded-3xl p-10 md:p-14 text-center border relative overflow-hidden"
+              style={{
+                backgroundColor: 'var(--bg-card)',
+                borderColor: 'var(--border-subtle)',
+              }}
+            >
+              {/* Subtle gold glow top-right */}
+              <div
+                className="absolute -top-16 -right-16 w-64 h-64 rounded-full pointer-events-none"
+                style={{ background: 'radial-gradient(circle, rgba(212,175,55,0.07) 0%, transparent 70%)' }}
+              />
+
+              <div className="w-10 h-px mx-auto mb-8" style={{ backgroundColor: 'var(--accent-color)' }} />
+
+              <span className="text-[11px] uppercase tracking-[0.3em] font-semibold mb-4 block" style={{ color: 'var(--accent-color)' }}>
+                Long-Term Rentals
+              </span>
+
+              <h3 className="text-3xl md:text-4xl font-light tracking-tight mb-5">
+                Let's work something out.
+              </h3>
+
+              <p className="text-base leading-relaxed mb-10 max-w-lg mx-auto" style={{ color: 'var(--text-secondary)' }}>
+                Monthly rates are personal — every situation is different.
+                Snowbird staying the season? Rideshare driver needing a weekly car?
+                Between vehicles? Call Annie, tell her what you need, and she'll
+                put together a rate that makes sense. No platform fees. No fine print.
+                Just a fair deal, directly with the owner.
               </p>
-            </>
+
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <a
+                  href="tel:+17729856667"
+                  className="px-8 py-4 rounded-full font-medium transition-all duration-500 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 text-sm"
+                  style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
+                >
+                  <Phone size={15} />
+                  Call (772) 985-6667
+                </a>
+                <a
+                  href="sms:+17729856667"
+                  className="px-8 py-4 rounded-full font-medium border transition-all duration-500 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 text-sm"
+                  style={{ borderColor: 'var(--border-medium)', color: 'var(--text-secondary)' }}
+                >
+                  <MessageSquare size={15} />
+                  Text Us
+                </a>
+              </div>
+
+              <p className="text-xs mt-8" style={{ color: 'var(--text-tertiary)' }}>
+                We respond same day · Serving Port St. Lucie and the Treasure Coast
+              </p>
+            </motion.div>
           ) : (
             <>
-              <p style={{ color: 'var(--text-tertiary)' }} className="text-lg">No vehicles match your current filters.</p>
-              <button
-                onClick={() => setFilterCategory('all')}
-                className="mt-4 underline underline-offset-4"
-                style={{ color: 'var(--text-primary)' }}
-              >
-                Clear filters
-              </button>
+              <p style={{ color: 'var(--text-tertiary)' }} className="text-lg text-center py-20">No vehicles match your current filters.</p>
+              <div className="text-center">
+                <button
+                  onClick={() => setFilterCategory('all')}
+                  className="mt-4 underline underline-offset-4"
+                  style={{ color: 'var(--text-primary)' }}
+                >
+                  Clear filters
+                </button>
+              </div>
             </>
           )}
         </div>
