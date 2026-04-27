@@ -174,7 +174,7 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
               {quickRateMode === 'daily' && (
                 <>
                   <div className="flex items-baseline gap-1.5">
-                    <span className="text-2xl md:text-3xl font-light">${vehicle.dailyRate}</span>
+                    <span className="text-2xl md:text-3xl font-light">${Math.round(vehicle.dailyRate)}</span>
                     <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>/day</span>
                   </div>
                   <span
@@ -189,7 +189,7 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
               {quickRateMode === 'weekly' && (
                 <>
                   <div className="flex items-baseline gap-1.5">
-                    <span className="text-2xl md:text-3xl font-light">${vehicle.weeklyRate}</span>
+                    <span className="text-2xl md:text-3xl font-light">${Math.round(vehicle.weeklyRate)}</span>
                     <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>/week</span>
                   </div>
                   <div className="flex gap-1.5 flex-wrap">

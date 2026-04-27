@@ -3,6 +3,11 @@
  * Display-only: server-side pricing is always authoritative.
  */
 
+/** Round price for display only — never use for payment calculations. */
+export function displayPrice(amount: number): number {
+  return Math.round(amount);
+}
+
 /** Inclusive day count matching backend calcRentalDays (pickup day = day 1). */
 export function calcRentalDays(startDate: string, endDate: string): number {
   if (!startDate || !endDate) return 0;

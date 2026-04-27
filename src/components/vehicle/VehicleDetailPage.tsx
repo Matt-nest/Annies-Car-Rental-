@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Users, Fuel, Gauge, Settings2, CheckCircle2, XCircle, MapPin, ArrowLeft, Phone, Star, ArrowRight, X, DollarSign, Clock, Car } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Vehicle } from '../../types';
+import { Vehicle, RateMode } from '../../types';
 import { getVehicleDisplayName } from '../../data/vehicles';
 import { getReviewsForVehicle, addReview } from '../../data/reviews';
 import Gallery from './Gallery';
@@ -19,6 +19,7 @@ interface VehicleDetailPageProps {
 
 export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPageProps) {
   const { theme, toggleTheme } = useTheme();
+  const [selectedRate, setSelectedRate] = useState<RateMode>('daily');
   const [showAllReviews, setShowAllReviews] = useState(false);
   const [showAddReviewModal, setShowAddReviewModal] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
@@ -56,6 +57,13 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
   };
 
   const displayName = getVehicleDisplayName(vehicle);
+
+  const handleRateSelect = (rate: RateMode) => {
+    setSelectedRate(rate);
+    setTimeout(() => {
+      document.getElementById('booking-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+  };
 
   const specs = useMemo(() => [
     { label: 'Transmission', value: vehicle.transmission, icon: Settings2 },
@@ -142,7 +150,7 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
               {vehicle.description}
             </motion.p>
 
-            {/* Pricing Tiers */}
+            {/* Pricing Tiers — selectable */}
             <motion.div
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
@@ -150,22 +158,32 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
               className="grid grid-cols-3 gap-3 md:gap-4"
             >
               {/* Daily */}
-              <div
-                className="rounded-2xl border p-4 md:p-5 space-y-2"
-                style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}
+              <button
+                type="button"
+                onClick={() => handleRateSelect('daily')}
+                className="rounded-2xl p-4 md:p-5 space-y-2 text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                style={{
+                  backgroundColor: selectedRate === 'daily' ? 'rgba(212,175,55,0.06)' : 'var(--bg-card)',
+                  border: selectedRate === 'daily' ? '2px solid var(--accent-color)' : '1px solid var(--border-subtle)',
+                }}
               >
                 <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>Daily</p>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-light">${vehicle.dailyRate}</span>
+                  <span className="text-2xl font-light">${Math.round(vehicle.dailyRate)}</span>
                   <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>/day</span>
                 </div>
-                <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>200 miles/day included</p>
-              </div>
+                <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>200 miles/day</p>
+              </button>
 
-              {/* Weekly — recommended */}
-              <div
-                className="rounded-2xl p-4 md:p-5 space-y-2 relative"
-                style={{ backgroundColor: 'rgba(212,175,55,0.06)', border: '2px solid var(--accent-color)' }}
+              {/* Weekly */}
+              <button
+                type="button"
+                onClick={() => handleRateSelect('weekly')}
+                className="rounded-2xl p-4 md:p-5 space-y-2 relative text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                style={{
+                  backgroundColor: 'rgba(212,175,55,0.06)',
+                  border: selectedRate === 'weekly' ? '2px solid var(--accent-color)' : '2px solid rgba(212,175,55,0.35)',
+                }}
               >
                 <div
                   className="absolute -top-3 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap"
@@ -175,19 +193,24 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
                 </div>
                 <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>Weekly</p>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-light">${vehicle.weeklyRate}</span>
+                  <span className="text-2xl font-light">${Math.round(vehicle.weeklyRate)}</span>
                   <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>/week</span>
                 </div>
                 <p className="text-xs font-medium" style={{ color: 'var(--accent-color)' }}>
-                  Save ${Math.round(vehicle.dailyRate * 7 - vehicle.weeklyRate)} vs daily
+                  Save ${Math.round(vehicle.dailyRate * 7 - vehicle.weeklyRate)}
                 </p>
                 <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>∞ Unlimited mileage</p>
-              </div>
+              </button>
 
               {/* Monthly */}
-              <div
-                className="rounded-2xl border p-4 md:p-5 space-y-2"
-                style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}
+              <button
+                type="button"
+                onClick={() => handleRateSelect('monthly')}
+                className="rounded-2xl p-4 md:p-5 space-y-2 text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                style={{
+                  backgroundColor: selectedRate === 'monthly' ? 'rgba(212,175,55,0.06)' : 'var(--bg-card)',
+                  border: selectedRate === 'monthly' ? '2px solid var(--accent-color)' : '1px solid var(--border-subtle)',
+                }}
               >
                 <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>Monthly</p>
                 {vehicle.monthlyDisplayPrice ? (
@@ -196,17 +219,13 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
                     <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>/mo</span>
                   </div>
                 ) : (
-                  <a
-                    href="tel:+17729856667"
-                    className="text-base font-medium transition-opacity hover:opacity-70 block"
-                    style={{ color: 'var(--accent-color)' }}
-                  >
+                  <span className="text-base font-medium block" style={{ color: 'var(--accent-color)' }}>
                     Call Annie
-                  </a>
+                  </span>
                 )}
                 <p className="text-xs font-medium" style={{ color: 'var(--accent-color)' }}>Best rate</p>
                 <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>∞ Unlimited mileage</p>
-              </div>
+              </button>
             </motion.div>
 
             {/* Specs Row */}
@@ -264,8 +283,8 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
             </section>
 
             {/* Mobile-only: Price, Form, Insurance — appears between Included and Reviews */}
-            <div className="lg:hidden space-y-6">
-              <RequestToBookForm vehicle={vehicle} />
+            <div id="booking-form" className="lg:hidden space-y-6">
+              <RequestToBookForm vehicle={vehicle} selectedRate={selectedRate} />
               <InsuranceExplainer />
             </div>
 
@@ -510,7 +529,7 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
           {/* Right Column: Sticky Request Card — desktop only */}
           <div className="hidden lg:block lg:col-span-1">
             <div className="sticky top-24 space-y-6">
-              <RequestToBookForm vehicle={vehicle} />
+              <RequestToBookForm vehicle={vehicle} selectedRate={selectedRate} />
               <InsuranceExplainer />
             </div>
           </div>

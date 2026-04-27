@@ -51,7 +51,7 @@ export default function WeeklyUpsell({
             <p className="text-sm font-medium" style={{ color: '#22c55e' }}>Weekly rate applied</p>
             <p className="text-xs mt-0.5 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
               {breakdown
-                ? `You're saving $${breakdown.savingsVsDaily.toFixed(2)} vs. daily pricing`
+                ? `You're saving $${Math.round(breakdown.savingsVsDaily).toLocaleString()} vs. daily pricing`
                 : `${weeklyDiscountPercent}% off daily rate`}
               {unlimitedMileageEnabled && ' · Unlimited mileage included'}
             </p>
@@ -105,9 +105,9 @@ export default function WeeklyUpsell({
             Add {daysNeeded} day{daysNeeded !== 1 ? 's' : ''} and unlock the weekly rate
           </p>
           <p className="text-xs mt-0.5 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-            A full week costs <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>${weeklyRate.toFixed(2)}</span>
+            A full week costs <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>${Math.round(weeklyRate).toLocaleString()}</span>
             {saving > 0 ? (
-              <> — you'd <span className="font-semibold" style={{ color: '#D4AF37' }}>save ${saving.toFixed(2)}</span> vs. your current {days} days</>
+              <> — you'd <span className="font-semibold" style={{ color: '#D4AF37' }}>save ${Math.round(saving).toLocaleString()}</span> vs. your current {days} days</>
             ) : (
               <> at {weeklyDiscountPercent}% off daily pricing</>
             )}

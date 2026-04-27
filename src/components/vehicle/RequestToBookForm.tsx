@@ -1,19 +1,20 @@
 import React, { useState, useRef } from 'react';
 import { ArrowRight, CheckCircle2, Loader2, AlertCircle, Camera, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Vehicle, BookingRequest, DeliveryOption } from '../../types';
+import { Vehicle, BookingRequest, DeliveryOption, RateMode } from '../../types';
 import { getVehicleDisplayName } from '../../data/vehicles';
 import { useTheme } from '../../context/ThemeContext';
 import { API_URL, API_KEY } from '../../config';
-import { calcRentalDays, calcPriceBreakdown } from '../../utils/pricing';
+import { calcRentalDays, calcPriceBreakdown, displayPrice } from '../../utils/pricing';
 import WeeklyUpsell from './WeeklyUpsell';
 
 
 interface RequestToBookFormProps {
   vehicle: Vehicle;
+  selectedRate?: RateMode;
 }
 
-export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
+export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: RequestToBookFormProps) {
   const { theme } = useTheme();
 
   const DELIVERY_FEES: Record<DeliveryOption, number> = {
@@ -189,6 +190,7 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
       id_photo_url: id_photo_url || undefined,
       unlimited_miles: formData.unlimitedMiles || undefined,
       unlimited_tolls: formData.unlimitedTolls || undefined,
+      rate_preference: selectedRate,
       source: 'website',
     };
 
@@ -274,6 +276,56 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
     borderColor: errors[field] ? 'rgba(239,68,68,0.5)' : 'var(--border-subtle)',
   });
 
+  // Monthly path — bypass booking flow entirely, show call/text card
+  if (selectedRate === 'monthly') {
+    return (
+      <div
+        className="rounded-2xl border overflow-hidden"
+        style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}
+      >
+        <div className="p-6 space-y-1" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+          <p className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: 'var(--accent-color)' }}>
+            Monthly Rental
+          </p>
+          {vehicle.monthlyDisplayPrice ? (
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-light">${vehicle.monthlyDisplayPrice.toLocaleString()}</span>
+              <span style={{ color: 'var(--text-tertiary)' }}>/ mo</span>
+            </div>
+          ) : (
+            <span className="text-2xl font-light">Custom pricing</span>
+          )}
+          <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>∞ Unlimited mileage included</p>
+        </div>
+
+        <div className="p-5 sm:p-6 space-y-4">
+          <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+            Monthly rentals are arranged directly with Annie. Reach out and we'll tailor a rate to your stay length, mileage, and pickup details.
+          </p>
+
+          <a
+            href="tel:+17729856667"
+            className="group w-full py-4 rounded-full font-medium transition-all duration-300 active:scale-95 hover:scale-[1.02] hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+            style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
+          >
+            Call Annie <ArrowRight size={18} className="transition-transform duration-300 group-hover:translate-x-1" />
+          </a>
+          <a
+            href="sms:+17729856667"
+            className="w-full py-3.5 rounded-full font-medium border transition-all duration-300 active:scale-95 hover:scale-[1.02] flex items-center justify-center gap-2 cursor-pointer"
+            style={{ borderColor: 'var(--border-medium)', color: 'var(--text-primary)' }}
+          >
+            Text Annie
+          </a>
+
+          <p className="text-center text-xs" style={{ color: 'var(--text-tertiary)' }}>
+            Available 7 days a week · (772) 985-6667
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (isSuccess) {
     return (
       <motion.div
@@ -337,17 +389,47 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
       className="rounded-2xl border overflow-hidden"
       style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}
     >
-      {/* Price header */}
+      {/* Price header — reflects selected rate from pricing tiers */}
       <div className="p-6" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-        <div className="flex items-baseline justify-between">
-          <div>
-            <span className="text-3xl font-light">${vehicle.dailyRate}</span>
-            <span className="ml-2" style={{ color: 'var(--text-tertiary)' }}>/ day</span>
-          </div>
-          {vehicle.weeklyRate && (
-            <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>${vehicle.weeklyRate} / week</span>
+        <div className="flex items-baseline justify-between gap-3">
+          {selectedRate === 'weekly' ? (
+            <>
+              <div>
+                <span className="text-[10px] uppercase tracking-widest font-semibold block mb-1" style={{ color: 'var(--accent-color)' }}>
+                  Weekly rate
+                </span>
+                <span className="text-3xl font-light">${displayPrice(vehicle.weeklyRate)}</span>
+                <span className="ml-2" style={{ color: 'var(--text-tertiary)' }}>/ week</span>
+              </div>
+              <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>${displayPrice(vehicle.dailyRate)} / day</span>
+            </>
+          ) : (
+            <>
+              <div>
+                <span className="text-3xl font-light">${displayPrice(vehicle.dailyRate)}</span>
+                <span className="ml-2" style={{ color: 'var(--text-tertiary)' }}>/ day</span>
+              </div>
+              {vehicle.weeklyRate && (
+                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>${displayPrice(vehicle.weeklyRate)} / week</span>
+              )}
+            </>
           )}
         </div>
+        {selectedRate === 'weekly' && rentalDays > 0 && rentalDays < 7 && (
+          <div
+            className="flex items-start gap-2 mt-3 px-3 py-2 rounded-lg"
+            style={{
+              backgroundColor: 'rgba(212,175,55,0.1)',
+              border: '1px solid rgba(212,175,55,0.3)',
+              color: '#a16207',
+            }}
+          >
+            <AlertCircle size={14} className="mt-0.5 shrink-0" />
+            <p className="text-[12px] leading-snug">
+              <strong>Weekly rate needs 7+ days.</strong> Your dates are {rentalDays} day{rentalDays !== 1 ? 's' : ''} — daily rate ({`$${displayPrice(vehicle.dailyRate)}/day`}) will apply unless you extend.
+            </p>
+          </div>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4 sm:space-y-5">
@@ -434,33 +516,33 @@ export default function RequestToBookForm({ vehicle }: RequestToBookFormProps) {
             </p>
             <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>
               <span>Rental ({priceEstimate.days} day{priceEstimate.days !== 1 ? 's' : ''})</span>
-              <span>${priceEstimate.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              <span>${displayPrice(priceEstimate.subtotal).toLocaleString()}</span>
             </div>
             {priceEstimate.deliveryFee > 0 && (
               <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>
                 <span>Delivery fee</span>
-                <span>${priceEstimate.deliveryFee.toFixed(2)}</span>
+                <span>${displayPrice(priceEstimate.deliveryFee)}</span>
               </div>
             )}
             <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>
               <span>FL Sales Tax (7%)</span>
-              <span>${priceEstimate.tax.toFixed(2)}</span>
+              <span>${displayPrice(priceEstimate.tax)}</span>
             </div>
             {priceEstimate.mileageFee > 0 && (
               <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>
                 <span>Unlimited Miles</span>
-                <span>${priceEstimate.mileageFee.toFixed(2)}</span>
+                <span>${displayPrice(priceEstimate.mileageFee)}</span>
               </div>
             )}
             {priceEstimate.tollFee > 0 && (
               <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>
                 <span>Unlimited Tolls</span>
-                <span>${priceEstimate.tollFee.toFixed(2)}</span>
+                <span>${displayPrice(priceEstimate.tollFee)}</span>
               </div>
             )}
             <div className="flex justify-between font-semibold border-t pt-2" style={{ color: 'var(--text-primary)', borderColor: 'var(--border-subtle)' }}>
               <span>Estimated Total</span>
-              <span>${priceEstimate.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              <span>${displayPrice(priceEstimate.total).toLocaleString()}</span>
             </div>
             <p className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
               Final price confirmed at approval. No charge until approved.

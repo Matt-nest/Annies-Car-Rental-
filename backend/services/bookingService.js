@@ -55,7 +55,10 @@ export async function createBooking(payload) {
     special_requests, source = 'website',
     id_photo_url,
     unlimited_miles, unlimited_tolls,
+    rate_preference,
   } = payload;
+
+  const validRatePref = ['daily', 'weekly', 'monthly'].includes(rate_preference) ? rate_preference : null;
 
   const deliveryFeeAmount = DELIVERY_FEES[delivery_type] ?? 0;
   const deliveryRequested = deliveryFeeAmount > 0;
@@ -230,6 +233,7 @@ export async function createBooking(payload) {
       status: 'pending_approval',
       special_requests: [
         delivery_type && delivery_type !== 'pickup' ? `Delivery type: ${delivery_type}` : '',
+        validRatePref ? `Rate preference: ${validRatePref}` : '',
         special_requests || '',
       ].filter(Boolean).join(' | ') || null,
       source,

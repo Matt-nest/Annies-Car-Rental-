@@ -61,6 +61,7 @@ export interface BookingRequest {
   vehicleId: string;
   vehicleName: string;
   vehicleDailyRate: number;
+  ratePreference?: RateMode;
 }
 
 export type SortOption = 'default' | 'price-asc' | 'price-desc' | 'year-desc';

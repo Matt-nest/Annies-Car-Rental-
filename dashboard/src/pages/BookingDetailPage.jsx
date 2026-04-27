@@ -460,6 +460,32 @@ function OverviewTab({ booking, c, v, id, load, setModal, setPaymentForm, setLig
           <Field label="Daily Rate" value={`$${booking.daily_rate}`} />
           <Field label="Rental Days" value={booking.rental_days} />
         </div>
+        {(() => {
+          const m = booking.special_requests?.match(/Rate preference:\s*(daily|weekly|monthly)/i);
+          if (!m) return null;
+          const pref = m[1].toLowerCase();
+          const applied = booking.rate_type || '';
+          const mismatch =
+            (pref === 'weekly' && !applied.startsWith('weekly')) ||
+            (pref === 'daily' && applied.startsWith('weekly')) ||
+            pref === 'monthly';
+          return (
+            <div
+              className="flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-xs"
+              style={{
+                backgroundColor: mismatch ? 'rgba(234,179,8,0.08)' : 'rgba(99,179,237,0.07)',
+                color: mismatch ? '#a16207' : '#3182ce',
+                border: `1px solid ${mismatch ? 'rgba(234,179,8,0.25)' : 'rgba(99,179,237,0.2)'}`,
+              }}
+            >
+              <span>
+                Customer chose <strong className="capitalize">{pref}</strong>
+                {applied && ` · applied ${applied.replace('_', ' ')}`}
+              </span>
+              {mismatch && <span className="text-[10px] uppercase tracking-wider font-semibold">Mismatch — review</span>}
+            </div>
+          );
+        })()}
       </Section>
 
       {/* Rental Details */}
