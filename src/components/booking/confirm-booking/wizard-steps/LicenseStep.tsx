@@ -82,7 +82,7 @@ export default function LicenseStep({ draft, onUpdate, onContinue, onBack, theme
     if (validate()) onContinue();
   };
 
-  const PhotoUploadSlot = ({ side, label }: { side: PhotoSide; label: string }) => {
+  const renderSlot = (side: PhotoSide, label: string) => {
     const ref = side === 'front' ? frontRef : backRef;
     const preview = previews[side];
     const isUploading = uploading[side];
@@ -181,8 +181,8 @@ export default function LicenseStep({ draft, onUpdate, onContinue, onBack, theme
               License Photos <span className="normal-case opacity-60">(optional — speeds up check-in)</span>
             </p>
             <div className="flex gap-3">
-              <PhotoUploadSlot side="front" label="Front" />
-              <PhotoUploadSlot side="back" label="Back" />
+              {renderSlot('front', 'Front')}
+              {renderSlot('back', 'Back')}
             </div>
           </div>
         </div>

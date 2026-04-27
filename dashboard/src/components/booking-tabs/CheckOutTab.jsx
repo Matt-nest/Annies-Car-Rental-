@@ -133,6 +133,73 @@ function StepperHeader({ step, steps }) {
   );
 }
 
+/* ── Customer-recorded check-in / check-out display ─────────────────── */
+function CustomerRecordCard({ title, record }) {
+  if (!record) return null;
+  const slots = record.photo_slots && typeof record.photo_slots === 'object' ? record.photo_slots : {};
+  const slotEntries = Object.entries(slots).filter(([, url]) => !!url);
+  const photos = Array.isArray(record.photo_urls) ? record.photo_urls : [];
+  return (
+    <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">{title}</h4>
+        {record.created_at && (
+          <span className="text-[10px] text-[var(--text-tertiary)] tabular-nums">
+            {new Date(record.created_at).toLocaleString()}
+          </span>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-3 text-sm">
+        {record.odometer && (
+          <div>
+            <p className="text-xs text-[var(--text-tertiary)]">Odometer</p>
+            <p className="font-semibold tabular-nums text-[var(--text-primary)]">{Number(record.odometer).toLocaleString()} mi</p>
+          </div>
+        )}
+        {record.fuel_level && (
+          <div>
+            <p className="text-xs text-[var(--text-tertiary)]">Fuel Level</p>
+            <p className="font-semibold text-[var(--text-primary)]">{record.fuel_level}</p>
+          </div>
+        )}
+      </div>
+      {record.condition_notes && (
+        <div>
+          <p className="text-xs text-[var(--text-tertiary)]">Customer notes</p>
+          <p className="text-sm text-[var(--text-secondary)]">{record.condition_notes}</p>
+        </div>
+      )}
+      {slotEntries.length > 0 && (
+        <div>
+          <p className="text-xs text-[var(--text-tertiary)] mb-2">Slot photos</p>
+          <div className="grid grid-cols-4 gap-2">
+            {slotEntries.map(([slot, url]) => (
+              <a key={slot} href={url} target="_blank" rel="noopener noreferrer" className="block">
+                <div className="relative aspect-square rounded-lg overflow-hidden border border-[var(--border-subtle)]">
+                  <img src={url} alt={slot} className="w-full h-full object-cover" />
+                  <span className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[9px] px-1.5 py-0.5 capitalize text-center">{slot.replace(/_/g, ' ')}</span>
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+      {photos.length > 0 && (
+        <div>
+          <p className="text-xs text-[var(--text-tertiary)] mb-2">All photos ({photos.length})</p>
+          <div className="grid grid-cols-4 gap-2">
+            {photos.map((url, i) => (
+              <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                <img src={url} alt={`Customer photo ${i + 1}`} className="aspect-square rounded-lg object-cover border border-[var(--border-subtle)]" />
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ══════════════════════════════════════════════════════════════════════
    MAIN COMPONENT — 3-Step Check-Out Flow
    ══════════════════════════════════════════════════════════════════════ */
@@ -175,6 +242,19 @@ export default function CheckOutTab({ booking, onReload }) {
     if (step >= 1 && !incidentalsLoaded) loadIncidentals();
     if (step >= 2) loadDepositAndInvoice();
   }, [step]);
+
+  /* ── Load both customer check-in and customer check-out records ── */
+  const [customerCheckin, setCustomerCheckin] = useState(null);
+  const [customerCheckout, setCustomerCheckout] = useState(null);
+  useEffect(() => {
+    (async () => {
+      try {
+        const records = await api.getCheckinRecords(booking.id);
+        setCustomerCheckin(records.find(r => r.record_type === 'customer_checkin') || null);
+        setCustomerCheckout(records.find(r => r.record_type === 'customer_checkout') || null);
+      } catch (e) { console.error(e); }
+    })();
+  }, [booking.id]);
 
   async function loadIncidentals() {
     try {
@@ -346,18 +426,26 @@ export default function CheckOutTab({ booking, onReload }) {
   /* ── Completed State ─────────────────────────────────────────────── */
   if (completed || isAlreadyDone) {
     return (
-      <div className="max-w-lg mx-auto py-8 text-center">
-        <CheckCircle size={48} className="mx-auto mb-4 text-emerald-500" />
-        <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2">Rental Complete</h2>
-        <p className="text-sm text-[var(--text-secondary)]">
-          {vehicleName} has been checked out, inspected, and the booking is finalized.
-        </p>
+      <div className="max-w-lg mx-auto py-8 space-y-5">
+        <div className="text-center">
+          <CheckCircle size={48} className="mx-auto mb-4 text-emerald-500" />
+          <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2">Rental Complete</h2>
+          <p className="text-sm text-[var(--text-secondary)]">
+            {vehicleName} has been checked out, inspected, and the booking is finalized.
+          </p>
+        </div>
+        <CustomerRecordCard title="Customer Check-In" record={customerCheckin} />
+        <CustomerRecordCard title="Customer Check-Out" record={customerCheckout} />
       </div>
     );
   }
 
   return (
     <div className="max-w-lg mx-auto space-y-4 py-2">
+      {/* Customer-recorded data — shown above the admin form */}
+      <CustomerRecordCard title="Customer Check-In" record={customerCheckin} />
+      <CustomerRecordCard title="Customer Check-Out" record={customerCheckout} />
+
       {/* Stepper */}
       <StepperHeader step={step} steps={STEPS} />
 

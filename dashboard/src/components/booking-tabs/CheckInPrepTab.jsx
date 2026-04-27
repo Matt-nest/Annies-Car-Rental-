@@ -125,6 +125,7 @@ export default function CheckInPrepTab({ booking, onReload }) {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
   const [lockboxCode, setLockboxCode] = useState(null);
+  const [customerRecord, setCustomerRecord] = useState(null);
 
   const isReady = ['ready_for_pickup', 'active', 'returned', 'completed'].includes(booking.status);
 
@@ -146,6 +147,8 @@ export default function CheckInPrepTab({ booking, onReload }) {
         setPhotos(prepRecord.photo_urls || []);
         if (prepRecord.condition_notes) setShowNotes(true);
       }
+      const customerCheckin = records.find(r => r.record_type === 'customer_checkin');
+      if (customerCheckin) setCustomerRecord(customerCheckin);
       // Load lockbox
       const lb = await api.getBookingLockbox(booking.id).catch(() => null);
       if (lb?.lockbox_code) setLockboxCode(lb.lockbox_code);
@@ -241,6 +244,69 @@ export default function CheckInPrepTab({ booking, onReload }) {
             </div>
           )}
         </div>
+
+        {/* Customer check-in record — what THEY uploaded at pickup */}
+        {customerRecord && (
+          <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Customer Check-In</h4>
+              {customerRecord.created_at && (
+                <span className="text-[10px] text-[var(--text-tertiary)] tabular-nums">
+                  {new Date(customerRecord.created_at).toLocaleString()}
+                </span>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              {customerRecord.odometer && (
+                <div>
+                  <p className="text-xs text-[var(--text-tertiary)]">Odometer at pickup</p>
+                  <p className="font-semibold tabular-nums text-[var(--text-primary)]">{Number(customerRecord.odometer).toLocaleString()} mi</p>
+                </div>
+              )}
+              {customerRecord.fuel_level && (
+                <div>
+                  <p className="text-xs text-[var(--text-tertiary)]">Fuel at pickup</p>
+                  <p className="font-semibold text-[var(--text-primary)]">{customerRecord.fuel_level}</p>
+                </div>
+              )}
+            </div>
+            {customerRecord.condition_notes && (
+              <div>
+                <p className="text-xs text-[var(--text-tertiary)]">Customer notes</p>
+                <p className="text-sm text-[var(--text-secondary)]">{customerRecord.condition_notes}</p>
+              </div>
+            )}
+            {customerRecord.photo_slots && Object.keys(customerRecord.photo_slots).length > 0 && (
+              <div>
+                <p className="text-xs text-[var(--text-tertiary)] mb-2">Slot photos</p>
+                <div className="grid grid-cols-4 gap-2">
+                  {Object.entries(customerRecord.photo_slots).map(([slot, url]) => (
+                    url ? (
+                      <a key={slot} href={url} target="_blank" rel="noopener noreferrer" className="block">
+                        <div className="relative aspect-square rounded-lg overflow-hidden border border-[var(--border-subtle)]">
+                          <img src={url} alt={slot} className="w-full h-full object-cover" />
+                          <span className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[9px] px-1.5 py-0.5 capitalize text-center">{slot.replace(/_/g, ' ')}</span>
+                        </div>
+                      </a>
+                    ) : null
+                  ))}
+                </div>
+              </div>
+            )}
+            {Array.isArray(customerRecord.photo_urls) && customerRecord.photo_urls.length > 0 && (
+              <div>
+                <p className="text-xs text-[var(--text-tertiary)] mb-2">All pickup photos ({customerRecord.photo_urls.length})</p>
+                <div className="grid grid-cols-4 gap-2">
+                  {customerRecord.photo_urls.map((url, i) => (
+                    <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                      <img src={url} alt={`Customer photo ${i + 1}`} className="aspect-square rounded-lg object-cover border border-[var(--border-subtle)]" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   }
