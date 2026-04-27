@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Car, Calendar, MapPin, Key, Camera, Check, AlertCircle,
   Loader2, Shield, Clock, DollarSign, MessageSquare, ArrowRight,
-  Fuel, Gauge, ChevronRight, ExternalLink, X, Star,
+  Fuel, Gauge, ChevronRight, ExternalLink, X, Star, Phone, FileText, Timer,
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { EASE, DURATION } from '../../utils/motion';
@@ -471,6 +471,30 @@ export default function CustomerPortal() {
             </div>
           </motion.div>
 
+          {/* ── Vehicle Hero Photo ─────────────────────────── */}
+          {v?.vehicle_code && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.12, ease: EASE.smooth }}
+              className="rounded-2xl overflow-hidden"
+              style={{
+                backgroundColor: theme === 'dark' ? '#0a0a0a' : '#f5f5f4',
+                border: '1px solid var(--border-subtle)',
+              }}
+            >
+              <div className="aspect-[16/9] flex items-center justify-center p-4">
+                <img
+                  src={`/fleet/${v.vehicle_code}/hero.png`}
+                  alt={`${v.year} ${v.make} ${v.model}`}
+                  className="max-w-full max-h-full object-contain"
+                  style={{ filter: 'drop-shadow(0 10px 30px rgba(0,0,0,0.3))' }}
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+              </div>
+            </motion.div>
+          )}
+
           {/* ── Status Timeline ───────────────────────────────── */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
@@ -929,6 +953,109 @@ export default function CustomerPortal() {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* ── Countdown Timer (active) ──────────────────────── */}
+          {status === 'active' && booking.return_date && (() => {
+            const returnDateTime = new Date(`${booking.return_date}T${booking.return_time || '10:00'}:00`);
+            const now = new Date();
+            const diffMs = returnDateTime.getTime() - now.getTime();
+            if (diffMs <= 0) return null;
+            const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const isUrgent = days === 0 && hours < 6;
+
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.22, ease: EASE.standard }}
+                className="p-5 rounded-2xl"
+                style={{
+                  backgroundColor: isUrgent ? 'rgba(239,68,68,0.06)' : 'rgba(59,130,246,0.06)',
+                  border: `1px solid ${isUrgent ? 'rgba(239,68,68,0.2)' : 'rgba(59,130,246,0.15)'}`,
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style={{ backgroundColor: isUrgent ? 'rgba(239,68,68,0.12)' : 'rgba(59,130,246,0.12)' }}
+                  >
+                    <Timer size={20} style={{ color: isUrgent ? '#ef4444' : '#3b82f6' }} />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs font-bold uppercase tracking-wider" style={{ color: isUrgent ? '#ef4444' : '#3b82f6' }}>
+                      {isUrgent ? 'Return Soon' : 'Return In'}
+                    </p>
+                    <p className="text-lg font-bold font-mono" style={{ color: 'var(--text-primary)' }}>
+                      {days > 0 ? `${days}d ${hours}h` : `${hours} hours`}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Due</p>
+                    <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                      {fmt(booking.return_date)} · {fmtTime(booking.return_time)}
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })()}
+
+          {/* ── Emergency Info (active) ───────────────────────── */}
+          {status === 'active' && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.25, ease: EASE.standard }}
+              style={card(theme)}
+            >
+              <div className="p-5 space-y-3">
+                <h3 className="text-xs font-bold uppercase tracking-[0.15em]" style={{ color: 'var(--text-tertiary)' }}>
+                  Emergency & Help
+                </h3>
+                <div className="space-y-2">
+                  {/* Annie's direct line */}
+                  <a
+                    href="tel:+17729856667"
+                    className="flex items-center gap-3 p-3 rounded-xl transition-all hover:scale-[1.01] active:scale-[0.99]"
+                    style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)' }}
+                  >
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(34,197,94,0.1)' }}>
+                      <Phone size={14} style={{ color: '#22c55e' }} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Annie's Car Rental</p>
+                      <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>(772) 985-6667 — available 24/7</p>
+                    </div>
+                    <ChevronRight size={14} style={{ color: 'var(--text-tertiary)' }} />
+                  </a>
+
+                  {/* Accident info */}
+                  <div className="p-3 rounded-xl" style={{ backgroundColor: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.1)' }}>
+                    <p className="text-xs font-semibold mb-1" style={{ color: '#f59e0b' }}>
+                      <AlertCircle size={11} className="inline mr-1 -mt-0.5" /> If You're in an Accident
+                    </p>
+                    <ol className="text-xs leading-relaxed space-y-0.5 pl-4" style={{ color: 'var(--text-secondary)', listStyleType: 'decimal' }}>
+                      <li>Ensure everyone is safe — call 911 if needed</li>
+                      <li>Exchange info with the other driver</li>
+                      <li>Take photos of all vehicles and the scene</li>
+                      <li>Call Annie at (772) 985-6667 immediately</li>
+                    </ol>
+                  </div>
+
+                  {/* Return instructions */}
+                  <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)' }}>
+                    <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+                      <Key size={11} className="inline mr-1 -mt-0.5" style={{ color: 'var(--accent-color)' }} /> Returning the Vehicle
+                    </p>
+                    <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                      Park at the pickup location, place the key back in the lockbox, and complete the return form below.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
 
           {/* Self-Service Check-Out (active) */}
           {status === 'active' && (
