@@ -54,7 +54,6 @@ export interface BookingRequest {
   returnTime: string;
   deliveryOption: DeliveryOption;
   deliveryAddress: string;
-  insuranceNeeded: 'yes' | 'no' | 'not-sure';
   notes: string;
   unlimitedMiles: boolean;
   unlimitedTolls: boolean;

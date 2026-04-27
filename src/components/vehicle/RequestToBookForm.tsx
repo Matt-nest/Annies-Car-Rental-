@@ -27,7 +27,7 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
     firstName: '', lastName: '', phone: '', email: '',
     startDate: '', endDate: '', pickupTime: '10:00', returnTime: '10:00',
     deliveryOption: 'pickup', deliveryAddress: '',
-    insuranceNeeded: 'not-sure', notes: '',
+    notes: '',
     unlimitedMiles: false, unlimitedTolls: false,
     vehicleId: vehicle.id, vehicleName: getVehicleDisplayName(vehicle), vehicleDailyRate: vehicle.dailyRate,
   });
@@ -185,7 +185,6 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
       return_time: formData.returnTime,
       delivery_type: formData.deliveryOption,
       delivery_address: formData.deliveryOption !== 'pickup' ? formData.deliveryAddress.trim() : undefined,
-      insurance_provider: formData.insuranceNeeded === 'yes' ? 'bonzah' : formData.insuranceNeeded === 'no' ? 'none' : undefined,
       special_requests: formData.notes.trim() || undefined,
       id_photo_url: id_photo_url || undefined,
       unlimited_miles: formData.unlimitedMiles || undefined,
@@ -607,28 +606,6 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
               />
             </div>
           )}
-        </div>
-
-        {/* Insurance */}
-        <div>
-          <label className="text-[10px] uppercase tracking-widest mb-2 block ml-1" style={{ color: 'var(--text-tertiary)' }}>Insurance Needed?</label>
-          <div className="grid grid-cols-3 gap-2">
-            {([['yes', 'Yes'], ['no', 'No'], ['not-sure', 'Not Sure']] as const).map(([val, label]) => (
-              <button
-                key={val}
-                type="button"
-                onClick={() => setFormData((prev) => ({ ...prev, insuranceNeeded: val }))}
-                className="py-2.5 rounded-xl text-sm font-medium border transition-all duration-300 cursor-pointer"
-                style={{
-                  backgroundColor: formData.insuranceNeeded === val ? 'var(--accent)' : 'var(--bg-card-hover)',
-                  color: formData.insuranceNeeded === val ? 'var(--accent-fg)' : 'var(--text-secondary)',
-                  borderColor: formData.insuranceNeeded === val ? 'var(--accent)' : 'var(--border-subtle)',
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* Add-Ons */}
