@@ -25,7 +25,7 @@ export default function LongTermSection() {
 
   return (
     <section id="longterm" className="py-16 sm:py-28 px-4 sm:px-6 max-w-7xl mx-auto">
-      <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-center">
+      <div className="grid md:grid-cols-[3fr_2fr] gap-10 md:gap-14 items-center">
 
         {/* Image — LEFT, landscape crop so face + hand are visible */}
         <motion.div
@@ -62,8 +62,8 @@ export default function LongTermSection() {
               boxShadow: theme === 'dark'
                 ? '0 16px 48px rgba(0,0,0,0.55)'
                 : '0 16px 48px rgba(0,0,0,0.12)',
-              padding: '18px 28px',
-              minWidth: '200px',
+              padding: '20px 32px',
+              minWidth: '240px',
             }}
           >
             <div className="flex items-center justify-center gap-3 mb-3">
@@ -73,7 +73,7 @@ export default function LongTermSection() {
                   src={logo.src}
                   alt={logo.alt}
                   className="w-13 h-13 rounded-2xl object-cover"
-                  style={{ width: 52, height: 52, borderRadius: 14 }}
+                  style={{ width: 64, height: 64, borderRadius: 16 }}
                   animate={{ y: [0, -5, 0] }}
                   transition={{
                     duration: 3,
@@ -100,7 +100,7 @@ export default function LongTermSection() {
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             className="text-[11px] uppercase tracking-[0.3em] font-medium mb-4 block"
-            style={{ color: 'var(--text-tertiary)' }}
+            style={{ color: 'var(--accent-color)' }}
           >
             Long-Term &amp; Rideshare
           </motion.span>
@@ -110,7 +110,7 @@ export default function LongTermSection() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ ease: EASE.standard }}
-            className="text-3xl sm:text-4xl md:text-5xl font-light mb-5 leading-tight"
+            className="text-2xl sm:text-3xl md:text-4xl font-light mb-4 leading-tight"
           >
             Let's work<br />
             <span className="italic font-serif">something out.</span>
@@ -121,7 +121,7 @@ export default function LongTermSection() {
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ delay: 0.1, ease: EASE.standard }}
-            className="text-base sm:text-lg leading-relaxed mb-7"
+            className="text-sm sm:text-base leading-relaxed mb-6"
             style={{ color: 'var(--text-secondary)' }}
           >
             Monthly rates are personal — every situation is different.
@@ -142,7 +142,7 @@ export default function LongTermSection() {
                 className="flex items-start gap-3"
               >
                 <span className="mt-[5px] shrink-0 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--accent-color)' }} />
-                <p className="text-sm sm:text-base" style={{ color: 'var(--text-secondary)' }}>
+                <p className="text-xs sm:text-sm" style={{ color: 'var(--text-secondary)' }}>
                   <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{item.label}</span>
                   {' '}— {item.desc}
                 </p>

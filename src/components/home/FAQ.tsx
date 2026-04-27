@@ -23,7 +23,7 @@ export default function FAQ() {
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
           className="text-[11px] uppercase tracking-[0.3em] font-medium mb-4 block"
-          style={{ color: 'var(--text-tertiary)' }}
+          style={{ color: 'var(--accent-color)' }}
         >
           Questions & Answers
         </motion.span>

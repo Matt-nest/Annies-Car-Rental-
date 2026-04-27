@@ -72,7 +72,7 @@ export default function FleetGrid({ onSelectVehicle, rateMode = 'daily', onRateM
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             className="text-[11px] uppercase tracking-[0.3em] font-medium mb-4 block"
-            style={{ color: 'var(--text-tertiary)' }}
+            style={{ color: 'var(--accent-color)' }}
           >
             Our Collection
           </motion.span>

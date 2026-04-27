@@ -118,7 +118,7 @@ export default function Hero({ onBrowseFleet }: HeroProps) {
             className="text-base sm:text-xl md:text-2xl font-light leading-relaxed mb-12 max-w-xl"
             style={{ color: 'var(--text-secondary)' }}
           >
-            <span className="block font-medium mb-1" style={{ color: 'var(--accent-color)' }}>
+            <span className="block font-medium mb-1" style={{ color: theme === 'dark' ? '#ffffff' : 'var(--accent-color)' }}>
               Daily · Weekly · All Season.
             </span>
             Clean, reliable vehicles delivered directly to you across the Port St. Lucie / Treasure Coast area.

@@ -25,7 +25,7 @@ export default function ContactSection({ onBrowseFleet }: ContactSectionProps) {
       >
         <div className="relative z-10 grid md:grid-cols-2 gap-8 sm:gap-12 items-center">
           <div>
-            <span className="text-[11px] uppercase tracking-[0.3em] font-medium mb-4 block" style={{ color: 'var(--text-tertiary)' }}>
+            <span className="text-[11px] uppercase tracking-[0.3em] font-medium mb-4 block" style={{ color: 'var(--accent-color)' }}>
               Book Direct
             </span>
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-light mb-4 sm:mb-6 tracking-tight">
