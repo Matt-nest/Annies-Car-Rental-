@@ -39,7 +39,7 @@ export async function generateInvoice(bookingId) {
     .select('*')
     .eq('booking_id', bookingId);
 
-  // Get deposit
+  // Get deposit — check dedicated table first, fall back to booking column
   const { data: deposit } = await supabase
     .from('booking_deposits')
     .select('*')
@@ -51,7 +51,10 @@ export async function generateInvoice(bookingId) {
   const items = [];
 
   // Security deposit (the amount being settled against)
-  const depositAmount = deposit?.amount || 0;
+  // booking_deposits.amount is in cents; booking.deposit_amount is in dollars
+  const depositAmount = (deposit?.amount && deposit.amount > 0)
+    ? deposit.amount
+    : (Number(booking.deposit_amount) > 0 ? Math.round(Number(booking.deposit_amount) * 100) : 0);
   if (depositAmount > 0) {
     items.push({
       type: 'deposit',
