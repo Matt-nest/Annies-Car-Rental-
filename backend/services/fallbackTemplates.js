@@ -109,33 +109,96 @@ We'd love to help you find an alternative. Give us a call at (772) 834-0117.
   },
 
   payment_confirmed: {
-    channel: 'email',
-    subject: 'Payment received — ${{amount}} for booking {{booking_code}}',
+    channel: 'both',
+    subject: '✅ Payment Confirmed — Receipt for {{booking_code}}',
     body: `Hi {{first_name}},
 
-We've received your payment. Here's your receipt:
+Thank you — your payment has been received and your booking is confirmed! Here's your itemized receipt and everything you need to know.
 
-PAYMENT RECEIPT
-───────────────
-Amount:     \${{amount}}
-Method:     {{payment_method}}
-Date:       {{payment_date}}
-Booking:    {{booking_code}}
-Mileage:    {{mileage_policy}}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ITEMIZED RECEIPT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Booking Reference:  {{booking_code}}
+Payment Date:       {{payment_date}}
+Payment Method:     {{payment_method}}
+
+RENTAL CHARGES
+───────────────────────────
+Vehicle Rental ({{rental_days}} days)    \${{amount}}{{#if unlimited_miles_fee}}
+  └ Unlimited Miles Add-On       \${{unlimited_miles_fee}}{{/if}}{{#if unlimited_tolls_fee}}
+  └ Unlimited Tolls Add-On      \${{unlimited_tolls_fee}}{{/if}}{{#if tax_amount}}
+Taxes & Fees                     \${{tax_amount}}{{/if}}
+Security Deposit (refundable)    \${{deposit_amount}}
+                                 ─────────
+TOTAL CHARGED                    \${{total_charged}}
 
 {{#if vehicle_year_make_model}}YOUR VEHICLE
-───────────────
+───────────────────────────
 {{#if vehicle_photo_url}}<img src="{{vehicle_photo_url}}" alt="{{vehicle_year_make_model}}" style="width:100%;max-width:400px;border-radius:12px;margin-bottom:12px;" />
 {{/if}}{{vehicle_year_make_model}}{{#if vehicle_color}}
 Color: {{vehicle_color}}{{/if}}{{#if vehicle_plate}}
 Plate: {{vehicle_plate}}{{/if}}
 {{/if}}
-You're all set. We'll send you pickup instructions the day before your rental.
+RENTAL DETAILS
+───────────────────────────
+Pickup:    {{pickup_date}} at {{pickup_time}}
+Return:    {{return_date}} at {{return_time}}
+Mileage:   {{mileage_policy}}
 
-Questions about billing? Call us at (772) 834-0117.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WHAT HAPPENS NEXT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Annie's Car Rental`,
-    sms_body: null,
+1️⃣  24 HOURS BEFORE PICKUP
+   You'll receive a text with the exact pickup address, parking location, and your lockbox code.
+
+2️⃣  DAY OF PICKUP
+   A final reminder with turn-by-turn directions.
+
+3️⃣  PICKUP
+   Walk to the back of the building, find your vehicle, retrieve the key from the lockbox, and you're off!
+
+4️⃣  SELF-SERVICE CHECK-IN
+   Use your Customer Portal to complete check-in, view your rental details, and contact us anytime:
+   → {{portal_link}}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+YOUR CUSTOMER PORTAL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Your portal is your rental home base. Use it to:
+• View your booking details and receipt
+• Complete self-service check-in on pickup day
+• Message us directly
+• Request a rental extension
+
+→ {{portal_link}}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DEPOSIT INFO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Your \${{deposit_amount}} security deposit is fully refundable. After your return, we'll inspect the vehicle and process your refund within 3–5 business days — no action needed from you.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Questions? We're always here:
+  Matthew: (772) 834-0117
+  Robin:   (772) 834-7637
+
+Annie's Car Rental
+Port Saint Lucie, FL`,
+    sms_body: `Hi {{first_name}}, your payment of \${{total_charged}} for the {{vehicle}} is confirmed! ✅
+
+Ref: {{booking_code}}
+Pickup: {{pickup_date}} at {{pickup_time}}
+
+Your Customer Portal: {{portal_link}}
+
+We'll text you pickup instructions the day before. Questions? Call (772) 834-0117.
+
+— Annie's Car Rental`,
   },
 
   pickup_reminder: {

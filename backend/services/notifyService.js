@@ -27,7 +27,7 @@ const STAGE_CTA = {
   booking_approved:    { label: 'Complete Agreement \u0026 Pay →', fieldKey: 'confirm_link',  style: 'gold' },
   booking_declined:    { label: 'Browse Other Vehicles',         fallbackPath: '/vehicles' },
   booking_cancelled:   { label: 'Browse Other Vehicles',         fallbackPath: '/vehicles' },
-  payment_confirmed:   { label: 'View Booking Status',           fieldKey: 'status_link' },
+  payment_confirmed:   { label: 'Go to My Customer Portal →', fieldKey: 'portal_link',  style: 'gold' },
   ready_for_pickup:    { label: 'View Pickup Details',           fieldKey: 'portal_link',   style: 'gold' },
   pickup_reminder:     { label: 'View Pickup Details',           fieldKey: 'portal_link',   style: 'gold' },
   day_of_pickup:       { label: 'View Pickup Details',           fieldKey: 'portal_link',   style: 'gold' },
@@ -212,8 +212,11 @@ export function buildMergeFields(bookingPayload) {
     ].filter(Boolean).join(', ') || 'None',
     // Review
     review_link:    bp.review_link || 'https://g.page/annies-car-rental/review',
-    // Alias: some templates use total_charged instead of total_cost
-    total_charged:  bp.total_cost ? Number(bp.total_cost).toFixed(2) : '',
+    // Tax amount
+    tax_amount:     bp.tax_amount ? Number(bp.tax_amount).toFixed(2) : '',
+    // total_charged: prefer the explicit value (includes deposit) set by payment handler,
+    // fall back to total_cost (rental-only) for other notification stages
+    total_charged:  bp.total_charged || (bp.total_cost ? Number(bp.total_cost).toFixed(2) : ''),
     // ── NEW: Vehicle transparency fields ──────────────────────────
     vehicle_photo_url:      vehiclePhotoUrl,
     vehicle_year_make_model: [v.year, v.make, v.model].filter(Boolean).join(' ') || 'your vehicle',
@@ -378,7 +381,13 @@ export function buildBookingPayload(booking, { handoffRecord } = {}) {
     return_time:     booking.return_time,
     pickup_location: booking.pickup_location,
     total_cost:      booking.total_cost,
+    tax_amount:      booking.tax_amount ?? null,
     rental_days:     booking.rental_days,
+    // Add-on fields for itemized receipt
+    unlimited_miles:   booking.unlimited_miles || false,
+    unlimited_tolls:   booking.unlimited_tolls || false,
+    mileage_addon_fee: booking.mileage_addon_fee || null,
+    toll_addon_fee:    booking.toll_addon_fee || null,
     insurance_provider: booking.insurance_provider,
     special_requests:   booking.special_requests,
     decline_reason:     booking.decline_reason,

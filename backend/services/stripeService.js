@@ -350,6 +350,26 @@ export async function confirmPayment(paymentIntentId) {
 
   console.log(`[Stripe] Payment confirmed for booking ${pi.metadata.booking_code}: $${pi.amount / 100}`);
 
+  // Send itemized receipt to customer (same logic as webhook handler)
+  const paidBooking = await getBookingDetail(bookingId).catch(() => null);
+  if (paidBooking) {
+    const payload = buildBookingPayload(paidBooking);
+    payload.amount = rentalDollars.toFixed(2);
+    payload.deposit_amount = depositDollars.toFixed(2);
+    payload.total_charged = (pi.amount / 100).toFixed(2);
+    payload.payment_method = pi.payment_method_types?.join(', ') || 'Card';
+    payload.payment_date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    payload.payment_time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    // Vehicle & dates for itemized receipt
+    payload.vehicle_name = paidBooking.vehicles ? `${paidBooking.vehicles.year} ${paidBooking.vehicles.make} ${paidBooking.vehicles.model}` : 'Vehicle';
+    payload.pickup_date_formatted = paidBooking.pickup_date ? new Date(paidBooking.pickup_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : '';
+    payload.return_date_formatted = paidBooking.return_date ? new Date(paidBooking.return_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : '';
+    payload.rental_days = paidBooking.pickup_date && paidBooking.return_date ? Math.ceil((new Date(paidBooking.return_date) - new Date(paidBooking.pickup_date)) / (1000 * 60 * 60 * 24)) : '';
+    payload.total_miles = payload.rental_days ? (Number(payload.rental_days) * 200).toLocaleString() : '—';
+    payload.tax_amount = paidBooking.tax_amount ? parseFloat(paidBooking.tax_amount).toFixed(2) : '0.00';
+    sendBookingNotification('payment_confirmed', payload);
+  }
+
   // Dashboard notification
   createNotification(
     'payment_received',
