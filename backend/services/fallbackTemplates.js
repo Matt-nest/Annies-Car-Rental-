@@ -431,7 +431,7 @@ Questions? We're always here:
 
 Annie's Car Rental
 Port Saint Lucie, FL`,
-    sms_body: `Hi {{first_name}}, your ${{deposit_amount}} security deposit for the {{vehicle}} has been fully refunded! ✅
+    sms_body: `Hi {{first_name}}, your \${{deposit_amount}} security deposit for the {{vehicle}} has been fully refunded! ✅
 
 Ref: {{booking_code}}
 
@@ -467,9 +467,9 @@ Annie's Car Rental
 Port Saint Lucie, FL`,
     sms_body: `Hi {{first_name}}, your deposit for the {{vehicle}} has been settled.
 
-Deposit: ${{deposit_amount}}
-Charges: ${{incidental_total}}
-Refund:  ${{refund_amount}}
+Deposit: \${{deposit_amount}}
+Charges: \${{incidental_total}}
+Refund:  \${{refund_amount}}
 
 Ref: {{booking_code}}
 
