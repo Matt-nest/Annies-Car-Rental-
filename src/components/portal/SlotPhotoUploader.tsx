@@ -76,7 +76,7 @@ export default function SlotPhotoUploader({ token, onSlotsChange }: SlotPhotoUpl
       }
 
       const data = await res.json();
-      const urls: string[] = data.urls || data.files?.map((f: any) => f.url) || [];
+      const urls: string[] = data.photos?.map((p: any) => p.url) || data.urls || data.files?.map((f: any) => f.url) || [];
 
       if (urls.length === 0) throw new Error('No files uploaded');
 
