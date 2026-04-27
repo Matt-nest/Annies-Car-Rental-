@@ -19,7 +19,7 @@ interface VehicleDetailPageProps {
 
 export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPageProps) {
   const { theme, toggleTheme } = useTheme();
-  const [selectedRate, setSelectedRate] = useState<RateMode>('daily');
+  const [selectedRate, setSelectedRate] = useState<RateMode>('weekly');
   const [showAllReviews, setShowAllReviews] = useState(false);
   const [showAddReviewModal, setShowAddReviewModal] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
@@ -181,8 +181,8 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
                 onClick={() => handleRateSelect('weekly')}
                 className="rounded-2xl p-4 md:p-5 space-y-2 relative text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
                 style={{
-                  backgroundColor: 'rgba(212,175,55,0.06)',
-                  border: selectedRate === 'weekly' ? '2px solid var(--accent-color)' : '2px solid rgba(212,175,55,0.35)',
+                  backgroundColor: selectedRate === 'weekly' ? 'rgba(212,175,55,0.06)' : 'var(--bg-card)',
+                  border: selectedRate === 'weekly' ? '2px solid var(--accent-color)' : '1px solid var(--border-subtle)',
                 }}
               >
                 <div
