@@ -243,14 +243,12 @@ export default function CheckOutTab({ booking, onReload }) {
     if (step >= 2) loadDepositAndInvoice();
   }, [step]);
 
-  /* ── Load both customer check-in and customer check-out records ── */
-  const [customerCheckin, setCustomerCheckin] = useState(null);
+  /* ── Load customer-recorded check-out record ── */
   const [customerCheckout, setCustomerCheckout] = useState(null);
   useEffect(() => {
     (async () => {
       try {
         const records = await api.getCheckinRecords(booking.id);
-        setCustomerCheckin(records.find(r => r.record_type === 'customer_checkin') || null);
         setCustomerCheckout(records.find(r => r.record_type === 'customer_checkout') || null);
       } catch (e) { console.error(e); }
     })();
@@ -434,7 +432,6 @@ export default function CheckOutTab({ booking, onReload }) {
             {vehicleName} has been checked out, inspected, and the booking is finalized.
           </p>
         </div>
-        <CustomerRecordCard title="Customer Check-In" record={customerCheckin} />
         <CustomerRecordCard title="Customer Check-Out" record={customerCheckout} />
       </div>
     );
@@ -442,8 +439,7 @@ export default function CheckOutTab({ booking, onReload }) {
 
   return (
     <div className="max-w-lg mx-auto space-y-4 py-2">
-      {/* Customer-recorded data — shown above the admin form */}
-      <CustomerRecordCard title="Customer Check-In" record={customerCheckin} />
+      {/* Customer-recorded check-out — shown above the admin form */}
       <CustomerRecordCard title="Customer Check-Out" record={customerCheckout} />
 
       {/* Stepper */}
