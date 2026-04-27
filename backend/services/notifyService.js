@@ -460,21 +460,30 @@ export async function sendBookingNotification(stage, bookingPayload) {
     const ctaHtml = buildCtaHtml(stage, mergeFields);
 
     // Send email (skip for booking_submitted — emailService.js sends a branded HTML version)
+    // Awaited so the dispatch isn't killed by serverless lifecycle when the parent handler returns.
     const skipEmail = stage === 'booking_submitted';
     if (!skipEmail && (channel === 'email' || channel === 'both') && customer.email) {
-      sendEmail({
-        to: customer.email,
-        subject: rendered.subject,
-        html: wrapInBrandedHTML(rendered.subject, rendered.body, ctaHtml),
-      }).catch(e => console.error('[Notify] Email fire-and-forget error:', e.message));
+      try {
+        await sendEmail({
+          to: customer.email,
+          subject: rendered.subject,
+          html: wrapInBrandedHTML(rendered.subject, rendered.body, ctaHtml),
+        });
+      } catch (e) {
+        console.error(`[Notify] Email send error for "${stage}":`, e.message);
+      }
     }
 
     // Send SMS
     if ((channel === 'sms' || channel === 'both') && customer.phone && rendered.sms_body) {
-      sendSMS({
-        to: customer.phone,
-        body: rendered.sms_body,
-      }).catch(e => console.error('[Notify] SMS fire-and-forget error:', e.message));
+      try {
+        await sendSMS({
+          to: customer.phone,
+          body: rendered.sms_body,
+        });
+      } catch (e) {
+        console.error(`[Notify] SMS send error for "${stage}":`, e.message);
+      }
     }
 
     // Store local copy in messages table
