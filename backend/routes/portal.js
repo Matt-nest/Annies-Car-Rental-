@@ -91,15 +91,19 @@ router.get('/booking', requirePortalAuth, async (req, res) => {
 });
 
 /**
- * GET /portal/lockbox — Get lockbox code (only when ready_for_pickup or active)
+ * GET /portal/lockbox — Get lockbox code (only AFTER check-in completes)
+ * The lockbox is gated behind check-in: the customer must submit photos,
+ * odometer, fuel level, and condition confirmation before getting the code.
  * Requires portal JWT
  */
 router.get('/lockbox', requirePortalAuth, async (req, res) => {
   try {
     const booking = await getBookingDetail(req.portal.bookingId);
 
-    if (!['ready_for_pickup', 'active'].includes(booking.status)) {
-      return res.status(403).json({ error: 'Lockbox code is not yet available' });
+    // Only reveal lockbox AFTER check-in (status = active)
+    // ready_for_pickup means they haven't completed check-in yet
+    if (booking.status !== 'active') {
+      return res.status(403).json({ error: 'Complete your vehicle check-in to receive the lockbox code' });
     }
 
     const lockboxCode = booking.vehicles?.lockbox_code || '2580';
@@ -204,7 +208,10 @@ router.post('/checkin', requirePortalAuth, async (req, res) => {
         .eq('id', booking.vehicle_id);
     }
 
-    res.json({ success: true, ...result });
+    // Return lockbox code on successful check-in — this is the gate
+    const lockboxCode = booking.vehicles?.lockbox_code || '2580';
+
+    res.json({ success: true, lockbox_code: lockboxCode, ...result });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }

@@ -128,8 +128,9 @@ export default function CustomerPortal() {
       if (!res.ok) throw new Error(data.error);
       setBooking(data);
 
-      // Load lockbox if applicable
-      if (['ready_for_pickup', 'active'].includes(data.status)) {
+      // Load lockbox only when check-in is complete (active status)
+      // Lockbox is gated behind check-in — not available during ready_for_pickup
+      if (data.status === 'active') {
         const lb = await fetch(`${API_URL}/portal/lockbox`, {
           headers: { Authorization: `Bearer ${token}` },
         }).then(r => r.json()).catch(() => null);
@@ -169,7 +170,13 @@ export default function CustomerPortal() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setActionSuccess('Check-in complete! Your rental is now active. Drive safe! 🚗');
+
+      // The lockbox code is returned on successful check-in — reveal it
+      if (data.lockbox_code) {
+        setLockbox(data.lockbox_code);
+      }
+
+      setActionSuccess('Check-in complete! Your lockbox code is below — grab your keys and drive safe! 🚗');
       await loadBooking();
     } catch (err: any) { setError(err.message); }
     setActionLoading(false);
@@ -464,35 +471,6 @@ export default function CustomerPortal() {
             </div>
           </motion.div>
 
-          {/* Lockbox Code (ready_for_pickup or active) */}
-          {lockbox && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2, ease: EASE.smooth }}
-              className="p-6 sm:p-8 rounded-2xl text-center"
-              style={{ backgroundColor: 'rgba(245,158,11,0.08)', border: '2px solid rgba(245,158,11,0.25)' }}
-            >
-              <Key size={36} className="mx-auto mb-4" style={{ color: '#f59e0b' }} />
-              <p className="text-xs font-bold uppercase tracking-[0.2em] mb-3" style={{ color: '#f59e0b' }}>
-                Your Lockbox Code
-              </p>
-              <p className="text-5xl sm:text-6xl font-black tracking-[0.4em] font-mono mb-4" style={{ color: 'var(--text-primary)' }}>
-                {lockbox}
-              </p>
-              <button
-                onClick={() => { navigator.clipboard.writeText(lockbox); }}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-all hover:scale-105 active:scale-95"
-                style={{ backgroundColor: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}
-              >
-                Tap to Copy
-              </button>
-              <p className="text-xs mt-3" style={{ color: 'var(--text-tertiary)' }}>
-                Use this code to retrieve the key from the lockbox at the pickup location.
-              </p>
-            </motion.div>
-          )}
-
           {/* Self-Service Check-In (ready_for_pickup) */}
           {status === 'ready_for_pickup' && (
             <motion.div
@@ -596,6 +574,38 @@ export default function CustomerPortal() {
               </div>
             </motion.div>
           )}
+
+          {/* Lockbox Code — only revealed AFTER successful check-in */}
+          <AnimatePresence>
+            {lockbox && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: -10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.5, ease: EASE.dramatic }}
+                className="p-6 sm:p-8 rounded-2xl text-center"
+                style={{ backgroundColor: 'rgba(245,158,11,0.08)', border: '2px solid rgba(245,158,11,0.25)' }}
+              >
+                <Key size={36} className="mx-auto mb-4" style={{ color: '#f59e0b' }} />
+                <p className="text-xs font-bold uppercase tracking-[0.2em] mb-3" style={{ color: '#f59e0b' }}>
+                  Your Lockbox Code
+                </p>
+                <p className="text-5xl sm:text-6xl font-black tracking-[0.4em] font-mono mb-4" style={{ color: 'var(--text-primary)' }}>
+                  {lockbox}
+                </p>
+                <button
+                  onClick={() => { navigator.clipboard.writeText(lockbox); }}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-all hover:scale-105 active:scale-95"
+                  style={{ backgroundColor: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}
+                >
+                  Tap to Copy
+                </button>
+                <p className="text-xs mt-3" style={{ color: 'var(--text-tertiary)' }}>
+                  Use this code to retrieve the key from the lockbox at the pickup location.
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Self-Service Check-Out (active) */}
           {status === 'active' && (
