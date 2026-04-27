@@ -14,6 +14,7 @@ import TrustSection from './components/home/TrustSection';
 import ReviewsSection from './components/home/ReviewsSection';
 import InsuranceSection from './components/home/InsuranceSection';
 import FAQ from './components/home/FAQ';
+import LongTermSection from './components/home/LongTermSection';
 import ContactSection from './components/home/ContactSection';
 import MobileStickyCTA from './components/home/MobileStickyCTA';
 import Footer from './components/layout/Footer';
@@ -173,6 +174,7 @@ export default function App() {
             <ReviewsSection />
             <InsuranceSection />
             <FAQ />
+            <LongTermSection />
             <ContactSection onBrowseFleet={handleBrowseFleet} />
             <Footer />
             <MobileStickyCTA />

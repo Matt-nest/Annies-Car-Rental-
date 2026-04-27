@@ -35,6 +35,7 @@ export default function Navbar({ onNavigate, isHomePage = false }: NavbarProps) 
     { label: 'Process', section: 'how-it-works' },
     { label: 'About', section: 'trust' },
     { label: 'FAQ', section: 'faq' },
+    { label: 'Long-Term / Rideshare', section: 'longterm' },
   ];
 
   return (
