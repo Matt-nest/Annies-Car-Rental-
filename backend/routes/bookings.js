@@ -258,6 +258,28 @@ router.post('/:id/return', requireAuth, asyncHandler(async (req, res) => {
 
 /** POST /bookings/:id/complete */
 router.post('/:id/complete', requireAuth, asyncHandler(async (req, res) => {
+  // If booking is still 'active', auto-transition through 'returned' first.
+  // The Check-Out flow already captured vehicle condition — the admin clicking
+  // "Complete Rental" implies the vehicle is back and inspected.
+  const booking = await getBookingDetail(req.params.id);
+  if (booking.status === 'active') {
+    await transitionBooking(req.params.id, 'returned', {
+      changedBy: req.user?.email || 'owner',
+      reason: 'Auto-returned via checkout completion',
+      extraFields: {
+        actual_return_at: new Date().toISOString(),
+      },
+    });
+
+    // Set vehicle back to available
+    if (booking.vehicle_id) {
+      await supabase
+        .from('vehicles')
+        .update({ status: 'available' })
+        .eq('id', booking.vehicle_id);
+    }
+  }
+
   const result = await transitionBooking(req.params.id, 'completed', {
     changedBy: req.user?.email || 'owner',
     reason: req.body.reason || 'Rental completed',
