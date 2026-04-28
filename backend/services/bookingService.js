@@ -224,7 +224,7 @@ export async function createBooking(payload) {
       total_cost:              pricing.total_cost,
       mileage_allowance:       pricing.mileage_allowance,
       line_items:              pricing.line_items,
-      unlimited_miles: !!unlimited_miles,
+      unlimited_miles: pricing.mileage_allowance === 'unlimited' || !!unlimited_miles,
       unlimited_tolls: !!unlimited_tolls,
       deposit_amount: vehicle.deposit_amount || 0,
       insurance_provider,

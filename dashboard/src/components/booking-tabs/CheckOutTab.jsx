@@ -243,7 +243,7 @@ export default function CheckOutTab({ booking, onReload }) {
      service will charge. */
   const FREE_MILES_PER_DAY = 200;
   const OVERAGE_RATE_DOLLARS = 0.34;
-  const hasUnlimitedMiles = !!booking.unlimited_miles;
+  const hasUnlimitedMiles = !!booking.unlimited_miles || booking.mileage_allowance === 'unlimited';
   const hasUnlimitedTolls = !!booking.unlimited_tolls;
   const rentalDaysCount = Math.max(1, Number(booking.rental_days) || 1);
   const freeMilesTotal = rentalDaysCount * FREE_MILES_PER_DAY;

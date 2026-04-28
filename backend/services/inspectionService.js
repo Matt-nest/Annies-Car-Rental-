@@ -74,7 +74,7 @@ export function calculateMileageOverage(booking) {
     checkInOdometer: booking.checkin_odometer || booking.pickup_mileage,
     checkOutOdometer: booking.checkout_odometer || booking.return_mileage,
     rentalDays: booking.rental_days || 1,
-    hasUnlimitedMiles: booking.has_unlimited_miles || booking.unlimited_miles,
+    hasUnlimitedMiles: booking.has_unlimited_miles || booking.unlimited_miles || booking.mileage_allowance === 'unlimited',
   });
   // Backward-compat alias: existing callers use `allowedMiles`
   return { ...result, allowedMiles: result.freeMiles };
