@@ -377,6 +377,7 @@ export default function BookingDetailPage() {
         <OverviewTab booking={booking} c={c} v={v} id={id} load={load}
           setModal={setModal} setPaymentForm={setPaymentForm}
           setLightboxUrl={setLightboxUrl}
+          checkinRecords={checkinRecords}
         />
       )}
 
@@ -449,7 +450,7 @@ export default function BookingDetailPage() {
 /* ────────────────────────────────────────────────────────
    Overview Tab — extracted from the original monolith
    ──────────────────────────────────────────────────────── */
-function OverviewTab({ booking, c, v, id, load, setModal, setPaymentForm, setLightboxUrl }) {
+function OverviewTab({ booking, c, v, id, load, setModal, setPaymentForm, setLightboxUrl, checkinRecords }) {
   return (
     <div className="grid md:grid-cols-2 gap-5">
       {/* Customer */}
