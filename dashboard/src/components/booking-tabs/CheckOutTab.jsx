@@ -237,6 +237,11 @@ export default function CheckOutTab({ booking, onReload }) {
   const isAlreadyDone = ['completed'].includes(booking.status);
   const isReturned = booking.status === 'returned';
 
+  /* ── Check-in records state (must be declared before fuel comparison below) ── */
+  const [customerCheckout, setCustomerCheckout] = useState(null);
+  const [checkinRecords, setCheckinRecords] = useState([]);
+  const [hydrated, setHydrated] = useState(false);
+
   /* ── Mileage + fuel intelligence ──────────────────────────────────────
      Mirrors backend `calculateMileageOverageFromInputs` (200 free mi/day,
      $0.34/mile overage) so the admin sees the same number the inspection
@@ -276,9 +281,7 @@ export default function CheckOutTab({ booking, onReload }) {
      If an admin_inspection record already exists for this booking, hydrate the
      Step 1 form fields from it AND advance to Step 2 (Review Charges) so the
      admin doesn't have to re-enter the condition they already saved. */
-  const [customerCheckout, setCustomerCheckout] = useState(null);
-  const [checkinRecords, setCheckinRecords] = useState([]);
-  const [hydrated, setHydrated] = useState(false);
+
   useEffect(() => {
     (async () => {
       try {
