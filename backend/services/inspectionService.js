@@ -1,14 +1,21 @@
 import { supabase } from '../db/supabase.js';
 
 /**
- * Fee schedule for mileage, late returns, and incidentals.
+ * Fee schedule for mileage, late returns, fuel, and incidentals.
  */
 export const FEE_SCHEDULE = {
   mileage_per_day: 200,         // free miles per day
   overage_per_mile: 34,         // cents per mile over
+  fuel_per_level: 1500,         // cents per quarter-tank level below check-in ($15)
   smoking_fee: 15000,           // cents ($150)
   toll_violation_fee: 3500,     // cents ($35)
 };
+
+/**
+ * Ordered fuel levels from full → empty.
+ * Index difference × fuel_per_level = fee.
+ */
+const FUEL_LEVELS_ORDER = ['full', '3/4', '1/2', '1/4', 'empty'];
 
 /**
  * Pure helper — calculate mileage overage from explicit inputs (no booking shape coupling).
@@ -111,6 +118,36 @@ export function calculateLateFee(booking) {
   }
 
   return { hoursLate: Math.round(hoursLate * 10) / 10, fee };
+}
+
+/**
+ * Calculate fuel discrepancy fee.
+ * Compares check-in fuel level against check-out fuel level.
+ * Fee = (levels dropped) × $15. Only charged when fuel is LOWER at return.
+ *
+ * Returns:
+ *   - checkInFuel   string   fuel level at check-in (e.g. 'full')
+ *   - checkOutFuel  string   fuel level at check-out (e.g. '1/2')
+ *   - levelsDrop    number   how many quarter-tank levels lower (0 = no charge)
+ *   - fee           number   charge in CENTS
+ *   - feeDescription string  human-readable description
+ */
+export function calculateFuelDiscrepancy(checkInFuel, checkOutFuel) {
+  const inIdx = FUEL_LEVELS_ORDER.indexOf(checkInFuel);
+  const outIdx = FUEL_LEVELS_ORDER.indexOf(checkOutFuel);
+
+  // If either level is unknown, skip
+  if (inIdx === -1 || outIdx === -1) {
+    return { checkInFuel, checkOutFuel, levelsDrop: 0, fee: 0, noData: true };
+  }
+
+  const levelsDrop = Math.max(0, outIdx - inIdx); // only charge if lower
+  const fee = levelsDrop * FEE_SCHEDULE.fuel_per_level;
+  const feeDescription = levelsDrop > 0
+    ? `Fuel returned at ${checkOutFuel}, checked in at ${checkInFuel} (${levelsDrop} level${levelsDrop > 1 ? 's' : ''} short @ $${(FEE_SCHEDULE.fuel_per_level / 100).toFixed(2)}/level)`
+    : '';
+
+  return { checkInFuel, checkOutFuel, levelsDrop, fee, feeDescription };
 }
 
 /**
@@ -246,6 +283,33 @@ export async function performInspection(bookingId, {
           description: `${hoursLate} hours late — ${fee >= Math.round(Number(booking.daily_rate) * 100) ? 'full' : 'half'} day rate`,
           created_by: inspectedBy || 'system',
         });
+      }
+    }
+
+    // Auto-calculate fuel discrepancy
+    if (!hasType('gas') && fuelLevel) {
+      // Fetch the admin check-in fuel level from checkin_records
+      const { data: prepRecord } = await supabase
+        .from('checkin_records')
+        .select('fuel_level')
+        .eq('booking_id', bookingId)
+        .in('record_type', ['admin_prep', 'admin_handoff', 'admin_checkin'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const checkInFuel = prepRecord?.fuel_level || booking.pickup_fuel_level;
+      if (checkInFuel) {
+        const { fee: fuelFee, feeDescription } = calculateFuelDiscrepancy(checkInFuel, fuelLevel);
+        if (fuelFee > 0) {
+          await supabase.from('incidentals').insert({
+            booking_id: bookingId,
+            type: 'gas',
+            amount: fuelFee,
+            description: feeDescription,
+            created_by: inspectedBy || 'system',
+          });
+        }
       }
     }
   }

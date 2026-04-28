@@ -260,9 +260,9 @@ export default function CheckOutTab({ booking, onReload }) {
   // Fuel discrepancy — compare against admin-confirmed check-in fuel level.
   // Admin handoff records live in checkinRecords with record_type === 'admin_prep';
   // fall back to booking.checkin_fuel_level if surfaced there.
-  const adminPrepFuel = (booking.checkinRecords || [])
+  const adminPrepFuel = checkinRecords
     .find(r => r.record_type === 'admin_prep' || r.record_type === 'admin_handoff')?.fuel_level
-    || booking.checkin_fuel_level
+    || booking.pickup_fuel_level
     || null;
   const fuelOK = adminPrepFuel ? fuelLevel === adminPrepFuel : null;
 
@@ -277,11 +277,13 @@ export default function CheckOutTab({ booking, onReload }) {
      Step 1 form fields from it AND advance to Step 2 (Review Charges) so the
      admin doesn't have to re-enter the condition they already saved. */
   const [customerCheckout, setCustomerCheckout] = useState(null);
+  const [checkinRecords, setCheckinRecords] = useState([]);
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
     (async () => {
       try {
         const records = await api.getCheckinRecords(booking.id);
+        setCheckinRecords(Array.isArray(records) ? records : []);
         setCustomerCheckout(records.find(r => r.record_type === 'customer_checkout') || null);
 
         if (!hydrated) {
