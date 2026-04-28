@@ -237,22 +237,73 @@ export default function CheckOutTab({ booking, onReload }) {
   const isAlreadyDone = ['completed'].includes(booking.status);
   const isReturned = booking.status === 'returned';
 
+  /* ── Mileage + fuel intelligence ──────────────────────────────────────
+     Mirrors backend `calculateMileageOverageFromInputs` (200 free mi/day,
+     $0.34/mile overage) so the admin sees the same number the inspection
+     service will charge. */
+  const FREE_MILES_PER_DAY = 200;
+  const OVERAGE_RATE_DOLLARS = 0.34;
+  const hasUnlimitedMiles = !!booking.unlimited_miles;
+  const hasUnlimitedTolls = !!booking.unlimited_tolls;
+  const rentalDaysCount = Math.max(1, Number(booking.rental_days) || 1);
+  const freeMilesTotal = rentalDaysCount * FREE_MILES_PER_DAY;
+  const checkInOdoNum = booking.checkin_odometer ? Number(booking.checkin_odometer) : null;
+  const odometerNum = odometer ? Number(odometer) : null;
+  const tripMiles = (checkInOdoNum != null && odometerNum != null)
+    ? Math.max(0, odometerNum - checkInOdoNum)
+    : null;
+  const overageMilesLive = (tripMiles != null && !hasUnlimitedMiles)
+    ? Math.max(0, tripMiles - freeMilesTotal)
+    : 0;
+  const overageDollars = overageMilesLive * OVERAGE_RATE_DOLLARS;
+
+  // Fuel discrepancy — compare against admin-confirmed check-in fuel level.
+  // Admin handoff records live in checkinRecords with record_type === 'admin_prep';
+  // fall back to booking.checkin_fuel_level if surfaced there.
+  const adminPrepFuel = (booking.checkinRecords || [])
+    .find(r => r.record_type === 'admin_prep' || r.record_type === 'admin_handoff')?.fuel_level
+    || booking.checkin_fuel_level
+    || null;
+  const fuelOK = adminPrepFuel ? fuelLevel === adminPrepFuel : null;
+
   /* ── Load incidentals and deposit when entering step 2/3 ── */
   useEffect(() => {
     if (step >= 1 && !incidentalsLoaded) loadIncidentals();
     if (step >= 2) loadDepositAndInvoice();
   }, [step]);
 
-  /* ── Load customer-recorded check-out record ── */
+  /* ── Load customer-recorded check-out record + resume from saved condition ──
+     If an admin_inspection record already exists for this booking, hydrate the
+     Step 1 form fields from it AND advance to Step 2 (Review Charges) so the
+     admin doesn't have to re-enter the condition they already saved. */
   const [customerCheckout, setCustomerCheckout] = useState(null);
+  const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
     (async () => {
       try {
         const records = await api.getCheckinRecords(booking.id);
         setCustomerCheckout(records.find(r => r.record_type === 'customer_checkout') || null);
+
+        if (!hydrated) {
+          const adminInspection = records.find(r => r.record_type === 'admin_inspection');
+          if (adminInspection) {
+            if (adminInspection.odometer != null) setOdometer(String(adminInspection.odometer));
+            if (adminInspection.fuel_level) setFuelLevel(adminInspection.fuel_level);
+            if (adminInspection.condition_notes) {
+              setNotes(adminInspection.condition_notes);
+              setShowNotes(true);
+            }
+            if (Array.isArray(adminInspection.photo_urls) && adminInspection.photo_urls.length > 0) {
+              setPhotos(adminInspection.photo_urls);
+            }
+            // Resume at Review Charges — condition is already saved.
+            setStep(s => (s === 0 ? 1 : s));
+          }
+          setHydrated(true);
+        }
       } catch (e) { console.error(e); }
     })();
-  }, [booking.id]);
+  }, [booking.id, hydrated]);
 
   async function loadIncidentals() {
     try {
@@ -460,12 +511,40 @@ export default function CheckOutTab({ booking, onReload }) {
       {step === 0 && (
         <div className="space-y-5">
           {/* Vehicle header */}
-          <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)]">
+          <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] space-y-2">
             <p className="text-sm font-semibold text-[var(--text-primary)]">{vehicleName}</p>
             <p className="text-xs text-[var(--text-tertiary)] font-mono">{v?.vehicle_code}</p>
             {booking.checkin_odometer && (
-              <p className="text-xs text-[var(--text-tertiary)] mt-1">Check-in odometer: {Number(booking.checkin_odometer).toLocaleString()} mi</p>
+              <p className="text-xs text-[var(--text-tertiary)]">Check-in odometer: {Number(booking.checkin_odometer).toLocaleString()} mi</p>
             )}
+            {/* Paid add-on badges + mileage allowance chip — at-a-glance signal */}
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {hasUnlimitedMiles && (
+                <span
+                  className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full"
+                  style={{ backgroundColor: 'rgba(34,197,94,0.12)', color: '#15803d', border: '1px solid rgba(34,197,94,0.25)' }}
+                >
+                  ∞ Unlimited Miles · Paid
+                </span>
+              )}
+              {hasUnlimitedTolls && (
+                <span
+                  className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full"
+                  style={{ backgroundColor: 'rgba(34,197,94,0.12)', color: '#15803d', border: '1px solid rgba(34,197,94,0.25)' }}
+                >
+                  Unlimited Tolls · Paid
+                </span>
+              )}
+              {!hasUnlimitedMiles && (
+                <span
+                  className="text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full tabular-nums"
+                  style={{ backgroundColor: 'var(--bg-card-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}
+                  title={`${FREE_MILES_PER_DAY} mi/day × ${rentalDaysCount} day${rentalDaysCount !== 1 ? 's' : ''}`}
+                >
+                  Free Miles: {freeMilesTotal.toLocaleString()}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Odometer */}
@@ -485,9 +564,25 @@ export default function CheckOutTab({ booking, onReload }) {
               onBlur={e => (e.target.style.borderColor = 'var(--border-subtle)')}
             />
             {booking.checkin_odometer && odometer && (
-              <p className="text-xs text-[var(--text-tertiary)] mt-1.5 tabular-nums">
-                Trip: {(Number(odometer) - Number(booking.checkin_odometer)).toLocaleString()} miles
-              </p>
+              <div className="mt-1.5 space-y-1">
+                <p className="text-xs text-[var(--text-tertiary)] tabular-nums">
+                  Trip: {(Number(odometer) - Number(booking.checkin_odometer)).toLocaleString()} miles
+                </p>
+                {/* Mileage status — same font size as the trip line */}
+                {hasUnlimitedMiles ? (
+                  <p className="text-xs font-medium tabular-nums" style={{ color: '#15803d' }}>
+                    Unlimited mileage
+                  </p>
+                ) : tripMiles != null && overageMilesLive > 0 ? (
+                  <p className="text-xs font-medium tabular-nums" style={{ color: 'var(--danger-color)' }}>
+                    {overageMilesLive.toLocaleString()} mi over · ${overageDollars.toFixed(2)} fee
+                  </p>
+                ) : tripMiles != null ? (
+                  <p className="text-xs font-medium tabular-nums" style={{ color: '#15803d' }}>
+                    Under mileage allowance
+                  </p>
+                ) : null}
+              </div>
             )}
           </div>
 
@@ -497,6 +592,15 @@ export default function CheckOutTab({ booking, onReload }) {
               <Fuel size={13} /> Fuel Level
             </label>
             <FuelSelector value={fuelLevel} onChange={setFuelLevel} />
+            {/* Fuel discrepancy — same font size as mileage / trip indicators */}
+            {fuelOK !== null && (
+              <p
+                className="text-xs font-medium mt-1.5"
+                style={{ color: fuelOK ? '#15803d' : 'var(--danger-color)' }}
+              >
+                {fuelOK ? 'Fuel level OK' : `Fuel discrepancy · check-in was ${adminPrepFuel}`}
+              </p>
+            )}
           </div>
 
           {/* Photos */}
@@ -586,9 +690,19 @@ export default function CheckOutTab({ booking, onReload }) {
                 style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
                 value={newIncType}
                 onChange={e => {
-                  setNewIncType(e.target.value);
-                  const config = INCIDENTAL_TYPES.find(t => t.value === e.target.value);
-                  if (config?.defaultAmount) setNewIncAmount((config.defaultAmount / 100).toString());
+                  const next = e.target.value;
+                  setNewIncType(next);
+                  const config = INCIDENTAL_TYPES.find(t => t.value === next);
+                  // Pre-fill mileage_overage with the live calculated fee from the
+                  // odometer reading (admin can override). Otherwise use the type's
+                  // configured default amount.
+                  if (next === 'mileage_overage' && overageDollars > 0) {
+                    setNewIncAmount(overageDollars.toFixed(2));
+                  } else if (config?.defaultAmount) {
+                    setNewIncAmount((config.defaultAmount / 100).toString());
+                  } else {
+                    setNewIncAmount('');
+                  }
                   setNewIncDesc(config?.label || '');
                 }}
               >

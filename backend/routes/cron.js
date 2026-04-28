@@ -203,10 +203,38 @@ router.get('/daily', async (req, res) => {
       results.lateEscalations++;
     }
 
+    // Process pending overage charges whose 48h dispute window has closed.
+    // No-op when FEATURE_AUTO_OVERAGE_CHARGES is off.
+    try {
+      const { processDueOverageCharges } = await import('../services/cardOnFileService.js');
+      const overage = await processDueOverageCharges();
+      results.overageCharges = overage;
+    } catch (e) {
+      console.error('[CRON/daily] processDueOverageCharges failed:', e.message);
+      results.overageCharges = { error: e.message };
+    }
+
     console.log('[CRON/daily]', results);
     res.json({ ok: true, ...results });
   } catch (err) {
     console.error('[CRON/daily] Error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /cron/process-overage-charges — runs more frequently than the daily cron
+ * (e.g. hourly via Vercel Cron) so overage charges fire within the hour after
+ * their dispute window closes rather than waiting up to 24h.
+ * No-op when FEATURE_AUTO_OVERAGE_CHARGES is off.
+ */
+router.get('/process-overage-charges', async (req, res) => {
+  try {
+    const { processDueOverageCharges } = await import('../services/cardOnFileService.js');
+    const result = await processDueOverageCharges();
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    console.error('[CRON/overage] Error:', err);
     res.status(500).json({ error: err.message });
   }
 });

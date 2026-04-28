@@ -315,4 +315,43 @@ router.post('/dispute', requirePortalAuth, async (req, res) => {
   }
 });
 
+/**
+ * GET /portal/pending-charges — List scheduled overage charges for the
+ * customer's booking (used by the dispute UI in the customer portal).
+ * Returns [] if FEATURE_AUTO_OVERAGE_CHARGES is off.
+ */
+router.get('/pending-charges', requirePortalAuth, async (req, res) => {
+  try {
+    const { listCustomerVisibleCharges } = await import('../services/cardOnFileService.js');
+    const charges = await listCustomerVisibleCharges(req.portal.bookingId);
+    res.json(charges);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /portal/pending-charges/:id/dispute — Customer disputes a scheduled
+ * overage charge during the 48h window. Flips status pending → disputed; the
+ * cron worker skips disputed charges, leaving them for admin review.
+ */
+router.post('/pending-charges/:id/dispute', requirePortalAuth, async (req, res) => {
+  try {
+    const { disputePendingCharge } = await import('../services/cardOnFileService.js');
+    // Verify the charge belongs to this customer's booking before mutating.
+    const { data: charge } = await supabase
+      .from('pending_overage_charges')
+      .select('id, booking_id')
+      .eq('id', req.params.id)
+      .single();
+    if (!charge || charge.booking_id !== req.portal.bookingId) {
+      return res.status(404).json({ error: 'Charge not found for this booking' });
+    }
+    const result = await disputePendingCharge(req.params.id, req.body?.message || '');
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
 export default router;

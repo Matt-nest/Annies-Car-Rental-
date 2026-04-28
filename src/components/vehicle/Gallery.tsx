@@ -19,62 +19,108 @@ export default function Gallery({ images, alt }: GalleryProps) {
 
   return (
     <>
-      {/* Gallery Grid */}
-      <section className="relative w-full overflow-hidden">
-        <div className="grid grid-cols-4 grid-rows-2 gap-2 p-2 md:p-4 h-[40vh] md:h-[65vh]">
-          {/* Main image */}
-          <div
-            className="col-span-4 md:col-span-3 row-span-2 relative rounded-2xl md:rounded-3xl overflow-hidden group cursor-pointer"
-            style={{ backgroundColor: theme === 'dark' ? '#0a0a0a' : '#f0f0f0' }}
-            onClick={() => { setCurrentIndex(0); setIsOpen(true); }}
-          >
-            <div className="absolute inset-0 img-shimmer" />
-            <img
-              src={images[0]}
-              alt={alt}
-              className="relative w-full h-full object-contain transition-transform duration-700 group-hover:scale-105"
-              style={{ filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.3))' }}
-              fetchPriority="high"
-              decoding="async"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-40 pointer-events-none" />
-            {/* Hover overlay */}
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-500 pointer-events-none" />
-          </div>
-          {/* Side images */}
-          {images.slice(1, 3).map((img, i) => (
-            <div
-              key={i}
-              className="hidden md:block rounded-3xl overflow-hidden relative cursor-pointer group"
-              style={{ backgroundColor: theme === 'dark' ? '#0a0a0a' : '#f0f0f0' }}
-              onClick={() => { setCurrentIndex(i + 1); setIsOpen(true); }}
-            >
-              <div className="absolute inset-0 img-shimmer" />
-              <img
-                src={img}
-                alt={`${alt} view ${i + 2}`}
-                className="relative w-full h-full object-contain transition-transform duration-500 group-hover:scale-110"
-                style={{ filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.25))' }}
-                loading="lazy"
-                decoding="async"
-              />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-500" />
-              {i === 1 && images.length > 3 && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/50 hover:bg-black/30 transition-colors duration-500">
-                  <span className="text-white font-medium text-sm">+{images.length - 3} Photos</span>
-                </div>
-              )}
+      {/* Gallery Grid — adaptive: renders only existing images */}
+      {images.length > 0 && (
+        <section className="relative w-full overflow-hidden">
+          {images.length === 1 ? (
+            <div className="p-2 md:p-4 h-[40vh] md:h-[65vh]">
+              <div
+                className="w-full h-full relative rounded-2xl md:rounded-3xl overflow-hidden group cursor-pointer"
+                style={{ backgroundColor: theme === 'dark' ? '#0a0a0a' : '#f0f0f0' }}
+                onClick={() => { setCurrentIndex(0); setIsOpen(true); }}
+              >
+                <div className="absolute inset-0 img-shimmer" />
+                <img
+                  src={images[0]}
+                  alt={alt}
+                  className="relative w-full h-full object-contain transition-transform duration-700 group-hover:scale-105"
+                  style={{ filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.3))' }}
+                  fetchPriority="high"
+                  decoding="async"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-40 pointer-events-none" />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-500 pointer-events-none" />
+              </div>
             </div>
-          ))}
-        </div>
-        {/* Mobile view all button */}
-        <button
-          onClick={() => { setCurrentIndex(0); setIsOpen(true); }}
-          className="md:hidden absolute bottom-6 right-6 px-4 py-2 rounded-full bg-black/80 border border-white/10 text-white text-sm font-medium"
-        >
-          View All Photos
-        </button>
-      </section>
+          ) : images.length === 2 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 p-2 md:p-4 h-[40vh] md:h-[65vh]">
+              {images.map((img, i) => (
+                <div
+                  key={i}
+                  className={`${i === 1 ? 'hidden md:block' : ''} relative rounded-2xl md:rounded-3xl overflow-hidden group cursor-pointer`}
+                  style={{ backgroundColor: theme === 'dark' ? '#0a0a0a' : '#f0f0f0' }}
+                  onClick={() => { setCurrentIndex(i); setIsOpen(true); }}
+                >
+                  <div className="absolute inset-0 img-shimmer" />
+                  <img
+                    src={img}
+                    alt={`${alt}${i === 0 ? '' : ` view ${i + 1}`}`}
+                    className="relative w-full h-full object-contain transition-transform duration-700 group-hover:scale-105"
+                    style={{ filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.3))' }}
+                    fetchPriority={i === 0 ? 'high' : 'auto'}
+                    loading={i === 0 ? undefined : 'lazy'}
+                    decoding="async"
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-500 pointer-events-none" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-4 grid-rows-2 gap-2 p-2 md:p-4 h-[40vh] md:h-[65vh]">
+              <div
+                className="col-span-4 md:col-span-3 row-span-2 relative rounded-2xl md:rounded-3xl overflow-hidden group cursor-pointer"
+                style={{ backgroundColor: theme === 'dark' ? '#0a0a0a' : '#f0f0f0' }}
+                onClick={() => { setCurrentIndex(0); setIsOpen(true); }}
+              >
+                <div className="absolute inset-0 img-shimmer" />
+                <img
+                  src={images[0]}
+                  alt={alt}
+                  className="relative w-full h-full object-contain transition-transform duration-700 group-hover:scale-105"
+                  style={{ filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.3))' }}
+                  fetchPriority="high"
+                  decoding="async"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-40 pointer-events-none" />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-500 pointer-events-none" />
+              </div>
+              {images.slice(1, 3).map((img, i) => (
+                <div
+                  key={i}
+                  className="hidden md:block rounded-3xl overflow-hidden relative cursor-pointer group"
+                  style={{ backgroundColor: theme === 'dark' ? '#0a0a0a' : '#f0f0f0' }}
+                  onClick={() => { setCurrentIndex(i + 1); setIsOpen(true); }}
+                >
+                  <div className="absolute inset-0 img-shimmer" />
+                  <img
+                    src={img}
+                    alt={`${alt} view ${i + 2}`}
+                    className="relative w-full h-full object-contain transition-transform duration-500 group-hover:scale-110"
+                    style={{ filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.25))' }}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-500" />
+                  {i === 1 && images.length > 3 && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 hover:bg-black/30 transition-colors duration-500">
+                      <span className="text-white font-medium text-sm">+{images.length - 3} Photos</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          {/* Mobile view all button — only show if there's more than one image */}
+          {images.length > 1 && (
+            <button
+              onClick={() => { setCurrentIndex(0); setIsOpen(true); }}
+              className="md:hidden absolute bottom-6 right-6 px-4 py-2 rounded-full bg-black/80 border border-white/10 text-white text-sm font-medium"
+            >
+              View All Photos
+            </button>
+          )}
+        </section>
+      )}
 
       {/* Lightbox */}
       <AnimatePresence>

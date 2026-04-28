@@ -254,11 +254,51 @@ export async function settleDeposit(bookingId, { incidentalTotal = 0, refundedBy
     console.error('[Deposit] Failed to send settlement notification:', e.message);
   }
 
+  // Card-on-file: when incidentals exceed the deposit, schedule the overage
+  // charge to fire 48h later (giving the customer a dispute window). Falls back
+  // to the existing manual collection path when the feature flag is off or
+  // when no card is on file. Email notification handled separately below.
+  let overageScheduledId = null;
+  if (amountOwed > 0) {
+    try {
+      const { scheduleOverageCharge, FEATURE_AUTO_OVERAGE_CHARGES, OVERAGE_DELAY_MS } =
+        await import('./cardOnFileService.js');
+      if (FEATURE_AUTO_OVERAGE_CHARGES) {
+        overageScheduledId = await scheduleOverageCharge({
+          bookingId,
+          amountCents: amountOwed,
+          description: 'Inspection charges exceed security deposit',
+          lineItems: [{ description: 'Net amount owed after deposit applied', amount_cents: amountOwed }],
+        });
+        if (overageScheduledId) {
+          // Email customer with itemized charges + dispute window. Reuses the
+          // payment_confirmed receipt block by injecting a charge-summary into
+          // a dedicated `inspection_charges_scheduled` notification stage —
+          // falls back silently if the template isn't in the email_templates
+          // table yet (admin can enable later via the Messaging tab).
+          const booking = await getBookingForNotify(bookingId);
+          if (booking) {
+            const payload = buildBookingPayload(booking);
+            payload.refund_amount = '0.00';
+            payload.incidental_total = (incidentalTotal / 100).toFixed(2);
+            payload.amount_owed = (amountOwed / 100).toFixed(2);
+            payload.charge_scheduled_iso = new Date(Date.now() + OVERAGE_DELAY_MS).toISOString();
+            payload.dispute_window_hours = 48;
+            sendBookingNotification('inspection_charges_scheduled', payload);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('[Deposit] Overage charge scheduling failed:', e.message);
+    }
+  }
+
   return {
     success: true,
     depositAmount: deposit.amount,
     appliedAmount,
     refundAmount,
     amountOwed,
+    overageScheduledId,
   };
 }

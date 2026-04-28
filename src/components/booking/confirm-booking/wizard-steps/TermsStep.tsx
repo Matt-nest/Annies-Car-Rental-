@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { FileText, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { FileText, ChevronDown, ChevronUp, Check } from 'lucide-react';
 import { RENTAL_TERMS } from '../../../../data/rentalTerms';
 import type { WizardDraft } from '../constants';
 
@@ -13,11 +13,40 @@ interface Props {
 
 export default function TermsStep({ draft, onUpdate, onContinue, onBack, theme }: Props) {
   const [expanded, setExpanded] = useState(false);
+  const [scrolledToEnd, setScrolledToEnd] = useState(false);
   const [error, setError] = useState('');
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const checkboxEnabled = expanded && scrolledToEnd;
+  const continueEnabled = checkboxEnabled && draft.termsAccepted;
+
+  // After expand, re-evaluate whether the content already fits without scroll
+  // (short-content edge case + small viewports). Run on next tick so layout settles.
+  useEffect(() => {
+    if (!expanded) {
+      setScrolledToEnd(false);
+      return;
+    }
+    const el = scrollRef.current;
+    if (!el) return;
+    const id = window.requestAnimationFrame(() => {
+      if (el.scrollHeight - el.clientHeight <= 4) setScrolledToEnd(true);
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [expanded]);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 4) {
+      setScrolledToEnd(true);
+    }
+  };
 
   const handleContinue = () => {
-    if (!draft.termsAccepted) {
-      setError('You must accept the Terms & Conditions to continue');
+    if (!continueEnabled) {
+      if (!expanded) setError('Please open and read the full Terms & Conditions');
+      else if (!scrolledToEnd) setError('Please scroll to the end of the Terms & Conditions');
+      else if (!draft.termsAccepted) setError('You must accept the Terms & Conditions to continue');
       return;
     }
     onContinue();
@@ -56,29 +85,45 @@ export default function TermsStep({ draft, onUpdate, onContinue, onBack, theme }
             Click "Read Full Terms" to review in detail.
           </p>
         ) : (
-          <div
-            className="max-h-[400px] overflow-y-auto pr-2 space-y-4 text-xs leading-relaxed scrollbar-thin"
-            style={{ color: 'var(--text-secondary)' }}
-          >
-            <h4 className="text-sm font-semibold text-center" style={{ color: 'var(--text-primary)' }}>
-              Rental Agreement Terms and Conditions
-            </h4>
-            {RENTAL_TERMS.map(term => (
-              <div key={term.number}>
-                <p className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
-                  {term.number}. {term.title}
-                </p>
-                <p className="text-[11px] leading-relaxed">{term.text}</p>
+          <>
+            <div
+              ref={scrollRef}
+              onScroll={handleScroll}
+              className="max-h-[400px] overflow-y-auto pr-2 space-y-4 text-xs leading-relaxed scrollbar-thin"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              <h4 className="text-sm font-semibold text-center" style={{ color: 'var(--text-primary)' }}>
+                Rental Agreement Terms and Conditions
+              </h4>
+              {RENTAL_TERMS.map(term => (
+                <div key={term.number}>
+                  <p className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+                    {term.number}. {term.title}
+                  </p>
+                  <p className="text-[11px] leading-relaxed">{term.text}</p>
+                </div>
+              ))}
+              <div className="pt-2 flex items-center gap-2 text-[11px] font-medium" style={{ color: 'var(--accent-color)' }}>
+                <Check size={12} /> End of Terms & Conditions
               </div>
-            ))}
-          </div>
+            </div>
+            {!scrolledToEnd && (
+              <p className="text-[11px] mt-2 italic" style={{ color: 'var(--text-tertiary)' }}>
+                Scroll to the bottom to enable acceptance.
+              </p>
+            )}
+          </>
         )}
 
-        {/* Accept checkbox */}
+        {/* Accept checkbox — disabled until expanded + scrolled to end */}
         <div className="mt-4 pt-3" style={{ borderTop: '1px solid var(--border-subtle)' }}>
           <label
-            className="flex items-start gap-3 cursor-pointer"
-            onClick={() => { onUpdate({ termsAccepted: !draft.termsAccepted }); setError(''); }}
+            className={`flex items-start gap-3 ${checkboxEnabled ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
+            onClick={() => {
+              if (!checkboxEnabled) return;
+              onUpdate({ termsAccepted: !draft.termsAccepted });
+              setError('');
+            }}
           >
             <div
               className="w-5 h-5 rounded-md border-2 shrink-0 mt-0.5 flex items-center justify-center transition-all duration-200"
@@ -93,6 +138,14 @@ export default function TermsStep({ draft, onUpdate, onContinue, onBack, theme }
               I have read and agree to the Terms & Conditions of this Rental Agreement.
             </span>
           </label>
+          {/* a11y live region — announces when controls become enabled */}
+          <div className="sr-only" aria-live="polite" aria-atomic="true">
+            {checkboxEnabled
+              ? 'You may now accept the Terms & Conditions.'
+              : !expanded
+                ? 'Open Read Full Terms to begin.'
+                : 'Scroll to the bottom to enable acceptance.'}
+          </div>
           {error && <p className="text-red-400 text-xs mt-2 ml-0.5">{error}</p>}
         </div>
       </div>
@@ -103,8 +156,11 @@ export default function TermsStep({ draft, onUpdate, onContinue, onBack, theme }
           style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)', backgroundColor: 'transparent' }}>
           Back
         </button>
-        <button type="button" onClick={handleContinue}
-          className="flex-1 py-4 rounded-full font-medium transition-all duration-300 active:scale-95 hover:scale-[1.02] hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+        <button
+          type="button"
+          onClick={handleContinue}
+          disabled={!continueEnabled}
+          className="flex-1 py-4 rounded-full font-medium transition-all duration-300 active:scale-95 flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 enabled:hover:scale-[1.02] enabled:hover:shadow-lg"
           style={{ backgroundColor: 'var(--accent-color)', color: 'var(--accent-fg)' }}>
           Continue
           <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>

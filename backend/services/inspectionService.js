@@ -11,30 +11,73 @@ export const FEE_SCHEDULE = {
 };
 
 /**
+ * Pure helper — calculate mileage overage from explicit inputs (no booking shape coupling).
+ * 200 free miles per rental day; overage rate $0.34/mile; skip entirely when unlimited.
+ *
+ * Example: 2-day rental, check-in 100 mi, free allowance = 400 mi → return cap = 500 mi.
+ * Returned at 600 mi → 100 mi × $0.34 = $34.00 overage fee.
+ *
+ * Returns:
+ *   - totalMiles  number   miles driven (checkout - checkin)
+ *   - freeMiles   number   rentalDays × 200 (or Infinity for unlimited)
+ *   - overageMiles number  max(0, totalMiles - freeMiles); always 0 for unlimited
+ *   - overageFee  number   overage cost in CENTS (consistent with rest of fee schedule)
+ *   - overageFeeDollars number  same value as a USD float (matches admin UI display)
+ *   - unlimitedMiles boolean  true if hasUnlimitedMiles=true
+ */
+export function calculateMileageOverageFromInputs({
+  checkInOdometer,
+  checkOutOdometer,
+  rentalDays,
+  hasUnlimitedMiles,
+}) {
+  const inOdo = Number(checkInOdometer);
+  const outOdo = Number(checkOutOdometer);
+  const days = Math.max(1, Number(rentalDays) || 1);
+
+  if (!Number.isFinite(inOdo) || !Number.isFinite(outOdo)) {
+    return { totalMiles: 0, freeMiles: 0, overageMiles: 0, overageFee: 0, overageFeeDollars: 0, noData: true };
+  }
+
+  const totalMiles = Math.max(0, outOdo - inOdo);
+  const freeMiles = days * FEE_SCHEDULE.mileage_per_day;
+
+  if (hasUnlimitedMiles) {
+    return {
+      totalMiles,
+      freeMiles: Infinity,
+      overageMiles: 0,
+      overageFee: 0,
+      overageFeeDollars: 0,
+      unlimitedMiles: true,
+    };
+  }
+
+  const overageMiles = Math.max(0, totalMiles - freeMiles);
+  const overageFee = overageMiles * FEE_SCHEDULE.overage_per_mile;
+  return {
+    totalMiles,
+    freeMiles,
+    overageMiles,
+    overageFee,
+    overageFeeDollars: overageFee / 100,
+  };
+}
+
+/**
  * Calculate mileage overage for a booking.
- * Returns { totalMiles, allowedMiles, overageMiles, overageFee } (fee in cents).
+ * Wraps the pure helper so existing callers continue to work.
+ * Returns { totalMiles, freeMiles, allowedMiles (alias), overageMiles, overageFee } (fee in cents).
  */
 export function calculateMileageOverage(booking) {
-  const checkinOdo = booking.checkin_odometer || booking.pickup_mileage;
-  const checkoutOdo = booking.checkout_odometer || booking.return_mileage;
-
-  if (!checkinOdo || !checkoutOdo) {
-    return { totalMiles: 0, allowedMiles: 0, overageMiles: 0, overageFee: 0, noData: true };
-  }
-
-  const totalMiles = checkoutOdo - checkinOdo;
-  const rentalDays = booking.rental_days || 1;
-  const allowedMiles = rentalDays * FEE_SCHEDULE.mileage_per_day;
-  const overageMiles = Math.max(0, totalMiles - allowedMiles);
-
-  // No overage if customer has unlimited miles
-  if (booking.has_unlimited_miles) {
-    return { totalMiles, allowedMiles, overageMiles: 0, overageFee: 0, unlimitedMiles: true };
-  }
-
-  const overageFee = overageMiles * FEE_SCHEDULE.overage_per_mile;
-
-  return { totalMiles, allowedMiles, overageMiles, overageFee };
+  const result = calculateMileageOverageFromInputs({
+    checkInOdometer: booking.checkin_odometer || booking.pickup_mileage,
+    checkOutOdometer: booking.checkout_odometer || booking.return_mileage,
+    rentalDays: booking.rental_days || 1,
+    hasUnlimitedMiles: booking.has_unlimited_miles || booking.unlimited_miles,
+  });
+  // Backward-compat alias: existing callers use `allowedMiles`
+  return { ...result, allowedMiles: result.freeMiles };
 }
 
 /**

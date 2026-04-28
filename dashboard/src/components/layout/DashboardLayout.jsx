@@ -1,23 +1,35 @@
 import { useState, useEffect, useRef, createContext, useContext } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
-import { Menu, Sun, Moon, User, Settings, LogOut, ChevronDown } from 'lucide-react';
+import { Sun, Moon, User, Settings, LogOut, ChevronDown, ThumbsUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from './Sidebar';
 import GlobalSearch from './GlobalSearch';
 import NotificationDropdown from './NotificationDropdown';
+import AlertPillBar from './AlertPillBar';
+import CashRainOverlay from '../shared/CashRainOverlay';
 import { useAuth } from '../../auth/AuthProvider';
-import { api } from '../../api/client';
+import { AlertsProvider, useAlerts } from '../../lib/alertsContext';
 
 export const ThemeContext = createContext({ dark: false, toggle: () => {} });
 export const useTheme = () => useContext(ThemeContext);
 
 export default function DashboardLayout() {
+  return (
+    <AlertsProvider>
+      <DashboardLayoutInner />
+    </AlertsProvider>
+  );
+}
+
+function DashboardLayoutInner() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
-  const [alerts, setAlerts] = useState({ pending_approvals: 0, pending_agreements: 0 });
+  const { alerts, onActiveRentalStarted } = useAlerts();
   const [profileOpen, setProfileOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const [activeAlertModal, setActiveAlertModal] = useState(false);
+  const [cashRainActive, setCashRainActive] = useState(false);
 
   // ── Sidebar pinned state (desktop only, persisted) ──────────────────────────
   // pinned=true: sidebar always expanded (takes layout space)
@@ -53,21 +65,11 @@ export default function DashboardLayout() {
     return () => { html.classList.remove('dark', 'light'); };
   }, [dark]);
 
-  // ── Alerts polling ──────────────────────────────────────────────────────────
+  // ── Active-rental detection: when overview reports a fresh active rental
+  // between polls, surface a celebratory acknowledgement modal + cash rain.
   useEffect(() => {
-    const loadAlerts = () => {
-      api.getOverview()
-        .then(ov => setAlerts({
-          pending_approvals: ov.pending_approvals || 0,
-          pending_agreements: ov.pending_agreements || 0,
-          pending_reviews: ov.pending_reviews || 0,
-        }))
-        .catch(() => {});
-    };
-    loadAlerts();
-    const interval = setInterval(loadAlerts, 30000);
-    return () => clearInterval(interval);
-  }, []);
+    return onActiveRentalStarted(() => setActiveAlertModal(true));
+  }, [onActiveRentalStarted]);
 
   // ── Profile dropdown dismiss ────────────────────────────────────────────────
   useEffect(() => {
@@ -143,6 +145,9 @@ export default function DashboardLayout() {
               <div className="flex-1 min-w-0">
                 <GlobalSearch />
               </div>
+
+              {/* Top-bar alert pills — opens active-alert modal on click */}
+              <AlertPillBar onActiveAlertClick={() => setActiveAlertModal(true)} />
 
               {/* Right controls */}
               <div className="flex items-center gap-3 ml-auto shrink-0">
@@ -261,6 +266,49 @@ export default function DashboardLayout() {
             <Outlet />
           </main>
         </div>
+
+        {/* Active-rental acknowledgement modal — fires when a booking flips to
+            active. Pure awareness signal — no required action. Dismiss → cash rain. */}
+        <AnimatePresence>
+          {activeAlertModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[999990] flex items-center justify-center p-4"
+              onClick={() => { setActiveAlertModal(false); setCashRainActive(true); }}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.92, y: 16 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.96 }}
+                transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+                className="rounded-2xl px-6 py-5 max-w-sm w-full text-center"
+                style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="flex justify-center mb-3">
+                  <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(34,197,94,0.12)' }}>
+                    <ThumbsUp size={28} style={{ color: '#15803d' }} />
+                  </div>
+                </div>
+                <h3 className="text-base font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Rental is now active</h3>
+                <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>
+                  A customer just started their rental. Nothing required from you.
+                </p>
+                <button
+                  onClick={() => { setActiveAlertModal(false); setCashRainActive(true); }}
+                  className="px-5 py-2 rounded-full text-sm font-semibold transition-transform hover:scale-[1.03]"
+                  style={{ backgroundColor: 'var(--accent-color)', color: '#1c1917' }}
+                >
+                  Acknowledge
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <CashRainOverlay active={cashRainActive} onComplete={() => setCashRainActive(false)} />
       </div>
     </ThemeContext.Provider>
   );

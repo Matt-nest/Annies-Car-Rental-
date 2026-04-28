@@ -41,6 +41,76 @@ const card = (theme: string) => ({
   overflow: 'hidden' as const,
 });
 
+/* ── Status-driven layout map ─────────────────────────────
+   Single source of truth for the per-status welcome note + which collapsible
+   sections default to expanded. Section visibility is still gated by the
+   existing `{status === '...' && ...}` blocks below; this config does NOT
+   override visibility, only ordering hints (via expandedSections) and the
+   welcome note voice.
+
+   Voice template: matches the existing returned-status note — concise, warm,
+   first-person plural ("we'll"), one short sentence with a clear next step. */
+type StatusKey =
+  | 'pending_approval' | 'approved' | 'confirmed'
+  | 'ready_for_pickup' | 'active' | 'returned' | 'completed'
+  | 'cancelled' | 'declined';
+
+interface StatusLayout {
+  welcome: (ctx: { pickup_location?: string; pickup_date?: string }) => string;
+  /** CollapsibleSection keys that should default to expanded for this status. */
+  expandedSections: ReadonlyArray<string>;
+}
+
+const STATUS_LAYOUT_CONFIG: Record<StatusKey, StatusLayout> = {
+  pending_approval: {
+    welcome: () => "Thanks for your request — we'll review and confirm shortly.",
+    expandedSections: [],
+  },
+  approved: {
+    welcome: ({ pickup_location }) =>
+      `You'll receive a confirmation when your ride is cleaned, prepped, and ready to pick up at ${pickup_location || 'the pickup location'}.`,
+    expandedSections: [],
+  },
+  confirmed: {
+    welcome: ({ pickup_location }) =>
+      `You'll receive a confirmation when your ride is cleaned, prepped, and ready to pick up at ${pickup_location || 'the pickup location'}.`,
+    expandedSections: [],
+  },
+  ready_for_pickup: {
+    welcome: () =>
+      "Your ride is ready! Review the pickup instructions below and complete Start your rental to receive your lockbox code.",
+    expandedSections: [],
+  },
+  active: {
+    welcome: () =>
+      "You're on the road — drive safe. Return instructions are below when you're ready to bring it back.",
+    expandedSections: ['safety_guide'],
+  },
+  returned: {
+    welcome: () =>
+      "Checkout complete, thank you for renting with Annie's. We'll inspect the vehicle and process your deposit shortly.",
+    expandedSections: [],
+  },
+  completed: {
+    welcome: () =>
+      "Rental complete — thank you for choosing Annie's. We hope to see you again soon.",
+    expandedSections: [],
+  },
+  cancelled: {
+    welcome: () => "This booking was cancelled. Reach out if you'd like to rebook.",
+    expandedSections: [],
+  },
+  declined: {
+    welcome: () => "This request couldn't be confirmed. Browse the fleet anytime to try again.",
+    expandedSections: [],
+  },
+};
+
+function isSectionExpanded(status: string, sectionKey: string): boolean {
+  const cfg = STATUS_LAYOUT_CONFIG[status as StatusKey];
+  return !!cfg?.expandedSections.includes(sectionKey);
+}
+
 /* ── Collapsible section ─────────────────────────────────── */
 function CollapsibleSection({
   title,
@@ -146,6 +216,11 @@ export default function CustomerPortal() {
   const [disputeSubmitting, setDisputeSubmitting] = useState(false);
   const [disputeSuccess, setDisputeSuccess] = useState(false);
 
+  // Pending overage charges (scheduled with 48h dispute window)
+  const [pendingCharges, setPendingCharges] = useState<any[]>([]);
+  const [overageDisputeMsg, setOverageDisputeMsg] = useState<Record<string, string>>({});
+  const [overageDisputingId, setOverageDisputingId] = useState<string | null>(null);
+
   // Review form
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
@@ -203,6 +278,18 @@ export default function CustomerPortal() {
           headers: { Authorization: `Bearer ${token}` },
         }).then(r => r.json()).catch(() => null);
         if (lb?.lockbox_code) setLockbox(lb.lockbox_code);
+      }
+
+      // Load pending overage charges (returned/completed bookings only — these
+      // are the charges scheduled to fire 48h after inspection). Returns []
+      // when the FEATURE_AUTO_OVERAGE_CHARGES flag is off.
+      if (['returned', 'completed'].includes(data.status)) {
+        try {
+          const charges = await fetch(`${API_URL}/portal/pending-charges`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }).then(r => r.ok ? r.json() : []);
+          setPendingCharges(Array.isArray(charges) ? charges : []);
+        } catch { /* silent */ }
       }
     } catch (err: any) {
       setError(err.message);
@@ -278,6 +365,26 @@ export default function CustomerPortal() {
   };
 
   /* ── Dispute ── */
+  /* Dispute a scheduled overage charge during the 48h window. */
+  const handleOverageDispute = async (chargeId: string) => {
+    const message = (overageDisputeMsg[chargeId] || '').trim();
+    if (!message) return;
+    setOverageDisputingId(chargeId);
+    try {
+      const res = await fetch(`${API_URL}/portal/pending-charges/${chargeId}/dispute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ message }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to dispute charge');
+      setPendingCharges(prev => prev.map(c => c.id === chargeId ? { ...c, status: 'disputed', dispute_message: message } : c));
+    } catch (err: any) {
+      setError(err.message);
+    }
+    setOverageDisputingId(null);
+  };
+
   const handleDispute = async () => {
     if (!disputeReason.trim()) return;
     if (token && isTokenExpired(token)) {
@@ -644,6 +751,37 @@ export default function CustomerPortal() {
               })()}
             </div>
           </motion.div>
+
+          {/* ── Status welcome note (driven by STATUS_LAYOUT_CONFIG) ─── */}
+          {(() => {
+            const cfg = STATUS_LAYOUT_CONFIG[status as StatusKey];
+            if (!cfg) return null;
+            const note = cfg.welcome({
+              pickup_location: booking.pickup_location,
+              pickup_date: booking.pickup_date,
+            });
+            if (!note) return null;
+            const tone =
+              status === 'returned'
+                ? { bg: 'rgba(34,197,94,0.06)', border: 'rgba(34,197,94,0.2)', fg: '#15803d' }
+                : status === 'ready_for_pickup'
+                  ? { bg: 'rgba(212,175,55,0.08)', border: 'rgba(212,175,55,0.25)', fg: 'var(--accent-color)' }
+                  : status === 'active'
+                    ? { bg: 'rgba(59,130,246,0.06)', border: 'rgba(59,130,246,0.2)', fg: '#3b82f6' }
+                    : { bg: 'var(--bg-card)', border: 'var(--border-subtle)', fg: 'var(--text-secondary)' };
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15, ease: EASE.standard }}
+                className="px-4 py-3 rounded-2xl text-sm leading-relaxed"
+                style={{ backgroundColor: tone.bg, border: `1px solid ${tone.border}`, color: tone.fg }}
+                aria-live="polite"
+              >
+                {note}
+              </motion.div>
+            );
+          })()}
 
           {/* ── Add-Ons (collapsed) ───────────────────────────── */}
           {(booking.unlimited_miles || booking.unlimited_tolls || (booking.addons && booking.addons.length > 0)) && (
@@ -1030,9 +1168,9 @@ export default function CustomerPortal() {
             </motion.a>
           )}
 
-          {/* ── Safety & return guide (active, collapsed) ── */}
+          {/* ── Safety & return guide (active) — defaultOpen driven by STATUS_LAYOUT_CONFIG ── */}
           {status === 'active' && (
-            <CollapsibleSection title="Safety & return guide" icon={Shield}>
+            <CollapsibleSection title="Safety & return guide" icon={Shield} defaultOpen={isSectionExpanded(status, 'safety_guide')}>
               <div className="space-y-2 pt-3">
                 <div className="p-3 rounded-xl" style={{ backgroundColor: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.1)' }}>
                   <p className="text-xs font-semibold mb-1" style={{ color: '#f59e0b' }}>
@@ -1283,6 +1421,71 @@ export default function CustomerPortal() {
               backgroundColor: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.2)', color: '#D4AF37',
             }}>
               Thank you — Annie appreciates the feedback!
+            </div>
+          )}
+
+          {/* ── Pending Overage Charges (post-inspection, 48h dispute window) ── */}
+          {pendingCharges.length > 0 && (
+            <div className="rounded-2xl overflow-hidden" style={{ border: '2px solid rgba(245,158,11,0.25)', backgroundColor: 'rgba(245,158,11,0.04)' }}>
+              <div className="p-5 space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: 'rgba(245,158,11,0.15)' }}>
+                    <AlertCircle size={18} style={{ color: '#b45309' }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Inspection Charges</p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                      You have 48 hours from when each charge was scheduled to dispute it before it's processed against your card on file.
+                    </p>
+                  </div>
+                </div>
+
+                {pendingCharges.map((charge: any) => {
+                  const scheduled = new Date(charge.scheduled_for);
+                  const hoursLeft = Math.max(0, Math.round((scheduled.getTime() - Date.now()) / 3600000));
+                  const disputable = charge.status === 'pending' && hoursLeft > 0;
+                  const statusColor = charge.status === 'disputed' ? '#3b82f6'
+                    : charge.status === 'succeeded' ? '#15803d'
+                    : charge.status === 'failed' ? '#ef4444'
+                    : '#b45309';
+                  return (
+                    <div key={charge.id} className="rounded-xl p-3" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{charge.description}</p>
+                          <p className="text-xs mt-0.5 capitalize" style={{ color: statusColor }}>
+                            {charge.status}{disputable ? ` · ${hoursLeft}h to dispute` : charge.status === 'pending' ? ' · processing soon' : ''}
+                          </p>
+                        </div>
+                        <p className="text-base font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>
+                          ${(charge.amount_cents / 100).toFixed(2)}
+                        </p>
+                      </div>
+                      {disputable && (
+                        <div className="mt-3 space-y-2">
+                          <textarea
+                            rows={2}
+                            placeholder="Tell us why you're disputing this charge…"
+                            value={overageDisputeMsg[charge.id] || ''}
+                            onChange={e => setOverageDisputeMsg((prev: Record<string, string>) => ({ ...prev, [charge.id]: e.target.value }))}
+                            className="w-full text-xs px-3 py-2 rounded-lg resize-none"
+                            style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleOverageDispute(charge.id)}
+                            disabled={overageDisputingId === charge.id || !(overageDisputeMsg[charge.id] || '').trim()}
+                            className="text-xs font-semibold px-3 py-1.5 rounded-full disabled:opacity-50"
+                            style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.25)' }}
+                          >
+                            {overageDisputingId === charge.id ? 'Submitting…' : 'Dispute charge'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 

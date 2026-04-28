@@ -477,6 +477,30 @@ The refund will appear on your statement within 5–10 business days. Questions?
 
 — Annie's Car Rental`,
   },
+
+  inspection_charges_scheduled: {
+    channel: 'email',
+    subject: 'Inspection charges scheduled — {{booking_code}}',
+    body: `Hi {{first_name}},
+
+Your post-rental inspection is complete. Charges came in above your security deposit, and the difference is scheduled to be charged to the card on file.
+
+INSPECTION CHARGES
+──────────────────
+Reference:       {{booking_code}}
+Vehicle:         {{vehicle}}
+Charges Total:   \${{incidental_total}}
+Amount Owed:     \${{amount_owed}}
+
+This charge will be processed automatically in 48 hours. If you'd like to dispute any portion before that window closes, log into your Customer Portal — disputed charges are paused for review.
+
+Contact us anytime:
+  Matthew: (772) 834-0117
+  Robin:   (772) 834-7637
+
+Annie's Car Rental
+Port Saint Lucie, FL`,
+  },
 };
 
 export default FALLBACK_TEMPLATES;

@@ -21,6 +21,8 @@ router.get('/overview', requireAuth, asyncHandler(async (req, res) => {
     { count: pendingReviewsCount },
     { count: monthBookings },
     { count: pendingAgreements },
+    { data: returnedBookings },
+    { data: completedInspections },
   ] = await Promise.all([
     supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'pending_approval'),
     supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'active'),
@@ -38,6 +40,10 @@ router.get('/overview', requireAuth, asyncHandler(async (req, res) => {
     supabase.from('rental_agreements').select('*', { count: 'exact', head: true })
       .not('customer_signed_at', 'is', null)
       .is('owner_signed_at', null),
+    // For pending_inspections: returned bookings that don't yet have an
+    // admin_inspection record. Two-step query (no LEFT JOIN in PostgREST).
+    supabase.from('bookings').select('id').eq('status', 'returned'),
+    supabase.from('checkin_records').select('booking_id').eq('record_type', 'admin_inspection'),
   ]);
 
   // Net revenue = rental payments minus refunds (deposits excluded)
@@ -45,6 +51,11 @@ router.get('/overview', requireAuth, asyncHandler(async (req, res) => {
   const avgRatingVal = avgRating?.length
     ? (avgRating.reduce((s, r) => s + r.rating, 0) / avgRating.length).toFixed(1)
     : null;
+
+  // pending_inspections = returned bookings whose id is NOT in the
+  // admin_inspection set. Counted client-side to keep the query simple.
+  const inspectedIds = new Set((completedInspections || []).map(r => r.booking_id));
+  const pendingInspections = (returnedBookings || []).filter(b => !inspectedIds.has(b.id)).length;
 
   res.json({
     pending_approvals: pendingCount || 0,
@@ -56,6 +67,7 @@ router.get('/overview', requireAuth, asyncHandler(async (req, res) => {
     average_rating: avgRatingVal,
     pending_agreements: pendingAgreements || 0,
     pending_reviews: pendingReviewsCount || 0,
+    pending_inspections: pendingInspections,
   });
 }));
 

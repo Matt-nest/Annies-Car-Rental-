@@ -43,6 +43,7 @@ const STAGE_CTA = {
   deposit_settled:     { label: 'View Booking Status',           fieldKey: 'status_link' },
   invoice_sent:        { label: 'View Invoice',                  fieldKey: 'invoice_link',  style: 'gold' },
   inspection_complete: { label: 'View Booking Status',           fieldKey: 'status_link' },
+  inspection_charges_scheduled: { label: 'Review or Dispute in Portal', fieldKey: 'portal_link', style: 'gold' },
 };
 
 /**
@@ -407,6 +408,13 @@ export function buildBookingPayload(booking, { handoffRecord } = {}) {
     damage_description: booking.damage_description || null,
     damage_fee:         booking.damage_fee || null,
     damage_type:        booking.damage_type || null,
+    // Pricing breakdown — used by itemized email receipt
+    daily_rate:        booking.daily_rate ?? null,
+    subtotal:          booking.subtotal ?? null,
+    discount_amount:   booking.discount_amount ?? null,
+    delivery_fee:      booking.delivery_fee ?? null,
+    line_items:        booking.line_items || null,
+    payments:          booking.payments || null,
   };
 }
 
@@ -432,6 +440,7 @@ const EVENT_SUMMARIES = {
   deposit_refunded:       'Security deposit refunded',
   deposit_settled:        'Security deposit settled against incidentals',
   rental_completed:       'Rental completed — review request sent',
+  inspection_charges_scheduled: 'Inspection charges scheduled (48h dispute window)',
 };
 
 /**
@@ -459,6 +468,18 @@ export async function sendBookingNotification(stage, bookingPayload) {
     const mergeFields = buildMergeFields(bookingPayload);
     const ctaHtml = buildCtaHtml(stage, mergeFields);
 
+    // Stage-specific enrichments. Currently `payment_confirmed` (the post-payment
+    // receipt) gets the itemized receipt + welcome banner + pickup next-steps card
+    // injected above the template body so the email mirrors the customer portal.
+    // Other stages are unchanged.
+    let prependHtml = '';
+    if (stage === 'payment_confirmed') {
+      prependHtml =
+        renderPrepWelcomeHtml(mergeFields) +
+        renderItemizedReceiptHtml(bookingPayload) +
+        renderPickupNextStepsHtml(mergeFields);
+    }
+
     // Send email (skip for booking_submitted — emailService.js sends a branded HTML version)
     // Awaited so the dispatch isn't killed by serverless lifecycle when the parent handler returns.
     const skipEmail = stage === 'booking_submitted';
@@ -467,7 +488,7 @@ export async function sendBookingNotification(stage, bookingPayload) {
         await sendEmail({
           to: customer.email,
           subject: rendered.subject,
-          html: wrapInBrandedHTML(rendered.subject, rendered.body, ctaHtml),
+          html: wrapInBrandedHTML(rendered.subject, rendered.body, ctaHtml, prependHtml),
         });
       } catch (e) {
         console.error(`[Notify] Email send error for "${stage}":`, e.message);
@@ -520,14 +541,111 @@ async function storeSystemMessage(stage, bookingPayload) {
   });
 }
 
+// ── Itemized Receipt Renderer ───────────────────────────────────────────────
+// Mirrors the customer-portal "Itemized receipt" block (CustomerPortal.tsx) so
+// the confirmation email shows the same totals and ordering. Single source of
+// truth: booking row pricing fields (daily_rate, subtotal, addon fees,
+// discount, tax, total_cost) plus payments[].
+
+function fmtMoney(n) { return `$${Number(n || 0).toFixed(2)}`; }
+
+function renderReceiptRow(label, value, opts = {}) {
+  const color = opts.green ? '#15803d' : opts.bold ? '#1c1917' : '#44403c';
+  const fontWeight = opts.bold ? '600' : '400';
+  const borderTop = opts.divider ? 'border-top:1px solid #e7e5e4;padding-top:8px;margin-top:8px;' : '';
+  return `<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;color:${color};font-weight:${fontWeight};${borderTop}">
+    <span>${escapeHtml(label)}</span><span>${escapeHtml(value)}</span>
+  </div>`;
+}
+
+function renderItemizedReceiptHtml(bp) {
+  if (!bp) return '';
+  const days = Number(bp.rental_days) || 0;
+  const dailyRate = Number(bp.daily_rate) || 0;
+  const subtotal = Number(bp.subtotal) || 0;
+  const tax = Number(bp.tax_amount) || 0;
+  const total = Number(bp.total_cost) || 0;
+  const deposit = Number(bp.deposit_amount) || 0;
+  const delivery = Number(bp.delivery_fee) || 0;
+  const mileageFee = Number(bp.mileage_addon_fee) || 0;
+  const tollFee = Number(bp.toll_addon_fee) || 0;
+  const discount = Number(bp.discount_amount) || 0;
+  const payments = Array.isArray(bp.payments) ? bp.payments : [];
+  const totalPaid = payments
+    .filter(p => p.status === 'completed')
+    .reduce((s, p) => s + Number(p.amount || 0), 0);
+
+  const rows = [];
+  if (days > 0 && dailyRate > 0) {
+    rows.push(renderReceiptRow(`${fmtMoney(dailyRate)}/day × ${days} day${days !== 1 ? 's' : ''}`, fmtMoney(subtotal)));
+  } else if (subtotal > 0) {
+    rows.push(renderReceiptRow('Rental subtotal', fmtMoney(subtotal)));
+  }
+  if (delivery > 0) rows.push(renderReceiptRow('Delivery fee', fmtMoney(delivery)));
+  if (mileageFee > 0) rows.push(renderReceiptRow('Unlimited miles add-on', fmtMoney(mileageFee)));
+  if (tollFee > 0) rows.push(renderReceiptRow('Unlimited tolls add-on', fmtMoney(tollFee)));
+  if (discount > 0) rows.push(renderReceiptRow('Discount', `-${fmtMoney(discount)}`, { green: true }));
+  if (tax > 0) rows.push(renderReceiptRow('FL sales tax', fmtMoney(tax)));
+  rows.push(renderReceiptRow('Rental total', fmtMoney(total), { bold: true, divider: true }));
+
+  const depositBlock = deposit > 0
+    ? `<div style="margin-top:14px;">
+        <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#a8a29e;">Security Deposit</p>
+        ${renderReceiptRow('Refundable hold', fmtMoney(deposit))}
+        <p style="margin:4px 0 0;font-size:11px;color:#a8a29e;">Returned 3–5 business days after vehicle inspection.</p>
+      </div>`
+    : '';
+
+  const totalChargedBlock = totalPaid > 0
+    ? `<div style="margin-top:14px;">${renderReceiptRow('Total charged', fmtMoney(totalPaid), { bold: true, divider: true })}</div>`
+    : '';
+
+  return `
+    <div style="background:#fafaf9;border:1px solid #e7e5e4;border-radius:12px;padding:18px 20px;margin:0 0 24px;">
+      <p style="margin:0 0 12px;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#a8a29e;">Itemized Receipt</p>
+      ${rows.join('')}
+      ${depositBlock}
+      ${totalChargedBlock}
+    </div>`;
+}
+
+function renderPrepWelcomeHtml(mergeFields) {
+  const pickup = escapeHtml(mergeFields.pickup_location || 'our pickup location');
+  return `
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:14px 16px;margin:0 0 22px;">
+      <p style="margin:0;color:#92400e;font-size:13px;line-height:1.6;">
+        You'll receive a confirmation when your ride is cleaned, prepped, and ready to pick up at <strong>${pickup}</strong>.
+      </p>
+    </div>`;
+}
+
+function renderPickupNextStepsHtml(mergeFields) {
+  const portalLink = mergeFields.portal_link;
+  const pickup = escapeHtml(mergeFields.pickup_location || 'the pickup location');
+  return `
+    <div style="border:1px solid #e7e5e4;border-radius:12px;padding:18px 20px;margin:0 0 24px;background:#ffffff;">
+      <p style="margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#a8a29e;">Pickup Next Steps</p>
+      <p style="margin:0 0 10px;font-size:14px;color:#1c1917;font-weight:600;">${pickup}</p>
+      <ol style="margin:0 0 12px 18px;padding:0;color:#44403c;font-size:13px;line-height:1.7;">
+        <li>We'll text you when your vehicle is cleaned, prepped, and ready.</li>
+        <li>Open your customer portal to review the pickup instructions.</li>
+        <li>Tap <em>Start your rental</em> in the portal to receive your lockbox code.</li>
+      </ol>
+      ${portalLink ? `<a href="${portalLink}" style="display:inline-block;background:linear-gradient(135deg,#D4AF37 0%,#B8941E 100%);color:#fff;font-size:13px;font-weight:600;padding:10px 18px;border-radius:8px;text-decoration:none;">Open My Portal →</a>` : ''}
+    </div>`;
+}
+
 // ── Branded HTML Email Wrapper ──────────────────────────────────────────────
 
 /**
  * Wraps plain-text template content in the Annie's Car Rental branded
  * email design (matching the hardcoded booking confirmation email).
  * Converts line breaks to HTML, preserves unicode emoji.
+ *
+ * `prependHtml` (optional) is inserted above the rendered body — used by
+ * stage-specific enrichments (e.g. itemized receipt for `payment_confirmed`).
  */
-function wrapInBrandedHTML(subject, plainTextBody, ctaHtml = '') {
+function wrapInBrandedHTML(subject, plainTextBody, ctaHtml = '', prependHtml = '') {
   const siteUrl = process.env.SITE_URL || 'https://anniescarrental.com';
   const logoUrl = `${siteUrl}/logo.png`;
 
@@ -600,6 +718,7 @@ function wrapInBrandedHTML(subject, plainTextBody, ctaHtml = '') {
 
     <!-- Body -->
     <div style="padding:32px;">
+      ${prependHtml}
       ${finalBody}
       ${ctaHtml}
     </div>

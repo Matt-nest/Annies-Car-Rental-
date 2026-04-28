@@ -171,10 +171,10 @@ export default function App() {
             <HowItWorks />
             <FleetGrid onSelectVehicle={handleQuickView} rateMode={rateMode} onRateModeChange={setRateMode} />
             <TrustSection />
+            <LongTermSection />
             <ReviewsSection />
             <InsuranceSection />
             <FAQ />
-            <LongTermSection />
             <ContactSection onBrowseFleet={handleBrowseFleet} />
             <Footer />
             <MobileStickyCTA />

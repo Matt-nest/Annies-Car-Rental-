@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { formatDistanceToNow, format } from 'date-fns';
 import { api } from '../../../api/client';
 import { cachedQuery, invalidateCache } from '../../../lib/queryCache';
+import { useAlerts } from '../../../lib/alertsContext';
 import Modal from '../../shared/Modal';
 import WidgetWrapper from '../WidgetWrapper';
 
@@ -196,6 +197,7 @@ export default function PendingApprovalsWidget() {
   const [error, setError] = useState(null);
   const [approving, setApproving] = useState(null);
   const [declining, setDeclining] = useState(null);
+  const { refresh: refreshAlerts } = useAlerts();
 
   const load = useCallback(() => {
     setLoading(true);
@@ -218,8 +220,11 @@ export default function PendingApprovalsWidget() {
     setApproving(id);
     try {
       await api.approveBooking(id);
-      // Invalidate overview cache so the badge count updates on next load
+      // Invalidate dashboard cache + force the global alerts context to
+      // re-pull so the top-bar pill, sidebar badge, and any open booking
+      // detail page all update within ~300ms.
       invalidateCache('overview');
+      refreshAlerts();
       setBookings((prev) => prev.filter((b) => b.id !== id));
     } catch (e) {
       console.error(e);
@@ -231,6 +236,7 @@ export default function PendingApprovalsWidget() {
 
   function handleDeclined(id) {
     invalidateCache('overview');
+    refreshAlerts();
     setBookings((prev) => prev.filter((b) => b.id !== id));
   }
 

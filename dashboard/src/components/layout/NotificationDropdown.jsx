@@ -3,6 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { Bell, BookOpen, RefreshCw, DollarSign, FileText, AlertTriangle, AlertOctagon, Zap, Check, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../../api/client';
+import QuickActionModal from '../shared/QuickActionModal';
+
+/** Notification types that open the quick-action modal instead of routing. */
+const QUICK_ACTION_TYPES = new Set(['new_booking', 'agreement_pending', 'damage_report']);
 
 const ICON_MAP = {
   new_booking: { icon: BookOpen, color: '#818cf8' },
@@ -31,6 +35,7 @@ export default function NotificationDropdown() {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [quickActionNotif, setQuickActionNotif] = useState(null);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
@@ -82,6 +87,14 @@ export default function NotificationDropdown() {
         setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n));
         setUnreadCount(prev => Math.max(0, prev - 1));
       } catch {}
+    }
+    // High-priority types (new bookings, pending agreements, damage reports)
+    // open a quick-action modal instead of navigating, so admin keeps dashboard
+    // context. Other types still route via notif.link.
+    if (QUICK_ACTION_TYPES.has(notif.type) && notif.metadata?.booking_id) {
+      setQuickActionNotif(notif);
+      setIsOpen(false);
+      return;
     }
     if (notif.link) {
       navigate(notif.link);
@@ -201,6 +214,14 @@ export default function NotificationDropdown() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Quick-action modal for high-priority notifications */}
+      {quickActionNotif && (
+        <QuickActionModal
+          notification={quickActionNotif}
+          onClose={() => setQuickActionNotif(null)}
+        />
+      )}
     </div>
   );
 }

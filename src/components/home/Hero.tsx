@@ -171,7 +171,7 @@ export default function Hero({ onBrowseFleet }: HeroProps) {
                   ))}
                 </div>
                 <span className="text-sm font-medium mt-1 leading-snug" style={{ color: 'var(--text-primary)' }}>
-                  Trusted by 500+<br className="hidden sm:block" /> local renters
+                  Trusted by 1,200+<br className="hidden sm:block" /> local renters
                 </span>
               </div>
             </div>

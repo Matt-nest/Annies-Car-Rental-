@@ -4,6 +4,11 @@ import { transitionBooking, getBookingDetail } from './bookingService.js';
 import { createNotification } from './notificationService.js';
 import { sendBookingNotification, buildBookingPayload } from './notifyService.js';
 import { calcInsuranceCost } from './pricingService.js';
+import {
+  FEATURE_AUTO_OVERAGE_CHARGES,
+  ensureStripeCustomer,
+  savePaymentMethodFromIntent,
+} from './cardOnFileService.js';
 
 const stripe = getStripe();
 
@@ -97,11 +102,30 @@ export async function createPaymentIntent(bookingCode, { insurance_selection, ex
     );
   }
 
+  // When card-on-file is enabled, attach a Stripe Customer + setup_future_usage
+  // so we can charge any post-inspection overage off-session 48h later.
+  // No-op when the feature flag is off.
+  let stripeCustomerId = null;
+  if (FEATURE_AUTO_OVERAGE_CHARGES) {
+    try {
+      // Need the full customer row (not the join projection) to read/persist stripe_customer_id.
+      const { data: customerRow } = await supabase
+        .from('customers')
+        .select('id, first_name, last_name, email, phone, stripe_customer_id')
+        .eq('id', booking.customer_id)
+        .single();
+      stripeCustomerId = await ensureStripeCustomer(customerRow);
+    } catch (err) {
+      console.warn('[Stripe] ensureStripeCustomer failed (continuing without card-on-file):', err.message);
+    }
+  }
+
   // Create the PaymentIntent
   const paymentIntent = await stripe.paymentIntents.create({
     amount: totalChargeCents,
     currency: 'usd',
     automatic_payment_methods: { enabled: true },
+    ...(stripeCustomerId ? { customer: stripeCustomerId, setup_future_usage: 'off_session' } : {}),
     metadata: {
       booking_id: booking.id,
       booking_code: booking.booking_code,
@@ -254,6 +278,11 @@ export async function handleWebhookEvent(event) {
           deposit_amount: depositDollars,
         })
         .eq('id', bookingId);
+
+      // Persist payment_method token to the booking so post-inspection overage
+      // charges can fire off-session 48h after inspection. No-op when the
+      // FEATURE_AUTO_OVERAGE_CHARGES flag is off.
+      await savePaymentMethodFromIntent(pi, bookingId);
 
       // Create booking_deposits record for settlement tracking
       if (depositCents > 0) {

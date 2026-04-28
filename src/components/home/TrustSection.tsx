@@ -151,7 +151,7 @@ export default function TrustSection() {
               </div>
             </div>
             <p className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>
-              Trusted by 500+ local clients
+              Trusted by 1,200+ local clients
             </p>
           </motion.div>
         </motion.div>

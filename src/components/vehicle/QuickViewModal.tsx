@@ -78,21 +78,23 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
           <X size={18} />
         </button>
 
-        {/* Image — compact landscape hero */}
+        {/* Image — compact landscape hero. Renders only if vehicle has images. */}
         <div className="relative w-full shrink-0 overflow-hidden bg-black" style={{ aspectRatio: '16 / 8' }}>
-          <AnimatePresence mode="wait">
-            <motion.img
-              key={imgIndex}
-              initial={{ opacity: 0, scale: 1.04 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.4, ease: EASE.standard }}
-              src={vehicle.images[imgIndex]}
-              alt={`${displayName} — angle ${imgIndex + 1}`}
-              className="w-full h-full object-contain"
-              style={{ backgroundColor: theme === 'dark' ? '#0a0a0a' : '#f0f0f0', filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.3))' }}
-            />
-          </AnimatePresence>
+          {vehicle.images.length > 0 && (
+            <AnimatePresence mode="wait">
+              <motion.img
+                key={imgIndex}
+                initial={{ opacity: 0, scale: 1.04 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.4, ease: EASE.standard }}
+                src={vehicle.images[imgIndex]}
+                alt={`${displayName} — angle ${imgIndex + 1}`}
+                className="w-full h-full object-contain"
+                style={{ backgroundColor: theme === 'dark' ? '#0a0a0a' : '#f0f0f0', filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.3))' }}
+              />
+            </AnimatePresence>
+          )}
 
           {/* Subtle vignette */}
           <div className="absolute inset-0 pointer-events-none" style={{

@@ -5,6 +5,187 @@
 
 ---
 
+## 2026-04-28 — Follow-ups: pending_inspections + QuickActionModal + Stripe card-on-file rollout
+
+**Scope:** Three closing items per spec. 8 files modified, 4 new (1 migration, 1 backend service, 2 dashboard components). All Stripe card-on-file behavior is gated by env var `FEATURE_AUTO_OVERAGE_CHARGES=true`; with the flag off, every new path is a no-op.
+
+### F-1 · `pending_inspections` count
+- `backend/routes/stats.js` — `/overview` now returns `pending_inspections`: count of `bookings.status='returned'` with no `admin_inspection` record. Two-step query (no left-join in PostgREST). The Inspections pill in `AlertPillBar` now lights up when there's work waiting.
+
+### F-2 · QuickActionModal (Task 4)
+- **NEW** `dashboard/src/components/shared/QuickActionModal.jsx` — Loads the booking attached to a notification, surfaces Approve / Decline / Dismiss / View-full controls inline. Mutations call `api.approveBooking`/`api.declineBooking` + `markNotificationRead` + `useAlerts().refresh()` so the badge dismisses everywhere within 300ms.
+- `dashboard/src/components/layout/NotificationDropdown.jsx` — High-priority types (`new_booking`, `agreement_pending`, `damage_report`) now open `<QuickActionModal />` instead of routing. Other notification types continue to navigate via `notif.link`. Admin keeps dashboard context for routine actions.
+
+### F-3 · Stripe card-on-file (full rollout, behind feature flag)
+- **NEW** `backend/migrations/005_card_on_file.sql` — Adds `customers.stripe_customer_id`, `bookings.stripe_payment_method_id`/`card_brand`/`card_last4`. Creates `pending_overage_charges` (with status FSM: pending → disputed | processing → succeeded | failed | cancelled) + `pending_overage_charge_log` audit table. Indexed on `(scheduled_for) WHERE status='pending'` for cron efficiency. **Apply via Supabase SQL editor — script is idempotent.**
+- **NEW** `backend/services/cardOnFileService.js` — `ensureStripeCustomer(customer)` (idempotent; persists token to `customers.stripe_customer_id`); `savePaymentMethodFromIntent(pi, bookingId)` (called from succeeded webhook); `scheduleOverageCharge({ bookingId, amountCents, description, lineItems, delayMs })` (default 48h delay); `processDueOverageCharges()` (cron worker — claims rows via `pending → processing` to prevent double-fire, creates off-session PI, handles `requires_action`/declined → status `failed` + audit log entry); `disputePendingCharge(id, message)` (within window only); `listCustomerVisibleCharges(bookingId)`. **Every export is a no-op when `FEATURE_AUTO_OVERAGE_CHARGES` is off.**
+- `backend/services/stripeService.js`:
+  - `createPaymentIntent` → calls `ensureStripeCustomer` and adds `customer:` + `setup_future_usage: 'off_session'` to the PI when the flag is on.
+  - `handleWebhookEvent` `payment_intent.succeeded` → calls `savePaymentMethodFromIntent` to persist the PM token + brand + last4 to the booking row.
+- `backend/services/depositService.js` `settleDeposit` — when `amountOwed > 0` AND flag is on AND a card is on file, schedules a `pending_overage_charges` row and dispatches the `inspection_charges_scheduled` email (Resend). Returns the new `overageScheduledId` in the response.
+- `backend/routes/cron.js` — `/cron/daily` now also processes due overage charges. New `/cron/process-overage-charges` route for hourly polling so charges fire within ~1h of their dispute window closing.
+- `backend/routes/portal.js` — Two new endpoints behind portal JWT: `GET /portal/pending-charges` (lists charges visible to the customer) and `POST /portal/pending-charges/:id/dispute` (flips pending → disputed; verifies the charge belongs to the customer's booking).
+- `backend/services/fallbackTemplates.js` — Adds `inspection_charges_scheduled` body so the email renders even if the admin hasn't customised it via the Messaging tab. Goes through the Batch B branded shell + portal CTA.
+- `backend/services/notifyService.js` — `STAGE_CTA` and `EVENT_SUMMARIES` extended for `inspection_charges_scheduled`.
+- `src/components/portal/CustomerPortal.tsx` — Loads pending charges on returned/completed bookings; renders an amber "Inspection Charges" card listing each scheduled charge with status, hours-left-to-dispute, an inline textarea, and a "Dispute charge" button. Posts to `/portal/pending-charges/:id/dispute` and reflects the new status without a full reload.
+
+### Operating notes
+1. **Apply the migration first.** Without `005_card_on_file.sql`, the new code paths still don't fire (the flag check happens before any DB write), but the cron worker will log warnings if the table is missing once the flag is flipped.
+2. **Deploy with `FEATURE_AUTO_OVERAGE_CHARGES` unset (or `false`).** The schema is in place but no behavior changes. Test the booking flow to confirm nothing regresses.
+3. **Flip the flag** on a single Vercel preview deployment first. Run a test booking end-to-end: book → pay → inspection with `amountOwed > 0` → confirm row in `pending_overage_charges` + email received → dispute via portal → confirm cron skips disputed → un-dispute (admin manually) → confirm cron charges card.
+4. **Add `/cron/process-overage-charges` to Vercel Cron** at hourly cadence (e.g. `0 * * * *`).
+5. **Stripe Dashboard:** confirm "save payment methods for off-session payments" is enabled (default for cards), and that the standard "we may charge your card later" disclosure is included in your booking T&Cs.
+
+**Builds:** ✅ Customer site 882.07 kB / 227.65 kB gzip · Dashboard 1,444.31 kB / 384.75 kB gzip · all backend files `node --check` pass.
+
+---
+
+## 2026-04-28 — Batch G: Stripe card-on-file audit (NO CODE, awaiting sign-off)
+
+**Scope:** Read-only audit of card-saving and payment-method persistence. 0 files modified.
+
+### Findings
+1. **`setup_future_usage` / `SetupIntent` / `off_session` — zero hits in the codebase.** `createPaymentIntent` in `backend/services/stripeService.js:101-118` creates PIs with only `automatic_payment_methods: { enabled: true }` and metadata; no `customer:` param, no future-usage flag. Cards are not saved.
+2. **`stripe_customer_id` / `stripe_payment_method_id` / `payment_method_id` — zero hits anywhere.** The `payments` table records `payment_method_details?.type` as a free-text string for receipt rendering only (not a chargeable token).
+
+### Conclusion
+Auto-overage charging cannot land until: (a) booking-flow PI creation is updated to attach a Stripe Customer + set `setup_future_usage: 'off_session'`, AND (b) Supabase schema gains `customers.stripe_customer_id`, `bookings.stripe_payment_method_id`, plus a `pending_overage_charges` table. Detailed migration SQL + step-by-step plan delivered in conversation. **Awaiting explicit user sign-off before any code is written.**
+
+---
+
+## 2026-04-28 — Batch F: Real-time alert system (centralized AlertsContext)
+
+**Scope:** Centralized alerts state + cross-component refresh + new top-bar alert pills + active-rental cash-rain ack modal. 6 files touched (3 new, 3 modified).
+**Blast Radius:** MEDIUM — touches DashboardLayout (provider added), 1 widget, 1 page. The provider wraps the entire dashboard; consumers opt in via `useAlerts()`.
+
+### Dashboard (3 new, 3 modified)
+- **NEW** `dashboard/src/lib/alertsContext.jsx` — `AlertsProvider` + `useAlerts()` hook. Single 30-second poll for `getOverview()` (no longer per-component). Exposes `{ alerts, refresh, onActiveRentalStarted }`. The `refresh()` method invalidates the overview cache and re-pulls; mutations everywhere call it to bypass the 30s wait. `onActiveRentalStarted(callback)` fires when `active_rentals` count increments between polls (used to trigger the cash rain).
+- **NEW** `dashboard/src/components/layout/AlertPillBar.jsx` — Compact row of high-priority pills inserted in the header next to GlobalSearch. Pills: Inspections (returned awaiting inspection), Active (currently active count), Approvals. Pills auto-hide when count is 0; staggered AnimatePresence for tasteful pop-in.
+- **NEW** `dashboard/src/components/shared/CashRainOverlay.jsx` — Framer-Motion 💵 rain (~28 bills, 1.6s drop with random column/drift/rotate, capped 2s total). Respects `prefers-reduced-motion`.
+- `dashboard/src/components/layout/DashboardLayout.jsx`:
+  - Wrapped in `AlertsProvider` so every page sees the same alert state.
+  - Replaced local `getOverview()` polling with `useAlerts()`.
+  - Added `<AlertPillBar onActiveAlertClick={() => setActiveAlertModal(true)} />` to header.
+  - Active-rental detection wired via `onActiveRentalStarted` → opens a thumbs-up "Rental is now active" acknowledgement modal. Click → cash rain plays for ~2s and dismisses.
+- `dashboard/src/pages/BookingDetailPage.jsx` — `doAction()` now `Promise.all`s `load()` + `refreshAlerts()` so approving/declining/canceling/checking-out from the detail bar updates the top-bar pill, sidebar badge, and any open dashboard widget within ~300ms (the bug the user reported).
+- `dashboard/src/components/dashboard/widgets/PendingApprovalsWidget.jsx` — `handleApprove` and `handleDeclined` both call `refreshAlerts()` in addition to local cache invalidation.
+
+### Action → invalidation matrix (per task 3 spec)
+
+| Action | Caller | Refresh path |
+|---|---|---|
+| Approve | PendingApprovalsWidget · BookingDetailPage | `invalidateCache('overview')` + `useAlerts().refresh()` |
+| Decline | PendingApprovalsWidget · BookingDetailPage | same |
+| Cancel | BookingDetailPage | same |
+| Pickup recorded | BookingDetailPage | same — flips status to active, also fires AlertsContext active-rental detector → cash rain |
+| Return recorded | BookingDetailPage | same — flips to returned, populates Inspections pill |
+| Complete | BookingDetailPage | same |
+| Payment / Damage | BookingDetailPage | same |
+
+### Out of scope (followup)
+- **Task 4 (top-right alert badges → quick-action modal instead of navigate):** the existing `NotificationDropdown` shows DB notifications and routes via `notif.link`. Converting every routed notification type to a quick-action modal would touch 4–6 more files (modal component, type-specific action sets, mutation wiring). Logged as a follow-up; the centralized refresh path means a quick-action modal can be dropped in without revisiting the alert-state mechanism.
+- **Backend `pending_inspections` count in `getOverview()`:** field is read by `AlertPillBar` but not yet emitted by the backend. Pill renders 0 (and hides) until the backend route adds the count. Tracked as a 2-line change to `routes/stats.js`.
+
+**Builds:** ✅ Dashboard 1,437.05 kB / 383.45 kB gzip — zero errors.
+
+---
+
+## 2026-04-28 — Batch E: Booking-detail polish + condition resume
+
+**Scope:** Photo ID renders inline (not click-to-load), condition photos section grouped by source/phase, and `CheckOutTab` resumes at Review Charges when an admin_inspection record already exists. 2 files modified.
+**Blast Radius:** LOW — both changes are additive UI behavior; no API changes, no schema changes (uses existing `checkin_records` table).
+
+### Dashboard (2 files)
+- `dashboard/src/pages/BookingDetailPage.jsx`:
+  - `IdPhotoGallery` — pre-fetches signed URLs for both ID photos on mount via `useEffect`/`Promise.all` so front + back render inline. Click-to-zoom preserved through the existing lightbox. Tile size bumped to `h-32 w-48` for at-a-glance review.
+  - New `ConditionPhotosSection` component renders 4 labeled groups: Admin · Check-In, Customer · Check-In, Admin · Check-Out, Customer · Check-Out. Pulls from `api.getCheckinRecords()` on mount, merges `photo_urls[]` and `photo_slots{}` per record, dedupes, and shows 3-column thumbnails per group with click-to-enlarge. Empty groups show "No photos recorded".
+  - `BookingDetailPage` loads `checkinRecords` alongside the booking and passes them to the new section.
+- `dashboard/src/components/booking-tabs/CheckOutTab.jsx`:
+  - On mount, after fetching `checkinRecords`, hydrates Step-1 condition fields (`odometer`, `fuelLevel`, `notes`, `photos`) from the existing `admin_inspection` record if one exists, then auto-advances `step` from 0 → 1 (Review Charges). The `hydrated` guard prevents repeated hydration if the user navigates away and back. Result: admins who saved condition and left now resume directly at Review Charges with their data pre-populated.
+
+**Builds:** ✅ Dashboard 1,431.12 kB / 381.89 kB gzip — zero errors.
+
+---
+
+## 2026-04-28 — Batch D: Admin checkout intelligence (mileage helper + indicators)
+
+**Scope:** Pure mileage-overage helper with unit tests + admin checkout signals (paid add-on badges, free-mileage chip, live overage cost, fuel discrepancy). 3 files modified, 1 new.
+**Blast Radius:** LOW–MEDIUM — `inspectionService.js` change is additive (new pure helper, existing one preserved with `freeMiles` rename + `allowedMiles` alias). UI change is single component.
+
+### Backend (1 file modified, 1 new)
+- `backend/services/inspectionService.js`:
+  - New pure helper `calculateMileageOverageFromInputs({ checkInOdometer, checkOutOdometer, rentalDays, hasUnlimitedMiles })` returns `{ totalMiles, freeMiles, overageMiles, overageFee, overageFeeDollars, unlimitedMiles?, noData? }`. 200 free mi/day, $0.34/mile, skip when unlimited.
+  - Existing `calculateMileageOverage(booking)` rewritten to delegate to the pure helper. Returns `freeMiles` (new) plus `allowedMiles` alias for backward compat.
+  - Worked example documented in JSDoc: 2-day rental, 100 mi over → 100 × $0.34 = $34.00.
+- `backend/tests/inspectionService.test.js` (NEW) — 7 tests pass: spec example, exact allowance, under allowance, unlimited skip, missing data, rate constants, 1-day overage.
+
+### Dashboard (1 file)
+- `dashboard/src/components/booking-tabs/CheckOutTab.jsx`:
+  - Vehicle header gets badges/pills: "∞ Unlimited Miles · Paid", "Unlimited Tolls · Paid" (green positive indicators when add-ons present); a "Free Miles: N" chip for standard bookings showing `200 × rental_days`. For unlimited-miles, the chip is hidden (the badge replaces it).
+  - Below the existing trip-length line, a mileage status row in matching `text-xs font-medium tabular-nums`: green "Unlimited mileage" when paid; red `{N} mi over · ${X.XX} fee` live as the admin types the return odometer; green "Under mileage allowance" otherwise. Math mirrors the backend helper.
+  - Below the FuelSelector, a fuel status row with the same typographic treatment: green "Fuel level OK" when return matches admin handoff fuel; red "Fuel discrepancy · check-in was {level}" otherwise. Falls back gracefully when no admin handoff record exists.
+  - "Add Charge" → selecting `mileage_overage` pre-fills the amount with the calculated overage dollars (admin can override). Other types continue to use the configured `defaultAmount`.
+
+**Builds:** ✅ Dashboard 1,428.77 kB / 381.17 kB gzip — zero errors. Backend tests: 7/7 pass.
+
+---
+
+## 2026-04-28 — Batch C: Customer portal status-driven layout map
+
+**Scope:** Single `STATUS_LAYOUT_CONFIG` map drives welcome-note text + which CollapsibleSections default to expanded per booking status. 1 file modified.
+**Blast Radius:** LOW — single file (`CustomerPortal.tsx`), no API changes, no new dependencies.
+
+### Customer Site (1 file)
+- `src/components/portal/CustomerPortal.tsx`:
+  - New top-of-file `STATUS_LAYOUT_CONFIG: Record<StatusKey, StatusLayout>` map. Statuses covered: `pending_approval`, `approved`, `confirmed`, `ready_for_pickup`, `active`, `returned`, `completed`, `cancelled`, `declined`. Each entry holds a `welcome(ctx)` function and `expandedSections: string[]`.
+  - Welcome notes match the existing returned-status voice — concise, warm, one short sentence with the next action. `confirmed/approved` → "You'll receive a confirmation when your ride is cleaned, prepped, and ready to pick up at {pickup}." `ready_for_pickup` → "Your ride is ready! Review the pickup instructions below and complete Start your rental to receive your lockbox code." `active`, `returned`, `completed`, etc. all from the same template.
+  - Helper `isSectionExpanded(status, sectionKey)` returns whether a given CollapsibleSection should render `defaultOpen`.
+  - Welcome banner inserted directly after the persistent rental card (vehicle photo + dates + progress bar). Tone (color) shifts by status — gold for ready, blue for active, green for returned. `aria-live="polite"`.
+  - `Safety & return guide` CollapsibleSection now reads `defaultOpen={isSectionExpanded(status, 'safety_guide')}` — open during active rental, closed otherwise.
+
+**Section visibility ordering:** unchanged — already gated by `{status === '...' && ...}` blocks, which produce the order described in the spec (Pickup location → Start your rental → Vehicle prep report for ready_for_pickup; Safety guide → Return your vehicle for active). The config map covers welcome note + expansion; visibility/order remain implicit in the JSX gates to avoid a 1,400-line restructure.
+
+**Builds:** ✅ Customer site 878.55 kB / 226.94 kB gzip — zero errors.
+
+---
+
+## 2026-04-28 — Batch B: Agreement gate + itemized confirmation email
+
+**Scope:** Gate Continue/checkbox on agreement read+scroll; inject itemized receipt + welcome banner + pickup next-steps card into `payment_confirmed` email. 2 files modified.
+**Blast Radius:** LOW–MEDIUM — TermsStep is a leaf wizard step (single consumer). notifyService change is additive: new merge fields + prepend HTML param, only `payment_confirmed` stage uses it; remaining 18 stages unchanged.
+
+### Customer Site (1 file)
+- `src/components/booking/confirm-booking/wizard-steps/TermsStep.tsx` — Checkbox + Continue disabled until accordion expanded AND scroll container at bottom (`scrollTop + clientHeight >= scrollHeight - 4`). Edge case: if content fits without scrolling, `requestAnimationFrame` measure marks it as scrolledToEnd. `aria-live="polite"` region announces state to screen readers. End-of-terms marker added inside scroll body.
+
+### Backend (1 file)
+- `backend/services/notifyService.js`:
+  - `buildBookingPayload()` — added `daily_rate`, `subtotal`, `discount_amount`, `delivery_fee`, `line_items`, `payments` so the receipt renderer has the same fields the portal uses.
+  - New helpers: `renderItemizedReceiptHtml(bp)` (mirrors portal's "Itemized receipt" — daily-rate × days, delivery, mileage/toll add-ons, discount, FL tax, total, deposit hold, total charged from payments[]), `renderPrepWelcomeHtml(mergeFields)`, `renderPickupNextStepsHtml(mergeFields)`.
+  - `wrapInBrandedHTML()` accepts an optional `prependHtml` parameter, inserted above the rendered template body.
+  - `sendBookingNotification()` for `stage === 'payment_confirmed'` builds welcome banner + itemized receipt + pickup next-steps and prepends. **No template rows in `email_templates` are modified — the existing `payment_confirmed` body is preserved beneath the receipt.** Other 18 stages: identical behavior to before.
+
+**Trace through 19 notification stages confirmed:** only `payment_confirmed` receives `prependHtml`; all other stages call `wrapInBrandedHTML` with the new optional param defaulting to `''`.
+
+**Builds:** ✅ Customer site 876.32 kB / 226.37 kB gzip — zero errors. Backend `node --check` passes.
+
+---
+
+## 2026-04-28 — Batch A: Public site copy + adaptive gallery
+
+**Scope:** Trust-badge count update, section reorder, gallery renders only existing images. 5 files modified.
+**Blast Radius:** LOW — public marketing site only, no API/state changes.
+
+### Customer Site (5 files)
+- `src/components/home/Hero.tsx` — "Trusted by 500+" → "Trusted by 1,200+ local renters"
+- `src/components/home/TrustSection.tsx` — "Trusted by 500+ local clients" → "Trusted by 1,200+"
+- `src/App.tsx` — `LongTermSection` moved to immediately follow `TrustSection` ("Why Annie's"); preserved Reviews/Insurance/FAQ order. Anchors `#trust` and `#longterm` unchanged.
+- `src/components/vehicle/Gallery.tsx` — Adaptive grid: 1 image = full tile, 2 images = 2-col split, 3+ images = main + sides + "+N" overlay. Empty array → renders nothing. Mobile "View All Photos" button only renders for 2+ images.
+- `src/components/vehicle/QuickViewModal.tsx` — Guard `<motion.img>` so zero-image vehicles don't render a broken `<img>`. Dot pager already adapts to `vehicle.images.length`.
+
+**Builds:** ✅ Customer site 874.46 kB / 225.90 kB gzip — zero errors.
+
+---
+
 ## 2026-04-26 — Phase 8: Loyalty / Repeat Customer
 
 **Scope:** Automatic tier-based discounts at booking creation + admin Loyalty dashboard. 9 files (3 new, 6 modified).

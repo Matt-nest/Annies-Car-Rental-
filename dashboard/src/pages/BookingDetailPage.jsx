@@ -13,6 +13,7 @@ import Field from '../components/shared/Field';
 import CheckInPrepTab from '../components/booking-tabs/CheckInPrepTab';
 import CheckOutTab from '../components/booking-tabs/CheckOutTab';
 import InvoiceTab from '../components/booking-tabs/InvoiceTab';
+import { useAlerts } from '../lib/alertsContext';
 import { format } from 'date-fns';
 
 /* ────────────────────────────────────────────────────────
@@ -34,50 +35,59 @@ function IdPhotoGallery({ paths, legacyUrl, onView }) {
   const [signedUrls, setSignedUrls] = useState({});
   const [loading, setLoading] = useState({});
 
-  const fetchSignedUrl = async (path, idx) => {
-    if (signedUrls[idx] || loading[idx]) return;
-    setLoading(prev => ({ ...prev, [idx]: true }));
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      const res = await fetch(
-        `${BASE_API}/uploads/signed-url?bucket=id-photos&path=${encodeURIComponent(path)}`,
-        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
-      );
-      const { url } = await res.json();
-      setSignedUrls(prev => ({ ...prev, [idx]: url }));
-      onView(url);
-    } catch {
-      /* silent */
-    } finally {
-      setLoading(prev => ({ ...prev, [idx]: false }));
-    }
-  };
+  // Pre-fetch signed URLs on mount so the photos render inline (no click-to-load).
+  // Click-to-zoom is preserved via the lightbox.
+  useEffect(() => {
+    if (!paths?.length) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        await Promise.all(paths.map(async (path, idx) => {
+          setLoading(prev => ({ ...prev, [idx]: true }));
+          try {
+            const res = await fetch(
+              `${BASE_API}/uploads/signed-url?bucket=id-photos&path=${encodeURIComponent(path)}`,
+              { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+            );
+            const { url } = await res.json();
+            if (!cancelled) setSignedUrls(prev => ({ ...prev, [idx]: url }));
+          } catch { /* silent */ }
+          finally {
+            if (!cancelled) setLoading(prev => ({ ...prev, [idx]: false }));
+          }
+        }));
+      } catch { /* silent */ }
+    })();
+    return () => { cancelled = true; };
+  }, [JSON.stringify(paths)]);
 
-  // New system: array of storage paths
+  // New system: array of storage paths — render inline, click to enlarge
   if (paths?.length > 0) {
     const labels = ['Front', 'Back'];
     return (
       <div className="flex flex-wrap gap-3">
-        {paths.map((path, idx) => (
+        {paths.map((_path, idx) => (
           <div key={idx} className="flex flex-col items-start gap-1">
             <span className="text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">{labels[idx] ?? `Photo ${idx + 1}`}</span>
             <button
-              onClick={() => fetchSignedUrl(path, idx)}
-              disabled={loading[idx]}
-              className="h-24 w-36 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-hover)] flex items-center justify-center text-xs text-[var(--text-secondary)] hover:opacity-80 transition-all cursor-pointer overflow-hidden"
+              type="button"
+              onClick={() => signedUrls[idx] && onView(signedUrls[idx])}
+              disabled={!signedUrls[idx]}
+              title={signedUrls[idx] ? 'Click to enlarge' : 'Loading…'}
+              className="h-32 w-48 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-hover)] flex items-center justify-center overflow-hidden hover:opacity-90 hover:shadow-md transition-all cursor-pointer disabled:cursor-wait"
             >
-              {loading[idx] ? (
-                <span className="animate-pulse">Loading…</span>
+              {loading[idx] && !signedUrls[idx] ? (
+                <span className="text-xs animate-pulse text-[var(--text-secondary)]">Loading…</span>
               ) : signedUrls[idx] ? (
                 <img src={signedUrls[idx]} alt={`License ${labels[idx] ?? idx + 1}`} className="h-full w-full object-cover" />
               ) : (
-                <span>View</span>
+                <span className="text-xs text-[var(--text-tertiary)]">Unavailable</span>
               )}
             </button>
           </div>
         ))}
-        <p className="w-full text-xs text-[var(--text-tertiary)] -mt-1">Click to load & enlarge</p>
       </div>
     );
   }
@@ -86,19 +96,79 @@ function IdPhotoGallery({ paths, legacyUrl, onView }) {
   if (legacyUrl) {
     return (
       <div>
-        <button onClick={() => onView(legacyUrl)} className="cursor-pointer">
+        <button onClick={() => onView(legacyUrl)} className="cursor-pointer" title="Click to enlarge">
           <img
             src={legacyUrl}
             alt="Customer photo ID"
-            className="h-28 w-auto rounded-lg border border-[var(--border-subtle)] object-cover hover:opacity-80 hover:shadow-md transition-all"
+            className="h-32 w-auto rounded-lg border border-[var(--border-subtle)] object-cover hover:opacity-80 hover:shadow-md transition-all"
           />
         </button>
-        <p className="text-xs text-[var(--text-tertiary)] mt-1">Click to enlarge</p>
       </div>
     );
   }
 
   return null;
+}
+
+/* ────────────────────────────────────────────────────────
+   Condition Photos — admin & customer × check-in / check-out
+   ──────────────────────────────────────────────────────── */
+function ConditionPhotosSection({ records, onView }) {
+  if (!Array.isArray(records) || records.length === 0) return null;
+
+  // Group records by source × phase. Multiple records of the same type are
+  // merged photo-wise so we always show every photo across the booking.
+  const groups = [
+    { key: 'admin_in',     title: 'Admin · Check-In',    types: ['admin_prep', 'admin_handoff', 'admin_checkin'] },
+    { key: 'customer_in',  title: 'Customer · Check-In', types: ['customer_checkin'] },
+    { key: 'admin_out',    title: 'Admin · Check-Out',   types: ['admin_inspection', 'admin_checkout'] },
+    { key: 'customer_out', title: 'Customer · Check-Out', types: ['customer_checkout'] },
+  ];
+
+  const collected = groups.map(g => {
+    const matched = records.filter(r => g.types.includes(r.record_type));
+    const photos = matched.flatMap(r => Array.isArray(r.photo_urls) ? r.photo_urls : []);
+    const slotPhotos = matched.flatMap(r => {
+      const slots = r.photo_slots && typeof r.photo_slots === 'object' ? r.photo_slots : {};
+      return Object.values(slots).filter(Boolean);
+    });
+    const allPhotos = [...new Set([...photos, ...slotPhotos])];
+    return { ...g, photos: allPhotos };
+  });
+
+  if (collected.every(g => g.photos.length === 0)) return null;
+
+  return (
+    <Section title="Condition Photos">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {collected.map(g => (
+          <div key={g.key} className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] uppercase tracking-wider font-bold text-[var(--text-tertiary)]">{g.title}</p>
+              <span className="text-[10px] text-[var(--text-tertiary)] tabular-nums">{g.photos.length}</span>
+            </div>
+            {g.photos.length === 0 ? (
+              <p className="text-xs text-[var(--text-tertiary)] italic">No photos recorded</p>
+            ) : (
+              <div className="grid grid-cols-3 gap-1.5">
+                {g.photos.map((url, i) => (
+                  <button
+                    type="button"
+                    key={`${g.key}-${i}`}
+                    onClick={() => onView(url)}
+                    title="Click to enlarge"
+                    className="aspect-square rounded-lg overflow-hidden border border-[var(--border-subtle)] hover:opacity-80 transition-opacity cursor-pointer"
+                  >
+                    <img src={url} alt={`${g.title} ${i + 1}`} className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
 }
 
 /* ────────────────────────────────────────────────────────
@@ -118,6 +188,8 @@ export default function BookingDetailPage() {
   const [damageForm, setDamageForm] = useState({ description: '', severity: 'minor', estimated_cost: '', photo_url: '' });
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'overview');
+  const [checkinRecords, setCheckinRecords] = useState([]);
+  const { refresh: refreshAlerts } = useAlerts();
 
   const load = async () => {
     setLoading(true);
@@ -128,6 +200,12 @@ export default function BookingDetailPage() {
         b.rental_agreements = [b.rental_agreements];
       }
       setBooking(b);
+      // Pull the four condition records (admin/customer × in/out) so we can
+      // surface them in a dedicated photos section below the booking detail.
+      try {
+        const records = await api.getCheckinRecords(id);
+        setCheckinRecords(Array.isArray(records) ? records : []);
+      } catch { /* non-fatal */ }
     } catch (e) { console.error(e); }
     setLoading(false);
   };
@@ -155,7 +233,9 @@ export default function BookingDetailPage() {
       if (action === 'complete') await api.completeBooking(id);
       if (action === 'payment')  await api.recordPayment(id, paymentForm);
       if (action === 'damage')   await api.fileDamageReport(id, damageForm);
-      await load();
+      // Reload booking + dashboard alert badges in parallel so the top-bar
+      // pills, sidebar badges, and detail page all reflect the new state.
+      await Promise.all([load(), refreshAlerts()]);
     } catch (e) { console.error(e); }
     setModal(null);
     setModalInput('');
@@ -701,6 +781,9 @@ function OverviewTab({ booking, c, v, id, load, setModal, setPaymentForm, setLig
           {booking.return_condition_notes && <Field label="Check-Out Notes" value={booking.return_condition_notes} />}
         </Section>
       )}
+
+      {/* Condition Photos — admin/customer × check-in/check-out */}
+      <ConditionPhotosSection records={checkinRecords} onView={setLightboxUrl} />
 
       {/* Notes */}
       <Section title="Notes">
