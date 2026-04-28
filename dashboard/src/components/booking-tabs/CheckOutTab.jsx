@@ -495,9 +495,6 @@ export default function CheckOutTab({ booking, onReload }) {
 
   return (
     <div className="max-w-lg mx-auto space-y-4 py-2">
-      {/* Customer-recorded check-out — shown above the admin form */}
-      <CustomerRecordCard title="Customer Check-Out" record={customerCheckout} />
-
       {/* Stepper */}
       <StepperHeader step={step} steps={STEPS} />
 
@@ -868,6 +865,9 @@ export default function CheckOutTab({ booking, onReload }) {
           </div>
         </div>
       )}
+
+      {/* Customer-recorded check-out — reference for admin below the steps */}
+      <CustomerRecordCard title="Customer Check-Out" record={customerCheckout} />
     </div>
   );
 }
