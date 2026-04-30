@@ -204,12 +204,17 @@ export default function CustomerPortal() {
 
   // Photo uploads
   const [checkinPhotos, setCheckinPhotos] = useState<string[]>([]);
-  const [checkoutPhotos, setCheckoutPhotos] = useState<string[]>([]);
   const [disputePhotos, setDisputePhotos] = useState<string[]>([]);
 
   // Slot-based check-in photos (new)
   const [photoSlots, setPhotoSlots] = useState<PhotoSlots>({});
   const [allSlotsReady, setAllSlotsReady] = useState(false);
+
+  // Return form mirrors check-in — slot photos + odometer + fuel are required
+  const [returnPhotoSlots, setReturnPhotoSlots] = useState<PhotoSlots>({});
+  const [returnSlotsReady, setReturnSlotsReady] = useState(false);
+  const [returnOdometer, setReturnOdometer] = useState('');
+  const [returnFuel, setReturnFuel] = useState('full');
 
   // Dispute form
   const [disputeReason, setDisputeReason] = useState('');
@@ -341,9 +346,14 @@ export default function CustomerPortal() {
     setActionLoading(false);
   };
 
-  /* ── Self-Service Check-Out ── */
+  /* ── Self-Service Check-Out — mirrors check-in: required slot photos +
+        odometer + fuel + key-returned acknowledgement. ── */
   const handleCheckOut = async () => {
-    if (!keyReturned) return;
+    if (!keyReturned || !returnSlotsReady) return;
+    if (!returnOdometer || isNaN(Number(returnOdometer)) || Number(returnOdometer) <= 0) {
+      setError('Please enter a valid return odometer reading');
+      return;
+    }
     if (token && isTokenExpired(token)) {
       setToken(null);
       setView('login');
@@ -356,15 +366,14 @@ export default function CustomerPortal() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          photoUrls: checkoutPhotos.length > 0 ? checkoutPhotos : undefined,
+          odometer: Number(returnOdometer),
+          fuelLevel: returnFuel,
+          photoSlots: returnPhotoSlots,
           keyReturned: true,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      // Brief toast — the longer "we'll inspect / process deposit" message is
-      // delivered by the returned-status welcome note above the vehicle photo,
-      // so we don't duplicate it here.
       setActionSuccess('Check-out submitted.');
       await loadBooking();
     } catch (err: any) { setError(err.message); }
@@ -1108,7 +1117,8 @@ export default function CustomerPortal() {
             )}
           </AnimatePresence>
 
-          {/* Self-Service Check-Out (active) */}
+          {/* Self-Service Check-Out (active) — mirrors check-in: required
+              slot photos, odometer, fuel, plus key-returned acknowledgement. */}
           {status === 'active' && (
             <motion.div
               initial={{ opacity: 0, y: 16 }}
@@ -1116,30 +1126,72 @@ export default function CustomerPortal() {
               transition={{ delay: 0.3, ease: EASE.standard }}
               style={card(theme)}
             >
-              <div className="p-5 space-y-4">
+              <div className="p-5 space-y-5">
                 <h3 className="text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
                   <Car size={20} style={{ color: 'var(--accent-color)' }} /> Return Your Vehicle
                 </h3>
-                <div className="p-4 rounded-xl text-sm space-y-2" style={{
-                  backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)',
-                }}>
-                  <p className="font-medium" style={{ color: 'var(--text-primary)' }}>Return Steps:</p>
-                  <ol className="list-decimal list-inside space-y-1 text-sm">
-                    <li>Park the vehicle in the designated spot</li>
-                    <li>Place the key back in the lockbox</li>
-                    <li>Take a few photos of the vehicle (optional)</li>
-                    <li>Confirm the return below</li>
-                  </ol>
-                </div>
+                <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                  Park at the pickup location, take photos from each angle, record the odometer and fuel level, place the key back in the lockbox, then confirm.
+                </p>
+
+                {/* Photo Slots — same 4 required angles as check-in */}
                 {token && (
-                  <PhotoUploader
+                  <SlotPhotoUploader
                     token={token}
-                    onPhotosChange={setCheckoutPhotos}
-                    maxPhotos={10}
-                    label="Return Condition Photos"
-                    hint="Take a few photos of the vehicle as you leave it — this protects you in case of disputes"
+                    onSlotsChange={(slots, ready) => {
+                      setReturnPhotoSlots(slots);
+                      setReturnSlotsReady(ready);
+                    }}
                   />
                 )}
+
+                {/* Odometer + Fuel */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                      <Gauge size={12} className="inline mr-1" />Odometer *
+                    </label>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      placeholder="e.g. 42410"
+                      value={returnOdometer}
+                      onChange={e => setReturnOdometer(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl text-sm font-mono"
+                      style={{
+                        backgroundColor: 'var(--bg-card-hover)',
+                        border: '1px solid var(--border-subtle)',
+                        color: 'var(--text-primary)',
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                      <Fuel size={12} className="inline mr-1" />Fuel Level *
+                    </label>
+                    <select
+                      value={returnFuel}
+                      onChange={e => setReturnFuel(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl text-sm"
+                      style={{
+                        backgroundColor: 'var(--bg-card-hover)',
+                        border: '1px solid var(--border-subtle)',
+                        color: 'var(--text-primary)',
+                        outline: 'none',
+                        appearance: 'none' as const,
+                      }}
+                    >
+                      <option value="full">Full</option>
+                      <option value="three_quarter">¾ Tank</option>
+                      <option value="half">½ Tank</option>
+                      <option value="quarter">¼ Tank</option>
+                      <option value="empty">Empty</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Key returned */}
                 <label className="flex items-start gap-3 cursor-pointer py-3 px-4 rounded-xl transition-all" style={{
                   backgroundColor: keyReturned ? 'rgba(200,169,126,0.08)' : 'var(--bg-card-hover)',
                   border: keyReturned ? '2px solid rgba(200,169,126,0.3)' : '2px solid var(--border-subtle)',
@@ -1150,14 +1202,21 @@ export default function CustomerPortal() {
                     I have returned the key to the lockbox and the vehicle is parked
                   </span>
                 </label>
+
                 <button
                   onClick={handleCheckOut}
-                  disabled={actionLoading || !keyReturned}
+                  disabled={actionLoading || !keyReturned || !returnSlotsReady || !returnOdometer}
                   className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-full font-semibold transition-all duration-300 hover:scale-[1.02] active:scale-95 text-sm disabled:opacity-50"
                   style={{ backgroundColor: 'var(--accent-color)', color: '#1c1917', minHeight: '52px' }}
                 >
                   {actionLoading ? <><Loader2 size={16} className="animate-spin" /> Processing…</> : <><Check size={16} /> Complete Return</>}
                 </button>
+
+                {!returnSlotsReady && (
+                  <p className="text-[11px] text-center" style={{ color: 'var(--text-tertiary)' }}>
+                    Upload all 4 required photos to enable return
+                  </p>
+                )}
               </div>
             </motion.div>
           )}
