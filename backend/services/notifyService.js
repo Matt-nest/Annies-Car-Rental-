@@ -552,10 +552,14 @@ function fmtMoney(n) { return `$${Number(n || 0).toFixed(2)}`; }
 function renderReceiptRow(label, value, opts = {}) {
   const color = opts.green ? '#15803d' : opts.bold ? '#1c1917' : '#44403c';
   const fontWeight = opts.bold ? '600' : '400';
-  const borderTop = opts.divider ? 'border-top:1px solid #e7e5e4;padding-top:8px;margin-top:8px;' : '';
-  return `<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;color:${color};font-weight:${fontWeight};${borderTop}">
-    <span>${escapeHtml(label)}</span><span>${escapeHtml(value)}</span>
-  </div>`;
+  // Use table-row markup — Outlook & most email clients render flex
+  // inconsistently, but table cells are 100% reliable.
+  const padTop = opts.divider ? '10px' : '4px';
+  const borderTop = opts.divider ? 'border-top:1px solid #e7e5e4;' : '';
+  return `<tr>
+    <td style="padding:${padTop} 0 4px;color:${color};font-size:13px;font-weight:${fontWeight};${borderTop}">${escapeHtml(label)}</td>
+    <td style="padding:${padTop} 0 4px;color:${color};font-size:13px;font-weight:${fontWeight};text-align:right;font-variant-numeric:tabular-nums;${borderTop}">${escapeHtml(value)}</td>
+  </tr>`;
 }
 
 function renderItemizedReceiptHtml(bp) {
@@ -589,23 +593,24 @@ function renderItemizedReceiptHtml(bp) {
   rows.push(renderReceiptRow('Rental total', fmtMoney(total), { bold: true, divider: true }));
 
   const depositBlock = deposit > 0
-    ? `<div style="margin-top:14px;">
-        <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#a8a29e;">Security Deposit</p>
-        ${renderReceiptRow('Refundable hold', fmtMoney(deposit))}
-        <p style="margin:4px 0 0;font-size:11px;color:#a8a29e;">Returned 3–5 business days after vehicle inspection.</p>
-      </div>`
+    ? `<tr><td colspan="2" style="padding:14px 0 4px;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#a8a29e;">Security Deposit</td></tr>
+       ${renderReceiptRow('Refundable hold', fmtMoney(deposit))}
+       <tr><td colspan="2" style="padding:4px 0 0;font-size:11px;color:#a8a29e;">Returned 3–5 business days after vehicle inspection.</td></tr>`
     : '';
 
   const totalChargedBlock = totalPaid > 0
-    ? `<div style="margin-top:14px;">${renderReceiptRow('Total charged', fmtMoney(totalPaid), { bold: true, divider: true })}</div>`
+    ? renderReceiptRow('Total charged', fmtMoney(totalPaid), { bold: true, divider: true })
     : '';
 
   return `
     <div style="background:#fafaf9;border:1px solid #e7e5e4;border-radius:12px;padding:18px 20px;margin:0 0 24px;">
-      <p style="margin:0 0 12px;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#a8a29e;">Itemized Receipt</p>
-      ${rows.join('')}
-      ${depositBlock}
-      ${totalChargedBlock}
+      <p style="margin:0 0 10px;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#a8a29e;">Itemized Receipt</p>
+      <p style="margin:0 0 8px;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#a8a29e;">Rental Charges</p>
+      <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
+        ${rows.join('')}
+        ${depositBlock}
+        ${totalChargedBlock}
+      </table>
     </div>`;
 }
 

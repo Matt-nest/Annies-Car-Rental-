@@ -213,6 +213,7 @@ router.post('/checkin', requirePortalAuth, async (req, res) => {
 
     // Return lockbox code on successful check-in — this is the gate
     const lockboxCode = booking.vehicles?.lockbox_code;
+    console.log(`[Portal] Check-in lockbox for booking ${bookingId}: vehicle=${booking.vehicle_id}, lockbox_code=${lockboxCode || 'NOT SET'}`);
     if (!lockboxCode) {
       // Check-in succeeded but lockbox not configured — don't block, but flag it
       return res.json({ success: true, lockbox_code: null, lockbox_error: 'Lockbox code not configured. Call (772) 985-6667.', ...result });
@@ -259,6 +260,20 @@ router.post('/checkout', requirePortalAuth, async (req, res) => {
         checkout_odometer: odometer,
       },
     });
+
+    // Reset vehicle status back to available — mirrors admin return flow.
+    // Targeted lookup; getBookingDetail does a heavy join we don't need here.
+    const { data: bookingRow } = await supabase
+      .from('bookings')
+      .select('vehicle_id')
+      .eq('id', req.portal.bookingId)
+      .single();
+    if (bookingRow?.vehicle_id) {
+      await supabase
+        .from('vehicles')
+        .update({ status: 'available' })
+        .eq('id', bookingRow.vehicle_id);
+    }
 
     res.json({ success: true, ...result });
   } catch (err) {

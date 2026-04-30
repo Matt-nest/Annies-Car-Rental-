@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Car, Edit3, Save, X, Plus, Trash2, Calendar, DollarSign, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Car, Edit3, Save, X, Plus, Trash2, Calendar, DollarSign, AlertTriangle, Key } from 'lucide-react';
 import { api } from '../api/client';
 import StatusBadge from '../components/shared/StatusBadge';
 import { SkeletonDashboard } from '../components/shared/Skeleton';
@@ -37,6 +37,10 @@ export default function VehicleDetailPage() {
   const [blockModal, setBlockModal] = useState(false);
   const [blockForm, setBlockForm] = useState({ start_date: '', end_date: '', reason: 'personal_use', notes: '' });
   const [deleting, setDeleting] = useState(false);
+  const [lockboxDraft, setLockboxDraft] = useState('');
+  const [lockboxEditing, setLockboxEditing] = useState(false);
+  const [lockboxSaving, setLockboxSaving] = useState(false);
+  const [lockboxReveal, setLockboxReveal] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -47,6 +51,7 @@ export default function VehicleDetailPage() {
       ]);
       setVehicle(v);
       setBlocked(b || []);
+      setLockboxDraft(v.lockbox_code || '');
       setEditForm({
         make: v.make, model: v.model, year: v.year, category: v.category,
         daily_rate: v.daily_rate, weekly_rate: v.weekly_rate || '',
@@ -56,6 +61,7 @@ export default function VehicleDetailPage() {
         seats: v.seats, fuel_type: v.fuel_type, transmission: v.transmission,
         thumbnail_url: v.thumbnail_url || '', notes: v.notes || '',
         mileage_limit_per_day: v.mileage_limit_per_day || 150,
+        lockbox_code: v.lockbox_code || '',
       });
     } catch (e) { console.error(e); }
     setLoading(false);
@@ -95,6 +101,17 @@ export default function VehicleDetailPage() {
       await api.deleteBlockedDate(blockId);
       setBlocked(b => b.filter(x => x.id !== blockId));
     } catch (e) { console.error(e); }
+  }
+
+  async function handleSaveLockbox() {
+    setLockboxSaving(true);
+    try {
+      const trimmed = (lockboxDraft || '').trim();
+      const updated = await api.updateVehicle(id, { lockbox_code: trimmed || null });
+      setVehicle(updated);
+      setLockboxEditing(false);
+    } catch (e) { console.error(e); }
+    setLockboxSaving(false);
   }
 
   async function handleDeleteVehicle() {
@@ -247,6 +264,62 @@ export default function VehicleDetailPage() {
 
       {/* Weekly Pricing */}
       <WeeklyPricingSection vehicle={vehicle} onSaved={load} />
+
+      {/* Lockbox Code — gates customer self-service check-in. Without this set,
+          the portal returns lockbox_error and the customer has to call. */}
+      <Section
+        title="Lockbox Code"
+        icon={Key}
+        action={
+          !lockboxEditing ? (
+            <button onClick={() => { setLockboxDraft(vehicle.lockbox_code || ''); setLockboxEditing(true); }} className="btn-ghost text-xs py-1 px-2">
+              <Edit3 size={13} /> {vehicle.lockbox_code ? 'Change' : 'Set Code'}
+            </button>
+          ) : (
+            <div className="flex gap-1.5">
+              <button onClick={() => setLockboxEditing(false)} className="btn-ghost text-xs py-1 px-2"><X size={13} /> Cancel</button>
+              <button onClick={handleSaveLockbox} disabled={lockboxSaving} className="btn-primary text-xs py-1 px-2">
+                <Save size={13} /> {lockboxSaving ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          )
+        }
+      >
+        {!lockboxEditing ? (
+          vehicle.lockbox_code ? (
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <code className="font-mono text-base px-3 py-1.5 rounded-lg" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)', letterSpacing: '0.15em' }}>
+                  {lockboxReveal ? vehicle.lockbox_code : '•'.repeat(vehicle.lockbox_code.length)}
+                </code>
+                <button onClick={() => setLockboxReveal(r => !r)} className="btn-ghost text-xs py-1 px-2">
+                  {lockboxReveal ? 'Hide' : 'Reveal'}
+                </button>
+              </div>
+              <p className="text-xs text-[var(--text-tertiary)]">Released to the customer after they tap "Start Your Rental".</p>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 text-sm text-amber-600">
+              <AlertTriangle size={14} />
+              <span>No lockbox code set — customers will see a fallback message instead of a code at check-in.</span>
+            </div>
+          )
+        ) : (
+          <div className="space-y-2">
+            <input
+              className="input font-mono"
+              value={lockboxDraft}
+              onChange={e => setLockboxDraft(e.target.value)}
+              placeholder="e.g. 4729"
+              maxLength={12}
+              autoFocus
+            />
+            <p className="text-xs text-[var(--text-tertiary)]">
+              Numeric code or alphanumeric (up to 12 chars). Leave blank to clear.
+            </p>
+          </div>
+        )}
+      </Section>
 
       {/* Blocked Dates */}
       <Section title="Blocked Dates" icon={Calendar}

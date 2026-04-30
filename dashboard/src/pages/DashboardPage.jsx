@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Car, BookOpen, CheckCircle2, PenLine } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { api } from '../api/client';
 import { cachedQuery } from '../lib/queryCache';
@@ -143,61 +143,10 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          {/* Desktop header actions */}
+          {/* Desktop header actions — Approve / Counter-Sign / Check-In / Active /
+              Inspect pills are rendered in the global AlertPillBar (in the top
+              header, next to the search bar). Keep only the static nav shortcuts here. */}
           <div className="hidden lg:flex items-center gap-2 shrink-0 pb-1">
-            <AnimatePresence>
-              {pending > 0 && (
-                <motion.button
-                  initial={{ opacity: 0, scale: 0.85 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.85 }}
-                  onClick={() => {
-                    const el = document.querySelector('[data-widget="pending-approvals"]');
-                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    else navigate('/bookings?status=pending_approval');
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold cursor-pointer"
-                  style={{
-                    background: 'rgba(245,158,11,0.12)',
-                    border: '1px solid rgba(245,158,11,0.25)',
-                    color: '#F59E0B',
-                    animation: 'pulseYellow 2s ease-in-out infinite',
-                  }}
-                >
-                  <CheckCircle2 size={14} />
-                  Approve
-                  <span className="text-[10px] font-bold rounded-full px-1.5 py-0.5"
-                    style={{ backgroundColor: '#F59E0B', color: '#fff' }}>
-                    {pending}
-                  </span>
-                </motion.button>
-              )}
-              {pendingAgreements > 0 && (
-                <motion.button
-                  initial={{ opacity: 0, scale: 0.85 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.85 }}
-                  onClick={() => {
-                    const el = document.querySelector('[data-widget="pending-counter-sign"]');
-                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold cursor-pointer"
-                  style={{
-                    background: 'rgba(0,122,255,0.12)',
-                    border: '1px solid rgba(0,122,255,0.25)',
-                    color: '#007AFF',
-                    animation: 'pulseBlue 2s ease-in-out infinite',
-                  }}
-                >
-                  <PenLine size={14} />
-                  Counter-Sign
-                  <span className="text-[10px] font-bold rounded-full px-1.5 py-0.5"
-                    style={{ backgroundColor: '#007AFF', color: '#fff' }}>
-                    {pendingAgreements}
-                  </span>
-                </motion.button>
-              )}
-            </AnimatePresence>
             <button onClick={() => navigate('/bookings')} className="btn btn-secondary">
               <BookOpen size={14} /> Bookings
             </button>

@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { FileText, PenLine, CheckCircle2, Clock, RotateCcw, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { api } from '../../api/client';
+import { useAlerts } from '../../lib/alertsContext';
 import Modal from './Modal';
 
 // ── Canvas signature pad (no external deps) ───────────────────────────────────
@@ -88,6 +89,7 @@ export default function AgreementSection({ bookingId }) {
   const [submitting, setSubmitting] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const canvasRef = useRef(null);
+  const { refresh: refreshAlerts } = useAlerts();
 
   const load = useCallback(async () => {
     try {
@@ -120,7 +122,7 @@ export default function AgreementSection({ bookingId }) {
     try {
       await api.counterSignAgreement(bookingId, canvas.toDataURL('image/png'));
       closeModal();
-      await load();
+      await Promise.all([load(), refreshAlerts()]);
     } catch (e) {
       console.error('Counter-sign failed:', e);
     } finally {

@@ -25,7 +25,7 @@ function DashboardLayoutInner() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
-  const { alerts, onActiveRentalStarted } = useAlerts();
+  const { alerts, onActiveRentalStarted, acknowledgeActive } = useAlerts();
   const [profileOpen, setProfileOpen] = useState(false);
   const dropdownRef = useRef(null);
   const [activeAlertModal, setActiveAlertModal] = useState(false);
@@ -276,7 +276,7 @@ function DashboardLayoutInner() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[999990] flex items-center justify-center p-4"
-              onClick={() => { setActiveAlertModal(false); setCashRainActive(true); }}
+              onClick={() => { setActiveAlertModal(false); acknowledgeActive(); setCashRainActive(true); }}
             >
               <motion.div
                 initial={{ opacity: 0, scale: 0.92, y: 16 }}
@@ -297,7 +297,7 @@ function DashboardLayoutInner() {
                   A customer just started their rental. Nothing required from you.
                 </p>
                 <button
-                  onClick={() => { setActiveAlertModal(false); setCashRainActive(true); }}
+                  onClick={() => { setActiveAlertModal(false); acknowledgeActive(); setCashRainActive(true); }}
                   className="px-5 py-2 rounded-full text-sm font-semibold transition-transform hover:scale-[1.03]"
                   style={{ backgroundColor: 'var(--accent-color)', color: '#1c1917' }}
                 >

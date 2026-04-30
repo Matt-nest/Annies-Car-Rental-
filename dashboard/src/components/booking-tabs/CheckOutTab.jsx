@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../../api/client';
+import { useAlerts } from '../../lib/alertsContext';
 import Section from '../shared/Section';
 import {
   CheckCircle, AlertCircle, Loader2, Camera, X, ImagePlus,
@@ -206,6 +207,7 @@ function CustomerRecordCard({ title, record }) {
 export default function CheckOutTab({ booking, onReload }) {
   const [step, setStep] = useState(0);
   const STEPS = ['Vehicle Condition', 'Review Charges', 'Finalize'];
+  const { refresh: refreshAlerts } = useAlerts();
 
   // Step 1: Condition
   const [odometer, setOdometer] = useState(booking.return_mileage || '');
@@ -442,6 +444,7 @@ export default function CheckOutTab({ booking, onReload }) {
       // Complete the booking
       await api.completeBooking(booking.id);
       setCompleted(true);
+      refreshAlerts();
       onReload?.();
     } catch (e) { setError(e.message); }
     setLoading(false);
@@ -464,6 +467,7 @@ export default function CheckOutTab({ booking, onReload }) {
       // Complete the booking
       await api.completeBooking(booking.id);
       setCompleted(true);
+      refreshAlerts();
       onReload?.();
     } catch (e) { setError(e.message); }
     setLoading(false);
@@ -685,7 +689,7 @@ export default function CheckOutTab({ booking, onReload }) {
           </Section>
 
           {/* Add Incidental */}
-          <Section title="Add Charge">
+          <Section title="Add Charge" titleColor="var(--danger-color)">
             <div className="space-y-3">
               <select
                 className="w-full px-4 py-3 rounded-xl text-sm"

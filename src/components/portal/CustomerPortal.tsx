@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Car, Calendar, MapPin, Key, Camera, Check, AlertCircle,
   Loader2, Shield, DollarSign, MessageSquare, ArrowRight,
-  Fuel, Gauge, ChevronRight, ChevronDown, ExternalLink, X, Star, Phone, Receipt, CreditCard,
+  Fuel, Gauge, ChevronRight, ChevronDown, ExternalLink, X, Star, Phone, Receipt, CreditCard, Clock,
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { EASE, DURATION } from '../../utils/motion';
@@ -329,9 +329,13 @@ export default function CustomerPortal() {
       // The lockbox code is returned on successful check-in — reveal it
       if (data.lockbox_code) {
         setLockbox(data.lockbox_code);
+        setActionSuccess('Check-in complete! Your lockbox code is below — grab your keys and drive safe! 🚗');
+      } else if (data.lockbox_error) {
+        // Lockbox not configured in database — show the fallback message
+        setActionSuccess(`Check-in complete! ${data.lockbox_error}`);
+      } else {
+        setActionSuccess('Check-in complete! Contact Annie\'s at (772) 985-6667 for your key pickup instructions.');
       }
-
-      setActionSuccess('Check-in complete! Your lockbox code is below — grab your keys and drive safe! 🚗');
       await loadBooking();
     } catch (err: any) { setError(err.message); }
     setActionLoading(false);
@@ -358,7 +362,10 @@ export default function CustomerPortal() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setActionSuccess('Check-out complete! Thank you for renting with Annie\'s. We\'ll inspect the vehicle and process your deposit shortly.');
+      // Brief toast — the longer "we'll inspect / process deposit" message is
+      // delivered by the returned-status welcome note above the vehicle photo,
+      // so we don't duplicate it here.
+      setActionSuccess('Check-out submitted.');
       await loadBooking();
     } catch (err: any) { setError(err.message); }
     setActionLoading(false);
@@ -624,6 +631,39 @@ export default function CustomerPortal() {
             </div>
           )}
 
+          {/* ── Status welcome note — sits below booking number, above the
+              vehicle photo. Same visual treatment as the existing returned-status
+              note. Drives every status's "what to do next" guidance. ── */}
+          {(() => {
+            const cfg = STATUS_LAYOUT_CONFIG[status as StatusKey];
+            if (!cfg) return null;
+            const note = cfg.welcome({
+              pickup_location: booking.pickup_location,
+              pickup_date: booking.pickup_date,
+            });
+            if (!note) return null;
+            const tone =
+              status === 'returned'
+                ? { bg: 'rgba(34,197,94,0.06)', border: 'rgba(34,197,94,0.2)', fg: '#15803d' }
+                : status === 'ready_for_pickup'
+                  ? { bg: 'rgba(212,175,55,0.08)', border: 'rgba(212,175,55,0.25)', fg: 'var(--accent-color)' }
+                  : status === 'active'
+                    ? { bg: 'rgba(59,130,246,0.06)', border: 'rgba(59,130,246,0.2)', fg: '#3b82f6' }
+                    : { bg: 'var(--bg-card)', border: 'var(--border-subtle)', fg: 'var(--text-secondary)' };
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05, ease: EASE.standard }}
+                className="px-4 py-3 rounded-2xl text-sm leading-relaxed"
+                style={{ backgroundColor: tone.bg, border: `1px solid ${tone.border}`, color: tone.fg }}
+                aria-live="polite"
+              >
+                {note}
+              </motion.div>
+            );
+          })()}
+
           {/* ── Unified Rental Card: photo + vehicle + dates + progress bar ── */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
@@ -752,68 +792,6 @@ export default function CustomerPortal() {
             </div>
           </motion.div>
 
-          {/* ── Status welcome note (driven by STATUS_LAYOUT_CONFIG) ─── */}
-          {(() => {
-            const cfg = STATUS_LAYOUT_CONFIG[status as StatusKey];
-            if (!cfg) return null;
-            const note = cfg.welcome({
-              pickup_location: booking.pickup_location,
-              pickup_date: booking.pickup_date,
-            });
-            if (!note) return null;
-            const tone =
-              status === 'returned'
-                ? { bg: 'rgba(34,197,94,0.06)', border: 'rgba(34,197,94,0.2)', fg: '#15803d' }
-                : status === 'ready_for_pickup'
-                  ? { bg: 'rgba(212,175,55,0.08)', border: 'rgba(212,175,55,0.25)', fg: 'var(--accent-color)' }
-                  : status === 'active'
-                    ? { bg: 'rgba(59,130,246,0.06)', border: 'rgba(59,130,246,0.2)', fg: '#3b82f6' }
-                    : { bg: 'var(--bg-card)', border: 'var(--border-subtle)', fg: 'var(--text-secondary)' };
-            return (
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15, ease: EASE.standard }}
-                className="px-4 py-3 rounded-2xl text-sm leading-relaxed"
-                style={{ backgroundColor: tone.bg, border: `1px solid ${tone.border}`, color: tone.fg }}
-                aria-live="polite"
-              >
-                {note}
-              </motion.div>
-            );
-          })()}
-
-          {/* ── Add-Ons (collapsed) ───────────────────────────── */}
-          {(booking.unlimited_miles || booking.unlimited_tolls || (booking.addons && booking.addons.length > 0)) && (
-            <CollapsibleSection title="Your add-ons" icon={Gauge}>
-              <div className="space-y-2 pt-3">
-                <div className="space-y-2">
-                  {(booking.unlimited_miles || booking.addons.some((a: any) => a.addon_type === 'unlimited_miles')) && (
-                    <div className="flex items-center gap-3 p-3 rounded-xl" style={{ backgroundColor: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.15)' }}>
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(34,197,94,0.15)' }}>
-                        <Gauge size={16} style={{ color: '#22c55e' }} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Unlimited Miles</p>
-                        <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>No mileage restrictions — drive as far as you want</p>
-                      </div>
-                    </div>
-                  )}
-                  {(booking.unlimited_tolls || booking.addons.some((a: any) => a.addon_type === 'unlimited_tolls')) && (
-                    <div className="flex items-center gap-3 p-3 rounded-xl" style={{ backgroundColor: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)' }}>
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(59,130,246,0.15)' }}>
-                        <Shield size={16} style={{ color: '#3b82f6' }} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Unlimited Tolls</p>
-                        <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>SunPass/toll coverage included</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </CollapsibleSection>
-          )}
 
           {/* ── Pickup Guide (ready_for_pickup only) ──────────── */}
           {status === 'ready_for_pickup' && (
@@ -890,29 +868,15 @@ export default function CustomerPortal() {
             </motion.div>
           )}
 
-          {/* ── Admin Vehicle Prep Report (ready_for_pickup) ──── */}
+          {/* ── Admin Vehicle Prep Report — always collapsed at this status,
+              hidden behind a "View vehicle prep report" toggle. ── */}
           {status === 'ready_for_pickup' && booking.checkinRecords && (() => {
             const prepRecord = booking.checkinRecords.find((r: any) => r.record_type === 'admin_prep');
             if (!prepRecord) return null;
             const fuelLabels: Record<string, string> = { full: 'Full', three_quarter: '¾ Tank', half: '½ Tank', quarter: '¼ Tank', empty: 'Empty' };
             return (
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.25, ease: EASE.standard }}
-                style={card(theme)}
-              >
-                <div className="p-5 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(34,197,94,0.1)' }}>
-                      <Shield size={16} style={{ color: '#22c55e' }} />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Vehicle Prep Report</h3>
-                      <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>Your vehicle has been inspected and prepared</p>
-                    </div>
-                  </div>
-
+              <CollapsibleSection title="View vehicle prep report" icon={Shield}>
+                <div className="space-y-3 pt-3">
                   <div className="grid grid-cols-2 gap-3">
                     {prepRecord.fuel_level && (
                       <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-card-hover)' }}>
@@ -936,7 +900,6 @@ export default function CustomerPortal() {
                     )}
                   </div>
 
-                  {/* Admin prep photos */}
                   {prepRecord.photo_urls && prepRecord.photo_urls.length > 0 && (
                     <div>
                       <p className="text-[10px] uppercase tracking-wider font-bold mb-2" style={{ color: 'var(--text-tertiary)' }}>
@@ -952,7 +915,7 @@ export default function CustomerPortal() {
                     </div>
                   )}
                 </div>
-              </motion.div>
+              </CollapsibleSection>
             );
           })()}
 
@@ -1262,6 +1225,23 @@ export default function CustomerPortal() {
                 <h3 className="text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
                   <DollarSign size={20} style={{ color: 'var(--accent-color)' }} /> Settlement
                 </h3>
+
+                {/* Pending-inspection banner — shown only while we're still
+                    inspecting. Mirrors the same visual rhythm as the welcome
+                    note above the vehicle photo. */}
+                {status === 'returned' && (
+                  <div
+                    className="px-3 py-2 rounded-xl text-xs font-medium flex items-center gap-2"
+                    style={{
+                      backgroundColor: 'rgba(245,158,11,0.08)',
+                      border: '1px solid rgba(245,158,11,0.22)',
+                      color: '#b45309',
+                    }}
+                  >
+                    <Clock size={13} className="shrink-0" />
+                    Pending inspection — final settlement posts once we've reviewed the vehicle.
+                  </div>
+                )}
 
                 {/* Deposit */}
                 {booking.deposit && (
@@ -1613,6 +1593,38 @@ export default function CustomerPortal() {
               </CollapsibleSection>
             );
           })()}
+
+          {/* ── Add-Ons (collapsed, below receipt) ───────────────────────────── */}
+          {(booking.unlimited_miles || booking.unlimited_tolls || (booking.addons && booking.addons.length > 0)) && (
+            <CollapsibleSection title="Your add-ons" icon={Gauge}>
+              <div className="space-y-2 pt-3">
+                <div className="space-y-2">
+                  {(booking.unlimited_miles || booking.addons.some((a: any) => a.addon_type === 'unlimited_miles')) && (
+                    <div className="flex items-center gap-3 p-3 rounded-xl" style={{ backgroundColor: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.15)' }}>
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(34,197,94,0.15)' }}>
+                        <Gauge size={16} style={{ color: '#22c55e' }} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Unlimited Miles</p>
+                        <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>No mileage restrictions — drive as far as you want</p>
+                      </div>
+                    </div>
+                  )}
+                  {(booking.unlimited_tolls || booking.addons.some((a: any) => a.addon_type === 'unlimited_tolls')) && (
+                    <div className="flex items-center gap-3 p-3 rounded-xl" style={{ backgroundColor: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)' }}>
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(59,130,246,0.15)' }}>
+                        <Shield size={16} style={{ color: '#3b82f6' }} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Unlimited Tolls</p>
+                        <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>SunPass/toll coverage included</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CollapsibleSection>
+          )}
 
           {/* Contact footer */}
           <div className="flex flex-col items-center gap-3 py-5 text-xs" style={{ color: 'var(--text-tertiary)' }}>

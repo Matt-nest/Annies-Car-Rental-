@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { api } from '../../api/client';
+import { useAlerts } from '../../lib/alertsContext';
 import { Camera, X, Loader2, ImagePlus, CheckCircle, Key, AlertCircle, Fuel } from 'lucide-react';
 
 /* ── Fuel Level Tap Selector ────────────────────────────────────────── */
@@ -126,6 +127,7 @@ export default function CheckInPrepTab({ booking, onReload }) {
   const [error, setError] = useState('');
   const [lockboxCode, setLockboxCode] = useState(null);
   const [customerRecord, setCustomerRecord] = useState(null);
+  const { refresh: refreshAlerts } = useAlerts();
 
   const isReady = ['ready_for_pickup', 'active', 'returned', 'completed'].includes(booking.status);
 
@@ -170,6 +172,7 @@ export default function CheckInPrepTab({ booking, onReload }) {
       // Load lockbox code after marking ready
       const lb = await api.getBookingLockbox(booking.id).catch(() => null);
       if (lb?.lockbox_code) setLockboxCode(lb.lockbox_code);
+      refreshAlerts();
       onReload?.();
     } catch (err) {
       setError(err.message || 'Failed to save check-in');

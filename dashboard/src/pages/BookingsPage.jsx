@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, Filter, CheckCircle, XCircle, RefreshCw, BookOpen, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { api } from '../api/client';
+import { useAlerts } from '../lib/alertsContext';
 import StatusBadge from '../components/shared/StatusBadge';
 import DataTable from '../components/shared/DataTable';
 import Modal from '../components/shared/Modal';
@@ -22,6 +23,7 @@ export default function BookingsPage() {
   const [declineReason, setDeclineReason] = useState('');
   const [actioning, setActioning] = useState(false);
 
+  const { refresh: refreshAlerts } = useAlerts();
   const status = searchParams.get('status') || '';
   const q = searchParams.get('q') || '';
 
@@ -44,7 +46,7 @@ export default function BookingsPage() {
     setActioning(true);
     await api.approveBooking(booking.id).catch(console.error);
     setActionModal(null);
-    fetchBookings();
+    await Promise.all([fetchBookings(), refreshAlerts()]);
     setActioning(false);
   }
 
@@ -53,7 +55,7 @@ export default function BookingsPage() {
     await api.declineBooking(actionModal.booking.id, declineReason).catch(console.error);
     setActionModal(null);
     setDeclineReason('');
-    fetchBookings();
+    await Promise.all([fetchBookings(), refreshAlerts()]);
     setActioning(false);
   }
 

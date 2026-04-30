@@ -91,9 +91,43 @@ function statusBanner(emoji, text, color = 'amber') {
   </div>`;
 }
 
+
 /* ════════════════════════════════════════════════════════════════════════════
    CUSTOMER-FACING EMAILS
    ════════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Payment Declined — sent when an off-session charge against the saved card
+ * fails (incidentals, overage settlement, etc). Asks the customer to update
+ * their payment method in the portal so we can retry. Triggered from Stripe
+ * webhook handlers (payment_intent.payment_failed) once card-on-file is wired.
+ */
+export async function sendPaymentDeclined({ customer, booking, amountCents, reason }) {
+  const portalLink = `${SITE_URL}/portal?code=${booking.booking_code}`;
+  const amount = `$${((amountCents || 0) / 100).toFixed(2)}`;
+
+  const body = `
+    <p style="margin:0 0 16px;color:#44403c;font-size:15px;line-height:1.7;">Hi ${esc(customer.first_name)},</p>
+    <p style="margin:0 0 20px;color:#44403c;font-size:15px;line-height:1.7;">
+      We tried to process a charge of <strong>${amount}</strong> on the card we have on file for booking
+      <strong>${esc(booking.booking_code)}</strong>, but the payment was declined${reason ? ` (${esc(reason)})` : ''}.
+    </p>
+
+    ${statusBanner('💳', '<strong>Action needed:</strong> Update your payment method in the customer portal so we can retry the charge. No further action is taken until your card is updated.', 'red')}
+
+    ${ctaButton(portalLink, 'Update Payment Method →', 'gold')}
+
+    <p style="margin:0;text-align:center;font-size:12px;color:#a8a29e;">
+      Questions? Call or text us at <strong>(772) 985-6667</strong>
+    </p>
+  `;
+
+  return sendEmail({
+    to: customer.email,
+    subject: `Payment Declined — ${booking.booking_code} — Action Needed`,
+    html: emailShell('Payment Declined', body),
+  });
+}
 
 /**
  * Booking Request Received — first touchpoint after customer submits a request.

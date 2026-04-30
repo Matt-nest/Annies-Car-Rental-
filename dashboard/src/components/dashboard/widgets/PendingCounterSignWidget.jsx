@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { PenLine, Clock, Car, User, ChevronRight, X, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../../api/client';
+import { useAlerts } from '../../../lib/alertsContext';
 
 /* ── Simple native Canvas signature pad (replaces react-signature-canvas) ── */
 function SignaturePad({ sigRef }) {
@@ -102,6 +103,7 @@ export default function PendingCounterSignWidget() {
   const [signedId, setSignedId] = useState(null);
   const sigRef = useRef(null);
   const navigate = useNavigate();
+  const { refresh: refreshAlerts } = useAlerts();
 
   const loadPending = useCallback(() => {
     api.getPendingCounterSign()
@@ -118,6 +120,7 @@ export default function PendingCounterSignWidget() {
     try {
       await api.counterSignAgreement(bookingId, sigRef.current.toDataURL('image/png'));
       setSignedId(bookingId);
+      refreshAlerts();
       setTimeout(() => {
         setSignedId(null);
         setSigningId(null);

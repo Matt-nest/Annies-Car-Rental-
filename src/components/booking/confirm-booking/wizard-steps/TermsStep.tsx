@@ -78,6 +78,12 @@ export default function TermsStep({ draft, onUpdate, onContinue, onBack, theme }
           </button>
         </div>
 
+        {/* Always-visible instruction so the customer knows up front they must
+            expand AND scroll all the way through before they can accept. */}
+        <p className="text-[11px] mb-3 italic" style={{ color: 'var(--text-tertiary)' }}>
+          Open <strong style={{ fontStyle: 'normal', color: 'var(--text-secondary)' }}>Read Full Terms</strong> and scroll all the way to the bottom before you can check "I have read and agree" and continue.
+        </p>
+
         {!expanded ? (
           <p className="text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
             By checking below, you agree to all 12 sections of the Rental Agreement Terms and Conditions including definitions, indemnity, vehicle condition,

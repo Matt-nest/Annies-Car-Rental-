@@ -3,23 +3,19 @@ import { api } from '../api/client';
 import { invalidateCache } from './queryCache';
 
 /**
- * AlertsContext — single source of truth for header/sidebar alert badges.
+ * AlertsContext — single source of truth for header alert pills.
  *
- * Why: prior to this, each badge polled its own data and stale alerts lingered
- * after a mutation (approve / decline / complete inspection) until the next 30s
- * poll. Mutating components now call `useAlerts().refresh()` to dirty-invalidate
- * the overview cache and re-pull alert counts immediately.
+ * Pills shown (when count > 0): Approve, Counter-Sign, Check-Ins, Active, Inspections.
+ * Mutations call refresh() to immediately re-pull counts so pills dismiss without reload.
  *
- * Polling interval kept at 30s as a fallback; mutations short-circuit the wait.
- *
- * Detected events:
- *  - `onActiveRentalStarted(callback)` — fires when `active_rentals` increments
- *    between two polls. Used to trigger the cash-rain confirmation overlay.
+ * Active pill is transient: only shown when a fresh active-rental transition is
+ * unacknowledged. Clearing happens via acknowledgeActive() (modal dismiss).
  */
 const AlertsContext = createContext({
   alerts: {},
   refresh: () => Promise.resolve(),
   onActiveRentalStarted: () => () => {},
+  acknowledgeActive: () => {},
 });
 
 export function useAlerts() {
@@ -33,6 +29,8 @@ export function AlertsProvider({ children }) {
     pending_reviews: 0,
     active_rentals: 0,
     pending_inspections: 0,
+    pickups_today_count: 0,
+    has_unacknowledged_active: false,
   });
   const prevActiveRef = useRef(null);
   const subscribersRef = useRef(new Set());
@@ -41,25 +39,30 @@ export function AlertsProvider({ children }) {
     invalidateCache('overview');
     try {
       const ov = await api.getOverview();
-      const next = {
-        pending_approvals: ov.pending_approvals || 0,
-        pending_agreements: ov.pending_agreements || 0,
-        pending_reviews: ov.pending_reviews || 0,
-        active_rentals: ov.active_rentals || 0,
-        pending_inspections: ov.pending_inspections || 0,
-      };
-      // Detect a fresh active-rental transition between polls.
-      if (prevActiveRef.current != null && next.active_rentals > prevActiveRef.current) {
-        const delta = next.active_rentals - prevActiveRef.current;
-        subscribersRef.current.forEach(fn => {
-          try { fn({ delta }); } catch { /* swallow */ }
-        });
-      }
-      prevActiveRef.current = next.active_rentals;
-      setAlerts(next);
-      return next;
+      setAlerts(prev => {
+        const pickupsToday = (ov.pickups_today || []).length;
+        const nextActive = ov.active_rentals || 0;
+        let hasUnack = prev.has_unacknowledged_active;
+        if (prevActiveRef.current != null && nextActive > prevActiveRef.current) {
+          const delta = nextActive - prevActiveRef.current;
+          hasUnack = true;
+          subscribersRef.current.forEach(fn => {
+            try { fn({ delta }); } catch { /* swallow */ }
+          });
+        }
+        prevActiveRef.current = nextActive;
+        return {
+          pending_approvals: ov.pending_approvals || 0,
+          pending_agreements: ov.pending_agreements || 0,
+          pending_reviews: ov.pending_reviews || 0,
+          active_rentals: nextActive,
+          pending_inspections: ov.pending_inspections || 0,
+          pickups_today_count: pickupsToday,
+          has_unacknowledged_active: hasUnack,
+        };
+      });
     } catch {
-      return null;
+      /* swallow */
     }
   }, []);
 
@@ -74,8 +77,12 @@ export function AlertsProvider({ children }) {
     return () => subscribersRef.current.delete(cb);
   }, []);
 
+  const acknowledgeActive = useCallback(() => {
+    setAlerts(prev => ({ ...prev, has_unacknowledged_active: false }));
+  }, []);
+
   return (
-    <AlertsContext.Provider value={{ alerts, refresh, onActiveRentalStarted }}>
+    <AlertsContext.Provider value={{ alerts, refresh, onActiveRentalStarted, acknowledgeActive }}>
       {children}
     </AlertsContext.Provider>
   );
