@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import { api } from '../api/client';
 import { cachedQuery } from '../lib/queryCache';
 import DashboardLayoutEngine from '../components/dashboard/DashboardLayoutEngine';
+import AlertPillBar from '../components/layout/AlertPillBar';
 
 const EASE = [0.25, 1, 0.5, 1];
 
@@ -143,10 +144,17 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          {/* Desktop header actions — Approve / Counter-Sign / Check-In / Active /
-              Inspect pills are rendered in the global AlertPillBar (in the top
-              header, next to the search bar). Keep only the static nav shortcuts here. */}
+          {/* Desktop header actions — alert pills + nav shortcuts.
+              Pills live to the LEFT of Bookings/Fleet so they're visible
+              alongside the static shortcuts. The Active pill dispatches a
+              custom event that DashboardLayout listens for to open the
+              acknowledgement modal. */}
           <div className="hidden lg:flex items-center gap-2 shrink-0 pb-1">
+            <AlertPillBar
+              onActiveAlertClick={() =>
+                window.dispatchEvent(new CustomEvent('dashboard:open-active-modal'))
+              }
+            />
             <button onClick={() => navigate('/bookings')} className="btn btn-secondary">
               <BookOpen size={14} /> Bookings
             </button>

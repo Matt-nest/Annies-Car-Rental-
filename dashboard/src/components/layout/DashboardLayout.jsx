@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from './Sidebar';
 import GlobalSearch from './GlobalSearch';
 import NotificationDropdown from './NotificationDropdown';
-import AlertPillBar from './AlertPillBar';
 import CashRainOverlay from '../shared/CashRainOverlay';
 import { useAuth } from '../../auth/AuthProvider';
 import { AlertsProvider, useAlerts } from '../../lib/alertsContext';
@@ -25,7 +24,7 @@ function DashboardLayoutInner() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
-  const { alerts, onActiveRentalStarted, acknowledgeActive } = useAlerts();
+  const { alerts, acknowledgeActive } = useAlerts();
   const [profileOpen, setProfileOpen] = useState(false);
   const dropdownRef = useRef(null);
   const [activeAlertModal, setActiveAlertModal] = useState(false);
@@ -65,11 +64,15 @@ function DashboardLayoutInner() {
     return () => { html.classList.remove('dark', 'light'); };
   }, [dark]);
 
-  // ── Active-rental detection: when overview reports a fresh active rental
-  // between polls, surface a celebratory acknowledgement modal + cash rain.
+  // ── Active-rental modal opens only on explicit pill click.
+  // The pill (rendered in DashboardPage's greeting row) dispatches this
+  // event. Auto-opening is intentionally NOT wired — the user must click
+  // the alert pill first.
   useEffect(() => {
-    return onActiveRentalStarted(() => setActiveAlertModal(true));
-  }, [onActiveRentalStarted]);
+    const handler = () => setActiveAlertModal(true);
+    window.addEventListener('dashboard:open-active-modal', handler);
+    return () => window.removeEventListener('dashboard:open-active-modal', handler);
+  }, []);
 
   // ── Profile dropdown dismiss ────────────────────────────────────────────────
   useEffect(() => {
@@ -145,9 +148,6 @@ function DashboardLayoutInner() {
               <div className="flex-1 min-w-0">
                 <GlobalSearch />
               </div>
-
-              {/* Top-bar alert pills — opens active-alert modal on click */}
-              <AlertPillBar onActiveAlertClick={() => setActiveAlertModal(true)} />
 
               {/* Right controls */}
               <div className="flex items-center gap-3 ml-auto shrink-0">
@@ -276,7 +276,7 @@ function DashboardLayoutInner() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[999990] flex items-center justify-center p-4"
-              onClick={() => { setActiveAlertModal(false); acknowledgeActive(); setCashRainActive(true); }}
+              onClick={() => { setActiveAlertModal(false); acknowledgeActive(); setTimeout(() => setCashRainActive(true), 320); }}
             >
               <motion.div
                 initial={{ opacity: 0, scale: 0.92, y: 16 }}
@@ -297,7 +297,7 @@ function DashboardLayoutInner() {
                   A customer just started their rental. Nothing required from you.
                 </p>
                 <button
-                  onClick={() => { setActiveAlertModal(false); acknowledgeActive(); setCashRainActive(true); }}
+                  onClick={() => { setActiveAlertModal(false); acknowledgeActive(); setTimeout(() => setCashRainActive(true), 320); }}
                   className="px-5 py-2 rounded-full text-sm font-semibold transition-transform hover:scale-[1.03]"
                   style={{ backgroundColor: 'var(--accent-color)', color: '#1c1917' }}
                 >

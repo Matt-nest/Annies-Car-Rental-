@@ -919,8 +919,9 @@ export default function CustomerPortal() {
             );
           })()}
 
-          {/* ── Customer Check-In Record (collapsed; active / returned / completed) ── */}
-          {['active', 'returned', 'completed'].includes(status) && booking.checkinRecords && (() => {
+          {/* ── Customer Check-In Record (returned / completed only — active version
+                renders below the Return Your Vehicle card) ── */}
+          {['returned', 'completed'].includes(status) && booking.checkinRecords && (() => {
             const customerCheckin = booking.checkinRecords.find((r: any) => r.record_type === 'customer_checkin');
             if (!customerCheckin) return null;
             const allPhotos = customerCheckin.photo_urls || [];
@@ -1107,58 +1108,6 @@ export default function CustomerPortal() {
             )}
           </AnimatePresence>
 
-          {/* ── Emergency tap-to-call (active, always visible) ── */}
-          {status === 'active' && (
-            <motion.a
-              href="tel:+17729856667"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.22, ease: EASE.standard }}
-              className="flex items-center gap-3 p-4 rounded-2xl transition-all hover:scale-[1.01] active:scale-[0.99]"
-              style={{
-                backgroundColor: 'rgba(239,68,68,0.06)',
-                border: '1px solid rgba(239,68,68,0.2)',
-              }}
-            >
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: 'rgba(239,68,68,0.12)' }}>
-                <Phone size={16} style={{ color: '#ef4444' }} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[10px] uppercase tracking-wider font-bold" style={{ color: '#ef4444' }}>Emergency · Tap to call</p>
-                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>(772) 985-6667</p>
-              </div>
-              <ChevronRight size={14} style={{ color: 'var(--text-tertiary)' }} />
-            </motion.a>
-          )}
-
-          {/* ── Safety & return guide (active) — defaultOpen driven by STATUS_LAYOUT_CONFIG ── */}
-          {status === 'active' && (
-            <CollapsibleSection title="Safety & return guide" icon={Shield} defaultOpen={isSectionExpanded(status, 'safety_guide')}>
-              <div className="space-y-2 pt-3">
-                <div className="p-3 rounded-xl" style={{ backgroundColor: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.1)' }}>
-                  <p className="text-xs font-semibold mb-1" style={{ color: '#f59e0b' }}>
-                    <AlertCircle size={11} className="inline mr-1 -mt-0.5" /> If You're in an Accident
-                  </p>
-                  <ol className="text-xs leading-relaxed space-y-0.5 pl-4" style={{ color: 'var(--text-secondary)', listStyleType: 'decimal' }}>
-                    <li>Ensure everyone is safe — call 911 if needed</li>
-                    <li>Exchange info with the other driver</li>
-                    <li>Take photos of all vehicles and the scene</li>
-                    <li>Call Annie at (772) 985-6667 immediately</li>
-                  </ol>
-                </div>
-
-                <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)' }}>
-                  <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
-                    <Key size={11} className="inline mr-1 -mt-0.5" style={{ color: 'var(--accent-color)' }} /> Returning the Vehicle
-                  </p>
-                  <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                    Park at the pickup location, place the key back in the lockbox, and complete the return form below.
-                  </p>
-                </div>
-              </div>
-            </CollapsibleSection>
-          )}
-
           {/* Self-Service Check-Out (active) */}
           {status === 'active' && (
             <motion.div
@@ -1211,6 +1160,110 @@ export default function CustomerPortal() {
                 </button>
               </div>
             </motion.div>
+          )}
+
+          {/* ── Customer Check-In Record (under Return Vehicle, active only) ── */}
+          {status === 'active' && booking.checkinRecords && (() => {
+            const customerCheckin = booking.checkinRecords.find((r: any) => r.record_type === 'customer_checkin');
+            if (!customerCheckin) return null;
+            const allPhotos = customerCheckin.photo_urls || [];
+            const fuelLabels: Record<string, string> = { full: 'Full', three_quarter: '¾ Tank', half: '½ Tank', quarter: '¼ Tank', empty: 'Empty' };
+
+            return (
+              <CollapsibleSection
+                title="Your check-in record"
+                icon={Camera}
+                rightHint={customerCheckin.created_at ? fmt(customerCheckin.created_at) : undefined}
+              >
+                <div className="space-y-3 pt-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-card-hover)' }}>
+                      <p className="text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--text-tertiary)' }}>
+                        <Gauge size={10} className="inline mr-1" />Odometer
+                      </p>
+                      <p className="text-sm font-semibold font-mono" style={{ color: 'var(--text-primary)' }}>
+                        {customerCheckin.odometer ? Number(customerCheckin.odometer).toLocaleString() : '—'} mi
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-card-hover)' }}>
+                      <p className="text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--text-tertiary)' }}>
+                        <Fuel size={10} className="inline mr-1" />Fuel Level
+                      </p>
+                      <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                        {fuelLabels[customerCheckin.fuel_level] || customerCheckin.fuel_level || '—'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {allPhotos.length > 0 && (
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider font-bold mb-2" style={{ color: 'var(--text-tertiary)' }}>
+                        Pickup photos
+                      </p>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {allPhotos.map((url: string, i: number) => (
+                          <div key={i} className="aspect-square rounded-lg overflow-hidden" style={{ border: '1px solid var(--border-subtle)' }}>
+                            <img src={url} alt={`Check-in ${i + 1}`} className="w-full h-full object-cover" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CollapsibleSection>
+            );
+          })()}
+
+          {/* ── Emergency tap-to-call (active, under Return Vehicle) ── */}
+          {status === 'active' && (
+            <motion.a
+              href="tel:+17729856667"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ ease: EASE.standard }}
+              className="flex items-center gap-3 p-4 rounded-2xl transition-all hover:scale-[1.01] active:scale-[0.99]"
+              style={{
+                backgroundColor: 'rgba(239,68,68,0.06)',
+                border: '1px solid rgba(239,68,68,0.2)',
+              }}
+            >
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: 'rgba(239,68,68,0.12)' }}>
+                <Phone size={16} style={{ color: '#ef4444' }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] uppercase tracking-wider font-bold" style={{ color: '#ef4444' }}>Emergency · Tap to call</p>
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>(772) 985-6667</p>
+              </div>
+              <ChevronRight size={14} style={{ color: 'var(--text-tertiary)' }} />
+            </motion.a>
+          )}
+
+          {/* ── Safety & return guide (active, collapsed) ── */}
+          {status === 'active' && (
+            <CollapsibleSection title="Safety & return guide" icon={Shield}>
+              <div className="space-y-2 pt-3">
+                <div className="p-3 rounded-xl" style={{ backgroundColor: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.1)' }}>
+                  <p className="text-xs font-semibold mb-1" style={{ color: '#f59e0b' }}>
+                    <AlertCircle size={11} className="inline mr-1 -mt-0.5" /> If You're in an Accident
+                  </p>
+                  <ol className="text-xs leading-relaxed space-y-0.5 pl-4" style={{ color: 'var(--text-secondary)', listStyleType: 'decimal' }}>
+                    <li>Ensure everyone is safe — call 911 if needed</li>
+                    <li>Exchange info with the other driver</li>
+                    <li>Take photos of all vehicles and the scene</li>
+                    <li>Call Annie at (772) 985-6667 immediately</li>
+                  </ol>
+                </div>
+
+                <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)' }}>
+                  <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+                    <Key size={11} className="inline mr-1 -mt-0.5" style={{ color: 'var(--accent-color)' }} /> Returning the Vehicle
+                  </p>
+                  <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                    Park at the pickup location, place the key back in the lockbox, and complete the return form below.
+                  </p>
+                </div>
+              </div>
+            </CollapsibleSection>
           )}
 
           {/* Deposit & Invoice (returned / completed) */}

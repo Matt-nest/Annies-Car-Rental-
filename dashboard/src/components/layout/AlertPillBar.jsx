@@ -100,15 +100,16 @@ export default function AlertPillBar({ onActiveAlertClick }) {
             transition={{ duration: 0.18 }}
             onClick={pill.onClick}
             title={pill.title}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold tabular-nums transition-transform hover:scale-[1.04]"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold tabular-nums transition-transform hover:scale-[1.04] whitespace-nowrap"
             style={{
               backgroundColor: pill.bg,
               border: `1px solid ${pill.border}`,
               color: pill.color,
               animation: pill.pulse,
+              minHeight: 40,
             }}
           >
-            <pill.icon size={13} />
+            <pill.icon size={14} />
             {pill.label}
             {!pill.hideCount && (
               <span
