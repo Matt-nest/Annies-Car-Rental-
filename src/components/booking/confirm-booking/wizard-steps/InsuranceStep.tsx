@@ -105,7 +105,19 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
       const res = await fetch(`${API_URL}/bookings/${bookingCode}/insurance/quote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tier_id: tierId }),
+        body: JSON.stringify({
+          tier_id: tierId,
+          // Stage 1 collects these into the wizard draft but only persists at submit time.
+          // Pass them inline so Bonzah can quote before the customer record is updated.
+          customer_overrides: {
+            date_of_birth: draft.dob,
+            address_line1: draft.address.line1,
+            zip: draft.address.zip,
+            state: draft.address.state,
+            driver_license_number: draft.license.number,
+            driver_license_state: draft.license.state,
+          },
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to load price');

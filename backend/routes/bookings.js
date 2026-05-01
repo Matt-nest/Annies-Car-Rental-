@@ -307,7 +307,7 @@ router.get('/insurance/config', asyncHandler(async (_req, res) => {
  * same tier and is still fresh, we return it without round-tripping Bonzah.
  */
 router.post('/:code/insurance/quote', asyncHandler(async (req, res) => {
-  const { tier_id } = req.body;
+  const { tier_id, customer_overrides } = req.body;
   if (!tier_id) return res.status(400).json({ error: 'tier_id is required' });
 
   // Master kill switch
@@ -324,6 +324,14 @@ router.post('/:code/insurance/quote', asyncHandler(async (req, res) => {
   if (['declined', 'cancelled'].includes(booking.status)) {
     return res.status(400).json({ error: `This booking has been ${booking.status}` });
   }
+
+  // Wizard captures DOB + address + license into sessionStorage during the Agreement
+  // stage, but only persists them to the customer record at Stripe-submit time. We
+  // need those fields here to call Bonzah. Merge the wizard's draft onto the loaded
+  // customer for quote-time only — the bind path (post-payment) re-reads the now-
+  // persisted customer record, so this can't smuggle bad data into a real policy.
+  const customer = { ...(booking.customers || {}), ...(customer_overrides || {}) };
+  booking.customers = customer;
 
   // Re-use existing quote if it's still fresh AND for the same tier
   const now = Date.now();

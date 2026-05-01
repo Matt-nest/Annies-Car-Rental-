@@ -5,6 +5,23 @@
 
 ---
 
+## 2026-05-01 — fix: bonzah quote works before agreement is signed (DOB ordering)
+
+**Root cause:** The booking wizard's order is Stage 1 (Agreement: address + DOB + license) → Stage 2 (Insurance: quote) → Stage 3 (Payment: submit). DOB / address / license fields are kept in the wizard's `sessionStorage` draft until the FINAL submit at Stage 3, which is when `/agreements/:code/sign` writes them to the customer record. So when Stage 2's `InsuranceStep` calls `POST /bookings/:code/insurance/quote`, the joined `booking.customers.date_of_birth` is still null and `validateBookingForBonzah` throws `customer.date_of_birth required for Bonzah`. Same problem latent for `address_line1`, `zip`, `state`, `driver_license_number`, `driver_license_state` — DOB just throws first.
+
+User-visible: every customer reaching the Insurance step sees "customer.date_of_birth required for Bonzah" and can't see prices.
+
+### Fix
+- `backend/routes/bookings.js` — `POST /bookings/:code/insurance/quote` now accepts an optional `customer_overrides` object in the request body and merges it onto the loaded `booking.customers` for quote computation only. The Stripe-webhook bind path re-reads the persisted customer record (which by then is populated by `/agreements/:code/sign`), so overrides can't smuggle bad data into a real policy — they affect non-binding price display only.
+- `src/components/booking/confirm-booking/wizard-steps/InsuranceStep.tsx` — `fetchQuote()` now sends `customer_overrides: { date_of_birth, address_line1, zip, state, driver_license_number, driver_license_state }` from the wizard draft.
+
+### Verification
+- `node --check backend/routes/bookings.js` clean.
+- `npm run build` clean on customer site (2138 modules, 1.82s).
+- After deploy, completing Stage 1 of the booking wizard and reaching Stage 2 should auto-load a Bonzah quote (default tier) instead of throwing.
+
+---
+
 ## 2026-05-01 — fix: bonzah audit — remove writes to non-existent insurance_policy_number / insurance_email columns
 
 **Root cause:** Migration 009 added all the `bonzah_*` columns to `bookings` but did NOT add `insurance_policy_number` or `insurance_email`. Multiple Bonzah code paths wrote to these phantom columns. Postgres rejects atomic UPDATEs when any column is missing, so when these writes executed:
