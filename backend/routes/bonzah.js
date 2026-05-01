@@ -86,6 +86,68 @@ router.put('/settings', asyncHandler(async (req, res) => {
 }));
 
 /**
+ * GET /admin/bonzah/policies
+ *
+ * Returns all bookings where insurance_provider='bonzah' (any status), joined
+ * with customer + vehicle minimal fields for the Insurance page list view.
+ * Filter optional: ?status=<insurance_status>. Limit 200 newest by pickup_date.
+ */
+router.get('/policies', asyncHandler(async (req, res) => {
+  const { status } = req.query;
+  let q = supabase
+    .from('bookings')
+    .select('id, booking_code, status, pickup_date, return_date, insurance_provider, insurance_status, bonzah_tier_id, bonzah_policy_id, bonzah_policy_no, bonzah_premium_cents, bonzah_markup_cents, bonzah_total_charged_cents, bonzah_last_synced_at, created_at, customers(first_name, last_name, email), vehicles(year, make, model)')
+    .eq('insurance_provider', 'bonzah')
+    .order('pickup_date', { ascending: false })
+    .limit(200);
+  if (status) q = q.eq('insurance_status', status);
+
+  const { data, error } = await q;
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ policies: data || [] });
+}));
+
+/**
+ * GET /admin/bonzah/stats
+ *
+ * Aggregate counts by insurance_status + Annie's markup revenue this month.
+ * Backs the Insurance page header tiles.
+ */
+router.get('/stats', asyncHandler(async (_req, res) => {
+  const { data: rows, error } = await supabase
+    .from('bookings')
+    .select('insurance_status, bonzah_markup_cents, created_at')
+    .eq('insurance_provider', 'bonzah');
+  if (error) return res.status(500).json({ error: error.message });
+
+  const counts = {};
+  for (const r of rows || []) {
+    const s = r.insurance_status || 'unknown';
+    counts[s] = (counts[s] || 0) + 1;
+  }
+
+  const monthStart = new Date();
+  monthStart.setUTCDate(1);
+  monthStart.setUTCHours(0, 0, 0, 0);
+  const monthStartIso = monthStart.toISOString();
+
+  let markupThisMonth = 0;
+  let markupAllTime = 0;
+  for (const r of rows || []) {
+    const m = Number(r.bonzah_markup_cents || 0);
+    markupAllTime += m;
+    if (r.created_at && r.created_at >= monthStartIso) markupThisMonth += m;
+  }
+
+  res.json({
+    counts,
+    total: (rows || []).length,
+    markup_this_month_cents: markupThisMonth,
+    markup_all_time_cents: markupAllTime,
+  });
+}));
+
+/**
  * GET /admin/bonzah/events
  *
  * Returns the most recent N rows from `bonzah_events`. Backs the "Recent activity"

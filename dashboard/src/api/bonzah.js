@@ -36,6 +36,13 @@ export const bonzahApi = {
     if (errorsOnly) qs.set('errors_only', '1');
     return request(`/admin/bonzah/events?${qs.toString()}`);
   },
+  listPolicies: ({ status } = {}) => {
+    const qs = new URLSearchParams();
+    if (status) qs.set('status', status);
+    const q = qs.toString();
+    return request(`/admin/bonzah/policies${q ? `?${q}` : ''}`);
+  },
+  stats: () => request('/admin/bonzah/stats'),
   refreshBookingPolicy: (bookingId) =>
     request(`/admin/bonzah/booking/${bookingId}/refresh`, { method: 'POST' }),
   cancelBookingPolicy: (bookingId, remarks) =>

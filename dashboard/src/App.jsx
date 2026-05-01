@@ -23,6 +23,7 @@ import MonthlyInquiriesPage from './pages/MonthlyInquiriesPage';
 import ReviewsPage from './pages/ReviewsPage';
 import PricingRulesPage from './pages/PricingRulesPage';
 import LoyaltyPage from './pages/LoyaltyPage';
+import InsurancePage from './pages/InsurancePage';
 
 export default function App() {
   return (
@@ -57,6 +58,7 @@ export default function App() {
             <Route path="/reviews" element={<ReviewsPage />} />
             <Route path="/pricing-rules" element={<PricingRulesPage />} />
             <Route path="/loyalty" element={<LoyaltyPage />} />
+            <Route path="/insurance" element={<InsurancePage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

@@ -5,6 +5,37 @@
 
 ---
 
+## 2026-05-01 — feat: dedicated Insurance page in dashboard + drop both bonzah emails
+
+### Why
+Bonzah/insurance UI previously lived in two places: Settings → Integrations (config-only) and the per-booking Insurance section. There was no way to see all policies, filter by status, or surface bind-failed reconciliation work without trawling individual bookings. Two emails were also being sent that the owner doesn't want — Bonzah handles policy issuance email to the customer directly, and the admin prefers in-app dashboard notifications over inbox alerts for bind failures.
+
+### Changes
+- `backend/services/stripeService.js` — `bindBonzahAfterPayment` no longer calls `sendBookingNotification` for `insurance_policy_issued` (customer) or `insurance_bind_failed` (admin). The in-app `bonzah_bind_failed` dashboard notification is preserved as the canonical reconciliation channel. Templates left in `notifyService.js` and `fallbackTemplates.js` for now (unwired but available — easier to re-enable than re-author).
+- `backend/routes/bonzah.js` — added two endpoints:
+  - `GET /admin/bonzah/policies?status=<insurance_status>` — bookings filtered to `insurance_provider='bonzah'` joined with customer + vehicle.
+  - `GET /admin/bonzah/stats` — counts by insurance_status + markup revenue (this month + lifetime).
+- `dashboard/src/api/bonzah.js` — added `listPolicies({ status })` and `stats()` methods.
+- `dashboard/src/pages/InsurancePage.jsx` — **NEW**. Layout:
+  - 4-tile stats header: Active count · Pending bind · Bind failed (with "Reconciliation needed" sublabel) · Markup this month (lifetime as sublabel).
+  - Bind-failed alert banner that filters the table when clicked.
+  - Status-filter chips (All / Active / Pending / Bind failed / Cancelled / Expired) with per-status counts.
+  - Policies table: booking code (linked to detail) + policy_no, customer, vehicle, dates, tier, status badge, premium · markup · charged columns.
+  - Recent Activity feed: last 20 Bonzah API calls, errors highlighted (same data source as Settings page activity feed).
+- `dashboard/src/App.jsx` — registered `/insurance` route.
+- `dashboard/src/components/layout/Sidebar.jsx` — added Shield-icon "Insurance" entry between Payments and Revenue.
+
+### What's intentionally NOT included
+- **No customer-facing policy display** — Bonzah's quote payload includes the customer's email; Bonzah issues their own policy email out-of-band. If a separate confirmation surface is wanted later (post-checkout or in a portal), that's a follow-up.
+- **No bookings-list filter chip** for insurance status on `/bookings` — the dedicated Insurance page is the canonical reconciliation surface; cross-listing it would be redundant.
+
+### Verification
+- `node --check backend/routes/bonzah.js backend/services/stripeService.js` clean.
+- `cd dashboard && npm run build` clean (3.44s, 3097 modules).
+- Sidebar nav entry placement verified by reading `Sidebar.jsx` MAIN_NAV array.
+
+---
+
 ## 2026-05-01 — UX: insurance step shows all 3 tier prices on load (parallel quote), per-day pricing prominent
 
 **Why:** Customers shouldn't have to click each tier card to see its price — pricing IS already live (Bonzah quote API), so all three should populate immediately on the Insurance step. Per-day price is the easier number to compare across tiers; total for the trip belongs as the secondary line.

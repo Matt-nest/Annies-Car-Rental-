@@ -282,14 +282,8 @@ async function bindBonzahAfterPayment(bookingId) {
     }
 
     console.log(`[Bonzah] Policy bound for ${booking.booking_code}: ${result.policy_no}`);
-
-    // Customer email — fire-and-forget, with the freshly-bound policy_no merged in
-    try {
-      const updated = await getBookingDetail(bookingId);
-      sendBookingNotification('insurance_policy_issued', buildBookingPayload(updated));
-    } catch (e) {
-      console.warn(`[Bonzah] insurance_policy_issued email failed for ${booking.booking_code}:`, e?.message || e);
-    }
+    // Customer-facing policy_issued email is intentionally not sent — Bonzah sends
+    // their own policy email to the customer email captured in the quote payload.
   } catch (err) {
     const isBonzahErr = err instanceof BonzahError;
     console.error(
@@ -299,7 +293,9 @@ async function bindBonzahAfterPayment(bookingId) {
 
     await supabase.from('bookings').update({ insurance_status: 'bind_failed' }).eq('id', bookingId);
 
-    // Surface to admin via dashboard notification — the runbook's first signal
+    // Surface to admin via in-app dashboard notification only — the runbook's first
+    // signal. Admin email intentionally not sent; the dashboard notification + the
+    // dedicated Insurance page are the canonical reconciliation channels.
     createNotification(
       'bonzah_bind_failed',
       `Bonzah bind failed: ${booking.booking_code}`,
@@ -307,20 +303,6 @@ async function bindBonzahAfterPayment(bookingId) {
       `/bookings/${bookingId}`,
       { booking_id: bookingId, error: err?.message }
     ).catch(() => {});
-
-    // Admin email — route to OWNER_EMAIL by overriding the nested customer.email
-    // that notifyService reads as the recipient. The customer's actual email is
-    // preserved as a merge field for the body copy.
-    try {
-      const adminPayload = buildBookingPayload(booking);
-      const ownerEmail = process.env.OWNER_EMAIL;
-      if (ownerEmail && adminPayload.customer) {
-        adminPayload.customer = { ...adminPayload.customer, email: ownerEmail, phone: null };
-      }
-      sendBookingNotification('insurance_bind_failed', adminPayload);
-    } catch (e) {
-      console.warn(`[Bonzah] insurance_bind_failed admin email dispatch error:`, e?.message || e);
-    }
   }
 }
 
