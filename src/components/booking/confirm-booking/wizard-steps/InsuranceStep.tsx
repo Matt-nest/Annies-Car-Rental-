@@ -58,7 +58,10 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
   const [configLoading, setConfigLoading] = useState(true);
   const [configError, setConfigError] = useState('');
   const [ownExpanded, setOwnExpanded] = useState(draft.insuranceChoice === 'own');
-  const [quoteLoadingTier, setQuoteLoadingTier] = useState<string | null>(null);
+  // Per-tier maps so all three quotes can load in parallel and each card shows its own state.
+  const [tierQuotes, setTierQuotes] = useState<Record<string, BonzahQuote>>({});
+  const [tierLoading, setTierLoading] = useState<Record<string, boolean>>({});
+  const [tierErrors, setTierErrors] = useState<Record<string, string>>({});
 
   // ── Eligibility checks ──────────────────────────────────────────────
   const driverAge = ageFrom(draft.dob);
@@ -97,10 +100,10 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
     return () => { cancelled = true; };
   }, []);
 
-  // ── Fetch a fresh quote from Bonzah for the selected tier ───────────
-  async function fetchQuote(tierId: string) {
-    setQuoteLoadingTier(tierId);
-    setError('');
+  // ── Fetch one tier's quote and store in maps. Returns the quote (or null on error). ─
+  async function fetchQuote(tierId: string): Promise<BonzahQuote | null> {
+    setTierLoading(prev => ({ ...prev, [tierId]: true }));
+    setTierErrors(prev => { const next = { ...prev }; delete next[tierId]; return next; });
     try {
       const res = await fetch(`${API_URL}/bookings/${bookingCode}/insurance/quote`, {
         method: 'POST',
@@ -122,20 +125,33 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to load price');
       const quote: BonzahQuote = json;
-      onUpdate({ insuranceChoice: 'bonzah', bonzahTierId: tierId, bonzahQuote: quote });
+      setTierQuotes(prev => ({ ...prev, [tierId]: quote }));
+      return quote;
     } catch (e: any) {
-      setError(e.message || 'Could not load Bonzah pricing. Please try again or use your own insurance.');
-      onUpdate({ insuranceChoice: null, bonzahTierId: null });
+      setTierErrors(prev => ({ ...prev, [tierId]: e.message || 'Unavailable' }));
+      return null;
     } finally {
-      setQuoteLoadingTier(null);
+      setTierLoading(prev => ({ ...prev, [tierId]: false }));
     }
   }
 
-  // ── Auto-pick the default tier the first time we see config ─────────
+  // ── Fetch ALL visible tiers in parallel as soon as config arrives ───
   useEffect(() => {
-    if (!config || !bonzahAvailable || draft.insuranceChoice) return;
-    const def = visibleTiers.find((t: BonzahTier) => t.default) || visibleTiers[0];
-    if (def) fetchQuote(def.id);
+    if (!config || !bonzahAvailable || visibleTiers.length === 0) return;
+    let cancelled = false;
+    Promise.all(visibleTiers.map(t => fetchQuote(t.id))).then(quotes => {
+      if (cancelled) return;
+      // Auto-select the default tier (with its just-fetched quote) if user hasn't picked yet.
+      if (!draft.insuranceChoice) {
+        const idx = Math.max(0, visibleTiers.findIndex(t => t.default));
+        const def = visibleTiers[idx];
+        const defQuote = quotes[idx];
+        if (def && defQuote) {
+          onUpdate({ insuranceChoice: 'bonzah', bonzahTierId: def.id, bonzahQuote: defQuote });
+        }
+      }
+    });
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config, bonzahAvailable]);
 
@@ -145,9 +161,12 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
     setError('');
   };
 
+  // Selecting a tier just reads from the cache — no refetch. Quotes pre-populated on mount.
   const handleSelectTier = (tierId: string) => {
-    if (quoteLoadingTier) return;
-    fetchQuote(tierId);
+    const quote = tierQuotes[tierId];
+    if (!quote) return; // still loading or errored — card is disabled in render
+    onUpdate({ insuranceChoice: 'bonzah', bonzahTierId: tierId, bonzahQuote: quote });
+    setError('');
   };
 
   const updatePersonalInsurance = (patch: Partial<WizardDraft['personalInsurance']>) => {
@@ -259,18 +278,21 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
             <div className="space-y-2.5">
               {visibleTiers.map((tier: BonzahTier) => {
                 const isSelected = draft.insuranceChoice === 'bonzah' && draft.bonzahTierId === tier.id;
-                const isLoading = quoteLoadingTier === tier.id;
-                const showPrice = isSelected && !!draft.bonzahQuote && !isLoading;
-                const totalDollars = showPrice ? draft.bonzahQuote!.total_cents / 100 : null;
+                const isLoading = !!tierLoading[tier.id];
+                const tierError = tierErrors[tier.id];
+                const cardQuote = tierQuotes[tier.id];
+                const totalDollars = cardQuote ? cardQuote.total_cents / 100 : null;
+                const perDay = totalDollars != null && rentalDays > 0 ? totalDollars / rentalDays : null;
+                const isDisabled = isLoading || !!tierError || !cardQuote;
 
                 return (
                   <button
                     key={tier.id}
                     type="button"
                     onClick={() => handleSelectTier(tier.id)}
-                    disabled={!!quoteLoadingTier}
+                    disabled={isDisabled}
                     className={`w-full rounded-xl border p-4 text-left transition-all duration-200 ${
-                      quoteLoadingTier ? 'opacity-70' : 'hover:shadow-sm cursor-pointer'
+                      isDisabled ? 'opacity-70 cursor-not-allowed' : 'hover:shadow-sm cursor-pointer'
                     }`}
                     style={{
                       backgroundColor: isSelected
@@ -299,18 +321,19 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
                       <div className="text-right shrink-0">
                         {isLoading ? (
                           <Loader2 className="animate-spin" size={16} style={{ color: 'var(--accent-color)' }} />
-                        ) : showPrice ? (
+                        ) : tierError ? (
+                          <p className="text-[11px]" style={{ color: '#ef4444' }}>Unavailable</p>
+                        ) : perDay != null ? (
                           <>
-                            <p className="font-bold text-sm" style={{ color: 'var(--accent-color)' }}>
-                              {formatCurrency(totalDollars!)}
+                            <p className="font-bold text-base leading-tight" style={{ color: 'var(--accent-color)' }}>
+                              {formatCurrency(perDay)}
+                              <span className="text-[10px] font-normal ml-0.5" style={{ color: 'var(--text-tertiary)' }}>/day</span>
                             </p>
-                            <p className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
-                              {rentalDays} day{rentalDays === 1 ? '' : 's'} total
+                            <p className="text-[10px] leading-tight mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+                              {formatCurrency(totalDollars!)} for {rentalDays} day{rentalDays === 1 ? '' : 's'}
                             </p>
                           </>
-                        ) : (
-                          <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>Select to see price</p>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                     <ul className="space-y-1 mt-2">

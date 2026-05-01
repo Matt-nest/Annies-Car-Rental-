@@ -5,6 +5,24 @@
 
 ---
 
+## 2026-05-01 — UX: insurance step shows all 3 tier prices on load (parallel quote), per-day pricing prominent
+
+**Why:** Customers shouldn't have to click each tier card to see its price — pricing IS already live (Bonzah quote API), so all three should populate immediately on the Insurance step. Per-day price is the easier number to compare across tiers; total for the trip belongs as the secondary line.
+
+### Fix
+- `src/components/booking/confirm-booking/wizard-steps/InsuranceStep.tsx`:
+  - Replaced single `quoteLoadingTier` state with three per-tier maps: `tierQuotes`, `tierLoading`, `tierErrors`. Each card has its own loading/error state.
+  - On mount (when config + bonzah-available + visible tiers are ready), kicks off `Promise.all(visibleTiers.map(fetchQuote))` so all three Bonzah quotes load in parallel. Auto-selects the default tier (`bonzah_tiers[].default === true`) once its quote returns.
+  - `handleSelectTier` is now a pure cache lookup — selecting a tier just reads from `tierQuotes[id]` and updates the wizard draft. No additional Bonzah round-trip on click.
+  - Card price block: per-day price ($X.XX/day) in larger accent-color type, total below as muted text ("$Y.YY for N days"). Failed tiers show a red "Unavailable" instead of a price; loading tiers show a spinner.
+  - Disabled state on cards: `isLoading || tierError || !cardQuote` (so Essential is selectable as soon as its quote lands, independent of Standard/Complete).
+
+### Verification
+- `npm run build` clean (2138 modules, 11.16s).
+- Backend `/insurance/quote` already returns standalone quotes per `tier_id`, so calling it 3× in parallel is safe (each call is its own Bonzah quote draft).
+
+---
+
 ## 2026-05-01 — fix: clamp Bonzah trip_start_date by datetime, not just date
 
 **Root cause:** Earlier today's clamp compared **dates** only. The booking under test had `pickup_date='2026-05-01'` (today) at `pickup_time='10:00:00'` ET — dates equal → no clamp → `trip_start_date='05/01/2026 10:00:00'` sent to Bonzah at 19:15 ET → Bonzah rejected because the **datetime** was 9 hours in the past. Live audit log confirmed: 6 quote attempts, all returning Bonzah `status: -201` "Invalid Policy Start date".
