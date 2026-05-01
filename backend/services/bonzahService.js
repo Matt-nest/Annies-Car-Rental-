@@ -229,13 +229,20 @@ export function buildQuoteBody(booking, customer, coverages, { finalize = 0, quo
   // Vehicle metadata for Bonzah's premium calc (optional but improves quote accuracy)
   const vehicle = booking.vehicles || {};
 
+  // Bonzah rejects past trip_start_date with "Invalid Policy Start date — Kindly select today's
+  // <date> or any date in the future." Insurance can't be backdated, so for any pickup that's
+  // already happened (day-of booking, late wizard completion, or stale test data), clamp the
+  // start to today in Annie's local TZ. trip_end_date is left as-is (Bonzah accepts future ends).
+  const todayLocal = new Date().toLocaleDateString('en-CA', { timeZone: DEFAULT_TIMEZONE }); // YYYY-MM-DD
+  const effectivePickupDate = booking.pickup_date < todayLocal ? todayLocal : booking.pickup_date;
+
   return {
     quote_id,
     finalize,
     source: 'API',
 
     // Trip details
-    trip_start_date: formatDateTime(booking.pickup_date, booking.pickup_time),
+    trip_start_date: formatDateTime(effectivePickupDate, booking.pickup_time),
     trip_end_date: formatDateTime(booking.return_date, booking.return_time),
     pickup_country: pickupCountry,
     pickup_state: pickupState,

@@ -5,6 +5,21 @@
 
 ---
 
+## 2026-05-01 — fix: clamp Bonzah trip_start_date to today when pickup is in the past
+
+**Root cause:** Bonzah's `/Bonzah/quote` endpoint rejects `trip_start_date` values in the past with `Invalid Policy Start date - Kindly select today's <date> or any date in the future.` `buildQuoteBody` in `bonzahService.js` was sending `booking.pickup_date` verbatim. Hits in three scenarios: (1) test bookings with stale pickup dates, (2) genuine day-of-pickup wizard completion where the customer's already past the listed pickup_time, (3) any late completion of the wizard after the booked pickup window passed.
+
+Insurance can't be backdated — "now" is the only legal coverage start for a past pickup.
+
+### Fix
+- `backend/services/bonzahService.js` — `buildQuoteBody` clamps `trip_start_date` to today's date in Annie's local TZ (`America/New_York`) when `booking.pickup_date` is earlier. Date comparison uses `toLocaleDateString('en-CA', { timeZone: DEFAULT_TIMEZONE })` which yields `YYYY-MM-DD` for clean string compare. `trip_end_date` left untouched.
+
+### Verification
+- `node --check backend/services/bonzahService.js` clean.
+- Manual: today's date in ET resolves to `2026-05-01` (verified with one-liner).
+
+---
+
 ## 2026-05-01 — fix: bonzah quote works before agreement is signed (DOB ordering)
 
 **Root cause:** The booking wizard's order is Stage 1 (Agreement: address + DOB + license) → Stage 2 (Insurance: quote) → Stage 3 (Payment: submit). DOB / address / license fields are kept in the wizard's `sessionStorage` draft until the FINAL submit at Stage 3, which is when `/agreements/:code/sign` writes them to the customer record. So when Stage 2's `InsuranceStep` calls `POST /bookings/:code/insurance/quote`, the joined `booking.customers.date_of_birth` is still null and `validateBookingForBonzah` throws `customer.date_of_birth required for Bonzah`. Same problem latent for `address_line1`, `zip`, `state`, `driver_license_number`, `driver_license_state` — DOB just throws first.
