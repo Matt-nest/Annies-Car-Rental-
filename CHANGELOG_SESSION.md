@@ -5,6 +5,26 @@
 
 ---
 
+## 2026-05-01 — fix: remove bonzah-poll cron (Vercel Hobby 1-cron limit)
+
+**Root cause:** Commit `32407ad` added `/api/v1/cron/bonzah-poll` to `dashboard/vercel.json` alongside the existing `/api/v1/cron/daily`. The project is on Vercel Hobby tier, which caps cron jobs at **1 per project**. Vercel rejected the deploy at config-validation time and (per the deploy list) never even produced a Failed entry — the webhook event for `32407ad` produced no deployment record at all, leaving the broken `4a3e25b` build live as Production: Current. Bonzah admin routes therefore stayed 404 in production.
+
+### Fix
+- `dashboard/vercel.json` — removed the `bonzah-poll` cron entry. Kept `cron/daily` only.
+
+### Side effects / what's NOT scheduled anymore
+- `/api/v1/cron/bonzah-poll` route handler (defined in `backend/routes/cron.js`) is **still live and reachable** — it just isn't being auto-fired every 15 min.
+- Polling reconciliation (catching `bind_failed` / stuck policies) must now be triggered manually until one of:
+  1. **Plan upgrade to Vercel Pro** — re-add the cron entry.
+  2. **External scheduler** hits the URL with the `Authorization: Bearer $CRON_SECRET` header (cron-job.org, GitHub Actions, AWS EventBridge — all free tier viable).
+  3. **Manual** — owner runs a daily `curl` from a saved snippet.
+
+### Verification
+- `cd dashboard && npm run build` clean (2.88s, 3096 modules).
+- After redeploy, `curl https://admin.dashboard.anniescarrental.com/api/v1/admin/bonzah/health` should return **401** (auth required) — confirming the route mount from `32407ad` is now live in production.
+
+---
+
 ## 2026-05-01 — fix: bonzah admin routes + polling cron not deployed to production
 
 **Root cause:** The repo has TWO Express entry points:

@@ -13,10 +13,6 @@
     {
       "path": "/api/v1/cron/daily",
       "schedule": "0 13 * * *"
-    },
-    {
-      "path": "/api/v1/cron/bonzah-poll",
-      "schedule": "*/15 * * * *"
     }
   ]
 }
