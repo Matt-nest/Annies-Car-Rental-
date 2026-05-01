@@ -266,17 +266,20 @@ async function bindBonzahAfterPayment(bookingId) {
   try {
     const result = await bindBonzahPolicy(booking, booking.customers, booking.bonzah_tier_id, bookingId);
 
-    await supabase
+    const { error: updErr } = await supabase
       .from('bookings')
       .update({
         bonzah_policy_id: result.policy_id,
         bonzah_policy_no: result.policy_no,
         bonzah_total_charged_cents: Number(booking.bonzah_premium_cents || 0) + Number(booking.bonzah_markup_cents || 0),
         insurance_status: 'active',
-        insurance_policy_number: result.policy_no,
         bonzah_last_synced_at: new Date().toISOString(),
       })
       .eq('id', bookingId);
+    if (updErr) {
+      // Bonzah already issued the policy and took our money — surface loudly so admin can reconcile by hand.
+      console.error(`[Bonzah] CRITICAL: bind succeeded (policy_no=${result.policy_no}) but DB update failed for ${booking.booking_code}: ${updErr.message}`);
+    }
 
     console.log(`[Bonzah] Policy bound for ${booking.booking_code}: ${result.policy_no}`);
 

@@ -155,11 +155,11 @@ router.post('/booking/:id/refresh', asyncHandler(async (req, res) => {
   const updates = { bonzah_last_synced_at: new Date().toISOString() };
   if (data.policy_no && data.policy_no !== booking.bonzah_policy_no) {
     updates.bonzah_policy_no = data.policy_no;
-    updates.insurance_policy_number = data.policy_no;
   }
   if (data.coverage_information) updates.bonzah_coverage_json = data.coverage_information;
 
-  await supabase.from('bookings').update(updates).eq('id', booking.id);
+  const { error: updErr } = await supabase.from('bookings').update(updates).eq('id', booking.id);
+  if (updErr) return res.status(500).json({ error: `Failed to persist policy refresh: ${updErr.message}` });
 
   res.json({ ok: true, policy: data, updates });
 }));

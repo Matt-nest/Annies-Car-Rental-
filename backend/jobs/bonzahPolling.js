@@ -48,7 +48,6 @@ async function reconcileOne(booking) {
     // if there's been an endorsement). Keep the policy_no fresh too.
     if (data.policy_no && data.policy_no !== booking.bonzah_policy_no) {
       updatePayload.bonzah_policy_no = data.policy_no;
-      updatePayload.insurance_policy_number = data.policy_no;
     }
     if (data.coverage_information) {
       updatePayload.bonzah_coverage_json = data.coverage_information;

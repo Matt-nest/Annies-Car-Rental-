@@ -5,6 +5,41 @@
 
 ---
 
+## 2026-05-01 — fix: bonzah audit — remove writes to non-existent insurance_policy_number / insurance_email columns
+
+**Root cause:** Migration 009 added all the `bonzah_*` columns to `bookings` but did NOT add `insurance_policy_number` or `insurance_email`. Multiple Bonzah code paths wrote to these phantom columns. Postgres rejects atomic UPDATEs when any column is missing, so when these writes executed:
+- The customer wizard's PATCH `/bookings/:code/insurance` returned `{ success: true }` while writing nothing (errors not captured) — so `insurance_provider` stayed null and the Stripe webhook later skipped binding because of the `insurance_provider !== 'bonzah'` guard. **Customer would have paid for Bonzah insurance with no policy bound.**
+- `stripeService.bindBonzahAfterPayment` post-bind UPDATE failed atomically — `bonzah_policy_id`, `bonzah_policy_no`, `bonzah_total_charged_cents`, `insurance_status: 'active'`, and `bonzah_last_synced_at` would have ALL failed to write after a successful Bonzah bind. Customer charged + Bonzah issued real policy + our DB had no link. Manual reconciliation only.
+- `routes/bonzah.js` "Refresh from Bonzah" admin button silently failed when policy_no changed (the only time refresh actually matters).
+- `jobs/bonzahPolling.js` polling job UPDATE silently failed when policy_no changed (the reconciliation case).
+
+No live customer hit this — all sample bookings still have `insurance_provider: null` (the very signature of the silent failure). Discovered as part of an audit triggered by the auth bug fix earlier today; same misread/silent-failure pattern. Verified by querying the live Supabase schema: `insurance_policy_number` and `insurance_email` truly do not exist on `bookings`.
+
+The "real" `insurance_policy_number` lives on `rental_agreements`, where it is correctly read/written by `routes/agreements.js` and the rental-agreement form. Untouched.
+
+### Fix
+- `backend/routes/bookings.js` — PATCH `/bookings/:code/insurance` (3 update sites): removed phantom-column writes; added `{ error: updErr }` capture on each `.update()` so future schema drift surfaces a 500 instead of silently swallowing.
+- `backend/services/stripeService.js` — `bindBonzahAfterPayment` post-bind update: removed `insurance_policy_number: result.policy_no` (we already write `bonzah_policy_no` in the same payload). Added error capture with a CRITICAL log line for the rare case where Bonzah binding succeeds but our DB write fails.
+- `backend/routes/bonzah.js` — `POST /admin/bonzah/booking/:id/refresh`: removed phantom-column write; added error capture.
+- `backend/jobs/bonzahPolling.js` — `reconcileOne`: removed phantom-column write.
+- Removed unused `bonzah_email` from req.body destructure.
+
+### Audit results — what else was checked and is OK
+- **Bonzah API response shape** — every `bonzahCall()` consumer in `services/bonzahService.js` correctly reads `res?.data` (the original auth bug was localized to `authenticate()` reading `body.token` instead of `body.data.token`).
+- **Settings keys** — all 5 (`bonzah_enabled`, `bonzah_markup_percent`, `bonzah_tiers`, `bonzah_excluded_states`, `bonzah_pai_excluded_states`) seeded with sane defaults.
+- **`bonzah_events` table** — schema matches code: `id, booking_id, event_type, request_json, response_json, status_code, duration_ms, error_text, created_at`.
+- **Stripe webhook wiring** — `bindBonzahAfterPayment` invoked at both `payment_intent.succeeded` sites. Idempotency guards (`bonzah_policy_no`, `bind_failed`) intact.
+- **Notification templates** — `insurance_policy_issued` and `insurance_bind_failed` exist in `fallbackTemplates.js` and `notifyService.js`. Untouched.
+- **Customer wizard `ConfirmBooking.tsx:106`** — sends `insurance_policy_number` to `/agreements/:code/sign` (rental_agreements table where the column exists). Not the bug.
+- **Polling job filter** — `WHERE bonzah_policy_id IS NOT NULL` correctly skips bookings without a bound policy.
+
+### Verification
+- `node --check` clean on all four edited files.
+- `cd dashboard && npm run build` clean (3.01s, 3096 modules).
+- After deploy, attempt a customer wizard insurance submission against staging — should write `insurance_provider='bonzah'` correctly. (Or hit PATCH directly with curl + the body shape from `ConfirmBooking.tsx:128-131`.)
+
+---
+
 ## 2026-05-01 — fix: bonzah auth — read token from body.data.token, not body.token
 
 **Root cause:** `authenticate()` in `backend/utils/bonzah.js` checked `body.token` and returned `body.token`. Bonzah actually nests the token at `body.data.token`. The auth call returned HTTP 200 + `status: 0` (success) with a real token — but our code never saw it, threw `Bonzah auth failed: HTTP 200`, and every downstream Bonzah call therefore broke (Test Connection, /admin/bonzah/health, /events, /settings GETs that proxy through Bonzah).

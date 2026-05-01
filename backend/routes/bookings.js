@@ -396,7 +396,7 @@ router.post('/:code/insurance/quote', asyncHandler(async (req, res) => {
 
 /** PATCH /bookings/:code/insurance — public (customer submits insurance choice from unified wizard) */
 router.patch('/:code/insurance', asyncHandler(async (req, res) => {
-  const { source, tier_id, bonzah_policy_number, bonzah_email } = req.body;
+  const { source, tier_id, bonzah_policy_number } = req.body;
 
   // Look up booking by booking_code (public route — no auth)
   const { data: booking, error } = await supabase
@@ -428,15 +428,14 @@ router.patch('/:code/insurance', asyncHandler(async (req, res) => {
       });
     }
 
-    await supabase
+    const { error: updErr } = await supabase
       .from('bookings')
       .update({
         insurance_provider: 'bonzah',
         insurance_status: 'pending', // flips to 'active' after Stripe webhook binds
-        insurance_policy_number: null,
-        insurance_email: null,
       })
       .eq('id', booking.id);
+    if (updErr) return res.status(500).json({ error: `Failed to record insurance choice: ${updErr.message}` });
 
     console.log(`[Booking] Bonzah ${tier_id} selected for ${booking.booking_code} (premium ${booking.bonzah_premium_cents}c)`);
     return res.json({ success: true, booking_code: booking.booking_code });
@@ -444,13 +443,11 @@ router.patch('/:code/insurance', asyncHandler(async (req, res) => {
 
   if (source === 'own') {
     // Customer has their own insurance — mark as own (details stored in rental_agreements)
-    await supabase
+    const { error: updErr } = await supabase
       .from('bookings')
       .update({
         insurance_provider: 'own',
         insurance_status: 'external',
-        insurance_policy_number: null,
-        insurance_email: null,
         // Clear any stale Bonzah quote so we don't accidentally bind/charge
         bonzah_tier_id: null,
         bonzah_quote_id: null,
@@ -459,21 +456,22 @@ router.patch('/:code/insurance', asyncHandler(async (req, res) => {
         bonzah_quote_expires_at: null,
       })
       .eq('id', booking.id);
+    if (updErr) return res.status(500).json({ error: `Failed to record insurance choice: ${updErr.message}` });
 
     console.log(`[Booking] Customer has own insurance for ${booking.booking_code}`);
     return res.json({ success: true, booking_code: booking.booking_code });
   }
 
   if (bonzah_policy_number) {
-    // Legacy Bonzah flow (admin manually pastes a policy #) — kept for back-compat
-    await supabase
+    // Legacy admin-paste path — keeps working in case any internal tool calls it.
+    const { error: updErr } = await supabase
       .from('bookings')
       .update({
         insurance_provider: 'bonzah',
-        insurance_policy_number: bonzah_policy_number,
-        insurance_email: bonzah_email || null,
+        bonzah_policy_no: bonzah_policy_number,
       })
       .eq('id', booking.id);
+    if (updErr) return res.status(500).json({ error: `Failed to record insurance: ${updErr.message}` });
 
     console.log(`[Booking] Bonzah insurance manually set for ${booking.booking_code}: ${bonzah_policy_number}`);
     return res.json({ success: true, booking_code: booking.booking_code });
