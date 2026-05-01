@@ -21,10 +21,10 @@ import OrderSummary from './confirm-booking/wizard-steps/OrderSummary';
 import SubmitLoader from './confirm-booking/wizard-steps/SubmitLoader';
 
 import {
-  API_URL, PHONE_NUMBER, INSURANCE_TIERS,
+  API_URL, PHONE_NUMBER,
   stripePromise, getRefCode,
   formatCurrency,
-  loadDraft, saveDraft, clearDraft, getDefaultDraft,
+  loadDraft, saveDraft, clearDraft,
   type WizardDraft,
 } from './confirm-booking/constants';
 
@@ -56,11 +56,10 @@ function PaymentForm({
   const [submitStep, setSubmitStep] = useState<'agreement' | 'insurance' | 'payment' | 'confirming' | 'done'>('agreement');
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Calculate grand total for display
+  // Calculate grand total for display — Bonzah quote stored on the draft
   let insuranceCost = 0;
-  if (draft.insuranceChoice === 'annies' && draft.anniesTier) {
-    const tier = INSURANCE_TIERS.find(t => t.key === draft.anniesTier);
-    if (tier) insuranceCost = tier.dailyRate * (bookingSummary?.rentalDays || 1);
+  if (draft.insuranceChoice === 'bonzah' && draft.bonzahQuote) {
+    insuranceCost = draft.bonzahQuote.total_cents / 100;
   }
   const rentalTotal = bookingSummary?.totalCost || 0;
   const grandTotal = rentalTotal + insuranceCost + depositAmount;
@@ -127,8 +126,8 @@ function PaymentForm({
       // ── Step 2: Submit insurance ──────────────────────────
       setSubmitStep('insurance');
       const insurancePayload: any = { source: draft.insuranceChoice };
-      if (draft.insuranceChoice === 'annies') {
-        insurancePayload.tier = draft.anniesTier;
+      if (draft.insuranceChoice === 'bonzah') {
+        insurancePayload.tier_id = draft.bonzahTierId;
       }
       const insRes = await fetch(`${API_URL}/bookings/${bookingCode}/insurance`, {
         method: 'PATCH',
@@ -148,16 +147,13 @@ function PaymentForm({
       }
 
       // ── Step 3b: Create PaymentIntent (server computes amount) ──
-      const insurance_selection = draft.insuranceChoice === 'annies'
-        ? { source: 'annies', tier: draft.anniesTier }
-        : { source: draft.insuranceChoice || 'own' };
-
+      // Insurance state already lives on the booking (set by PATCH /insurance
+      // above); backend reads bonzah_premium_cents + markup directly.
       const piRes = await fetch(`${API_URL}/stripe/create-payment-intent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           booking_code: bookingCode,
-          insurance_selection,
           expected_total_cents: Math.round(grandTotal * 100),
         }),
       });
@@ -558,6 +554,8 @@ export default function ConfirmBooking() {
                 <InsuranceStep
                   draft={draft}
                   rentalDays={af.rentalDays || bookingSummary?.rentalDays || 1}
+                  bookingCode={refCode}
+                  pickupState={af.pickupState || bookingSummary?.pickupState || af.state}
                   onUpdate={updateDraft}
                   onContinue={() => { completeStage(2); goToStage(3); }}
                   onBack={() => goToStage(1, 6)}
@@ -570,9 +568,8 @@ export default function ConfirmBooking() {
                 (() => {
                   // Compute amount for Stripe Elements initialization
                   let insCost = 0;
-                  if (draft.insuranceChoice === 'annies' && draft.anniesTier) {
-                    const tier = INSURANCE_TIERS.find(t => t.key === draft.anniesTier);
-                    if (tier) insCost = tier.dailyRate * (bookingSummary?.rentalDays || af.rentalDays || 1);
+                  if (draft.insuranceChoice === 'bonzah' && draft.bonzahQuote) {
+                    insCost = draft.bonzahQuote.total_cents / 100;
                   }
                   const totalCents = Math.round(((bookingSummary?.totalCost || af.totalCost || 0) + insCost + depositAmount) * 100);
 

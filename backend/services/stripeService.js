@@ -4,6 +4,7 @@ import { transitionBooking, getBookingDetail } from './bookingService.js';
 import { createNotification } from './notificationService.js';
 import { sendBookingNotification, buildBookingPayload } from './notifyService.js';
 import { calcInsuranceCost } from './pricingService.js';
+import { bindPolicy as bindBonzahPolicy, BonzahError } from './bonzahService.js';
 import {
   FEATURE_AUTO_OVERAGE_CHARGES,
   ensureStripeCustomer,
@@ -19,7 +20,7 @@ const stripe = getStripe();
  * Accepts optional insurance_selection and expected_total_cents for server-side validation.
  * Returns { clientSecret, amount, currency, booking } for the frontend.
  */
-export async function createPaymentIntent(bookingCode, { insurance_selection, expected_total_cents } = {}) {
+export async function createPaymentIntent(bookingCode, { expected_total_cents } = {}) {
   // Look up the booking
   const { data: booking, error } = await supabase
     .from('bookings')
@@ -75,11 +76,13 @@ export async function createPaymentIntent(bookingCode, { insurance_selection, ex
     throw Object.assign(new Error('Invalid booking total'), { status: 400 });
   }
 
-  // Calculate insurance cost from booking data or passed selection
-  const insSource = insurance_selection?.source || booking.insurance_provider || null;
-  const insTier = insurance_selection?.tier || booking.insurance_policy_number || null;
-  const insuranceDollars = calcInsuranceCost(insSource, insTier, booking.rental_days);
+  // Insurance cost reads directly from the booking record. The wizard's
+  // POST /bookings/:code/insurance/quote already wrote bonzah_premium_cents +
+  // bonzah_markup_cents in advance; we just sum them here.
+  const insuranceDollars = calcInsuranceCost(booking);
   const insuranceCents = Math.round(insuranceDollars * 100);
+  const insSource = booking.insurance_provider || null;
+  const insTier = booking.bonzah_tier_id || null;
 
   // Look up vehicle-specific deposit (defaults to $150 / 15000 cents)
   let depositCents = 15000;
@@ -229,6 +232,96 @@ export async function triggerReceiptByPaymentIntent(paymentIntentId) {
 }
 
 /**
+ * Bind a Bonzah policy after Stripe charged the customer.
+ *
+ * Idempotent: skips if booking already has bonzah_policy_no, or if insurance_status
+ * is already 'active'/'bind_failed'. Only runs when insurance_provider === 'bonzah'.
+ *
+ * Failure handling: on any Bonzah error, marks insurance_status='bind_failed',
+ * logs to console, sends an admin alert. Stripe charge stands; admin reconciles.
+ */
+async function bindBonzahAfterPayment(bookingId) {
+  // Re-fetch booking + customer + vehicle in one shot
+  const { data: booking, error } = await supabase
+    .from('bookings')
+    .select('*, customers(*), vehicles(year, make, model)')
+    .eq('id', bookingId)
+    .single();
+
+  if (error || !booking) {
+    console.warn(`[Bonzah] bindBonzahAfterPayment: booking ${bookingId} not found`);
+    return;
+  }
+
+  if (booking.insurance_provider !== 'bonzah') return; // Customer chose own — nothing to bind
+  if (booking.bonzah_policy_no) return;                 // Already bound
+  if (booking.insurance_status === 'bind_failed') return; // Manual reconciliation pending
+
+  if (!booking.bonzah_tier_id || !booking.bonzah_quote_id) {
+    console.warn(`[Bonzah] booking ${booking.booking_code} marked provider=bonzah but no quote on file`);
+    await supabase.from('bookings').update({ insurance_status: 'bind_failed' }).eq('id', bookingId);
+    return;
+  }
+
+  try {
+    const result = await bindBonzahPolicy(booking, booking.customers, booking.bonzah_tier_id, bookingId);
+
+    await supabase
+      .from('bookings')
+      .update({
+        bonzah_policy_id: result.policy_id,
+        bonzah_policy_no: result.policy_no,
+        bonzah_total_charged_cents: Number(booking.bonzah_premium_cents || 0) + Number(booking.bonzah_markup_cents || 0),
+        insurance_status: 'active',
+        insurance_policy_number: result.policy_no,
+        bonzah_last_synced_at: new Date().toISOString(),
+      })
+      .eq('id', bookingId);
+
+    console.log(`[Bonzah] Policy bound for ${booking.booking_code}: ${result.policy_no}`);
+
+    // Customer email — fire-and-forget, with the freshly-bound policy_no merged in
+    try {
+      const updated = await getBookingDetail(bookingId);
+      sendBookingNotification('insurance_policy_issued', buildBookingPayload(updated));
+    } catch (e) {
+      console.warn(`[Bonzah] insurance_policy_issued email failed for ${booking.booking_code}:`, e?.message || e);
+    }
+  } catch (err) {
+    const isBonzahErr = err instanceof BonzahError;
+    console.error(
+      `[Bonzah] BIND FAILED for ${booking.booking_code} (Stripe already charged):`,
+      isBonzahErr ? `${err.bonzahTxt || err.message} (status ${err.bonzahStatus})` : err.message
+    );
+
+    await supabase.from('bookings').update({ insurance_status: 'bind_failed' }).eq('id', bookingId);
+
+    // Surface to admin via dashboard notification — the runbook's first signal
+    createNotification(
+      'bonzah_bind_failed',
+      `Bonzah bind failed: ${booking.booking_code}`,
+      `Customer was charged but Bonzah policy was not issued. Manual reconciliation required.`,
+      `/bookings/${bookingId}`,
+      { booking_id: bookingId, error: err?.message }
+    ).catch(() => {});
+
+    // Admin email — route to OWNER_EMAIL by overriding the nested customer.email
+    // that notifyService reads as the recipient. The customer's actual email is
+    // preserved as a merge field for the body copy.
+    try {
+      const adminPayload = buildBookingPayload(booking);
+      const ownerEmail = process.env.OWNER_EMAIL;
+      if (ownerEmail && adminPayload.customer) {
+        adminPayload.customer = { ...adminPayload.customer, email: ownerEmail, phone: null };
+      }
+      sendBookingNotification('insurance_bind_failed', adminPayload);
+    } catch (e) {
+      console.warn(`[Bonzah] insurance_bind_failed admin email dispatch error:`, e?.message || e);
+    }
+  }
+}
+
+/**
  * Handle Stripe webhook events
  */
 export async function handleWebhookEvent(event) {
@@ -295,6 +388,11 @@ export async function handleWebhookEvent(event) {
       }
 
       console.log(`[Stripe] Payment succeeded for booking ${pi.metadata.booking_code}: $${rentalDollars} rental + $${depositDollars} deposit = $${pi.amount / 100} total`);
+
+      // Bind the Bonzah policy now that we've collected the customer's money.
+      // No-op if customer chose 'own' insurance. Failures mark the booking
+      // insurance_status='bind_failed' and notify admin — Stripe charge stands.
+      await bindBonzahAfterPayment(bookingId);
 
       // Send itemized receipt to customer
       await sendPaymentReceipt(bookingId, pi, rentalDollars, depositDollars);
@@ -444,6 +542,9 @@ export async function confirmPayment(paymentIntentId) {
 
   console.log(`[Stripe] Payment confirmed for booking ${pi.metadata.booking_code}: $${pi.amount / 100}`);
 
+  // Bind Bonzah policy (idempotent — webhook may have already done it)
+  await bindBonzahAfterPayment(bookingId);
+
   // Send itemized receipt to customer (same logic as webhook handler)
   await sendPaymentReceipt(bookingId, pi, rentalDollars, depositDollars);
 
@@ -491,10 +592,10 @@ async function formatBookingSummary(booking) {
     if (vd) depositAmount = vd.amount / 100;
   }
 
-  // Calculate insurance cost from stored booking data
+  // Calculate insurance cost from stored booking data (Bonzah quote columns)
   const insuranceSource = booking.insurance_provider || null;
-  const insuranceTier = (insuranceSource === 'annies') ? booking.insurance_policy_number : null;
-  const insuranceCost = calcInsuranceCost(insuranceSource, insuranceTier, booking.rental_days);
+  const insuranceTier = booking.bonzah_tier_id || null;
+  const insuranceCost = calcInsuranceCost(booking);
 
   return {
     bookingCode: booking.booking_code,

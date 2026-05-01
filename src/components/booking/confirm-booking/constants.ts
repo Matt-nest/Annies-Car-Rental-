@@ -23,39 +23,59 @@ export const stripePromise = loadStripe(
 );
 
 /* ────────────────────────────────────────────────────────
-   Insurance Tiers — mirrors backend INSURANCE_TIERS
+   Bonzah insurance — runtime config + tier metadata
    ──────────────────────────────────────────────────────── */
-export interface InsuranceTier {
-  key: string;
-  name: string;
-  dailyRate: number;
-  description: string;
-  highlights: string[];
+
+// Tier shape returned by GET /bookings/insurance/config (Supabase settings.bonzah_tiers)
+export interface BonzahTier {
+  id: string;            // e.g., "essential" | "standard" | "complete"
+  label: string;         // display label
+  coverages: string[];   // ['cdw'] | ['cdw','rcli','sli'] | ['cdw','rcli','sli','pai']
+  default?: boolean;     // pre-selected on page load
+  recommended?: boolean; // shows "Recommended" badge
 }
 
-export const INSURANCE_TIERS: InsuranceTier[] = [
-  {
-    key: 'basic',
-    name: 'Basic Protection',
-    dailyRate: 12,
-    description: 'Covers collision damage up to $15,000. Does not cover theft or personal belongings.',
-    highlights: ['Collision damage up to $15,000', 'Roadside assistance included'],
-  },
-  {
-    key: 'standard',
-    name: 'Standard Protection',
-    dailyRate: 18,
-    description: 'Covers collision damage and theft up to $25,000. Does not cover personal belongings.',
-    highlights: ['Collision damage up to $25,000', 'Theft protection', 'Roadside assistance included'],
-  },
-  {
-    key: 'premium',
-    name: 'Premium Protection',
-    dailyRate: 25,
-    description: 'Full coverage: collision, theft, personal belongings up to $50,000. Zero deductible.',
-    highlights: ['Collision damage up to $50,000', 'Theft protection', 'Personal belongings covered', 'Zero deductible'],
-  },
-];
+// Public config snapshot returned to the wizard
+export interface BonzahConfig {
+  enabled: boolean;
+  tiers: BonzahTier[];
+  markup_percent: number;
+  excluded_states: string[];      // hide Bonzah path entirely (regulatory)
+  pai_excluded_states: string[];  // hide Complete tier (PAI not available)
+}
+
+// Live quote from POST /bookings/:code/insurance/quote
+export interface BonzahQuote {
+  tier_id: string;
+  quote_id: string;
+  premium_cents: number;   // Bonzah's base premium
+  markup_cents: number;    // Annie's cut
+  total_cents: number;     // Customer-facing price
+  coverage_information: any[];
+  expires_at: string;      // ISO — internal 24h re-quote window
+}
+
+// Bonzah coverage descriptions for UI bullets
+export const BONZAH_COVERAGE_LABELS: Record<string, { label: string; summary: string }> = {
+  cdw:  { label: 'Collision Damage Waiver',  summary: 'Vehicle damage & theft, up to $35,000' },
+  rcli: { label: 'Liability',                 summary: 'State-minimum liability for injuries & property' },
+  sli:  { label: 'Supplemental Liability',    summary: '$100K/$500K bodily injury · $10K property damage' },
+  pai:  { label: 'Personal Accident & Effects', summary: '$50K renter · $5K passenger · $500 personal items' },
+};
+
+// Mandatory disclosure copy from Bonzah legal.md — must render above the purchase CTA
+export const BONZAH_DISCLOSURE_TEXT =
+  'By selecting any of these insurances, the renter agrees to these Terms and Conditions, ' +
+  'Privacy, and Covered Vehicles. Insurance is only for drivers 21 years and older with a valid ' +
+  'driver’s license. Unlicensed drivers are not entitled to coverage under any circumstances. ' +
+  'The renter will be responsible for any unlisted additional drivers. Insurance may not apply if ' +
+  'the renter or additional driver violates the rental agreement or violates traffic regulations.';
+
+export const BONZAH_DISCLOSURE_LINKS = {
+  terms: 'https://bonzah.com/terms',
+  privacy: 'https://bonzah.com/privacy',
+  vehicles: 'https://bonzah.com/included-and-restricted-vehicle-types',
+};
 
 /* ────────────────────────────────────────────────────────
    Wizard Draft — persisted to sessionStorage
@@ -84,8 +104,9 @@ export interface WizardDraft {
   };
 
   // Stage 2 — Insurance choice
-  insuranceChoice: 'own' | 'annies' | null;
-  anniesTier: string | null;
+  insuranceChoice: 'own' | 'bonzah' | null;
+  bonzahTierId: string | null;
+  bonzahQuote: BonzahQuote | null;     // last-displayed quote (for fallback if /quote re-call fails on Continue)
 
   // Stage 1 — License photo uploads (optional, stored as storage paths)
   licensePhotoPaths: string[];
@@ -109,7 +130,8 @@ export function getDefaultDraft(): WizardDraft {
       agentName: '', agentPhone: '', vehicleDescription: '',
     },
     insuranceChoice: null,
-    anniesTier: null,
+    bonzahTierId: null,
+    bonzahQuote: null,
     licensePhotoPaths: [],
     completedStages: [],
   };

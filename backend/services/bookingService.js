@@ -6,6 +6,7 @@ import { resolveCustomerLoyalty, LOYALTY_TIERS } from './loyaltyService.js';
 import { sendBookingNotification, buildBookingPayload } from './notifyService.js';
 import { sendBookingConfirmation } from './emailService.js';
 import { createNotification } from './notificationService.js';
+import { cancelPolicy as cancelBonzahPolicy } from './bonzahService.js';
 
 // Valid one-way status transitions
 const TRANSITIONS = {
@@ -294,6 +295,35 @@ export async function transitionBooking(bookingId, newStatus, { changedBy = 'own
   if (newStatus === 'declined') statusFields.owner_declined_at = new Date().toISOString();
   if (newStatus === 'active') statusFields.actual_pickup_at = extraFields.actual_pickup_at || new Date().toISOString();
   if (newStatus === 'returned') statusFields.actual_return_at = extraFields.actual_return_at || new Date().toISOString();
+
+  // Cancellation: if a Bonzah policy is bound, file a cancel endorsement with
+  // Bonzah BEFORE we flip the local row to 'cancelled'. This way if Bonzah
+  // errors, we don't end up with an orphaned active policy and a cancelled
+  // booking. Customer gets no refund — Bonzah credits Annie's broker balance
+  // (admin reconciles offline).
+  if (newStatus === 'cancelled' && booking.bonzah_policy_id && booking.insurance_status === 'active') {
+    try {
+      const cancelRes = await cancelBonzahPolicy(
+        booking.bonzah_policy_id,
+        `Booking ${booking.booking_code} cancelled — ${reason || 'no reason provided'}`,
+        bookingId
+      );
+      statusFields.insurance_status = 'cancelled';
+      statusFields.bonzah_last_synced_at = new Date().toISOString();
+      console.log(`[Bonzah] Cancel endorsement filed for ${booking.booking_code}: endorsement_id=${cancelRes.endorsement_id}`);
+    } catch (err) {
+      // Log + alert admin, but do NOT block the booking cancellation. The
+      // polling job + dashboard manual-cancel button can recover.
+      console.error(`[Bonzah] Cancel failed for ${booking.booking_code} (booking will still cancel locally):`, err?.message || err);
+      createNotification(
+        'bonzah_cancel_failed',
+        `Bonzah cancel failed: ${booking.booking_code}`,
+        `Booking is cancelled locally but Bonzah policy ${booking.bonzah_policy_no || booking.bonzah_policy_id} was NOT cancelled. Manual reconciliation required.`,
+        `/bookings/${bookingId}`,
+        { booking_id: bookingId, error: err?.message }
+      ).catch(() => {});
+    }
+  }
 
   const { error: updateErr } = await supabase
     .from('bookings')

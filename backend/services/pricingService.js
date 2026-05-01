@@ -21,25 +21,21 @@ export const DELIVERY_FEES = {
 };
 
 /**
- * Insurance coverage tiers sold by Annie's.
- * Daily rate in dollars. Cost = daily_rate × rental_days.
- * Not taxable — flat fee added post-tax like other add-ons.
+ * Calculate insurance cost from a booking record.
+ *
+ * Bonzah replaced Annie's-branded tiers (basic/standard/premium) — pricing now
+ * comes from a live Bonzah quote stored on the booking as
+ *   bonzah_premium_cents + bonzah_markup_cents
+ * (set by POST /bookings/:code/insurance/quote when the customer picks a tier).
+ *
+ * Returns the customer-facing dollar amount (Bonzah's premium + Annie's markup).
+ * For 'own' insurance or no provider, returns 0.
  */
-export const INSURANCE_TIERS = {
-  basic:    { name: 'Basic Protection',    dailyRate: 12, description: 'Covers collision damage up to $15,000. Does not cover theft or personal belongings.' },
-  standard: { name: 'Standard Protection', dailyRate: 18, description: 'Covers collision damage and theft up to $25,000. Does not cover personal belongings.' },
-  premium:  { name: 'Premium Protection',  dailyRate: 25, description: 'Full coverage: collision, theft, personal belongings up to $50,000. Zero deductible.' },
-};
-
-/**
- * Calculate insurance cost for a given tier and rental duration.
- * Returns cost in dollars. Returns 0 for 'own' insurance or null tier.
- */
-export function calcInsuranceCost(insuranceSource, insuranceTier, rentalDays) {
-  if (insuranceSource !== 'annies' || !insuranceTier) return 0;
-  const tier = INSURANCE_TIERS[insuranceTier];
-  if (!tier) return 0;
-  return parseFloat((tier.dailyRate * rentalDays).toFixed(2));
+export function calcInsuranceCost(booking) {
+  if (!booking || booking.insurance_provider !== 'bonzah') return 0;
+  const premium = Number(booking.bonzah_premium_cents) || 0;
+  const markup = Number(booking.bonzah_markup_cents) || 0;
+  return parseFloat(((premium + markup) / 100).toFixed(2));
 }
 
 /**

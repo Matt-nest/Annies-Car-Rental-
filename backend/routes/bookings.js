@@ -7,6 +7,7 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 import { validateBookingPayload } from '../utils/validators.js';
 import { createBooking, transitionBooking, getBookingDetail } from '../services/bookingService.js';
 import { computeRentalPricing, DELIVERY_FEES } from '../services/pricingService.js';
+import { getQuote, getSetting, BonzahError } from '../services/bonzahService.js';
 
 const router = Router();
 
@@ -265,14 +266,142 @@ router.post('/:id/complete', requireAuth, asyncHandler(async (req, res) => {
   res.json(result);
 }));
 
+/**
+ * GET /bookings/insurance/config — public.
+ *
+ * Returns Bonzah-related runtime config the customer wizard needs to render:
+ *   - enabled: master kill switch
+ *   - tiers: tier metadata (id, label, coverages, default/recommended flags)
+ *   - markup_percent: percent we add to Bonzah's quote before display
+ *   - excluded_states: states where Bonzah is not offered at all (hide path)
+ *   - pai_excluded_states: states where the Complete tier hides
+ *
+ * No customer-specific data, no secrets — safe to expose without auth.
+ */
+router.get('/insurance/config', asyncHandler(async (_req, res) => {
+  const [enabled, tiers, markupPercent, excludedStates, paiExcludedStates] = await Promise.all([
+    getSetting('bonzah_enabled', false),
+    getSetting('bonzah_tiers', []),
+    getSetting('bonzah_markup_percent', 10),
+    getSetting('bonzah_excluded_states', []),
+    getSetting('bonzah_pai_excluded_states', []),
+  ]);
+  res.json({
+    enabled: !!enabled,
+    tiers,
+    markup_percent: Number(markupPercent),
+    excluded_states: excludedStates,
+    pai_excluded_states: paiExcludedStates,
+  });
+}));
+
+/**
+ * POST /bookings/:code/insurance/quote — public.
+ *
+ * Body: { tier_id }
+ *
+ * Calls Bonzah for a draft quote, applies our markup, persists everything onto
+ * the booking record, returns price details for the wizard to display.
+ *
+ * Idempotent within the 24h quote window: if a quote already exists for the
+ * same tier and is still fresh, we return it without round-tripping Bonzah.
+ */
+router.post('/:code/insurance/quote', asyncHandler(async (req, res) => {
+  const { tier_id } = req.body;
+  if (!tier_id) return res.status(400).json({ error: 'tier_id is required' });
+
+  // Master kill switch
+  const enabled = await getSetting('bonzah_enabled', false);
+  if (!enabled) return res.status(503).json({ error: 'Bonzah is not currently available' });
+
+  // Load booking + customer + vehicle in one query
+  const { data: booking, error } = await supabase
+    .from('bookings')
+    .select('*, customers(*), vehicles(year, make, model)')
+    .eq('booking_code', req.params.code)
+    .single();
+  if (error || !booking) return res.status(404).json({ error: 'Booking not found' });
+  if (['declined', 'cancelled'].includes(booking.status)) {
+    return res.status(400).json({ error: `This booking has been ${booking.status}` });
+  }
+
+  // Re-use existing quote if it's still fresh AND for the same tier
+  const now = Date.now();
+  const expiresAt = booking.bonzah_quote_expires_at ? new Date(booking.bonzah_quote_expires_at).getTime() : 0;
+  const isFresh = booking.bonzah_quote_id
+    && booking.bonzah_tier_id === tier_id
+    && booking.bonzah_premium_cents
+    && expiresAt > now;
+
+  let premiumCents;
+  let quoteId;
+  let coverageInfo;
+
+  if (isFresh) {
+    premiumCents = Number(booking.bonzah_premium_cents);
+    quoteId = booking.bonzah_quote_id;
+    coverageInfo = booking.bonzah_coverage_json || [];
+  } else {
+    // Fresh quote
+    let quote;
+    try {
+      quote = await getQuote(booking, booking.customers, tier_id, {
+        existingQuoteId: booking.bonzah_quote_id || '',
+      });
+    } catch (e) {
+      if (e instanceof BonzahError) {
+        return res.status(502).json({
+          error: e.bonzahTxt || e.message,
+          bonzah_status: e.bonzahStatus,
+        });
+      }
+      throw e;
+    }
+    premiumCents = quote.premium_cents;
+    quoteId = quote.quote_id;
+    coverageInfo = quote.coverage_information;
+  }
+
+  const markupPercent = Number(await getSetting('bonzah_markup_percent', 10));
+  const markupCents = Math.round(premiumCents * markupPercent / 100);
+  const totalCents = premiumCents + markupCents;
+  const expiresAtIso = new Date(now + 24 * 60 * 60 * 1000).toISOString();
+
+  // Persist the quote on the booking (only if it was a fresh API call,
+  // OR if anything materially changed)
+  if (!isFresh) {
+    await supabase
+      .from('bookings')
+      .update({
+        bonzah_tier_id: tier_id,
+        bonzah_quote_id: quoteId,
+        bonzah_premium_cents: premiumCents,
+        bonzah_markup_cents: markupCents,
+        bonzah_coverage_json: coverageInfo,
+        bonzah_quote_expires_at: expiresAtIso,
+      })
+      .eq('id', booking.id);
+  }
+
+  res.json({
+    tier_id,
+    quote_id: quoteId,
+    premium_cents: premiumCents,
+    markup_cents: markupCents,
+    total_cents: totalCents,
+    coverage_information: coverageInfo,
+    expires_at: isFresh ? booking.bonzah_quote_expires_at : expiresAtIso,
+  });
+}));
+
 /** PATCH /bookings/:code/insurance — public (customer submits insurance choice from unified wizard) */
 router.patch('/:code/insurance', asyncHandler(async (req, res) => {
-  const { source, tier, bonzah_policy_number, bonzah_email } = req.body;
+  const { source, tier_id, bonzah_policy_number, bonzah_email } = req.body;
 
   // Look up booking by booking_code (public route — no auth)
   const { data: booking, error } = await supabase
     .from('bookings')
-    .select('id, booking_code, status')
+    .select('id, booking_code, status, bonzah_tier_id, bonzah_quote_id, bonzah_quote_expires_at, bonzah_premium_cents')
     .eq('booking_code', req.params.code)
     .single();
 
@@ -280,38 +409,63 @@ router.patch('/:code/insurance', asyncHandler(async (req, res) => {
     return res.status(404).json({ error: 'Booking not found' });
   }
 
-  // Handle different insurance sources
-  if (source === 'annies') {
-    // Customer chose Annie's insurance — store tier
-    const validTiers = ['basic', 'standard', 'premium'];
-    if (!tier || !validTiers.includes(tier)) {
-      return res.status(400).json({ error: 'Valid insurance tier is required (basic, standard, premium)' });
+  if (source === 'bonzah') {
+    // Customer chose Bonzah — must have a fresh quote on file. /insurance/quote
+    // is what populates these fields; the wizard calls it on tier change.
+    if (!tier_id) return res.status(400).json({ error: 'tier_id is required for Bonzah' });
+
+    const now = Date.now();
+    const expiresAt = booking.bonzah_quote_expires_at ? new Date(booking.bonzah_quote_expires_at).getTime() : 0;
+    const haveFreshQuote = booking.bonzah_tier_id === tier_id
+      && booking.bonzah_quote_id
+      && booking.bonzah_premium_cents
+      && expiresAt > now;
+
+    if (!haveFreshQuote) {
+      return res.status(409).json({
+        error: 'No fresh Bonzah quote for this tier. Refresh the wizard to re-quote.',
+        code: 'STALE_QUOTE',
+      });
     }
 
     await supabase
       .from('bookings')
       .update({
-        insurance_provider: 'annies',
-        insurance_policy_number: tier,
-        insurance_email: null,
-      })
-      .eq('id', booking.id);
-
-    console.log(`[Booking] Annie's insurance selected for ${booking.booking_code}: ${tier}`);
-  } else if (source === 'own') {
-    // Customer has their own insurance — mark as own (details stored in rental_agreements)
-    await supabase
-      .from('bookings')
-      .update({
-        insurance_provider: 'own',
+        insurance_provider: 'bonzah',
+        insurance_status: 'pending', // flips to 'active' after Stripe webhook binds
         insurance_policy_number: null,
         insurance_email: null,
       })
       .eq('id', booking.id);
 
+    console.log(`[Booking] Bonzah ${tier_id} selected for ${booking.booking_code} (premium ${booking.bonzah_premium_cents}c)`);
+    return res.json({ success: true, booking_code: booking.booking_code });
+  }
+
+  if (source === 'own') {
+    // Customer has their own insurance — mark as own (details stored in rental_agreements)
+    await supabase
+      .from('bookings')
+      .update({
+        insurance_provider: 'own',
+        insurance_status: 'external',
+        insurance_policy_number: null,
+        insurance_email: null,
+        // Clear any stale Bonzah quote so we don't accidentally bind/charge
+        bonzah_tier_id: null,
+        bonzah_quote_id: null,
+        bonzah_premium_cents: null,
+        bonzah_markup_cents: null,
+        bonzah_quote_expires_at: null,
+      })
+      .eq('id', booking.id);
+
     console.log(`[Booking] Customer has own insurance for ${booking.booking_code}`);
-  } else if (bonzah_policy_number) {
-    // Legacy Bonzah flow — backward compatible
+    return res.json({ success: true, booking_code: booking.booking_code });
+  }
+
+  if (bonzah_policy_number) {
+    // Legacy Bonzah flow (admin manually pastes a policy #) — kept for back-compat
     await supabase
       .from('bookings')
       .update({
@@ -321,12 +475,11 @@ router.patch('/:code/insurance', asyncHandler(async (req, res) => {
       })
       .eq('id', booking.id);
 
-    console.log(`[Booking] Bonzah insurance updated for ${booking.booking_code}: ${bonzah_policy_number}`);
-  } else {
-    return res.status(400).json({ error: 'Insurance source is required (own, annies, or bonzah_policy_number)' });
+    console.log(`[Booking] Bonzah insurance manually set for ${booking.booking_code}: ${bonzah_policy_number}`);
+    return res.json({ success: true, booking_code: booking.booking_code });
   }
 
-  res.json({ success: true, booking_code: booking.booking_code });
+  return res.status(400).json({ error: 'Insurance source is required (bonzah with tier_id, or own)' });
 }));
 
 export default router;

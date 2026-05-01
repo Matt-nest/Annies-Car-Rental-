@@ -44,6 +44,8 @@ const STAGE_CTA = {
   invoice_sent:        { label: 'View Invoice',                  fieldKey: 'invoice_link',  style: 'gold' },
   inspection_complete: { label: 'View Booking Status',           fieldKey: 'status_link' },
   inspection_charges_scheduled: { label: 'Review or Dispute in Portal', fieldKey: 'portal_link', style: 'gold' },
+  insurance_policy_issued: { label: 'View My Booking',          fieldKey: 'portal_link', style: 'gold' },
+  // insurance_bind_failed is admin-only — no customer CTA
 };
 
 /**
@@ -390,6 +392,28 @@ export function buildBookingPayload(booking, { handoffRecord } = {}) {
     mileage_addon_fee: booking.mileage_addon_fee || null,
     toll_addon_fee:    booking.toll_addon_fee || null,
     insurance_provider: booking.insurance_provider,
+    // Bonzah-specific merge fields — used by insurance_policy_issued / insurance_bind_failed
+    bonzah_policy_no:        booking.bonzah_policy_no || null,
+    bonzah_quote_id:         booking.bonzah_quote_id || null,
+    bonzah_tier_id:          booking.bonzah_tier_id || null,
+    bonzah_tier_label:       booking.bonzah_tier_id
+      ? booking.bonzah_tier_id.charAt(0).toUpperCase() + booking.bonzah_tier_id.slice(1)
+      : null,
+    dashboard_link:          process.env.DASHBOARD_URL && booking.id
+      ? `${process.env.DASHBOARD_URL}/bookings/${booking.id}`
+      : null,
+    bonzah_premium:          booking.bonzah_premium_cents != null
+      ? (booking.bonzah_premium_cents / 100).toFixed(2)
+      : null,
+    bonzah_total_charged:    booking.bonzah_total_charged_cents != null
+      ? (booking.bonzah_total_charged_cents / 100).toFixed(2)
+      : null,
+    bonzah_coverage_summary: Array.isArray(booking.bonzah_coverage_json)
+      ? booking.bonzah_coverage_json
+          .map(c => c.optional_addon_type || c.optional_addon_code || c.cover_type)
+          .filter(Boolean)
+          .join(', ')
+      : null,
     special_requests:   booking.special_requests,
     decline_reason:     booking.decline_reason,
     // Financial fields (used by deposit/invoice/inspection templates)
@@ -441,6 +465,8 @@ const EVENT_SUMMARIES = {
   deposit_settled:        'Security deposit settled against incidentals',
   rental_completed:       'Rental completed — review request sent',
   inspection_charges_scheduled: 'Inspection charges scheduled (48h dispute window)',
+  insurance_policy_issued:      'Bonzah insurance policy issued',
+  insurance_bind_failed:        'Bonzah bind failed — admin reconciliation required',
 };
 
 /**

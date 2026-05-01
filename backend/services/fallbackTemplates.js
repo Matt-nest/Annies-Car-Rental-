@@ -501,6 +501,60 @@ Contact us anytime:
 Annie's Car Rental
 Port Saint Lucie, FL`,
   },
+
+  // ── Bonzah insurance lifecycle ───────────────────────────────────────────
+
+  insurance_policy_issued: {
+    channel: 'email',
+    subject: '🛡️ Your Bonzah insurance policy is active — {{booking_code}}',
+    body: `Hi {{first_name}},
+
+Good news — your Bonzah rental insurance is active for your upcoming trip.
+
+POLICY DETAILS
+──────────────
+Reference:    {{booking_code}}
+Vehicle:      {{vehicle}}
+Coverage:     {{bonzah_tier_label}}
+Policy #:     {{bonzah_policy_no}}
+Total paid:   \${{bonzah_total_charged}}
+Effective:    {{pickup_date}} – {{return_date}}
+
+The policy is held with Bonzah (Insillion) — keep this email for your records. If you have a claim during your rental, contact Bonzah directly using the policy number above.
+
+Need to reach us?
+  Matthew: (772) 834-0117
+  Robin:   (772) 834-7637
+
+Annie's Car Rental
+Port Saint Lucie, FL`,
+  },
+
+  insurance_bind_failed: {
+    channel: 'email',
+    subject: '⚠️ Bonzah bind FAILED — manual reconciliation needed for {{booking_code}}',
+    body: `Bonzah policy could NOT be issued for booking {{booking_code}} after Stripe successfully charged the customer.
+
+BOOKING
+───────
+Reference:   {{booking_code}}
+Customer:    {{first_name}} {{last_name}} ({{email}})
+Vehicle:     {{vehicle}}
+Pickup:      {{pickup_date}} at {{pickup_time}}
+Tier:        {{bonzah_tier_label}}
+Quote #:     {{bonzah_quote_id}}
+Premium:     \${{bonzah_premium}}
+
+WHAT TO DO
+1. Open the booking in the dashboard: {{dashboard_link}}
+2. Inspect the most recent bonzah_events row for the underlying error.
+3. Either retry the bind manually OR refund the insurance portion to the customer
+   and switch insurance_provider to 'own'.
+
+The customer's Stripe charge HAS gone through. They are not aware of this failure.
+
+— Annie's Car Rental Internal Alert`,
+  },
 };
 
 export default FALLBACK_TEMPLATES;

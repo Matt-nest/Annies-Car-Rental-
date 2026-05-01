@@ -239,4 +239,21 @@ router.get('/process-overage-charges', async (req, res) => {
   }
 });
 
+/**
+ * GET /cron/bonzah-poll — every 15 min via Vercel Cron.
+ * Bonzah has no webhooks; this reconciles insurance_status against /Bonzah/policy
+ * and /Bonzah/endorsement_completed. No-op when bonzah_enabled=false.
+ */
+router.get('/bonzah-poll', async (req, res) => {
+  try {
+    const { runBonzahPolling } = await import('../jobs/bonzahPolling.js');
+    const result = await runBonzahPolling();
+    console.log('[CRON/bonzah-poll]', result);
+    res.json(result);
+  } catch (err) {
+    console.error('[CRON/bonzah-poll] Error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

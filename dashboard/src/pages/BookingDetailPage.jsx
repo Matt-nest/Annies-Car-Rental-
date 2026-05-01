@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Phone, Mail, Car, MapPin, CheckCircle, XCircle, Package, RotateCcw, Flag, DollarSign, FileText, Shield, CreditCard, User, ClipboardCheck, Receipt, Navigation } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, Car, MapPin, CheckCircle, XCircle, Package, RotateCcw, Flag, DollarSign, FileText, Shield, CreditCard, User, ClipboardCheck, Receipt, Navigation, RefreshCw, AlertCircle, Loader2 } from 'lucide-react';
 import { api } from '../api/client';
+import { bonzahApi } from '../api/bonzah';
 import { supabase } from '../auth/supabaseClient';
 import StatusBadge from '../components/shared/StatusBadge';
 import { SkeletonDashboard } from '../components/shared/Skeleton';
@@ -635,87 +636,7 @@ function OverviewTab({ booking, c, v, id, load, setModal, setPaymentForm, setLig
       </Section>
 
       {/* Insurance */}
-      <Section title="Insurance">
-        <div className="grid sm:grid-cols-2 gap-3">
-          <div>
-            <p className="text-xs text-[var(--text-tertiary)]">Provider</p>
-            <p className="text-sm font-medium text-[var(--text-primary)] mt-0.5">
-              {booking.insurance_provider === 'annies' ? "Annie's Car Rental" :
-               booking.insurance_provider === 'own' ? "Customer's Own" :
-               booking.insurance_provider === 'bonzah' ? 'Bonzah' :
-               booking.insurance_provider || '—'}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-[var(--text-tertiary)]">Status</p>
-            <select
-              className="input text-sm mt-0.5"
-              defaultValue={booking.insurance_status || 'pending'}
-              onChange={async e => {
-                await api.updateInsuranceStatus(id, e.target.value);
-                await load();
-              }}
-            >
-              {['pending', 'active', 'declined', 'not_required', 'external'].map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Annie's tier display */}
-          {booking.insurance_provider === 'annies' && booking.insurance_policy_number && (
-            <div className="col-span-2">
-              <p className="text-xs text-[var(--text-tertiary)]">Coverage Tier</p>
-              <span className={`inline-flex items-center gap-1.5 text-xs font-semibold capitalize px-2.5 py-1 rounded-full mt-1 ${
-                booking.insurance_policy_number === 'premium'  ? 'bg-amber-500/15 text-amber-500' :
-                booking.insurance_policy_number === 'standard' ? 'bg-blue-500/10 text-[#63b3ed]' :
-                                                                  'bg-[var(--bg-elevated)] text-[var(--text-secondary)]'
-              }`}>
-                {booking.insurance_policy_number === 'basic'    && '🛡️ Basic Protection — $12/day'}
-                {booking.insurance_policy_number === 'standard' && '🛡️ Standard Protection — $18/day'}
-                {booking.insurance_policy_number === 'premium'  && '🛡️ Premium Protection — $25/day'}
-              </span>
-            </div>
-          )}
-
-          {/* Bonzah / legacy policy ID */}
-          {booking.insurance_provider !== 'annies' && booking.insurance_provider !== 'own' && (
-            <div className="col-span-2">
-              <p className="text-xs text-[var(--text-tertiary)]">Policy ID</p>
-              <input
-                className="input text-sm mt-0.5"
-                defaultValue={booking.insurance_policy_number || booking.bonzah_policy_id || ''}
-                placeholder="Policy number (if applicable)"
-                onBlur={async e => {
-                  const current = booking.insurance_policy_number || booking.bonzah_policy_id || '';
-                  if (e.target.value !== current) {
-                    await api.updateInsuranceStatus(id, booking.insurance_status, e.target.value);
-                    await load();
-                  }
-                }}
-              />
-            </div>
-          )}
-        </div>
-        
-        {booking.rental_agreements?.length > 0 && 
-          booking.rental_agreements[0].insurance_company && (
-          <div className="mt-4 pt-4 border-t border-[var(--border-subtle)]">
-            <p className="text-sm font-medium text-[var(--text-primary)] mb-3">Customer Provided Details</p>
-            <div className="grid sm:grid-cols-2 gap-3">
-              <Field label="Company" value={booking.rental_agreements[0].insurance_company} />
-              <Field label="Policy #" value={booking.rental_agreements[0].insurance_policy_number} />
-              <Field label="Expiry" value={booking.rental_agreements[0].insurance_expiry} />
-              {booking.rental_agreements[0].insurance_agent_name && (
-                <Field label="Agent" value={booking.rental_agreements[0].insurance_agent_name} />
-              )}
-              {booking.rental_agreements[0].insurance_agent_phone && (
-                <Field label="Agent Phone" value={booking.rental_agreements[0].insurance_agent_phone} />
-              )}
-            </div>
-          </div>
-        )}
-      </Section>
+      <BookingInsuranceSection booking={booking} bookingId={id} reload={load} />
 
       {/* Payments */}
       <Section title="Payments">
@@ -810,5 +731,288 @@ function OverviewTab({ booking, c, v, id, load, setModal, setPaymentForm, setLig
         </div>
       </Section>
     </div>
+  );
+}
+
+/* ────────────────────────────────────────────────────────
+   Insurance Section — Bonzah live panel + own-insurance fallback
+   ──────────────────────────────────────────────────────── */
+function BookingInsuranceSection({ booking, bookingId, reload }) {
+  const [refreshing, setRefreshing] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [downloadingCoverage, setDownloadingCoverage] = useState(null);
+  const [error, setError] = useState('');
+  const [editing, setEditing] = useState(false);
+  const [policyOverride, setPolicyOverride] = useState(booking.insurance_policy_number || booking.bonzah_policy_id || '');
+
+  const isBonzah = booking.insurance_provider === 'bonzah';
+  const isOwn = booking.insurance_provider === 'own';
+  const hasPolicy = !!booking.bonzah_policy_id;
+  const isCancelled = booking.insurance_status === 'cancelled';
+  const isBindFailed = booking.insurance_status === 'bind_failed';
+
+  // Coverage info from the most recent quote/poll snapshot
+  const coverages = Array.isArray(booking.bonzah_coverage_json) ? booking.bonzah_coverage_json : [];
+
+  const tierLabel = booking.bonzah_tier_id
+    ? booking.bonzah_tier_id.charAt(0).toUpperCase() + booking.bonzah_tier_id.slice(1)
+    : null;
+
+  const premium = booking.bonzah_premium_cents != null ? booking.bonzah_premium_cents / 100 : null;
+  const markup = booking.bonzah_markup_cents != null ? booking.bonzah_markup_cents / 100 : null;
+  const totalCharged = booking.bonzah_total_charged_cents != null ? booking.bonzah_total_charged_cents / 100 : null;
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    setError('');
+    try {
+      await bonzahApi.refreshBookingPolicy(bookingId);
+      await reload();
+    } catch (e) {
+      setError(`Refresh failed: ${e.message}`);
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  async function handleCancel() {
+    if (!window.confirm(
+      'Cancel this Bonzah policy?\n\nThis files a cancel endorsement with Bonzah. ' +
+      'Refund (if any) goes to Annie\'s broker credit — NOT the customer. ' +
+      'Underwriter approval is async; the polling job will pick up the final status.'
+    )) return;
+
+    setCancelling(true);
+    setError('');
+    try {
+      await bonzahApi.cancelBookingPolicy(bookingId, 'Cancelled manually from booking detail page');
+      await reload();
+    } catch (e) {
+      setError(`Cancel failed: ${e.message}`);
+    } finally {
+      setCancelling(false);
+    }
+  }
+
+  async function handleSaveOverride() {
+    try {
+      await api.updateInsuranceStatus(bookingId, booking.insurance_status, policyOverride);
+      setEditing(false);
+      await reload();
+    } catch (e) {
+      setError(`Save failed: ${e.message}`);
+    }
+  }
+
+  async function handleDownloadPdf(coverage) {
+    setDownloadingCoverage(coverage);
+    setError('');
+    try {
+      await bonzahApi.downloadBookingPdf(bookingId, coverage);
+    } catch (e) {
+      setError(`PDF download failed: ${e.message}`);
+    } finally {
+      setDownloadingCoverage(null);
+    }
+  }
+
+  // Derive opted coverages from the snapshot. Each coverage_information item has
+  // optional_addon_cover_name like "Collision Damage Waiver (CDW)" — pattern match.
+  const optedCoverages = [];
+  const COVERAGE_DETECT = [
+    { code: 'cdw',  match: /\bCDW\b/i,  label: 'CDW' },
+    { code: 'rcli', match: /\bRCLI\b/i, label: 'RCLI' },
+    { code: 'sli',  match: /\bSLI\b/i,  label: 'SLI' },
+    { code: 'pai',  match: /\bPAI\b/i,  label: 'PAI' },
+  ];
+  for (const cov of COVERAGE_DETECT) {
+    const opted = coverages.some(c =>
+      cov.match.test(c.optional_addon_cover_name || '') ||
+      cov.match.test(c.optional_addon_code || '')
+    );
+    if (opted) optedCoverages.push(cov);
+  }
+
+  return (
+    <Section title="Insurance">
+      {/* Header row: provider + status + action buttons */}
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="grid sm:grid-cols-2 gap-3 flex-1 min-w-0">
+          <div>
+            <p className="text-xs text-[var(--text-tertiary)]">Provider</p>
+            <p className="text-sm font-medium text-[var(--text-primary)] mt-0.5 flex items-center gap-2">
+              {isBonzah ? 'Bonzah' : isOwn ? "Customer's Own" : booking.insurance_provider || '—'}
+              {tierLabel && (
+                <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-[rgba(70,95,255,0.15)] text-[#465FFF]">
+                  {tierLabel}
+                </span>
+              )}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-[var(--text-tertiary)]">Status</p>
+            <select
+              className="input text-sm mt-0.5"
+              value={booking.insurance_status || 'pending'}
+              onChange={async e => {
+                await api.updateInsuranceStatus(bookingId, e.target.value);
+                await reload();
+              }}
+            >
+              {['pending', 'active', 'cancelled', 'bind_failed', 'expired', 'declined', 'not_required', 'external'].map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {hasPolicy && (
+          <div className="flex flex-col gap-2 shrink-0">
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] transition-colors flex items-center gap-1.5"
+            >
+              {refreshing ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+              Refresh from Bonzah
+            </button>
+            {!isCancelled && (
+              <button
+                onClick={handleCancel}
+                disabled={cancelling}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium border border-[rgba(239,68,68,0.3)] text-[#ef4444] hover:bg-[rgba(239,68,68,0.06)] transition-colors flex items-center gap-1.5"
+              >
+                {cancelling ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} />}
+                Cancel Policy
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Bind-failed alert */}
+      {isBindFailed && (
+        <div className="mt-3 rounded-lg p-3 text-xs flex items-start gap-2 bg-[rgba(239,68,68,0.07)] border border-[rgba(239,68,68,0.2)] text-[#ef4444]">
+          <AlertCircle size={14} className="shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold">Bind failed</p>
+            <p className="opacity-80 mt-0.5">Customer was charged via Stripe but Bonzah did not issue a policy. Manual reconciliation required — check the Settings → Integrations event log for the underlying error.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Error feedback */}
+      {error && (
+        <div className="mt-3 rounded-lg p-2 text-xs bg-[rgba(239,68,68,0.07)] border border-[rgba(239,68,68,0.2)] text-[#ef4444]">
+          {error}
+        </div>
+      )}
+
+      {/* Bonzah policy details panel */}
+      {isBonzah && hasPolicy && (
+        <div className="mt-4 pt-4 border-t border-[var(--border-subtle)] space-y-3">
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Field label="Policy #" value={booking.bonzah_policy_no || '—'} />
+            <Field label="Policy ID" value={booking.bonzah_policy_id} />
+            {premium != null && <Field label="Premium (Bonzah base)" value={`$${premium.toFixed(2)}`} />}
+            {markup != null && <Field label="Markup (Annie's)" value={`$${markup.toFixed(2)}`} />}
+            {totalCharged != null && <Field label="Total charged" value={`$${totalCharged.toFixed(2)}`} />}
+            <Field
+              label="Last synced"
+              value={booking.bonzah_last_synced_at
+                ? format(new Date(booking.bonzah_last_synced_at), 'MMM d, h:mm a')
+                : 'Never'}
+            />
+          </div>
+
+          {coverages.length > 0 && (
+            <div>
+              <p className="text-xs text-[var(--text-tertiary)] mb-1.5">Coverage details</p>
+              <div className="space-y-1">
+                {coverages.map((c, i) => (
+                  <div key={i} className="flex items-center justify-between gap-3 px-3 py-1.5 rounded-lg bg-[var(--bg-elevated)] text-xs">
+                    <span className="font-medium text-[var(--text-primary)]">
+                      {c.optional_addon_cover_name || c.optional_addon_type || c.optional_addon_code || c.cover_type || 'Coverage'}
+                    </span>
+                    <span className="font-mono text-[var(--text-tertiary)] text-[10px]">
+                      {c.optional_addon_premium != null && `$${c.optional_addon_premium}`}
+                      {c.cover_limit && ` · ${c.cover_limit}`}
+                      {c.deductible && ` · deductible ${c.deductible}`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {optedCoverages.length > 0 && (
+            <div>
+              <p className="text-xs text-[var(--text-tertiary)] mb-1.5">Policy documents</p>
+              <div className="flex flex-wrap gap-2">
+                {optedCoverages.map(cov => (
+                  <button
+                    key={cov.code}
+                    onClick={() => handleDownloadPdf(cov.code)}
+                    disabled={downloadingCoverage === cov.code}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] transition-colors flex items-center gap-1.5"
+                  >
+                    {downloadingCoverage === cov.code ? <Loader2 size={12} className="animate-spin" /> : <FileText size={12} />}
+                    {cov.label} PDF
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Manual override (legacy / fix-up) */}
+          <div>
+            <button
+              type="button"
+              onClick={() => setEditing(!editing)}
+              className="text-[11px] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] underline"
+            >
+              {editing ? 'Cancel edit' : 'Edit policy # manually (legacy override)'}
+            </button>
+            {editing && (
+              <div className="flex gap-2 mt-2">
+                <input
+                  className="input text-sm flex-1"
+                  value={policyOverride}
+                  onChange={e => setPolicyOverride(e.target.value)}
+                  placeholder="Policy number"
+                />
+                <button
+                  onClick={handleSaveOverride}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#465FFF] text-white hover:opacity-90"
+                >
+                  Save
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Customer-provided own-policy details */}
+      {booking.rental_agreements?.length > 0 &&
+        booking.rental_agreements[0].insurance_company && (
+        <div className="mt-4 pt-4 border-t border-[var(--border-subtle)]">
+          <p className="text-sm font-medium text-[var(--text-primary)] mb-3">
+            {isOwn ? 'Customer Provided Details' : 'Customer-Provided Details (also on file)'}
+          </p>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Field label="Company" value={booking.rental_agreements[0].insurance_company} />
+            <Field label="Policy #" value={booking.rental_agreements[0].insurance_policy_number} />
+            <Field label="Expiry" value={booking.rental_agreements[0].insurance_expiry} />
+            {booking.rental_agreements[0].insurance_agent_name && (
+              <Field label="Agent" value={booking.rental_agreements[0].insurance_agent_name} />
+            )}
+            {booking.rental_agreements[0].insurance_agent_phone && (
+              <Field label="Agent Phone" value={booking.rental_agreements[0].insurance_agent_phone} />
+            )}
+          </div>
+        </div>
+      )}
+    </Section>
   );
 }

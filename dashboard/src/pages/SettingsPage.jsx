@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import {
   User, Users, Server, Save, Eye, EyeOff, Plus, Shield,
   ChevronDown, Check, X, RefreshCw, Lock, Mail, Phone, Info,
-  ExternalLink, AlertCircle,
+  ExternalLink, AlertCircle, Plug, Zap, Loader2,
 } from 'lucide-react';
 import { api } from '../api/client';
+import { bonzahApi } from '../api/bonzah';
 import { useAuth } from '../auth/AuthProvider';
 import DashboardLayoutSettings from '../components/settings/DashboardLayoutSettings';
 import DataError from '../components/shared/DataError';
@@ -662,6 +663,370 @@ function EnvRow({ label, envKey, note }) {
 }
 
 /* ════════════════════════════════════════════════════════
+   BONZAH TIER EDITOR — collapsible JSON editor with validation
+   ════════════════════════════════════════════════════════ */
+function BonzahTierEditor({ tiers, onChange }) {
+  const [expanded, setExpanded] = useState(false);
+  const [text, setText] = useState(() => JSON.stringify(tiers, null, 2));
+  const [parseError, setParseError] = useState('');
+
+  // Re-sync from props when caller resets (e.g. after Save)
+  useEffect(() => {
+    setText(JSON.stringify(tiers, null, 2));
+    setParseError('');
+  }, [tiers]);
+
+  function validateAndApply(raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) throw new Error('Must be a JSON array');
+      // Light schema check — each tier needs id, label, coverages
+      for (const [i, t] of parsed.entries()) {
+        if (!t.id || typeof t.id !== 'string') throw new Error(`Tier ${i}: missing string "id"`);
+        if (!t.label || typeof t.label !== 'string') throw new Error(`Tier ${i}: missing string "label"`);
+        if (!Array.isArray(t.coverages) || !t.coverages.length) throw new Error(`Tier ${i}: "coverages" must be a non-empty array`);
+        const allowed = ['cdw', 'rcli', 'sli', 'pai'];
+        for (const c of t.coverages) {
+          if (!allowed.includes(c)) throw new Error(`Tier ${i}: unknown coverage "${c}". Allowed: ${allowed.join(', ')}`);
+        }
+        if (t.coverages.includes('sli') && !t.coverages.includes('rcli')) {
+          throw new Error(`Tier ${i}: SLI requires RCLI (Bonzah constraint)`);
+        }
+      }
+      setParseError('');
+      onChange(parsed);
+    } catch (e) {
+      setParseError(e.message);
+    }
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <label className="text-xs uppercase tracking-wider font-semibold text-[var(--text-tertiary)]">Tiers</label>
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] underline"
+        >
+          {expanded ? 'Hide editor' : 'Edit JSON'}
+        </button>
+      </div>
+
+      <div className="space-y-2">
+        {tiers.map((t, i) => (
+          <div key={t.id || i} className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-[var(--bg-elevated)] text-sm">
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-[var(--text-primary)]">{t.label}</span>
+              {t.recommended && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[rgba(70,95,255,0.15)] text-[#465FFF] font-semibold">Recommended</span>}
+              {t.default && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[rgba(34,197,94,0.15)] text-[#22c55e] font-semibold">Default</span>}
+            </div>
+            <span className="text-[11px] font-mono text-[var(--text-tertiary)]">{(t.coverages || []).join(' · ').toUpperCase()}</span>
+          </div>
+        ))}
+      </div>
+
+      {expanded && (
+        <div className="mt-3 space-y-2">
+          <textarea
+            className="input text-xs font-mono w-full"
+            rows={Math.max(8, text.split('\n').length)}
+            value={text}
+            onChange={e => {
+              setText(e.target.value);
+              validateAndApply(e.target.value);
+            }}
+          />
+          {parseError ? (
+            <p className="text-[11px] text-[#ef4444] flex items-start gap-1.5">
+              <AlertCircle size={12} className="mt-0.5 shrink-0" />
+              <span>{parseError}</span>
+            </p>
+          ) : (
+            <p className="text-[11px] text-[#22c55e] flex items-center gap-1">
+              <Check size={12} /> Valid — click Save Changes below to persist.
+            </p>
+          )}
+          <p className="text-[11px] text-[var(--text-tertiary)]">
+            Schema: <code className="font-mono">{`[{ id, label, coverages: ["cdw"|"rcli"|"sli"|"pai"], default?, recommended? }]`}</code>. SLI requires RCLI (Bonzah constraint, enforced).
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════
+   INTEGRATIONS TAB — Bonzah configuration + activity log
+   ════════════════════════════════════════════════════════ */
+function IntegrationsTab() {
+  const [settings, setSettings] = useState(null);
+  const [draft, setDraft] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [loadErr, setLoadErr] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState(null);
+  const [testResult, setTestResult] = useState(null);
+  const [testing, setTesting] = useState(false);
+  const [events, setEvents] = useState([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+
+  async function loadSettings() {
+    setLoading(true);
+    setLoadErr('');
+    try {
+      const data = await bonzahApi.getSettings();
+      setSettings(data);
+      setDraft(data);
+    } catch (e) {
+      setLoadErr(e.message || 'Failed to load Bonzah settings');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadEvents() {
+    setEventsLoading(true);
+    try {
+      const { events: rows } = await bonzahApi.getEvents({ limit: 20 });
+      setEvents(rows || []);
+    } catch (e) {
+      console.warn('[Bonzah] events load failed:', e.message);
+    } finally {
+      setEventsLoading(false);
+    }
+  }
+
+  useEffect(() => { loadSettings(); loadEvents(); }, []);
+
+  const dirty = draft && settings && JSON.stringify(draft) !== JSON.stringify(settings);
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      await bonzahApi.putSettings(draft);
+      setSettings(draft);
+      setSavedAt(new Date());
+      setTimeout(() => setSavedAt(null), 3000);
+    } catch (e) {
+      alert(`Save failed: ${e.message}`);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleTest() {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const r = await bonzahApi.health();
+      setTestResult(r);
+    } catch (e) {
+      setTestResult({ ok: false, error: e.message });
+    } finally {
+      setTesting(false);
+      loadEvents(); // health check appears in event log
+    }
+  }
+
+  if (loading) {
+    return <div className="card p-6 flex items-center gap-2 text-sm text-[var(--text-secondary)]"><Loader2 size={16} className="animate-spin" /> Loading Bonzah settings…</div>;
+  }
+  if (loadErr) {
+    return <DataError message={loadErr} onRetry={loadSettings} />;
+  }
+
+  const enabled = !!draft.bonzah_enabled;
+  const tiers = Array.isArray(draft.bonzah_tiers) ? draft.bonzah_tiers : [];
+
+  return (
+    <div className="space-y-6 max-w-4xl">
+      {/* Bonzah master card */}
+      <div className="card p-5 space-y-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+              style={{ backgroundColor: 'rgba(70,95,255,0.1)', color: '#465FFF' }}>
+              <Shield size={20} />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold text-[var(--text-primary)]">Bonzah Insurance</h2>
+              <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                Real-time rental insurance via the Bonzah (Insillion) API. Customer pays Annie's; Annie's settles with Bonzah monthly.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleTest}
+            disabled={testing}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] transition-colors flex items-center gap-1.5 shrink-0"
+          >
+            {testing ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} />}
+            Test Connection
+          </button>
+        </div>
+
+        {testResult && (
+          <div className={`rounded-lg p-3 text-xs flex items-start gap-2 ${
+            testResult.ok
+              ? 'bg-[rgba(34,197,94,0.07)] border border-[rgba(34,197,94,0.2)] text-[#22c55e]'
+              : 'bg-[rgba(239,68,68,0.07)] border border-[rgba(239,68,68,0.2)] text-[#ef4444]'
+          }`}>
+            {testResult.ok ? <Check size={14} className="shrink-0 mt-0.5" /> : <AlertCircle size={14} className="shrink-0 mt-0.5" />}
+            <div className="min-w-0">
+              {testResult.ok ? (
+                <p>Connected — Bonzah returned {testResult.states_returned} states in {testResult.duration_ms}ms.</p>
+              ) : (
+                <p>Connection failed: {testResult.error}{testResult.bonzah_txt ? ` (Bonzah: ${testResult.bonzah_txt})` : ''}</p>
+              )}
+              <p className="text-[10px] opacity-70 mt-0.5 font-mono">{testResult.base_url}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Kill switch */}
+        <div className="flex items-start justify-between gap-4 py-3 border-y border-[var(--border-subtle)]">
+          <div>
+            <p className="text-sm font-medium text-[var(--text-primary)]">Enable Bonzah</p>
+            <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+              Master switch. When off, the customer wizard hides Bonzah entirely and falls through to "use my own insurance".
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={enabled}
+            onClick={() => setDraft({ ...draft, bonzah_enabled: !enabled })}
+            className={`relative shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              enabled ? 'bg-[#22c55e]' : 'bg-[var(--bg-elevated)]'
+            }`}
+          >
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+              enabled ? 'translate-x-6' : 'translate-x-1'
+            }`} />
+          </button>
+        </div>
+
+        {/* Markup */}
+        <div className="grid sm:grid-cols-2 gap-4 items-start">
+          <div>
+            <label className="text-xs uppercase tracking-wider font-semibold text-[var(--text-tertiary)]">Markup %</label>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step={0.5}
+              value={draft.bonzah_markup_percent ?? 0}
+              onChange={e => setDraft({ ...draft, bonzah_markup_percent: Number(e.target.value) })}
+              className="input text-sm mt-1"
+            />
+            <p className="text-[11px] text-[var(--text-tertiary)] mt-1">Added on top of Bonzah's premium before the customer sees the price. We pay Bonzah the base, keep the markup.</p>
+          </div>
+
+          <div>
+            <label className="text-xs uppercase tracking-wider font-semibold text-[var(--text-tertiary)]">Excluded States (no Bonzah)</label>
+            <input
+              type="text"
+              value={(draft.bonzah_excluded_states || []).join(', ')}
+              onChange={e => setDraft({
+                ...draft,
+                bonzah_excluded_states: e.target.value.split(',').map(s => s.trim()).filter(Boolean),
+              })}
+              className="input text-sm mt-1"
+              placeholder="Michigan, New York, Pennsylvania"
+            />
+            <p className="text-[11px] text-[var(--text-tertiary)] mt-1">Comma-separated full state names. Wizard hides the Bonzah path when pickup is in one of these.</p>
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className="text-xs uppercase tracking-wider font-semibold text-[var(--text-tertiary)]">PAI-Excluded States (hide Complete tier)</label>
+            <input
+              type="text"
+              value={(draft.bonzah_pai_excluded_states || []).join(', ')}
+              onChange={e => setDraft({
+                ...draft,
+                bonzah_pai_excluded_states: e.target.value.split(',').map(s => s.trim()).filter(Boolean),
+              })}
+              className="input text-sm mt-1"
+              placeholder="(empty)"
+            />
+            <p className="text-[11px] text-[var(--text-tertiary)] mt-1">Personal Accident Insurance is not legal in some states. Customers in these states will see Essential and Standard only.</p>
+          </div>
+        </div>
+
+        {/* Tiers — read-only summary + JSON editor */}
+        <BonzahTierEditor tiers={tiers} onChange={(next) => setDraft({ ...draft, bonzah_tiers: next })} />
+
+        {/* Save bar */}
+        <div className="flex items-center justify-end gap-3 pt-2">
+          {savedAt && <span className="text-xs text-[#22c55e] flex items-center gap-1"><Check size={12} /> Saved</span>}
+          <button
+            onClick={handleSave}
+            disabled={!dirty || saving}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              dirty && !saving
+                ? 'bg-[#465FFF] text-white hover:opacity-90'
+                : 'bg-[var(--bg-elevated)] text-[var(--text-tertiary)] cursor-not-allowed'
+            }`}
+          >
+            {saving ? <span className="flex items-center gap-1.5"><Loader2 size={12} className="animate-spin" /> Saving…</span> : 'Save Changes'}
+          </button>
+        </div>
+      </div>
+
+      {/* Event log */}
+      <div className="card p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-[var(--text-primary)]">Recent Activity</h2>
+            <p className="text-xs text-[var(--text-secondary)] mt-0.5">Last 20 Bonzah API calls. Errors highlighted.</p>
+          </div>
+          <button
+            onClick={loadEvents}
+            disabled={eventsLoading}
+            className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1"
+          >
+            <RefreshCw size={12} className={eventsLoading ? 'animate-spin' : ''} />
+            Refresh
+          </button>
+        </div>
+
+        {events.length === 0 ? (
+          <p className="text-xs text-[var(--text-tertiary)] py-4 text-center">No Bonzah activity yet. Hit "Test Connection" to verify auth.</p>
+        ) : (
+          <div className="space-y-1">
+            {events.map(ev => (
+              <div key={ev.id} className={`flex items-start gap-3 py-2 px-3 rounded-lg text-xs ${
+                ev.error_text ? 'bg-[rgba(239,68,68,0.06)]' : 'hover:bg-[var(--bg-elevated)]'
+              }`}>
+                <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded shrink-0 ${
+                  ev.error_text ? 'bg-[rgba(239,68,68,0.15)] text-[#ef4444]' : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)]'
+                }`}>
+                  {ev.event_type}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-[var(--text-secondary)]">
+                      {ev.error_text ? <span className="text-[#ef4444]">{ev.error_text}</span> : `HTTP ${ev.status_code} · ${ev.duration_ms}ms`}
+                    </span>
+                    <span className="text-[10px] text-[var(--text-tertiary)] shrink-0 font-mono">
+                      {new Date(ev.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                    </span>
+                  </div>
+                  {ev.booking_id && (
+                    <p className="text-[10px] text-[var(--text-tertiary)] mt-0.5 font-mono">booking: {ev.booking_id}</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════
    SETTINGS PAGE (root)
    ════════════════════════════════════════════════════════ */
 export default function SettingsPage() {
@@ -672,6 +1037,7 @@ export default function SettingsPage() {
     { key: 'profile', label: 'My Profile', icon: User },
     ...(hasRole('owner', 'admin') ? [{ key: 'team', label: 'Team', icon: Users }] : []),
     ...(hasRole('owner', 'admin') ? [{ key: 'system', label: 'System', icon: Server }] : []),
+    ...(hasRole('owner', 'admin') ? [{ key: 'integrations', label: 'Integrations', icon: Plug }] : []),
   ];
 
   return (
@@ -695,6 +1061,7 @@ export default function SettingsPage() {
         {tab === 'profile' && <ProfileTab />}
         {tab === 'team' && <TeamTab />}
         {tab === 'system' && <SystemTab />}
+        {tab === 'integrations' && <IntegrationsTab />}
       </div>
     </div>
   );

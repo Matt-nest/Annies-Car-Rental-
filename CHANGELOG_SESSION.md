@@ -5,6 +5,305 @@
 
 ---
 
+## 2026-05-01 — Bonzah Insurance Integration · Phase 5 (PDF proxy + tier editor + runbook)
+
+**Scope:** Closes the Phase 4 gaps. Per-coverage PDF downloads work end-to-end. Settings page now has a JSON tier editor with schema validation (replaces "edit via SQL only"). Operations runbook documents kill switch, reconciliation, credential rotation, and sandbox→prod cutover.
+
+### Backend
+- `backend/utils/bonzah.js` — **NEW** `bonzahCallBinary({ policyId, dataId, bookingId })`. Mirrors `bonzahCall()` (re-auth + audit log) but handles binary responses. Doesn't store the file body in `bonzah_events.response_json` — only a `{ content_type, size_bytes }` descriptor — so the events table doesn't bloat.
+
+- `backend/services/bonzahService.js` — **NEW** `getPolicyPdf(policyId, coverageCode, bookingId)`. Two-step: GET `/Bonzah/policy` to look up the per-coverage `*_pdf_id`, then `bonzahCallBinary()` to fetch the file. We don't persist `pdf_id`s on the booking row — re-fetch on each download (admin-triggered, low frequency). Returns `{ buffer, contentType, filename }`. Filename format: `{policy_no}-{COVERAGE}.pdf`.
+
+- `backend/routes/bonzah.js` — **NEW** `GET /admin/bonzah/booking/:id/pdf/:coverage`. Validates `coverage` against the four allowed codes, looks up booking, calls `getPolicyPdf()`, streams the buffer back with `Content-Disposition: inline; filename="..."`. Owner/admin-only via the router-level guard.
+
+### Dashboard
+- `dashboard/src/api/bonzah.js` — **NEW** `downloadBookingPdf(bookingId, coverage)`. Bearer auth fetch → blob → object URL → programmatic `<a download>` click → revoke. Single-use, no leaks.
+
+- `dashboard/src/pages/BookingDetailPage.jsx` — **`BookingInsuranceSection`** now derives the list of opted coverages from `bonzah_coverage_json` via regex on `optional_addon_cover_name` (e.g. "Collision Damage Waiver (CDW)" → matches CDW). Renders one button per opted coverage under a "Policy documents" header. Per-button loading spinner via `downloadingCoverage` state.
+
+- `dashboard/src/pages/SettingsPage.jsx` — **NEW** `BonzahTierEditor` component (replaces the prior read-only summary):
+  - Read-only summary preserved as the default view (cards with default/recommended badges + coverage codes).
+  - "Edit JSON" toggle reveals an auto-sized monospace textarea with the current `bonzah_tiers` value pretty-printed.
+  - Live validation on every keystroke:
+    - Must be a JSON array.
+    - Each tier needs `id` (string), `label` (string), `coverages` (non-empty array).
+    - Coverages must be one of `cdw|rcli|sli|pai`.
+    - **SLI requires RCLI** — Bonzah constraint enforced client-side before save.
+  - Green "Valid" indicator vs. red error with line description.
+  - On valid input, propagates to `draft.bonzah_tiers` so the parent's Save Changes button works as-is.
+
+### Documentation
+- **NEW** `backend/docs/bonzah-runbook.md` — Eight sections covering:
+  1. Kill switch (dashboard + SQL fallback).
+  2. Stuck-policy reconciliation (bind_failed, cancel-stuck, policy_no drift, forensic SQL queries).
+  3. Credential rotation (zero-downtime via env-var swap).
+  4. Sandbox → production cutover (8-step checklist).
+  5. Manual bind path (intentional friction — no admin button).
+  6. Endorsement workflow (date changes — helpers exist, no UI yet).
+  7. Common errors table (8 error texts mapped to causes + fixes).
+  8. Quick reference (where to click for each operation).
+
+### Verification
+- `node --check` clean on `utils/bonzah.js`, `services/bonzahService.js`, `routes/bonzah.js`.
+- `cd dashboard && npm run build` clean (2.90s, ~3095 modules).
+
+### Manual smoke test (after deploy)
+1. Navigate to a booking with a Bonzah policy → Insurance section shows new "Policy documents" row with one button per opted coverage.
+2. Click any button → PDF should open/download. Verify the file opens to the correct policy in Acrobat.
+3. Settings → Integrations → click "Edit JSON" on the Tiers section.
+4. Try invalid input (delete the `cdw` from a tier's coverages, save) — should reject with a parse error.
+5. Try a valid edit (rename "Standard" → "Recommended Coverage"), Save Changes, reload customer wizard — new label appears immediately.
+
+### Production cutover gate
+The runbook at `backend/docs/bonzah-runbook.md` is the authoritative checklist. Do NOT skip §4 step 7 (real test booking) before cutting over to production credentials.
+
+### Phases 1–5 complete
+The Bonzah integration is now feature-complete for the scope agreed in the original prompt. Optional follow-ups:
+- Playwright E2E suite (deferred — would require fixture booking/customer setup).
+- "Bonzah Activity" widget on the admin dashboard root (a nice-to-have; the Settings → Integrations log already has the same data).
+- Actual production credentials from brandon@bonzah.com.
+
+---
+
+## 2026-05-01 — Bonzah Insurance Integration · Phase 4 (admin dashboard surfaces)
+
+**Scope:** Admin can now manage Bonzah end-to-end without touching the database. Settings page gains an Integrations tab (kill switch, markup, exclusions, test connection, recent activity log). Booking detail page gets a rebuilt Insurance section with live policy details, Refresh from Bonzah, Cancel Policy.
+
+### Backend admin endpoints
+- `backend/routes/bonzah.js` — Phase 1 stub (`/health` only) is now a full admin router. All endpoints gated by `requireAuth + requireRole('owner','admin')` (router-level middleware).
+  - `GET /admin/bonzah/health` — unchanged.
+  - `GET /admin/bonzah/settings` — returns the 5 known config keys as `{ key: value }` (one query, no N+1).
+  - `PUT /admin/bonzah/settings` — accepts a partial body. Whitelist enforces only the 5 known keys can be written via this endpoint (defense against arbitrary settings-row writes). Stamps `updated_by` with admin auth_id.
+  - `GET /admin/bonzah/events` — returns last N rows of `bonzah_events`. Supports `limit` (max 200), `booking_id` filter, `errors_only=1`. Defense-in-depth password redaction on the wire even though events were already redacted at write time.
+  - `POST /admin/bonzah/booking/:id/refresh` — calls `getPolicyStatus()` against Bonzah, persists fresh `bonzah_policy_no` + `bonzah_coverage_json` + `bonzah_last_synced_at`, returns the live policy data.
+  - `POST /admin/bonzah/booking/:id/cancel` — files a cancel endorsement via `cancelPolicy()`. 409 if already cancelled. Updates `insurance_status='cancelled'`.
+
+### Dashboard
+- **NEW** `dashboard/src/api/bonzah.js` — Sibling of `api/client.js` (per CLAUDE.md hard rule: `client.js` has 25 consumers, never modify). Exports `bonzahApi` with `health()`, `getSettings()`, `putSettings()`, `getEvents()`, `refreshBookingPolicy()`, `cancelBookingPolicy()`. Same Bearer auth pattern as `client.js` (Supabase session token).
+
+- `dashboard/src/pages/SettingsPage.jsx` — adds a fourth tab (`Integrations`, owner/admin only) with one new component:
+  - **NEW** `IntegrationsTab` — Bonzah master card + recent activity log. Master card has:
+    - "Test Connection" button → live `/admin/bonzah/health` round-trip with success/failure UI.
+    - Kill-switch toggle (`bonzah_enabled`).
+    - Markup % input.
+    - Excluded-states comma list (full state names).
+    - PAI-excluded states comma list (hides Complete tier).
+    - Tier read-only summary with default/recommended badges + coverage codes.
+    - Save bar (only enabled when draft differs from server) with "Saved" confirmation.
+    - **Activity log** below: last 20 `bonzah_events`, error rows highlighted red, hover-reveal booking_id, monospaced timestamps. Manual Refresh button. Health-check round-trips show up here too — useful for debugging.
+
+- `dashboard/src/pages/BookingDetailPage.jsx` — rebuilt Insurance section as new top-level component `BookingInsuranceSection`. **DELETED:** the legacy hardcoded Annie's tier display (basic/standard/premium daily-rate badges) and the manual policy-ID text input.
+  - **Provider + status row** — same 2-col grid; status dropdown now includes `cancelled`, `bind_failed`, `expired` so admin can correct manually.
+  - **Action buttons** (when `bonzah_policy_id` exists): **Refresh from Bonzah** (calls `/admin/bonzah/booking/:id/refresh`, then re-loads booking) + **Cancel Policy** (confirm modal, calls `/admin/bonzah/booking/:id/cancel`). Both with loading spinners.
+  - **Bind-failed banner** when `insurance_status='bind_failed'` — points admin to the Settings event log.
+  - **Bonzah policy panel** (when bound): policy_no, policy_id, premium (Bonzah base), markup (Annie's), total charged, last-synced timestamp formatted via `date-fns/format`. Coverage details list rendered from `bonzah_coverage_json` snapshot — shows addon type, premium, limits, deductible.
+  - **Manual override** — collapsed by default behind "Edit policy # manually (legacy override)" toggle. Preserves the legacy admin-paste workflow without making it the default UX.
+  - **Customer-provided own-policy details** — preserved for both `provider='own'` and bonzah-with-own-on-file cases.
+
+### Hard rules respected
+- `dashboard/src/api/client.js` — **NOT modified**. New `bonzah.js` sibling for the 6 new endpoints.
+- `dashboard/src/auth/` — **NOT modified**. Re-uses `supabaseClient` for Bearer header same as `client.js`.
+- Supabase schema — no new migrations.
+
+### Verification
+- `node --check` clean on `backend/routes/bonzah.js`.
+- `cd dashboard && npm run build` clean (3095+ modules, 2.86s).
+
+### Manual smoke-test path (post-deploy)
+1. Log into the dashboard, navigate to **Settings → Integrations** (owner/admin only).
+2. Click **Test Connection** → should show green success with state count + ms.
+3. Toggle the kill switch off and on; observe the customer wizard at `/confirm-booking?ref=…` updates immediately (no redeploy).
+4. Open a booking that has a Bonzah policy → click **Refresh from Bonzah** → verify "Last synced" timestamp updates and any policy_no drift is reflected.
+5. (Optional, against a sandbox booking only) click **Cancel Policy** → verify a `cancel` row appears in the activity log and `insurance_status='cancelled'`.
+
+### Phase 5 (next, optional)
+- Playwright E2E covering happy path + 4 failure modes against sandbox.
+- `bonzah_tiers` JSON editor in the Settings UI (currently SQL-only).
+- PDF download links for CDW/RCLI/SLI/PAI on the booking detail panel.
+- `backend/docs/bonzah-runbook.md` covering production cutover + reconciliation.
+
+---
+
+## 2026-05-01 — Bonzah Insurance Integration · Phase 3 (lifecycle + polling + notifications)
+
+**Scope:** Closes the loop on Phases 1–2. Bonzah doesn't expose webhooks, so we poll. Booking cancellations now file Bonzah cancel endorsements. New notification stages keep the customer + admin informed when binds succeed or fail.
+
+### Backend services
+- `backend/services/bonzahService.js` — Replaces remaining Phase 2/3 stubs:
+  - `cancelPolicy(policyId, remarks, bookingId)` — POST `/Bonzah/newendorse_cncl` with `finalize:1`. Returns `{ endorsement_id, eproposal_id, nstp_id, premium_value, raw }`. Bonzah underwriter approval is async; the polling job catches the eventual settlement.
+  - `extendPolicy(policyId, { newPolicyEndDate, newPolicyEndTime, policyStartDate, policyStartTime }, bookingId)` — POST `/Bonzah/newendorse_dc` with `finalize:1`. Returns `epayment_id` + `premium_value` (positive=charge owed; negative=refund-to-credit). Caller is responsible for pairing with `payEndorsement()`.
+  - `payEndorsement(epaymentId, amount, bookingId)` — POST `/Bonzah/epayment` to actually settle the additional premium owed for an extension.
+  - `getCompletedEndorsements(policyId, bookingId)` — GET `/Bonzah/endorsement_completed`. Used by the polling job to detect cancellation approvals.
+
+- `backend/services/bookingService.js` — `transitionBooking()` cancellation branch:
+  - When transitioning a booking to `cancelled` AND it has `bonzah_policy_id` AND `insurance_status='active'`: call `cancelBonzahPolicy()` BEFORE flipping the status to avoid orphaned active policies on cancelled bookings.
+  - On Bonzah error: log + create dashboard notification (`bonzah_cancel_failed`), but do NOT block the local cancel — admin reconciles via runbook + Phase 4 manual cancel button.
+  - Sets `insurance_status='cancelled'` and `bonzah_last_synced_at` on success.
+
+- `backend/services/stripeService.js`:
+  - `bindBonzahAfterPayment()` success path now sends `insurance_policy_issued` to the customer with the bound `policy_no`, tier label, total charged, and effective dates.
+  - `bindBonzahAfterPayment()` failure path sends `insurance_bind_failed` to `OWNER_EMAIL` (recipient overridden by mutating the nested `customer.email` on the payload — same pattern used elsewhere). Includes booking code, customer details, vehicle, tier, quote_id, premium, and a deep link to `/bookings/:id` in the dashboard.
+
+- `backend/services/notifyService.js`:
+  - `buildMergeFields()` adds Bonzah-specific fields: `bonzah_policy_no`, `bonzah_quote_id`, `bonzah_tier_id`, `bonzah_tier_label`, `bonzah_premium`, `bonzah_total_charged`, `bonzah_coverage_summary` (comma-joined coverage type strings), and a generic `dashboard_link`.
+  - `STAGE_CTA` adds `insurance_policy_issued` (gold "View My Booking" → portal). `insurance_bind_failed` is admin-only — no CTA.
+  - `EVENT_SUMMARIES` adds both new stages.
+
+- `backend/services/fallbackTemplates.js` — Adds two templates:
+  - `insurance_policy_issued` (channel: email) — confirmation with policy_no, tier label, total paid, effective dates.
+  - `insurance_bind_failed` (channel: email) — internal alert with quote_id, premium, customer info, and dashboard deep link. Surfaces "customer's Stripe charge HAS gone through. They are not aware of this failure" so admin priority is unambiguous.
+
+### Polling job
+- **NEW** `backend/jobs/bonzahPolling.js` — exports `runBonzahPolling()`:
+  - Respects the `bonzah_enabled` kill switch (returns `{skipped:true}` when off).
+  - Selects bookings with `bonzah_policy_id IS NOT NULL` AND `return_date >= now() - 7 days`. Skips terminal statuses (`cancelled`/`expired`/`bind_failed`).
+  - For each: calls `getPolicyStatus()` then `getCompletedEndorsements()`. Reconciles `insurance_status` based on `policy_status`/`endorsement_type`. Auto-flips `pending → active` when Bonzah issued a `policy_no` since last poll, and `active → expired` when the trip has ended without a cancel.
+  - Re-snapshots `bonzah_coverage_json` and `bonzah_policy_no` (in case manual ops at Bonzah changed them).
+  - Updates `bonzah_last_synced_at` on every successful pass — used by the dashboard "stale" indicator.
+  - Returns `{ ok, polled, skipped_terminal, changed, errors, results, ran_at }`.
+
+- `backend/routes/cron.js` — adds `GET /cron/bonzah-poll`. Same `verifyCron` Bearer guard as the other cron endpoints.
+
+- `backend/vercel.json` — third cron entry: `/api/v1/cron/bonzah-poll` on `*/15 * * * *` (every 15 minutes).
+
+### Verification
+- `node --check` clean across all modified backend files.
+- `import('./jobs/bonzahPolling.js')` resolves cleanly with the expected `runBonzahPolling` export.
+- Dashboard `npm run build` clean (2.95s, 3095 modules).
+
+### Behavior with `bonzah_enabled=false` (default)
+- Polling job no-ops with `{ skipped:true, reason:'bonzah_enabled=false' }` — zero Bonzah API calls.
+- Cancel hook never fires (booking has no `bonzah_policy_id`).
+- Bind-success / bind-failure notifications never fire (Stripe webhook never calls `bindBonzahAfterPayment`).
+
+### Action items before Phase 4
+- Apply migration 009 (if not yet applied) and seed bonzah_excluded_states with MI/NY/PA per brandon@bonzah.com (already in migration seed).
+- Set `BONZAH_*` env vars on backend Vercel project.
+- Set `OWNER_EMAIL` env var on backend Vercel project (if not already set) — `insurance_bind_failed` routes there.
+- Set `DASHBOARD_URL` env var (already present per .env.example) — populates `dashboard_link` merge field.
+
+### Next (Phase 4)
+- New `dashboard/src/pages/SettingsPage.jsx` Integrations tab (Bonzah card with kill switch, markup, tier editor, recent activity log, Test Connection button).
+- Rebuild [BookingDetailPage.jsx#L637](dashboard/src/pages/BookingDetailPage.jsx#L637) Insurance section with live policy panel, Refresh button, Cancel button, PDF download links.
+
+---
+
+## 2026-05-01 — Bonzah Insurance Integration · Phase 2 (customer wizard + live quote/bind)
+
+**Scope:** Replaces Annie's-branded insurance tiers (basic/standard/premium) with a real Bonzah REST integration. Customer wizard now shows three Bonzah tiers (Essential / Standard / Complete), fetches live pricing per tier, persists the quote + markup on the booking, and the Stripe webhook auto-binds the policy after charge succeeds.
+
+**Phase 1 prerequisite:** Migration 009 must be applied AND `bonzah_enabled=true` set in the `settings` table for the customer-facing path to render. Until then, the wizard auto-falls-through to the "use my own insurance" path with no UI degradation.
+
+### Backend
+- `backend/services/bonzahService.js` — Replaces Phase 1 stubs with real implementations:
+  - `buildQuoteBody(booking, customer, coverages, opts)` — translates DB shape → Bonzah's MM/DD/YYYY HH:mm:ss + 11-digit phone + full state names. Defaults pickup to Florida / America/New_York when booking lacks the columns. Adds `inspection_done: 'Rental Agency'` whenever CDW is selected.
+  - `getQuote(booking, customer, tierId, opts)` — POST `/Bonzah/quote` with `finalize:0`. Maps tier → coverage flags via `tierToCoverages()` (reads `settings.bonzah_tiers`). Returns `{ quote_id, premium_cents, total_amount, coverage_information, raw }`.
+  - `bindPolicy(booking, customer, tierId, bookingId)` — Two-call bind: POST `/Bonzah/quote` with `finalize:1` (locks quote, returns `payment_id`), then POST `/Bonzah/payment` (issues `policy_no`). Throws `BonzahError` on either step.
+  - `expandStateAbbrev()` private helper — Bonzah requires "Florida" not "FL".
+  - `BonzahError` re-exported from `services/bonzahService.js` so route handlers don't import `utils/`.
+
+- **NEW** `GET /api/v1/bookings/insurance/config` (public) — Returns `{ enabled, tiers, markup_percent, excluded_states, pai_excluded_states }` from the `settings` table. Customer wizard hits this on Insurance step mount. No secrets, no customer data — safe unauthed.
+
+- **NEW** `POST /api/v1/bookings/:code/insurance/quote` (public) — Body `{ tier_id }`. Calls `getQuote()`, applies markup, persists `bonzah_tier_id`, `bonzah_quote_id`, `bonzah_premium_cents`, `bonzah_markup_cents`, `bonzah_coverage_json`, `bonzah_quote_expires_at` (now+24h). Returns the quote shape to client. Returns 503 when `bonzah_enabled=false`. Reuses existing fresh quote (same tier, expiry > now) without round-tripping Bonzah.
+
+- **REWRITTEN** `PATCH /api/v1/bookings/:code/insurance` — three branches:
+  - `source:'bonzah' + tier_id` → requires a fresh quote already on the booking (returns 409 `STALE_QUOTE` if missing/expired); sets `insurance_provider='bonzah'`, `insurance_status='pending'`. The actual bind happens after Stripe charge.
+  - `source:'own'` → unchanged conceptually; now also clears any stale Bonzah quote columns to prevent accidental binding.
+  - `bonzah_policy_number` legacy admin-paste flow preserved for back-compat.
+
+- `backend/services/pricingService.js`:
+  - **REMOVED** `INSURANCE_TIERS` constant (Annie's basic/standard/premium tiers).
+  - **CHANGED** `calcInsuranceCost(booking)` — now takes a single booking record and reads `bonzah_premium_cents + bonzah_markup_cents` directly. Old signature `(source, tier, days)` removed; both call sites in `stripeService.js` updated.
+
+- `backend/services/stripeService.js`:
+  - `createPaymentIntent(bookingCode, { expected_total_cents })` — drops the obsolete `insurance_selection` parameter. Insurance state lives on the booking row now (set by the wizard's `/insurance/quote` call before checkout).
+  - **NEW** `bindBonzahAfterPayment(bookingId)` private helper — fired after `payment_intent.succeeded` in both webhook + `confirmPayment()` (idempotent: skips when `bonzah_policy_no` already present, or `insurance_status='bind_failed'`). On success: sets `insurance_status='active'`, persists `bonzah_policy_id`, `bonzah_policy_no`, `bonzah_total_charged_cents`, `insurance_policy_number = policy_no`, `bonzah_last_synced_at`. On failure: marks `bind_failed`, creates a `bonzah_bind_failed` dashboard notification linking to the booking. Stripe charge is NOT reversed — admin reconciles via the runbook (Phase 4).
+
+### Customer site
+- `src/components/booking/confirm-booking/constants.ts`:
+  - **REMOVED** `INSURANCE_TIERS` const.
+  - **NEW** types: `BonzahTier`, `BonzahConfig`, `BonzahQuote`.
+  - **NEW** `BONZAH_COVERAGE_LABELS` map (CDW / RCLI / SLI / PAI bullet copy).
+  - **NEW** `BONZAH_DISCLOSURE_TEXT` + `BONZAH_DISCLOSURE_LINKS` — verbatim copy from Bonzah's `legal.md`, required above the purchase CTA.
+  - `WizardDraft.insuranceChoice`: `'own'|'annies'|null` → `'own'|'bonzah'|null`. Replaced `anniesTier` field with `bonzahTierId` + `bonzahQuote` (cached quote so `OrderSummary` doesn't need a second fetch).
+
+- **REWRITTEN** `src/components/booking/confirm-booking/wizard-steps/InsuranceStep.tsx`:
+  - Loads `/bookings/insurance/config` on mount.
+  - Three Bonzah tier cards rendered from settings (Standard pre-selected with "Recommended" badge). Hides Complete tier when pickup state ∈ `pai_excluded_states`. Hides entire Bonzah path when state ∈ `excluded_states` (MI/NY/PA per brandon@bonzah.com), driver age < 21, or `bonzah_enabled=false` — falls through to "I have my own insurance".
+  - Auto-fetches a draft quote for the default tier on mount; re-quotes silently on tier change. Per-tier loading spinner.
+  - Bonzah logo + mandatory legal disclosure rendered below cards with three external links.
+  - Uses existing `src/assets/bonzah-logo.svg` (already present from prior work — no new asset).
+
+- `src/components/booking/confirm-booking/wizard-steps/OrderSummary.tsx`:
+  - Insurance line now reads `draft.bonzahQuote.total_cents` and labels with capitalized tier id ("Bonzah Insurance — Standard (7 days)"). Removed dependency on `INSURANCE_TIERS`.
+
+- `src/components/booking/ConfirmBooking.tsx`:
+  - Drops `INSURANCE_TIERS` import.
+  - Inline insurance-cost math (used for `grandTotal` display + Stripe Elements amount) reads from `draft.bonzahQuote`.
+  - PATCH `/insurance` payload sends `{ source: 'bonzah'|'own', tier_id? }` (was `{ source: 'annies', tier }`).
+  - PaymentIntent POST drops `insurance_selection` body field.
+  - Passes `bookingCode` and `pickupState` to `InsuranceStep` (required for the new live-quote endpoint and for state-exclusion lookup).
+
+### Live sandbox verification (2026-05-01)
+- Draft quote against Bonzah sandbox using the exact field shape `buildQuoteBody()` produces (Florida, 7 days, age 41, CDW+RCLI+SLI / Standard tier): `status:0`, `total_premium:$492.17`, `quote_id:Q000000041573`, `policy_id:P000000041573`. With 10% markup → $541.39 customer-facing.
+- Customer site `npm run build`: clean (2138 modules, 2.01s).
+- Dashboard `npm run build`: clean (3095 modules, 3.02s).
+
+### Blast radius
+- **Backend:** 4 files modified (`services/bonzahService.js`, `routes/bookings.js`, `services/pricingService.js`, `services/stripeService.js`). All idempotent and behind `bonzah_enabled` flag.
+- **Customer site:** 4 files modified (`constants.ts`, `InsuranceStep.tsx`, `OrderSummary.tsx`, `ConfirmBooking.tsx`).
+- **Dashboard:** untouched in Phase 2 — admin BookingDetailPage still shows the legacy Bonzah-policy field (Phase 4 will rebuild it).
+- **Schema:** untouched — Phase 1 migration 009 already added the columns.
+
+### Behavior with `bonzah_enabled=false` (default)
+- `GET /bookings/insurance/config` returns `{ enabled: false }` — InsuranceStep auto-hides the Bonzah path; customer goes through "use my own insurance" only.
+- `POST /bookings/:code/insurance/quote` returns 503.
+- `bindBonzahAfterPayment()` no-ops on bookings without `insurance_provider='bonzah'`.
+- Existing bookings unaffected (no schema change since 009).
+
+### Next (Phase 3 — polling + lifecycle)
+- `backend/jobs/bonzahPolling.js` (Vercel Cron, every 15min) — reconcile `insurance_status` against `/Bonzah/policy`.
+- Cancellation flow → call `cancelPolicy()` from `bookingService` cancel handler.
+- Date-extension flow → `extendPolicy()` + `payEndorsement()` + Stripe delta charge.
+- Two new notification stages: `insurance_policy_issued`, `insurance_bind_failed` (templates).
+
+---
+
+## 2026-05-01 — Bonzah Insurance Integration · Phase 1 (backend foundation, no customer-visible change)
+
+**Scope:** Foundation for replacing the broken Annie's-branded insurance flow with a direct Bonzah REST API integration. Phase 1 only — adds schema, HTTP client, service layer, and an admin health-check endpoint. **No customer wizard changes yet.** Customer-side work lands in Phase 2 (per `BONZAH_INTEGRATION` prompt in this conversation).
+
+### Schema
+- **NEW** `backend/db/migrations/009_bonzah_integration.sql` — idempotent migration. Adds 8 columns to `bookings` (`bonzah_tier_id`, `bonzah_quote_id`, `bonzah_policy_no`, `bonzah_premium_cents`, `bonzah_markup_cents`, `bonzah_total_charged_cents`, `bonzah_coverage_json`, `bonzah_quote_expires_at`, `bonzah_last_synced_at`). `bonzah_policy_id` already existed from 001 — preserved unchanged. Creates `bonzah_events` (audit log, indexed on booking_id + recent + errors-only) and a generic `settings` k/v table (with auto-update trigger). Seeds `bonzah_enabled=false`, `bonzah_markup_percent=10`, `bonzah_tiers` JSON (essential/standard/complete; standard default+recommended), `bonzah_pai_excluded_states=[]`, `bonzah_excluded_states=[]`. **Apply via Supabase SQL editor before Phase 2.**
+
+### Backend services
+- **NEW** `backend/utils/bonzah.js` — HTTP client with `BonzahError` class. Re-auths on every call (POST `/api/v1/auth` → 15-min token, no caching). 15s fetch timeout. One retry on 5xx for GET/DELETE only — POSTs that bind/charge are NOT auto-retried (no idempotency key support from Bonzah). Every call writes one `bonzah_events` row including duration_ms; password is redacted from stored requests. Throws when `data.status !== 0`.
+- **NEW** `backend/services/bonzahService.js` — Business logic + Bonzah field translation. `getSetting()`, `tierToCoverages()`, `formatPhone()` (normalizes to 11 digits, prefixes "1" for US 10-digit), `formatDateOnly()` / `formatDateTime()` (Bonzah MM/DD/YYYY format), `computeAge()`, `validateBookingForBonzah()` (enforces age ≥ 21 and SLI-requires-RCLI). API ops: `getMaster()`, `getPolicyStatus()`, and `healthCheck()` — used now. `getQuote()`, `bindPolicy()`, `cancelPolicy()`, `extendPolicy()`, `payEndorsement()` are stubbed for Phase 2/3 (throw with clear "lands in Phase N" messages).
+
+### Admin endpoint
+- **NEW** `backend/routes/bonzah.js` — `GET /api/v1/admin/bonzah/health`, gated by `requireAuth + requireRole('owner','admin')`. Authenticates against Bonzah, fetches the master states list, returns `{ ok, duration_ms, states_returned, base_url }` or `{ ok:false, error, http_status, ... }`. Returns 200 even on Bonzah failure so the dashboard "Test Connection" button can show the underlying message.
+- `backend/server.js` — Mounted under `/api/v1/admin/bonzah`. New imports + `app.use()` line; nothing else touched.
+
+### Config
+- `backend/.env.example` — Adds `BONZAH_API_BASE_URL` (defaults to sandbox `https://bonzah.sb.insillion.com`), `BONZAH_EMAIL`, `BONZAH_PASSWORD`. **Production base URL pending — contact brandon@bonzah.com.**
+
+### Live sandbox verification (2026-05-01)
+- `POST /api/v1/auth` against sandbox with provided creds → `status:0`, token issued, 246ms.
+- `POST /api/v1/Bonzah/master` (states/US) with token → 47 states returned.
+- **Confirmed by brandon@bonzah.com (2026-05-01):** Michigan, New York, Pennsylvania are full Bonzah exclusions. Seed in `009_bonzah_integration.sql` updated to pre-populate `bonzah_excluded_states = ["Michigan","New York","Pennsylvania"]`. If migration already applied, run: `UPDATE settings SET value = '["Michigan","New York","Pennsylvania"]'::jsonb WHERE key = 'bonzah_excluded_states';`
+
+### Blast radius
+- 5 new files, 2 modified (`backend/server.js` + `backend/.env.example`). No existing route handlers, services, or UI components touched. Zero risk to live booking flow with `bonzah_enabled=false` (the default seed). Migration is idempotent (`IF NOT EXISTS` everywhere) and safe to re-run.
+
+### Next (Phase 2)
+- Customer wizard tier UI in `src/components/booking/confirm-booking/wizard-steps/InsuranceStep.tsx`
+- `POST /bookings/:code/insurance/quote` endpoint
+- Implement `getQuote()` + `bindPolicy()` in `bonzahService.js`
+- Wire bind into Stripe `handlePaymentSuccess()` webhook
+- Get user signoff on Phase 1 sandbox health-check before starting
+
+---
+
 ## 2026-04-28 — Follow-ups: pending_inspections + QuickActionModal + Stripe card-on-file rollout
 
 **Scope:** Three closing items per spec. 8 files modified, 4 new (1 migration, 1 backend service, 2 dashboard components). All Stripe card-on-file behavior is gated by env var `FEATURE_AUTO_OVERAGE_CHARGES=true`; with the flag off, every new path is a no-op.

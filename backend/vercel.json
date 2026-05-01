@@ -17,6 +17,10 @@
     {
       "path": "/api/v1/cron/process-overage-charges",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/v1/cron/bonzah-poll",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

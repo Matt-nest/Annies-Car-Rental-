@@ -1,6 +1,6 @@
 import React from 'react';
 import { Receipt, Shield, Car, Calendar, DollarSign } from 'lucide-react';
-import { formatCurrency, formatDate, INSURANCE_TIERS, type WizardDraft } from '../constants';
+import { formatCurrency, formatDate, type WizardDraft } from '../constants';
 
 interface Props {
   bookingSummary: any;
@@ -12,15 +12,15 @@ interface Props {
 export default function OrderSummary({ bookingSummary: bs, draft, depositAmount, theme }: Props) {
   const rentalDays = bs?.rentalDays || 1;
 
-  // Calculate insurance cost
+  // Calculate insurance cost from the Bonzah quote stored on the draft
   let insuranceCost = 0;
   let insuranceLabel = 'No coverage selected';
-  if (draft.insuranceChoice === 'annies' && draft.anniesTier) {
-    const tier = INSURANCE_TIERS.find(t => t.key === draft.anniesTier);
-    if (tier) {
-      insuranceCost = tier.dailyRate * rentalDays;
-      insuranceLabel = `${tier.name} (${formatCurrency(tier.dailyRate)}/day × ${rentalDays} days)`;
-    }
+  if (draft.insuranceChoice === 'bonzah' && draft.bonzahQuote) {
+    insuranceCost = draft.bonzahQuote.total_cents / 100;
+    const tierLabel = draft.bonzahTierId
+      ? draft.bonzahTierId.charAt(0).toUpperCase() + draft.bonzahTierId.slice(1)
+      : 'Bonzah';
+    insuranceLabel = `Bonzah Insurance — ${tierLabel} (${rentalDays} day${rentalDays === 1 ? '' : 's'})`;
   } else if (draft.insuranceChoice === 'own') {
     insuranceLabel = 'Your own insurance — no charge';
   }
