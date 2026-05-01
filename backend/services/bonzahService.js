@@ -142,6 +142,46 @@ export function formatDateTime(date, time) {
 }
 
 /**
+ * Read the current wall-clock time in Annie's local TZ as MM/DD/YYYY HH:mm:ss.
+ * Used to clamp trip_start_date when the booking's pickup is already past — Bonzah
+ * validates the full datetime, not just the date.
+ */
+function nowInLocalTz() {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: DEFAULT_TIMEZONE,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date());
+  const get = (t) => parts.find(p => p.type === t)?.value;
+  let hour = get('hour');
+  if (hour === '24') hour = '00'; // Some Node ICU builds emit 24 for midnight
+  return `${get('month')}/${get('day')}/${get('year')} ${hour}:${get('minute')}:${get('second')}`;
+}
+
+/**
+ * Returns true if the booking's pickup datetime (in Annie's local TZ) is already
+ * earlier than wall-clock now. Compares ISO-style strings — both are constructed
+ * in the same TZ so lexical compare is correct.
+ */
+function pickupIsPast(pickupDate, pickupTime) {
+  if (!pickupDate || !pickupTime) return false;
+  const t = pickupTime.length === 5 ? `${pickupTime}:00` : pickupTime;
+  const pickupIso = `${pickupDate}T${t}`;
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: DEFAULT_TIMEZONE,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date());
+  const get = (k) => parts.find(p => p.type === k)?.value;
+  let hour = get('hour');
+  if (hour === '24') hour = '00';
+  const nowIso = `${get('year')}-${get('month')}-${get('day')}T${hour}:${get('minute')}:${get('second')}`;
+  return pickupIso < nowIso;
+}
+
+/**
  * Compute age in whole years from a date_of_birth (YYYY-MM-DD or Date).
  */
 export function computeAge(dob, asOf = new Date()) {
@@ -229,12 +269,14 @@ export function buildQuoteBody(booking, customer, coverages, { finalize = 0, quo
   // Vehicle metadata for Bonzah's premium calc (optional but improves quote accuracy)
   const vehicle = booking.vehicles || {};
 
-  // Bonzah rejects past trip_start_date with "Invalid Policy Start date — Kindly select today's
-  // <date> or any date in the future." Insurance can't be backdated, so for any pickup that's
-  // already happened (day-of booking, late wizard completion, or stale test data), clamp the
-  // start to today in Annie's local TZ. trip_end_date is left as-is (Bonzah accepts future ends).
-  const todayLocal = new Date().toLocaleDateString('en-CA', { timeZone: DEFAULT_TIMEZONE }); // YYYY-MM-DD
-  const effectivePickupDate = booking.pickup_date < todayLocal ? todayLocal : booking.pickup_date;
+  // Bonzah rejects past trip_start_date (validates datetime, not just date) with
+  // "Invalid Policy Start date — Kindly select today's <date> or any date in the future."
+  // Insurance can't be backdated. If the booking's full pickup datetime is already past
+  // (common: day-of bookings where the wizard runs after pickup_time, or stale test data),
+  // send "now" in Annie's local TZ. trip_end_date is left as-is.
+  const trip_start_date = pickupIsPast(booking.pickup_date, booking.pickup_time)
+    ? nowInLocalTz()
+    : formatDateTime(booking.pickup_date, booking.pickup_time);
 
   return {
     quote_id,
@@ -242,7 +284,7 @@ export function buildQuoteBody(booking, customer, coverages, { finalize = 0, quo
     source: 'API',
 
     // Trip details
-    trip_start_date: formatDateTime(effectivePickupDate, booking.pickup_time),
+    trip_start_date,
     trip_end_date: formatDateTime(booking.return_date, booking.return_time),
     pickup_country: pickupCountry,
     pickup_state: pickupState,

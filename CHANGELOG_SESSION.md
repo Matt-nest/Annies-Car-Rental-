@@ -5,6 +5,22 @@
 
 ---
 
+## 2026-05-01 — fix: clamp Bonzah trip_start_date by datetime, not just date
+
+**Root cause:** Earlier today's clamp compared **dates** only. The booking under test had `pickup_date='2026-05-01'` (today) at `pickup_time='10:00:00'` ET — dates equal → no clamp → `trip_start_date='05/01/2026 10:00:00'` sent to Bonzah at 19:15 ET → Bonzah rejected because the **datetime** was 9 hours in the past. Live audit log confirmed: 6 quote attempts, all returning Bonzah `status: -201` "Invalid Policy Start date".
+
+### Fix
+- `backend/services/bonzahService.js` — replaced the date-only clamp in `buildQuoteBody` with a full datetime check.
+  - Added `pickupIsPast(date, time)` helper that constructs an ISO-style timestamp in `DEFAULT_TIMEZONE` (Eastern) for both pickup and now, and compares lexically.
+  - Added `nowInLocalTz()` helper that returns current ET time formatted as `MM/DD/YYYY HH:mm:ss` (Bonzah's expected shape).
+  - When `pickupIsPast()` returns true (day-of bookings completed after the pickup_time, or stale test data), `trip_start_date` is set to "now" in ET. Otherwise the booking's pickup_date+pickup_time pass through unchanged.
+
+### Verification
+- Smoke-tested helpers locally: `nowInLocalTz()` returns `05/01/2026 19:18:06`, `pickupIsPast('2026-05-01', '10:00:00')` returns `true`, `pickupIsPast('2026-05-02', '10:00:00')` returns `false`, `pickupIsPast('2025-12-01', '10:00:00')` returns `true`.
+- After deploy, retry the customer wizard. Expect a successful quote (and a `quote` row in `bonzah_events` with `status: 0`).
+
+---
+
 ## 2026-05-01 — fix: clamp Bonzah trip_start_date to today when pickup is in the past
 
 **Root cause:** Bonzah's `/Bonzah/quote` endpoint rejects `trip_start_date` values in the past with `Invalid Policy Start date - Kindly select today's <date> or any date in the future.` `buildQuoteBody` in `bonzahService.js` was sending `booking.pickup_date` verbatim. Hits in three scenarios: (1) test bookings with stale pickup dates, (2) genuine day-of-pickup wizard completion where the customer's already past the listed pickup_time, (3) any late completion of the wizard after the booked pickup window passed.
