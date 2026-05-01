@@ -54,8 +54,10 @@ async function authenticate() {
     httpStatus = res.status;
     body = await res.json().catch(() => null);
 
-    if (!res.ok || !body || body.status !== 0 || !body.token) {
-      errorText = body?.txt || `HTTP ${res.status}`;
+    // Bonzah nests the token inside `data`: { status: 0, txt, data: { token, ... } }
+    const token = body?.data?.token;
+    if (!res.ok || !body || body.status !== 0 || !token) {
+      errorText = body?.txt || (body && body.status === 0 ? 'No token in response (data.token missing)' : `HTTP ${res.status}`);
       throw new BonzahError(`Bonzah auth failed: ${errorText}`, {
         httpStatus,
         bonzahStatus: body?.status,
@@ -64,14 +66,14 @@ async function authenticate() {
       });
     }
 
-    return body.token;
+    return token;
   } finally {
     // Audit log — redact password in stored request
     await logEvent({
       booking_id: null,
       event_type: 'auth',
       request_json: { email: BONZAH_EMAIL, pwd: '***REDACTED***' },
-      response_json: body ? { status: body.status, txt: body.txt, token: body.token ? '***PRESENT***' : null } : null,
+      response_json: body ? { status: body.status, txt: body.txt, token: body?.data?.token ? '***PRESENT***' : null } : null,
       status_code: httpStatus,
       duration_ms: Date.now() - start,
       error_text: errorText,

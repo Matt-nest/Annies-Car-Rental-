@@ -5,6 +5,31 @@
 
 ---
 
+## 2026-05-01 — fix: bonzah auth — read token from body.data.token, not body.token
+
+**Root cause:** `authenticate()` in `backend/utils/bonzah.js` checked `body.token` and returned `body.token`. Bonzah actually nests the token at `body.data.token`. The auth call returned HTTP 200 + `status: 0` (success) with a real token — but our code never saw it, threw `Bonzah auth failed: HTTP 200`, and every downstream Bonzah call therefore broke (Test Connection, /admin/bonzah/health, /events, /settings GETs that proxy through Bonzah).
+
+The bug was present from Phase 1 (`4a3e25b`) but never fired in production because the admin routes weren't mounted on the serverless entry point. After today's earlier fixes (route mount + Hobby-cron cleanup), this bug surfaced as the first real exercise of the auth path.
+
+Verified by direct `curl POST https://bonzah.sb.insillion.com/api/v1/auth` with the production sandbox creds — Bonzah returns:
+```json
+{ "status": 0, "txt": "", "data": { "email": "...", "token": "...", ... } }
+```
+`bonzahService.js:570` already reads `res?.data` correctly elsewhere; only `authenticate()` was misreading the shape.
+
+### Fix
+- `backend/utils/bonzah.js` — extract token from `body?.data?.token`. Updated:
+  - L57-58: pull token before the validation expression.
+  - L60: friendlier fallback error text when `body.txt` is empty and `status === 0` ("No token in response (data.token missing)").
+  - L69: `return token` (was `return body.token`).
+  - L76: audit log token-presence check now reads `body?.data?.token`.
+
+### Verification
+- `node --check backend/utils/bonzah.js` clean.
+- After deploy, "Test Connection" on Settings → Integrations should succeed (green checkmark instead of "Bonzah auth failed: HTTP 200" banner).
+
+---
+
 ## 2026-05-01 — fix: remove bonzah-poll cron (Vercel Hobby 1-cron limit)
 
 **Root cause:** Commit `32407ad` added `/api/v1/cron/bonzah-poll` to `dashboard/vercel.json` alongside the existing `/api/v1/cron/daily`. The project is on Vercel Hobby tier, which caps cron jobs at **1 per project**. Vercel rejected the deploy at config-validation time and (per the deploy list) never even produced a Failed entry — the webhook event for `32407ad` produced no deployment record at all, leaving the broken `4a3e25b` build live as Production: Current. Bonzah admin routes therefore stayed 404 in production.
