@@ -5,6 +5,30 @@
 
 ---
 
+## 2026-05-01 — fix: bonzah admin routes + polling cron not deployed to production
+
+**Root cause:** The repo has TWO Express entry points:
+- `backend/server.js` — local dev only (used when running `npm run dev` against the backend directly).
+- `backend/api/index.js` — the production serverless entry point that Vercel actually runs (mounted via `dashboard/api/[...path].js`).
+
+Phases 1–5 added `bonzahRoutes` to `backend/server.js` only. Result: every `/api/v1/admin/bonzah/*` endpoint returned 404 in production. Surfaced via the dashboard Settings → Integrations tab where `[Bonzah] events load failed: GET /api/v1/admin/bonzah/events not found`. The customer wizard worked fine because `/api/v1/bookings/insurance/config` lives inside `routes/bookings.js` (already imported by both entry points).
+
+Same drift pattern applied to the polling cron — Phase 3 added the `*/15 * * * *` schedule to `backend/vercel.json`, but Vercel only reads `dashboard/vercel.json` for this project. Effect: the every-15-min reconciliation job was never firing.
+
+### Fix
+- `backend/api/index.js` — added `import bonzahRoutes from '../routes/bonzah.js'` + `app.use('/api/v1/admin/bonzah', bonzahRoutes)` mirroring `backend/server.js`.
+- `dashboard/vercel.json` — added the `/api/v1/cron/bonzah-poll` cron entry (every 15 min).
+
+### Verification
+- `node --check backend/api/index.js` clean.
+- `cd dashboard && npm run build` clean.
+- After deploy, `curl https://admin.dashboard.anniescarrental.com/api/v1/admin/bonzah/health` should return 401 (auth required) instead of 404 — confirming the route exists.
+
+### Note on `backend/vercel.json`
+That file appears to be unused in production. The two entries already there (`/cron/daily` and `/cron/process-overage-charges`) are also defined in `dashboard/vercel.json`, so they fire correctly. Leaving `backend/vercel.json` in place but flagging that it's drift-prone — future cron additions should be made in `dashboard/vercel.json`.
+
+---
+
 ## 2026-05-01 — Bonzah Insurance Integration · Phase 5 (PDF proxy + tier editor + runbook)
 
 **Scope:** Closes the Phase 4 gaps. Per-coverage PDF downloads work end-to-end. Settings page now has a JSON tier editor with schema validation (replaces "edit via SQL only"). Operations runbook documents kill switch, reconciliation, credential rotation, and sandbox→prod cutover.
