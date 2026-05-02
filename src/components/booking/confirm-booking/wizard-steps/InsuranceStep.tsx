@@ -250,6 +250,25 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
         </div>
       )}
 
+      {/* Aggregate-failure banner — shows when every visible tier failed to load.
+          Surfaces the underlying Bonzah error message instead of silent "Unavailable" pills. */}
+      {bonzahAvailable
+        && visibleTiers.length > 0
+        && visibleTiers.every(t => tierErrors[t.id])
+        && !visibleTiers.some(t => tierLoading[t.id]) && (
+        <div className="rounded-xl border p-3 text-xs flex items-start gap-2"
+          style={{ backgroundColor: 'rgba(239,68,68,0.08)', borderColor: 'rgba(239,68,68,0.25)', color: '#ef4444' }}>
+          <AlertCircle size={14} className="shrink-0 mt-0.5" />
+          <div className="min-w-0">
+            <p className="font-semibold">Bonzah pricing is unavailable for this booking.</p>
+            <p className="opacity-90 mt-0.5 break-words">
+              {tierErrors[visibleTiers[0].id]}
+            </p>
+            <p className="opacity-75 mt-1">You can continue with your own insurance below.</p>
+          </div>
+        </div>
+      )}
+
       {/* Bonzah path — 3 tier cards */}
       {bonzahAvailable && (
         <div className="rounded-xl border overflow-hidden"
@@ -322,7 +341,13 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
                         {isLoading ? (
                           <Loader2 className="animate-spin" size={16} style={{ color: 'var(--accent-color)' }} />
                         ) : tierError ? (
-                          <p className="text-[11px]" style={{ color: '#ef4444' }}>Unavailable</p>
+                          <p
+                            className="text-[10px] max-w-[140px] leading-tight"
+                            style={{ color: '#ef4444' }}
+                            title={tierError}
+                          >
+                            Unavailable
+                          </p>
                         ) : perDay != null ? (
                           <>
                             <p className="font-bold text-base leading-tight" style={{ color: 'var(--accent-color)' }}>

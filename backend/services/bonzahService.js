@@ -142,22 +142,30 @@ export function formatDateTime(date, time) {
 }
 
 /**
- * Read the current wall-clock time in Annie's local TZ as MM/DD/YYYY HH:mm:ss.
- * Used to clamp trip_start_date when the booking's pickup is already past — Bonzah
- * validates the full datetime, not just the date.
+ * Read the current wall-clock time in Annie's local TZ as MM/DD/YYYY HH:mm:ss,
+ * shifted forward by `offsetMinutes`. Used to clamp trip_start_date when the
+ * booking's pickup is already past — Bonzah validates the full datetime, and a
+ * non-zero buffer is required because clock skew + their server-side processing
+ * delay otherwise lands "now" in their past, triggering "Invalid Policy Start date".
  */
-function nowInLocalTz() {
+function nowInLocalTz(offsetMinutes = 0) {
+  const target = new Date(Date.now() + offsetMinutes * 60 * 1000);
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: DEFAULT_TIMEZONE,
     year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit', second: '2-digit',
     hour12: false,
-  }).formatToParts(new Date());
+  }).formatToParts(target);
   const get = (t) => parts.find(p => p.type === t)?.value;
   let hour = get('hour');
   if (hour === '24') hour = '00'; // Some Node ICU builds emit 24 for midnight
   return `${get('month')}/${get('day')}/${get('year')} ${hour}:${get('minute')}:${get('second')}`;
 }
+
+// Buffer when clamping past pickups to "now" — defends against clock skew + Bonzah
+// processing latency. 10 min is well past any realistic round-trip + their internal
+// validation delay, and irrelevant to the customer (they can't drive earlier anyway).
+const PAST_PICKUP_BUFFER_MIN = 10;
 
 /**
  * Returns true if the booking's pickup datetime (in Annie's local TZ) is already
@@ -275,7 +283,7 @@ export function buildQuoteBody(booking, customer, coverages, { finalize = 0, quo
   // (common: day-of bookings where the wizard runs after pickup_time, or stale test data),
   // send "now" in Annie's local TZ. trip_end_date is left as-is.
   const trip_start_date = pickupIsPast(booking.pickup_date, booking.pickup_time)
-    ? nowInLocalTz()
+    ? nowInLocalTz(PAST_PICKUP_BUFFER_MIN)
     : formatDateTime(booking.pickup_date, booking.pickup_time);
 
   return {

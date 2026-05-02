@@ -5,6 +5,29 @@
 
 ---
 
+## 2026-05-01 — fix: 10-min buffer on Bonzah trip_start clamp + surface tier error messages
+
+**Why:** Audit log showed all three tier quotes still failing with "Invalid Policy Start date" even after the datetime clamp shipped. Live trace: we sent `trip_start_date: "05/01/2026 19:48:42"` (today, current ET to the second) — and Bonzah still rejected. Cause is clock skew + their server-side validation latency: by the time their stack evaluates "is this in the future?", our second-precise "now" has already passed.
+
+The customer-side UI was also showing only "Unavailable" with no message, so the failure was invisible without backend access.
+
+### Backend fix
+- `backend/services/bonzahService.js`:
+  - `nowInLocalTz(offsetMinutes)` now accepts a forward offset and shifts the formatted timestamp by that much before formatting.
+  - New constant `PAST_PICKUP_BUFFER_MIN = 10`. When the booking's pickup is already past, `trip_start_date` is clamped to "now + 10 minutes in ET" — well past any realistic clock-skew + Bonzah-side processing delay, and irrelevant to the customer (insurance can't start earlier than they actually drive). Same buffer applies at bind time since `buildQuoteBody` is shared.
+
+### Frontend UX fix
+- `src/components/booking/confirm-booking/wizard-steps/InsuranceStep.tsx`:
+  - Aggregate red banner above the tier cards when **every** visible tier failed and none are still loading. Surfaces the actual error text (e.g., the Bonzah message) so customers/admins know why and can continue with their own insurance.
+  - Per-card "Unavailable" pills now have a `title` tooltip with the underlying error so partial failures (some tiers fail, some succeed) aren't silent.
+
+### Verification
+- `node --check` clean.
+- `npm run build` clean (customer site, 11.24s).
+- After deploy: retry the wizard with the same booking. Expect successful quotes for all three tiers (trip_start now sent as e.g. "05/01/2026 19:58:00" instead of 19:48:42).
+
+---
+
 ## 2026-05-01 — feat: dedicated Insurance page in dashboard + drop both bonzah emails
 
 ### Why
