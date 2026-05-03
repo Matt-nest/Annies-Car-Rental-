@@ -5,6 +5,21 @@
 
 ---
 
+## 2026-05-03 — fix: PATCH /insurance re-quotes inline, eliminating parallel-fetch race
+
+**Why:** Customer hit `No fresh Bonzah quote for this tier. Refresh the wizard to re-quote.` at submit. Cause is a race introduced by the all-tiers-parallel UX refactor: `POST /insurance/quote` writes `bonzah_tier_id` + `bonzah_*_cents` to the booking row on every call, so when the wizard fetches Essential / Standard / Complete in parallel, the row reflects whichever of the three Bonzah responses landed last — not necessarily the tier the customer actually selected. PATCH `/insurance` then compared `booking.bonzah_tier_id === tier_id` and 409'd because they didn't match.
+
+### Fix
+- `backend/routes/bookings.js` — `PATCH /:code/insurance` for `source: 'bonzah'` is now authoritative: it re-quotes Bonzah inline for the selected tier_id, then writes `bonzah_tier_id` / `bonzah_quote_id` / `bonzah_premium_cents` / `bonzah_markup_cents` / `bonzah_coverage_json` / `bonzah_quote_expires_at` along with `insurance_provider='bonzah'` and `insurance_status='pending'`. Adds one Bonzah round-trip at submit (~300ms) but guarantees the locked-in numbers match what the customer picked. The Stripe `create-payment-intent` later reads these row fields, so the customer is charged the right amount.
+- Safe because `ConfirmBooking` calls `POST /agreements/:code/sign` immediately before this PATCH, which persists DOB / address / license to the customer record — `getQuote()` reads them without needing `customer_overrides`.
+- Removed the stale "haveFreshQuote" check + STALE_QUOTE 409 — no longer applicable.
+
+### Verification
+- `node --check backend/routes/bookings.js` clean.
+- After deploy: complete the wizard end-to-end. Submit should succeed (rather than 409). Booking row should show the correct tier the customer picked.
+
+---
+
 ## 2026-05-01 — fix: 10-min buffer on Bonzah trip_start clamp + surface tier error messages
 
 **Why:** Audit log showed all three tier quotes still failing with "Invalid Policy Start date" even after the datetime clamp shipped. Live trace: we sent `trip_start_date: "05/01/2026 19:48:42"` (today, current ET to the second) — and Bonzah still rejected. Cause is clock skew + their server-side validation latency: by the time their stack evaluates "is this in the future?", our second-precise "now" has already passed.

@@ -418,34 +418,60 @@ router.patch('/:code/insurance', asyncHandler(async (req, res) => {
   }
 
   if (source === 'bonzah') {
-    // Customer chose Bonzah — must have a fresh quote on file. /insurance/quote
-    // is what populates these fields; the wizard calls it on tier change.
+    // Customer chose Bonzah — re-quote inline for the selected tier so the booking
+    // row reflects what they actually picked. The wizard fetches all 3 tier quotes
+    // in parallel for the price-comparison UI; whichever Bonzah-API call lands last
+    // overwrites bonzah_tier_id / bonzah_*_cents on the row, so the row may not
+    // match the user's selection. Re-quoting here is authoritative + race-free.
+    //
+    // Safe at this point in the flow: ConfirmBooking calls POST /agreements/:code/sign
+    // immediately before this PATCH, which persists DOB / address / license to the
+    // customer record — so getQuote() can read them without customer_overrides.
     if (!tier_id) return res.status(400).json({ error: 'tier_id is required for Bonzah' });
 
-    const now = Date.now();
-    const expiresAt = booking.bonzah_quote_expires_at ? new Date(booking.bonzah_quote_expires_at).getTime() : 0;
-    const haveFreshQuote = booking.bonzah_tier_id === tier_id
-      && booking.bonzah_quote_id
-      && booking.bonzah_premium_cents
-      && expiresAt > now;
+    const enabled = await getSetting('bonzah_enabled', false);
+    if (!enabled) return res.status(503).json({ error: 'Bonzah is not currently available' });
 
-    if (!haveFreshQuote) {
-      return res.status(409).json({
-        error: 'No fresh Bonzah quote for this tier. Refresh the wizard to re-quote.',
-        code: 'STALE_QUOTE',
+    const { data: bookingFull, error: bfErr } = await supabase
+      .from('bookings')
+      .select('*, customers(*), vehicles(year, make, model)')
+      .eq('id', booking.id)
+      .single();
+    if (bfErr || !bookingFull) return res.status(404).json({ error: 'Booking not found' });
+
+    let quote;
+    try {
+      quote = await getQuote(bookingFull, bookingFull.customers, tier_id, {
+        existingQuoteId: bookingFull.bonzah_quote_id || '',
       });
+    } catch (e) {
+      if (e instanceof BonzahError) {
+        return res.status(502).json({ error: e.bonzahTxt || e.message, bonzah_status: e.bonzahStatus });
+      }
+      throw e;
     }
+
+    const markupPercent = Number(await getSetting('bonzah_markup_percent', 10));
+    const premiumCents = quote.premium_cents;
+    const markupCents = Math.round(premiumCents * markupPercent / 100);
+    const expiresAtIso = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
     const { error: updErr } = await supabase
       .from('bookings')
       .update({
         insurance_provider: 'bonzah',
         insurance_status: 'pending', // flips to 'active' after Stripe webhook binds
+        bonzah_tier_id: tier_id,
+        bonzah_quote_id: quote.quote_id,
+        bonzah_premium_cents: premiumCents,
+        bonzah_markup_cents: markupCents,
+        bonzah_coverage_json: quote.coverage_information,
+        bonzah_quote_expires_at: expiresAtIso,
       })
       .eq('id', booking.id);
     if (updErr) return res.status(500).json({ error: `Failed to record insurance choice: ${updErr.message}` });
 
-    console.log(`[Booking] Bonzah ${tier_id} selected for ${booking.booking_code} (premium ${booking.bonzah_premium_cents}c)`);
+    console.log(`[Booking] Bonzah ${tier_id} locked in for ${booking.booking_code} (premium ${premiumCents}c, markup ${markupCents}c)`);
     return res.json({ success: true, booking_code: booking.booking_code });
   }
 
