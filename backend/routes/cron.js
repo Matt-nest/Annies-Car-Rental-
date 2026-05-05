@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { supabase } from '../db/supabase.js';
 import { sendBookingNotification, buildBookingPayload } from '../services/notifyService.js';
+import { transitionBooking } from '../services/bookingService.js';
 
 const router = Router();
 
@@ -51,6 +52,7 @@ router.get('/daily', async (req, res) => {
     autoDeclined: 0, approvalReminders: 0,
     midRentalCheckins: 0, extensionOffers: 0,
     reviewRequests: 0, repeatCustomers: 0, lateEscalations: 0,
+    autoNoShows: 0,
   };
 
   try {
@@ -201,6 +203,33 @@ router.get('/daily', async (req, res) => {
     for (const b of escalated || []) {
       sendBookingNotification('late_return_escalation', buildBookingPayload(b));
       results.lateEscalations++;
+    }
+
+    // 10. Auto no-show — customer never picked up the car.
+    // Bookings sit at approved/confirmed/ready_for_pickup with actual_pickup_at
+    // null and pickup_date >= 1 day in the past. Without this, ghosted customers
+    // would silently block the calendar through their booked return_date.
+    // transitionBooking applies the layer-1 invariant from migration 010 — sets
+    // actual_return_at and clamps return_date — so the calendar frees the moment
+    // we no-show.
+    const noShowCutoff = daysAgo(1);
+    const { data: ghosted } = await supabase
+      .from('bookings')
+      .select('id, booking_code, status, pickup_date')
+      .in('status', ['approved', 'confirmed', 'ready_for_pickup'])
+      .is('actual_pickup_at', null)
+      .lte('pickup_date', noShowCutoff);
+
+    for (const b of ghosted || []) {
+      try {
+        await transitionBooking(b.id, 'no_show', {
+          changedBy: 'system',
+          reason: `Auto no-show — pickup_date ${b.pickup_date} elapsed with no actual_pickup_at recorded`,
+        });
+        results.autoNoShows++;
+      } catch (e) {
+        console.error(`[CRON/daily] auto-no-show failed for ${b.booking_code}:`, e.message);
+      }
     }
 
     // Process pending overage charges whose 48h dispute window has closed.
