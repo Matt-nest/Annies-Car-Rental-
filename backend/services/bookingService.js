@@ -11,9 +11,9 @@ import { cancelPolicy as cancelBonzahPolicy } from './bonzahService.js';
 // Valid one-way status transitions
 const TRANSITIONS = {
   pending_approval: ['approved', 'declined', 'cancelled'],
-  approved: ['confirmed', 'active', 'cancelled'],
-  confirmed: ['ready_for_pickup', 'active', 'cancelled'],
-  ready_for_pickup: ['active', 'cancelled'],
+  approved: ['confirmed', 'active', 'cancelled', 'no_show'],
+  confirmed: ['ready_for_pickup', 'active', 'cancelled', 'no_show'],
+  ready_for_pickup: ['active', 'cancelled', 'no_show'],
   active: ['returned', 'cancelled'],
   returned: ['completed'],
   completed: [],
@@ -57,6 +57,7 @@ export async function createBooking(payload) {
     id_photo_url,
     unlimited_miles, unlimited_tolls,
     rate_preference,
+    created_by_admin = false,
   } = payload;
 
   const validRatePref = ['daily', 'weekly', 'monthly'].includes(rate_preference) ? rate_preference : null;
@@ -232,6 +233,7 @@ export async function createBooking(payload) {
       insurance_status: insurance_status || 'pending',
       bonzah_policy_id,
       status: 'pending_approval',
+      created_by_admin: !!created_by_admin,
       special_requests: [
         delivery_type && delivery_type !== 'pickup' ? `Delivery type: ${delivery_type}` : '',
         validRatePref ? `Rate preference: ${validRatePref}` : '',
@@ -296,6 +298,23 @@ export async function transitionBooking(bookingId, newStatus, { changedBy = 'own
   if (newStatus === 'active') statusFields.actual_pickup_at = extraFields.actual_pickup_at || new Date().toISOString();
   if (newStatus === 'returned') statusFields.actual_return_at = extraFields.actual_return_at || new Date().toISOString();
 
+  // Invariant: a terminal off-the-road booking must never have a future return_date,
+  // or it ghost-blocks the vehicle calendar. Clamp return_date to today and backfill
+  // actual_return_at on the way to any terminal status.
+  let autoClampNote = null;
+  const TERMINAL_OFF_ROAD = ['returned', 'completed', 'cancelled', 'declined', 'no_show'];
+  if (TERMINAL_OFF_ROAD.includes(newStatus)) {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    if (!booking.actual_return_at && !statusFields.actual_return_at) {
+      statusFields.actual_return_at = new Date().toISOString();
+    }
+    const currentReturnDate = statusFields.return_date || booking.return_date;
+    if (currentReturnDate && currentReturnDate > todayStr) {
+      statusFields.return_date = todayStr;
+      autoClampNote = `auto-clamped return_date ${currentReturnDate} → ${todayStr} on transition to ${newStatus}`;
+    }
+  }
+
   // Cancellation: if a Bonzah policy is bound, file a cancel endorsement with
   // Bonzah BEFORE we flip the local row to 'cancelled'. This way if Bonzah
   // errors, we don't end up with an orphaned active policy and a cancelled
@@ -332,12 +351,16 @@ export async function transitionBooking(bookingId, newStatus, { changedBy = 'own
 
   if (updateErr) throw updateErr;
 
+  const loggedReason = autoClampNote
+    ? (reason ? `${reason} (${autoClampNote})` : autoClampNote)
+    : reason;
+
   await supabase.from('booking_status_log').insert({
     booking_id: bookingId,
     from_status: booking.status,
     to_status: newStatus,
     changed_by: changedBy,
-    reason,
+    reason: loggedReason,
   });
 
   // Send notification for status change (fire-and-forget)
@@ -385,4 +408,78 @@ export async function transitionBooking(bookingId, newStatus, { changedBy = 'own
   }
 
   return { success: true, booking_code: booking.booking_code, new_status: newStatus };
+}
+
+/**
+ * Apply a checkout override — admin force-unlocks the CheckOutTab when the
+ * renter never self-checked-out via the customer portal.
+ *
+ * Persists the override on the booking, stamps actual_return_at if missing,
+ * and writes a synthetic customer_checkout record so downstream code that
+ * gates on `checkin_records.record_type='customer_checkout'` keeps working.
+ *
+ * Booking status is intentionally NOT changed here — the admin still drives
+ * the checkout flow forward (CheckOutTab → recordCheckOut → eventually
+ * transitionBooking('returned')).
+ */
+export async function applyCheckoutOverride(bookingId, { reason, note, adminUserId }) {
+  const VALID_REASONS = [
+    'vehicle_returned_system_not_updated',
+    'renter_unreachable_or_abandoned',
+    'manual_reconciliation_after_incident',
+    'other',
+  ];
+  if (!VALID_REASONS.includes(reason)) {
+    const err = new Error(`Invalid checkout override reason: ${reason}`);
+    err.status = 400;
+    throw err;
+  }
+  if (reason === 'other' && !note?.trim()) {
+    const err = new Error('A note is required when override reason is "other"');
+    err.status = 400;
+    throw err;
+  }
+
+  const booking = await getBookingDetail(bookingId);
+  if (!['active', 'returned'].includes(booking.status)) {
+    const err = new Error(`Cannot override checkout for booking in status '${booking.status}'`);
+    err.status = 400;
+    throw err;
+  }
+
+  const nowIso = new Date().toISOString();
+  const updates = {
+    checkout_override_reason: reason,
+    checkout_override_note: note?.trim() || null,
+    checkout_override_by: adminUserId || 'admin',
+    checkout_override_at: nowIso,
+  };
+  if (!booking.actual_return_at) updates.actual_return_at = nowIso;
+
+  const { error: updateErr } = await supabase
+    .from('bookings')
+    .update(updates)
+    .eq('id', bookingId);
+  if (updateErr) throw updateErr;
+
+  // Synthesize a customer_checkout record so the CheckOutTab gate passes.
+  await supabase.from('checkin_records').insert({
+    booking_id: bookingId,
+    record_type: 'customer_checkout',
+    odometer: booking.return_mileage || null,
+    fuel_level: booking.return_fuel_level || null,
+    condition_notes: `[admin override: ${reason}]${note ? ` ${note}` : ''}`,
+    photo_urls: [],
+    created_by: adminUserId || 'admin',
+  });
+
+  await supabase.from('booking_status_log').insert({
+    booking_id: bookingId,
+    from_status: booking.status,
+    to_status: booking.status,
+    changed_by: adminUserId || 'admin',
+    reason: `Checkout override applied (reason=${reason}${note ? `; note=${note}` : ''})`,
+  });
+
+  return { success: true };
 }

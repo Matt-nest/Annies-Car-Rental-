@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { CheckCircle2, Home } from 'lucide-react';
+import { CheckCircle2, LayoutDashboard } from 'lucide-react';
 import { EASE, DURATION } from '../../../utils/motion';
 import Navbar from '../../layout/Navbar';
 import Footer from '../../layout/Footer';
@@ -119,12 +119,12 @@ export default function ConfirmedScreen({ refCode, scrollToSection }: ConfirmedS
             transition={{ delay: 0.95, ease: EASE.standard }}
           >
             <button
-              onClick={() => (window.location.href = '/')}
+              onClick={() => (window.location.href = `/portal?code=${encodeURIComponent(refCode)}`)}
               className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full font-medium transition-all duration-300 hover:scale-[1.03] hover:-translate-y-px active:scale-95 mt-4 cursor-pointer"
               style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
             >
-              <Home size={16} />
-              Back to Homepage
+              <LayoutDashboard size={16} />
+              Go to Customer Portal
             </button>
           </motion.div>
         </motion.div>

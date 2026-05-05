@@ -5,6 +5,175 @@
 
 ---
 
+## 2026-05-04 — Task 3 — feat: admin "New Booking" with continue-booking link
+
+**Why:** Admins couldn't start a booking on behalf of a walk-in / phoned-in customer. They needed to manually create one, capture vehicle + dates + basic customer info + add-ons, and send the customer a link to finish (sign, insurance, pay).
+
+**Files (6, +1 migration column):**
+- [backend/db/migrations/011_checkout_override.sql](backend/db/migrations/011_checkout_override.sql) — added `created_by_admin` BOOLEAN column to `bookings`. Same migration as Task 1.
+- [backend/services/bookingService.js](backend/services/bookingService.js) — `createBooking` now passes-through `created_by_admin` from payload (additive, default `false` so public submissions are unaffected) and writes it to the insert.
+- [backend/routes/bookings.js](backend/routes/bookings.js) — new `POST /bookings/admin-create` (auth required). Reuses `createBooking` with `source: 'admin'`, `created_by_admin: true`. Emails the customer a continue-booking link and returns `{ booking_id, booking_code, continue_url }` so the admin can copy/paste the link too.
+- [backend/services/emailService.js](backend/services/emailService.js) — new `sendContinueBookingEmail({ customer, booking, vehicle })`. Branded shell, gold CTA, link does not expire.
+- [backend/services/stripeService.js](backend/services/stripeService.js) — `payment_intent.succeeded` now auto-approves admin-created bookings (status `pending_approval` → `approved`) before the existing auto-confirm path runs. Customer payment ends with status `confirmed` and no manual approval click needed.
+- [dashboard/src/api/client.js](dashboard/src/api/client.js) — additive: `api.createAdminBooking(body)` and `api.getAvailableVehicles(start, end)`. No existing function modified.
+- [dashboard/src/components/bookings/NewBookingModal.jsx](dashboard/src/components/bookings/NewBookingModal.jsx) — new 5-step modal: Vehicle → Dates → Customer → Add-ons → Review. Vehicle list comes from `/vehicles/available?start=&end=` so we can't double-book. On submit, opens a success screen with the continue URL and a copy button.
+- [dashboard/src/pages/BookingsPage.jsx](dashboard/src/pages/BookingsPage.jsx) — added `+ New Booking` primary button in the top-right header next to Refresh, mounted the modal.
+
+**Reuse guarantees (per the spec):**
+- Same availability service the customer site uses → no parallel availability path, can't double-book.
+- Same wizard (`/booking?code=...`) → admin-created bookings finish through the exact path customer-created ones do. No new auth, no fork.
+- New email function only — no existing notification template was modified.
+
+**Continue link expires:** never. Per user direction.
+
+**Customer wizard:** unchanged. The existing `?code=` URL handling already pulls down agreement/customer defaults, so the customer walks address → license → terms → ack → signature → insurance → payment as normal. Admin captured name/email/phone is enough; the rest is the customer's.
+
+### Verification
+- `cd dashboard && npm run build` → clean (2.98s).
+- Customer site `npm run build` → clean (1.84s).
+- Backend modules `node --check` → OK.
+
+### Open items
+- Migration 011 still pending paste into Supabase SQL Editor — adds `created_by_admin` and the four `checkout_override_*` columns. Until that runs, `POST /bookings/admin-create` will throw on the `created_by_admin` column. Admin auto-approve hook in stripeService will silently no-op if the column is absent because the `if (booking.created_by_admin)` check just returns falsy.
+
+---
+
+## 2026-05-04 — Task 2 — fix: post-payment confirmation links to customer portal
+
+**Why:** After a customer paid and the booking confirmed, the success screen had a "Back to Homepage" link that dumped them on the marketing site. Customers should land in their portal where they can see status, lockbox, and check-in details.
+
+**Files (1):**
+- [src/components/booking/confirm-booking/ConfirmedScreen.tsx](src/components/booking/confirm-booking/ConfirmedScreen.tsx) — link text changed to "Go to Customer Portal", target changed to `/portal?code=${refCode}` (existing portal route), icon swapped from `Home` to `LayoutDashboard`. `refCode` is URL-encoded.
+
+### Verification
+- `npm run build` → clean (1.84s).
+
+---
+
+## 2026-05-04 — Task 1 — feat: block checkout until renter ends trip (with override)
+
+**Why:** Admins could start the CheckOutTab (record return condition, charges, etc.) before the renter had self-checked-out via the customer portal. That produced dirty bookings with admin data entered against trips the customer had not yet ended. The fix gates the tab behind the customer's `customer_checkout` record (or status `returned`, or an explicit admin override).
+
+**Files (5, +1 migration):**
+- [backend/db/migrations/011_checkout_override.sql](backend/db/migrations/011_checkout_override.sql) **(new)** — adds `checkout_override_reason`, `checkout_override_note`, `checkout_override_by`, `checkout_override_at` to `bookings`. (Also adds `created_by_admin` for Task 3.)
+- [backend/services/bookingService.js](backend/services/bookingService.js) — new `applyCheckoutOverride(id, { reason, note, adminUserId })`. Validates reason against the four allowed values, requires note when reason is `other`, refuses if booking is not `active` or `returned`. Stamps `actual_return_at` if missing, synthesizes a `customer_checkout` record in `checkin_records` (so the gate's lookup keeps working downstream), writes a row to `booking_status_log`.
+- [backend/routes/bookings.js](backend/routes/bookings.js) — new `POST /bookings/:id/checkout-override` (auth required) → calls `applyCheckoutOverride` with `req.user.email` as `adminUserId`.
+- [dashboard/src/api/client.js](dashboard/src/api/client.js) — additive: `api.checkoutOverride(id, body)`. No existing function modified.
+- [dashboard/src/components/booking-tabs/CheckOutTab.jsx](dashboard/src/components/booking-tabs/CheckOutTab.jsx) — added `<CheckoutTripGate>` component + early-return when `hydrated && !customerCheckout && status !== 'returned' && !checkout_override_at`. Headline: "{firstName} {lastName} hasn't ended their trip yet." Two CTAs: "Refresh trip status" and "Override". Override reveals a reason dropdown + note textarea (note required when reason = `other`) and on confirm calls `api.checkoutOverride` then `onReload()`.
+
+**Permissions:** any admin role can use the override (no role gating per user direction).
+
+**Override reasons (final):**
+- `vehicle_returned_system_not_updated` — Vehicle returned, system not updated
+- `renter_unreachable_or_abandoned` — Renter unreachable or abandoned vehicle
+- `manual_reconciliation_after_incident` — Manual reconciliation after incident
+- `other` — Other (note required)
+
+### Verification
+- `cd dashboard && npm run build` → clean (2.94s).
+- `node --check` on touched backend modules → OK.
+
+### Open items
+- Migration 011 needs to be pasted into the Supabase SQL Editor before the override endpoint can write any of the four override columns. Until then, the gating screen still renders correctly (it reads `customerCheckout` and `booking.status`) and the override request will fail at the DB level — by design, a no-op rather than silently dropping data.
+
+---
+
+## 2026-05-04 (phase 3) — Migration 010 deployed; Mode 1 is now DB-enforced
+
+**Status update, not new code.** User applied [backend/db/migrations/010_terminal_return_date_invariant.sql](backend/db/migrations/010_terminal_return_date_invariant.sql) via the Supabase SQL Editor. Verified:
+- Constraint `bookings_terminal_return_date_not_future` exists in `pg_constraint`.
+- Backfill audit log shows 8 rows clamped under `changed_by='system_migration_010'`.
+
+The migration's idempotent backfill caught 8 rows that the JS-side backfill from phase 1 missed — either rows written between the JS run and the SQL run, or rows whose `actual_return_at` was non-null but on a different day than today (the JS backfill clamped to today; the SQL clamps to `actual_return_at::date` which is more accurate). Both paths are now reconciled.
+
+**What's now structurally guaranteed:**
+- **Mode 1** (terminal w/ future return_date) — enforced at the DB level. No INSERT/UPDATE can produce the ghost state regardless of code path.
+- **Mode 2** (stale unstarted) — enforced at the cron level (auto-no-show), with the availability filter as defensive backstop. Cannot be DB-enforced because the predicate is time-relative.
+
+### Remaining gap: monitoring for unknown failure modes
+Layers 1+2+3 cover the two known modes. A future Mode 3 (some path nobody has thought of) would not be caught by these defenses until someone reports a 409. A daily ghost-detection cron that runs the zero-rows query and alerts the dashboard would close this gap structurally. Not built — pending user instruction.
+
+### Verification queries (run any time)
+```sql
+-- Mode 1: should always return 0 (DB constraint enforces this)
+SELECT * FROM bookings
+ WHERE status IN ('returned','completed')
+   AND return_date > COALESCE(actual_return_at::date, CURRENT_DATE);
+
+-- Mode 2: should return 0 within 24h of any ghost forming (cron enforces)
+SELECT * FROM bookings
+ WHERE status IN ('pending_approval','approved','confirmed','ready_for_pickup')
+   AND actual_pickup_at IS NULL
+   AND pickup_date < CURRENT_DATE;
+```
+
+---
+
+## 2026-05-04 (phase 2) — fix: prevent ghost-blocked vehicles when customers no-show
+
+**Why:** After phase 1 shipped, the same 409 "Those dates are no longer available" symptom was still hitting the Gray 2025 Nissan Altima (VIN `1N4BL4DV4SN333164`, plate DZN8469) and others. Diagnostic showed a **completely different failure mode** than phase 1: bookings sitting at status `approved` with `actual_pickup_at = null` and `pickup_date` already in the past. Customers were approved, never showed up to pick up the car, and the booking permanently held the calendar through its booked `return_date`. The state machine declared `no_show` as terminal but no source pointed at it, and the cron job only auto-declined `pending_approval` rows (not `approved` ghosters). Phase 1's terminal-status filter didn't help because `approved` legitimately blocks for real upcoming bookings — the signal that distinguishes "real" from "ghost" is `pickup_date < today AND actual_pickup_at IS NULL`.
+
+### Diagnostic findings (5 ghost-blocked rows across the fleet)
+- BK-20260501-ETXA — Gray 2025 Altima — pickup 2026-05-01, return 2026-05-13, status=approved, age 63h
+- BK-20260501-KVCX — 2023 Altima — pickup 2026-05-01, return 2026-05-04, status=approved
+- BK-20260503-8XEU, BK-20260501-2XSM, BK-20260503-S3YE — same pattern on other vehicles
+- Slug-fallback footgun (H5) ruled out — VINs are unique across all 5 Altimas in `vehicles`.
+
+### Fix (3 layers + backfill)
+- **Layer 1a — state machine ([backend/services/bookingService.js:13-15](backend/services/bookingService.js#L13-L15)):** added `'no_show'` as a valid transition from `approved`, `confirmed`, and `ready_for_pickup`. Was previously declared terminal but unreachable.
+- **Layer 1b — cron auto-no-show ([backend/routes/cron.js](backend/routes/cron.js) stage 10):** every daily run, find rows where `status ∈ {approved, confirmed, ready_for_pickup}`, `actual_pickup_at IS NULL`, `pickup_date <= today - 1 day`, and call `transitionBooking(id, 'no_show')`. The phase-1 invariant in `transitionBooking` then auto-clamps `return_date` and sets `actual_return_at`, so the calendar frees the moment we no-show. Result counter `autoNoShows`. 1-day grace period — adjust if you want stricter/looser.
+- **Layer 3 — defensive availability filter ([backend/services/availabilityService.js](backend/services/availabilityService.js)):** belt-and-suspenders. Both `checkAvailability` and `getAvailableVehicles` now drop "stale unstarted" rows from the conflict set in JS — `pre_pickup_status AND !actual_pickup_at AND pickup_date < today`. Even if cron lags or fails, ghost rows can't 409 a real customer. Kept conflict-list semantics: stale rows are filtered out, not surfaced.
+- **Backfill (run against prod):** transitioned all 5 ghosts to `no_show` via `transitionBooking` (so the phase-1 clamp also fires). All `booking_status_log` entries tagged `changed_by='system_backfill_noshow'`. Runner script deleted after one-time use.
+
+### What we deliberately didn't add
+- **No DB CHECK constraint for this mode.** The invariant is *time-relative* (`pickup_date < today`) — `CURRENT_DATE` in a CHECK only fires on write, so a constraint can't auto-fail rows as time passes. Layer 1b (cron) is the enforcer; Layer 3 is the safety net. This is documented as a known gap.
+- **No customer notification on auto-no-show.** Silent for now. If you want a templated "we no-showed your booking" email, say the word.
+
+### Verification — zero-rows query (run any time)
+```js
+// Mode 1: terminal rows with future return_date (phase 1)
+SELECT * FROM bookings
+ WHERE status IN ('returned','completed')
+   AND return_date > COALESCE(actual_return_at::date, CURRENT_DATE);
+
+// Mode 2: stale unstarted rows (phase 2)
+SELECT * FROM bookings
+ WHERE status IN ('pending_approval','approved','confirmed','ready_for_pickup')
+   AND actual_pickup_at IS NULL
+   AND pickup_date < CURRENT_DATE;
+```
+**Success = both queries return zero rows.** Confirmed post-backfill: 0 + 0.
+
+- Dashboard build clean (2.94s).
+- All three touched backend modules import without error.
+
+### Open items
+- Migration 010 CHECK constraint (phase 1) still pending paste into Supabase SQL Editor — see prior entry.
+- Two duplicate Sentras with `color = null` (phase 1) — still pending color backfill.
+
+---
+
+## 2026-05-04 — fix: prevent ghost-blocked vehicles when bookings finish early
+
+**Why:** Customers couldn't request the white 2020 Nissan Sentra (and 4 other vehicles) — the customer site returned 409 "Those dates are no longer available" even though the cars were physically back on the lot. Diagnosis: 5 bookings sat in status `returned`/`completed` with `return_date` still in the future. Two code paths produced this — `POST /bookings/:id/return` only clamped `return_date` on **late** returns ([routes/bookings.js:228](backend/routes/bookings.js#L228)), not early ones; `POST /bookings/:id/complete` did nothing about dates at all. The terminal rows then ghost-blocked the calendar via [availabilityService.js:15](backend/services/availabilityService.js#L15) which only excluded `declined`/`cancelled`.
+
+### Fix (3 layers + backfill)
+- **Layer 1 — `transitionBooking` ([backend/services/bookingService.js:280](backend/services/bookingService.js#L280)):** when transitioning to any terminal off-the-road status (`returned`, `completed`, `cancelled`, `declined`, `no_show`), backfill `actual_return_at` if missing and clamp `return_date` to today if it's still in the future. Auto-clamp note appended to `booking_status_log.reason`. Pricing intentionally untouched — late-return repricing in `/return` still runs; early returns just free the calendar without refunding unused days.
+- **Layer 2 — DB CHECK constraint ([backend/db/migrations/010_terminal_return_date_invariant.sql](backend/db/migrations/010_terminal_return_date_invariant.sql)):** new `bookings_terminal_return_date_not_future` constraint. Database itself rejects any row with status in `('returned','completed')` and `return_date > COALESCE(actual_return_at::date, CURRENT_DATE)`. **Still needs to be pasted into the Supabase SQL Editor — service-role JS client cannot run DDL.**
+- **Layer 3 — `availabilityService` ([backend/services/availabilityService.js:15](backend/services/availabilityService.js#L15) + line 73):** belt-and-suspenders. Both `checkAvailability` and `getAvailableVehicles` now also exclude `returned`, `completed`, `no_show`. Even if a row ever slipped through layers 1+2, it wouldn't ghost-block the calendar.
+- **Backfill (run against prod):** clamped 5 ghost-blocking rows — BK-20260428-CCEA, BK-20260429-NSDU, BK-20260428-VE2Y (the Sentra), BK-20260501-KZJ2, BK-20260428-X9VT. Each `return_date` set to its `actual_return_at::date`. `booking_status_log` entries written with `changed_by='system_migration_010'` for audit trail. Runner script deleted after one-time use.
+
+### Verification
+- `cd dashboard && npm run build` → clean (3.00s).
+- Backend modules load without error.
+- All 5 vehicles confirmed bookable for May 4+ dates after backfill (re-ran the diagnostic query — zero ghost-blocking rows remain).
+
+### Open item
+- **Schema constraint not yet applied.** Paste [backend/db/migrations/010_terminal_return_date_invariant.sql](backend/db/migrations/010_terminal_return_date_invariant.sql) into the Supabase SQL Editor. Layer 2 is the "permanent" guarantee — without it, layers 1+3 are convention not invariant.
+- **Two duplicate Sentras with `color = null`** in `vehicles` table (plates DSS67886 + 31EYAH). The slug fallback in [bookingService.js:90-110](backend/services/bookingService.js#L90-L110) is non-deterministic between them. Worth backfilling `color` and tightening the slug match in a future session.
+
+---
+
 ## 2026-05-03 — fix: PATCH /insurance re-quotes inline, eliminating parallel-fetch race
 
 **Why:** Customer hit `No fresh Bonzah quote for this tier. Refresh the wizard to re-quote.` at submit. Cause is a race introduced by the all-tiers-parallel UX refactor: `POST /insurance/quote` writes `bonzah_tier_id` + `bonzah_*_cents` to the booking row on every call, so when the wizard fetches Essential / Standard / Complete in parallel, the row reflects whichever of the three Bonzah responses landed last — not necessarily the tier the customer actually selected. PATCH `/insurance` then compared `booking.bonzah_tier_id === tier_id` and 409'd because they didn't match.

@@ -170,6 +170,48 @@ export async function sendBookingConfirmation({ customer, booking, vehicle }) {
 }
 
 /**
+ * Continue Your Booking — sent when an admin creates a booking on behalf of
+ * the customer via the dashboard New Booking modal. The customer clicks the
+ * link to add insurance, sign the agreement, and pay through the standard
+ * customer wizard.
+ */
+export async function sendContinueBookingEmail({ customer, booking, vehicle }) {
+  const continueUrl = `${SITE_URL}/booking?code=${booking.booking_code}`;
+
+  const body = `
+    <p style="margin:0 0 16px;color:#44403c;font-size:15px;line-height:1.7;">Hi ${esc(customer.first_name)},</p>
+    <p style="margin:0 0 24px;color:#44403c;font-size:15px;line-height:1.7;">
+      Annie's Car Rental has set up a booking for you${vehicle ? ` for the <strong>${esc(vehicle)}</strong>` : ''}.
+      To finalize the rental, you'll need to add insurance, sign the rental agreement, and complete payment.
+    </p>
+
+    <div style="background:#fafaf9;border-radius:12px;border:1px solid #e7e5e4;padding:20px;margin-bottom:24px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:12px;">
+        <span style="color:#78716c;font-size:13px;">Booking Code</span>
+        <span style="font-family:monospace;font-size:16px;font-weight:700;letter-spacing:0.15em;color:#1c1917;">${esc(booking.booking_code)}</span>
+      </div>
+      ${vehicle ? detailRow('Vehicle', vehicle) : ''}
+      ${detailRow('Pickup', booking.pickup_date)}
+      ${detailRow('Return', booking.return_date)}
+    </div>
+
+    ${statusBanner('✨', '<strong>Next step:</strong> Click the link below to add insurance, sign your agreement, and pay your deposit. The link does not expire.', 'blue')}
+
+    ${ctaButton(continueUrl, 'Continue Your Booking →', 'gold')}
+
+    <p style="margin:0;text-align:center;font-size:12px;color:#a8a29e;">
+      Questions? Call or text us at <strong>(772) 985-6667</strong>
+    </p>
+  `;
+
+  return sendEmail({
+    to: customer.email,
+    subject: `Finalize Your Booking — ${booking.booking_code}`,
+    html: emailShell('Finalize Your Booking', body),
+  });
+}
+
+/**
  * Notify the owner that a customer has signed the rental agreement.
  * Goal: Prompt immediate counter-signature.
  */

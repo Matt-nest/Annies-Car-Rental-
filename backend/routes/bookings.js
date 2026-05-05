@@ -5,7 +5,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { requireApiKey } from '../middleware/apiKey.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { validateBookingPayload } from '../utils/validators.js';
-import { createBooking, transitionBooking, getBookingDetail } from '../services/bookingService.js';
+import { createBooking, transitionBooking, getBookingDetail, applyCheckoutOverride } from '../services/bookingService.js';
 import { computeRentalPricing, DELIVERY_FEES } from '../services/pricingService.js';
 import { getQuote, getSetting, BonzahError } from '../services/bonzahService.js';
 
@@ -115,6 +115,56 @@ router.post('/', bookingRateLimit, requireApiKey, asyncHandler(async (req, res) 
   });
 }));
 
+/** POST /bookings/admin-create — admin creates a booking on behalf of a customer.
+ *  Reuses the public createBooking path but flags created_by_admin and emails a
+ *  continue-booking link instead of the standard "request received" flow.
+ *  Body: full createBooking payload (vehicle_code, pickup/return dates, customer
+ *  fields, optional add-ons). The admin already vetted the request, so payment
+ *  success will auto-approve in stripeService.
+ */
+router.post('/admin-create', requireAuth, asyncHandler(async (req, res) => {
+  const errors = validateBookingPayload(req.body);
+  if (errors.length) return res.status(400).json({ error: 'Validation failed', details: errors });
+
+  const booking = await createBooking({
+    ...req.body,
+    source: 'admin',
+    created_by_admin: true,
+    insurance_status: 'pending',
+  });
+
+  // Build the continue link the admin can copy/paste.
+  const siteUrl = process.env.SITE_URL || 'https://anniescarrental.com';
+  const continueUrl = `${siteUrl}/booking?code=${booking.booking_code}`;
+
+  // Send the continue-booking email (fire-and-forget so the response isn't blocked).
+  try {
+    const { sendContinueBookingEmail } = await import('../services/emailService.js');
+    const { data: customer } = await supabase
+      .from('customers')
+      .select('first_name, last_name, email, phone')
+      .eq('id', booking.customer_id)
+      .single();
+    const { data: vehicleRow } = await supabase
+      .from('vehicles')
+      .select('year, make, model')
+      .eq('id', booking.vehicle_id)
+      .single();
+    const vehicleLabel = vehicleRow ? `${vehicleRow.year} ${vehicleRow.make} ${vehicleRow.model}` : null;
+    sendContinueBookingEmail({ customer, booking, vehicle: vehicleLabel })
+      .catch(err => console.error('[Email] Continue-booking email failed:', err));
+  } catch (err) {
+    console.error('[admin-create] Continue email setup failed:', err);
+  }
+
+  res.status(201).json({
+    success: true,
+    booking_id: booking.id,
+    booking_code: booking.booking_code,
+    continue_url: continueUrl,
+  });
+}));
+
 /** PUT /bookings/:id — update booking details (admin) */
 router.put('/:id', requireAuth, asyncHandler(async (req, res) => {
   // Strip fields that should only change via transitions
@@ -146,6 +196,20 @@ router.post('/:id/decline', requireAuth, asyncHandler(async (req, res) => {
     changedBy: req.user?.email || 'owner',
     reason: req.body.reason,
     extraFields: { decline_reason: req.body.reason },
+  });
+  res.json(result);
+}));
+
+/** POST /bookings/:id/checkout-override
+ *  Admin force-unlocks the CheckOutTab when the renter never self-checked-out
+ *  via the customer portal. Body: { reason, note? }
+ */
+router.post('/:id/checkout-override', requireAuth, asyncHandler(async (req, res) => {
+  const { reason, note } = req.body;
+  const result = await applyCheckoutOverride(req.params.id, {
+    reason,
+    note,
+    adminUserId: req.user?.email || 'admin',
   });
   res.json(result);
 }));

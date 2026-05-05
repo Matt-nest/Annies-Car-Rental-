@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, Filter, CheckCircle, XCircle, RefreshCw, BookOpen, AlertCircle } from 'lucide-react';
+import { Search, Filter, CheckCircle, XCircle, RefreshCw, BookOpen, AlertCircle, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { api } from '../api/client';
 import { useAlerts } from '../lib/alertsContext';
@@ -8,6 +8,7 @@ import StatusBadge from '../components/shared/StatusBadge';
 import DataTable from '../components/shared/DataTable';
 import Modal from '../components/shared/Modal';
 import DataError from '../components/shared/DataError';
+import NewBookingModal from '../components/bookings/NewBookingModal';
 import { format } from 'date-fns';
 
 const EASE = [0.25, 1, 0.5, 1];
@@ -22,6 +23,7 @@ export default function BookingsPage() {
   const [actionModal, setActionModal] = useState(null);
   const [declineReason, setDeclineReason] = useState('');
   const [actioning, setActioning] = useState(false);
+  const [newBookingOpen, setNewBookingOpen] = useState(false);
 
   const { refresh: refreshAlerts } = useAlerts();
   const status = searchParams.get('status') || '';
@@ -129,10 +131,21 @@ export default function BookingsPage() {
           <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Bookings</h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>Manage rentals and reservations</p>
         </div>
-        <button onClick={fetchBookings} className="btn-ghost py-2 px-3">
-          <RefreshCw size={14} /> Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={fetchBookings} className="btn-ghost py-2 px-3">
+            <RefreshCw size={14} /> Refresh
+          </button>
+          <button onClick={() => setNewBookingOpen(true)} className="btn-primary py-2 px-3">
+            <Plus size={14} /> New Booking
+          </button>
+        </div>
       </motion.div>
+
+      <NewBookingModal
+        open={newBookingOpen}
+        onClose={() => setNewBookingOpen(false)}
+        onCreated={fetchBookings}
+      />
 
       <DataError error={error} />
 

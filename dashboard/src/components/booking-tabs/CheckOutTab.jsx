@@ -5,7 +5,7 @@ import Section from '../shared/Section';
 import {
   CheckCircle, AlertCircle, Loader2, Camera, X, ImagePlus,
   Fuel, ChevronRight, ChevronLeft, DollarSign, Plus, Trash2,
-  FileText, Send, ArrowRight, Gauge,
+  FileText, Send, ArrowRight, Gauge, Lock, ShieldAlert,
 } from 'lucide-react';
 
 /* ── Fuel Level Tap Selector ────────────────────────────────────────── */
@@ -194,6 +194,158 @@ function CustomerRecordCard({ title, record }) {
                 <img src={url} alt={`Customer photo ${i + 1}`} className="aspect-square rounded-lg object-cover border border-[var(--border-subtle)]" />
               </a>
             ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   TRIP-NOT-ENDED GATE — shown when the renter hasn't self-checked-out
+   ══════════════════════════════════════════════════════════════════════ */
+const OVERRIDE_REASONS = [
+  { value: 'vehicle_returned_system_not_updated', label: 'Vehicle returned, system not updated' },
+  { value: 'renter_unreachable_or_abandoned',     label: 'Renter unreachable or abandoned vehicle' },
+  { value: 'manual_reconciliation_after_incident', label: 'Manual reconciliation after incident' },
+  { value: 'other',                                 label: 'Other (note required)' },
+];
+
+function CheckoutTripGate({ booking, vehicleName, onUnlocked }) {
+  const c = booking.customers || {};
+  const renterName = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'The renter';
+  const [showOverride, setShowOverride] = useState(false);
+  const [reason, setReason] = useState(OVERRIDE_REASONS[0].value);
+  const [note, setNote] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const noteRequired = reason === 'other';
+
+  async function handleConfirmOverride() {
+    if (noteRequired && !note.trim()) {
+      setError('A note is required when reason is "Other".');
+      return;
+    }
+    setSubmitting(true);
+    setError('');
+    try {
+      await api.checkoutOverride(booking.id, { reason, note: note.trim() || undefined });
+      onUnlocked?.();
+    } catch (e) {
+      setError(e.message || 'Failed to apply override');
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="max-w-lg mx-auto py-8 space-y-5">
+      <div className="text-center space-y-3">
+        <div
+          className="mx-auto w-16 h-16 rounded-full flex items-center justify-center"
+          style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)' }}
+        >
+          <Lock size={28} className="text-[var(--text-tertiary)]" />
+        </div>
+        <h2 className="text-xl font-semibold text-[var(--text-primary)]">
+          {renterName} hasn't ended their trip yet.
+        </h2>
+        <p className="text-sm text-[var(--text-secondary)] max-w-md mx-auto">
+          Checkout is locked until the renter ends their trip in the customer portal.
+          This includes damage notes, fuel, charges, and deposit release for {vehicleName}.
+        </p>
+      </div>
+
+      {error && (
+        <div
+          className="flex items-center gap-2 p-3 rounded-xl text-sm"
+          style={{
+            backgroundColor: 'rgba(239,68,68,0.08)',
+            border: '1px solid rgba(239,68,68,0.2)',
+            color: '#ef4444',
+          }}
+        >
+          <AlertCircle size={16} />
+          <span className="flex-1">{error}</span>
+        </div>
+      )}
+
+      {!showOverride ? (
+        <div className="flex flex-col sm:flex-row gap-2">
+          <button
+            type="button"
+            className="btn-primary flex-1"
+            onClick={() => onUnlocked?.()}
+          >
+            <ArrowRight size={15} /> Refresh trip status
+          </button>
+          <button
+            type="button"
+            className="btn-ghost flex-1"
+            onClick={() => setShowOverride(true)}
+            style={{ border: '1px solid var(--border-subtle)' }}
+          >
+            <ShieldAlert size={15} /> Override
+          </button>
+        </div>
+      ) : (
+        <div
+          className="p-4 rounded-xl space-y-3"
+          style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
+        >
+          <div className="flex items-start gap-2">
+            <ShieldAlert size={16} className="text-amber-500 mt-0.5 shrink-0" />
+            <p className="text-xs text-[var(--text-secondary)]">
+              Override unlocks checkout without the renter ending their trip. The reason
+              is logged and stamped against this booking.
+            </p>
+          </div>
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-1 block">
+              Reason
+            </label>
+            <select
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="input w-full"
+              disabled={submitting}
+            >
+              {OVERRIDE_REASONS.map((r) => (
+                <option key={r.value} value={r.value}>{r.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-1 block">
+              Note {noteRequired ? <span className="text-[var(--danger-color)]">*</span> : <span className="opacity-60">(optional)</span>}
+            </label>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              className="input w-full"
+              rows={3}
+              placeholder={noteRequired ? 'Describe the situation' : 'Add context (optional)'}
+              disabled={submitting}
+            />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button
+              type="button"
+              className="btn-ghost flex-1"
+              onClick={() => { setShowOverride(false); setError(''); }}
+              disabled={submitting}
+              style={{ border: '1px solid var(--border-subtle)' }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn-primary flex-1"
+              onClick={handleConfirmOverride}
+              disabled={submitting}
+            >
+              {submitting ? <><Loader2 size={15} className="animate-spin" /> Applying…</> : <>Confirm override</>}
+            </button>
           </div>
         </div>
       )}
@@ -480,6 +632,27 @@ export default function CheckOutTab({ booking, onReload }) {
   const depositHeld = deposit?.status === 'held';
   const refundAmount = Math.max(0, depositAmount - incidentalTotal);
   const customerOwes = Math.max(0, incidentalTotal - depositAmount);
+
+  /* ── Trip-not-ended Gate ─────────────────────────────────────────────
+     Admin cannot input checkout info until the renter has self-checked-out
+     via the customer portal (synthesizes a customer_checkout record), or
+     the booking has organically reached status='returned', or an admin has
+     applied a checkout override. Render the gate only once we've hydrated
+     checkin_records to avoid flashing it for one frame. */
+  const tripEnded =
+    !!customerCheckout ||
+    booking.status === 'returned' ||
+    !!booking.checkout_override_at;
+
+  if (hydrated && !completed && !isAlreadyDone && !tripEnded) {
+    return (
+      <CheckoutTripGate
+        booking={booking}
+        vehicleName={vehicleName}
+        onUnlocked={onReload}
+      />
+    );
+  }
 
   /* ── Completed State ─────────────────────────────────────────────── */
   if (completed || isAlreadyDone) {

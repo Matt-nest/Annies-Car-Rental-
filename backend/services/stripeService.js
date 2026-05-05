@@ -391,15 +391,24 @@ export async function handleWebhookEvent(event) {
         { booking_id: bookingId, amount: pi.amount / 100 }
       ).catch(() => {});
 
-      // Check for auto-confirm
-      const booking = await getBookingDetail(bookingId).catch(() => null);
+      // Check for auto-confirm. Admin-created bookings (created_by_admin=true)
+      // skip the manual approval step — the admin already vetted the request
+      // when they sent the customer the continue-booking link.
+      let booking = await getBookingDetail(bookingId).catch(() => null);
+      if (booking && booking.status === 'pending_approval' && booking.created_by_admin) {
+        await transitionBooking(bookingId, 'approved', {
+          changedBy: 'system',
+          reason: 'Auto-approved on payment success (admin-created booking)',
+        }).catch(e => console.error('[Auto-Approve Error]', e));
+        booking = await getBookingDetail(bookingId).catch(() => booking);
+      }
       if (booking && booking.status === 'approved') {
         const { data: agreement } = await supabase
           .from('rental_agreements')
           .select('id')
           .eq('booking_id', bookingId)
           .maybeSingle();
-        
+
         if (agreement) {
           await transitionBooking(bookingId, 'confirmed', {
             changedBy: 'system',
