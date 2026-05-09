@@ -12,6 +12,12 @@ interface CrispWidgetProps {
     pickup_date?: string;
     return_date?: string;
   } | null;
+  /**
+   * F-16: portal mounts this widget once at the root and toggles visibility
+   * via the `visible` prop instead of unmount/remount. Default true so existing
+   * call sites keep working.
+   */
+  visible?: boolean;
 }
 
 declare global {
@@ -27,8 +33,9 @@ export function openCrispChat() {
   } catch { /* script not ready */ }
 }
 
-export default function CrispWidget({ booking }: CrispWidgetProps) {
+export default function CrispWidget({ booking, visible = true }: CrispWidgetProps) {
   const scriptRef = useRef<HTMLScriptElement | null>(null);
+  const initialVisibleRef = useRef<boolean>(visible);
 
   useEffect(() => {
     if (!CRISP_WEBSITE_ID) return;
@@ -49,6 +56,12 @@ export default function CrispWidget({ booking }: CrispWidgetProps) {
 
     // Identify user once script has loaded
     script.onload = () => {
+      // Apply initial visibility (login view starts hidden, dashboard shows it).
+      // Subsequent prop changes are handled by the visibility effect below.
+      try {
+        window.$crisp.push(['do', initialVisibleRef.current ? 'chat:show' : 'chat:hide']);
+      } catch { /* script not ready */ }
+
       if (!booking) return;
       if (booking.customer_email)
         window.$crisp.push(['set', 'user:email', [booking.customer_email]]);
@@ -101,6 +114,15 @@ export default function CrispWidget({ booking }: CrispWidgetProps) {
       ]]]);
     } catch { /* $crisp not ready yet */ }
   }, [booking]);
+
+  // F-16: respond to visibility changes via Crisp's API instead of unmount.
+  // Reduces DOM/script accumulation across portal-view changes.
+  useEffect(() => {
+    if (!window.$crisp) return;
+    try {
+      window.$crisp.push(['do', visible ? 'chat:show' : 'chat:hide']);
+    } catch { /* script not ready yet — initial visibility will apply onload */ }
+  }, [visible]);
 
   return null;
 }

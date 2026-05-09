@@ -1758,7 +1758,8 @@ export default function CustomerPortal() {
         </div>
       </main>
       <Footer />
-      {view === 'dashboard' && <CrispWidget booking={booking} />}
+      {/* F-16: mount once at the portal root, toggle visibility via prop. */}
+      <CrispWidget booking={booking} visible={view === 'dashboard'} />
     </>
   );
 }

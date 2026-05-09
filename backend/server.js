@@ -50,10 +50,26 @@ app.use(cors({
 }));
 
 // ── Body parsing ──────────────────────────────────────────────────────────────
+// Webhooks that need rawBody for HMAC signature verification — must mount
+// before the global json parser so they claim the body first.
+// 2C: inbound email (Resend/Svix sig). 2D: Crisp chat (Crisp HMAC sig).
+app.use('/api/v1/messaging/webhook/inbound-email', express.json({
+  verify: (req, _res, buf) => { req.rawBody = buf; },
+  limit: '10mb',
+}));
+app.use('/api/v1/messaging/webhook/crisp', express.json({
+  verify: (req, _res, buf) => { req.rawBody = buf; },
+  limit: '2mb',
+}));
 // Skip JSON parsing for Stripe webhook (needs raw body for signature verification)
 app.use((req, res, next) => {
   if (req.path === '/api/v1/stripe/webhook') return next();
   express.json({ limit: '2mb' })(req, res, next);
+});
+// Twilio webhooks default to application/x-www-form-urlencoded — required for /messaging/webhook/inbound
+app.use((req, res, next) => {
+  if (req.path === '/api/v1/stripe/webhook') return next();
+  express.urlencoded({ extended: false, limit: '1mb' })(req, res, next);
 });
 
 // ── Health check ──────────────────────────────────────────────────────────────

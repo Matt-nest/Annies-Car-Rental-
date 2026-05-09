@@ -11,6 +11,7 @@
 import { supabase } from '../db/supabase.js';
 import { storeLocalMessage } from './messagingService.js';
 import { sendViaResend } from '../utils/mailTransport.js';
+import { renderBrandedShell, escapeHtml } from '../utils/emailShell.js';
 import FALLBACK_TEMPLATES from './fallbackTemplates.js';
 
 const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID;
@@ -42,8 +43,11 @@ const STAGE_CTA = {
   deposit_refunded:    { label: 'View Booking Status',           fieldKey: 'status_link' },
   deposit_settled:     { label: 'View Booking Status',           fieldKey: 'status_link' },
   invoice_sent:        { label: 'View Invoice',                  fieldKey: 'invoice_link',  style: 'gold' },
-  inspection_complete: { label: 'View Booking Status',           fieldKey: 'status_link' },
   inspection_charges_scheduled: { label: 'Review or Dispute in Portal', fieldKey: 'portal_link', style: 'gold' },
+  // F-4: damage_notification fires after admin files moderate+ damage report (email-only).
+  damage_notification: { label: 'View Booking',                  fieldKey: 'portal_link' },
+  // F-4: day_of_return is the morning-of return SMS (parallels day_of_pickup).
+  day_of_return:       { label: 'View Return Details',           fieldKey: 'portal_link' },
   insurance_policy_issued: { label: 'View My Booking',          fieldKey: 'portal_link', style: 'gold' },
   // insurance_bind_failed is admin-only — no customer CTA
 };
@@ -92,6 +96,9 @@ export async function sendEmail({ to, subject, html }) {
 /**
  * Send an SMS via Twilio REST API (no SDK needed).
  * Returns { sid } on success or { error } on failure.
+ *
+ * F-21: short-circuits if any customer with this phone has sms_opt_out=true.
+ * Single point of enforcement so new callers are automatically protected.
  */
 export async function sendSMS({ to, body }) {
   if (!TWILIO_SID || !TWILIO_TOKEN || !TWILIO_FROM) {
@@ -107,6 +114,31 @@ export async function sendSMS({ to, body }) {
   let normalized = to.replace(/\D/g, '');
   if (normalized.length === 10) normalized = '1' + normalized;
   if (!normalized.startsWith('+')) normalized = '+' + normalized;
+
+  // F-21 opt-out enforcement — query customers by normalized phone (digits only,
+  // last 10 to forgive +1 vs 1 vs raw differences). Skip send if any matching
+  // row is opted out.
+  try {
+    const digits = normalized.replace(/\D/g, '');
+    const last10 = digits.slice(-10);
+    const { data: optedOut } = await supabase
+      .from('customers')
+      .select('id, phone')
+      .eq('sms_opt_out', true)
+      .not('phone', 'is', null);
+    const isOptedOut = (optedOut || []).some(c => {
+      const cDigits = (c.phone || '').replace(/\D/g, '');
+      return cDigits.slice(-10) === last10;
+    });
+    if (isOptedOut) {
+      console.log(`[Notify] Skipping SMS to ${normalized} — customer has sms_opt_out=true`);
+      return { skipped: 'opted_out' };
+    }
+  } catch (err) {
+    // Don't block legitimate sends if the opt-out lookup fails (table missing,
+    // RLS, network blip). Log and continue.
+    console.warn('[Notify] sms_opt_out lookup failed:', err.message);
+  }
 
   try {
     const url = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`;
@@ -215,6 +247,19 @@ export function buildMergeFields(bookingPayload) {
     ].filter(Boolean).join(', ') || 'None',
     // Review
     review_link:    bp.review_link || 'https://g.page/annies-car-rental/review',
+    // F-6: Bonzah insurance lifecycle merge fields. All populated by
+    // buildBookingPayload but were never lifted into the merge map — so any
+    // template referencing them (insurance_policy_issued, insurance_bind_failed)
+    // would render literal `{{bonzah_policy_no}}` text. Same for amount_owed
+    // (set by depositService for inspection_charges_scheduled).
+    bonzah_policy_no:        bp.bonzah_policy_no || '',
+    bonzah_quote_id:         bp.bonzah_quote_id || '',
+    bonzah_tier_label:       bp.bonzah_tier_label || '',
+    bonzah_premium:          bp.bonzah_premium || '',
+    bonzah_total_charged:    bp.bonzah_total_charged || '',
+    bonzah_coverage_summary: bp.bonzah_coverage_summary || '',
+    dashboard_link:          bp.dashboard_link || '',
+    amount_owed:             bp.amount_owed != null ? Number(bp.amount_owed).toFixed(2) : '',
     // Tax amount
     tax_amount:     bp.tax_amount ? Number(bp.tax_amount).toFixed(2) : '',
     // total_charged: prefer the explicit value (includes deposit) set by payment handler,
@@ -252,17 +297,24 @@ export function interpolateTemplate(template, fields, isHtml = false) {
 
   // 1. Process conditional blocks from innermost to outermost.
   //    Match {{#if key}}...{{/if}} where content has NO nested {{#if}}.
-  //    Repeat until no more conditionals remain.
+  //    Loop until a pass produces no change (fixed-point) — F-19 hardening.
+  //    Old code used `.test()` with `/g` which advances `lastIndex` between
+  //    calls and can falsely return false when matches remain. New approach
+  //    compares before/after to detect convergence; supports arbitrarily
+  //    deep nesting up to a generous safety cap.
   let result = template;
   const ifPattern = /\{\{#if\s+(\w+)\}\}((?:(?!\{\{#if)[\s\S])*?)\{\{\/if\}\}/g;
-  let maxIter = 10; // safety limit
-  while (ifPattern.test(result) && maxIter-- > 0) {
+  let prev;
+  let iters = 0;
+  do {
+    prev = result;
     result = result.replace(ifPattern, (_match, key, content) => {
       const val = fields[key];
       const isTruthy = val !== undefined && val !== null && val !== '' && val !== '[]' && val !== '""';
       return isTruthy ? content : '';
     });
-  }
+    if (++iters > 50) break; // never expected — guards pathological input
+  } while (result !== prev);
 
   // 2. Simple field replacement: {{key}}
   result = result.replace(/\{\{(\w+)\}\}/g, (match, key) => {
@@ -459,8 +511,9 @@ const EVENT_SUMMARIES = {
   mid_rental_checkin:     'Mid-rental check-in sent',
   extension_offer:        'Rental extension offer sent',
   repeat_customer:        'Repeat customer loyalty message sent',
-  inspection_complete:    'Inspection completed — settlement pending',
   invoice_sent:           'Invoice sent to customer',
+  damage_notification:    'Damage report shared with customer',
+  day_of_return:          'Day-of-return reminder sent',
   deposit_refunded:       'Security deposit refunded',
   deposit_settled:        'Security deposit settled against incidentals',
   rental_completed:       'Rental completed — review request sent',
@@ -479,6 +532,26 @@ const EVENT_SUMMARIES = {
  */
 export async function sendBookingNotification(stage, bookingPayload) {
   try {
+    // F-7 idempotency — skip if (booking_code, stage, today) already logged.
+    // Cron retries, manual replays, and Vercel re-invocations would otherwise
+    // double-fire reminders. Manual admin sends use sendDirectEmail/SMS and
+    // bypass this check by design.
+    const bookingCode = bookingPayload.booking_code;
+    if (bookingCode) {
+      const eventDate = new Date().toISOString().slice(0, 10);
+      const { error: dupErr } = await supabase
+        .from('notification_log')
+        .insert({ booking_code: bookingCode, stage, event_date: eventDate });
+      if (dupErr?.code === '23505') {
+        console.log(`[Notify] Skipping duplicate "${stage}" for ${bookingCode} on ${eventDate}`);
+        return;
+      }
+      if (dupErr) {
+        // Don't block notifications on log-table issues (missing table, RLS, etc.).
+        console.warn(`[Notify] notification_log insert failed for "${stage}" / ${bookingCode}: ${dupErr.message}`);
+      }
+    }
+
     const rendered = await getRenderedTemplate(stage, bookingPayload);
     if (!rendered) {
       console.log(`[Notify] No active template for "${stage}" — skipping`);
@@ -508,6 +581,14 @@ export async function sendBookingNotification(stage, bookingPayload) {
 
     // Send email (skip for booking_submitted — emailService.js sends a branded HTML version)
     // Awaited so the dispatch isn't killed by serverless lifecycle when the parent handler returns.
+    //
+    // ⚠ IMPLICIT CONTRACT (Phase 1 audit F-3):
+    // When `stage === 'booking_submitted'`, this function does NOT send an email.
+    // The booking-confirmation email is sent by `emailService.sendBookingConfirmation`
+    // from `bookingService.createBooking()` instead (it has a richer branded layout).
+    // If that call site is ever removed or renamed, customers receive NO email after
+    // booking submission. The static test in `tests/booking-submitted-contract.test.js`
+    // guards against this regression.
     const skipEmail = stage === 'booking_submitted';
     if (!skipEmail && (channel === 'email' || channel === 'both') && customer.email) {
       try {
@@ -677,9 +758,6 @@ function renderPickupNextStepsHtml(mergeFields) {
  * stage-specific enrichments (e.g. itemized receipt for `payment_confirmed`).
  */
 function wrapInBrandedHTML(subject, plainTextBody, ctaHtml = '', prependHtml = '') {
-  const siteUrl = process.env.SITE_URL || 'https://anniescarrental.com';
-  const logoUrl = `${siteUrl}/logo.png`;
-
   // ── Convert mixed plain-text + HTML body to safe email HTML ──
   //
   // Templates contain a mix of plain text (paragraphs, bullet points)
@@ -689,6 +767,8 @@ function wrapInBrandedHTML(subject, plainTextBody, ctaHtml = '', prependHtml = '
   //   2. Convert remaining plain text to paragraphs with <br>
   //   3. Auto-link bare URLs (only in plain text, not inside HTML)
   //   4. Reassemble
+  //
+  // F-8: chrome rendering delegated to renderBrandedShell (utils/emailShell.js).
 
   const raw = plainTextBody || '';
 
@@ -730,47 +810,7 @@ function wrapInBrandedHTML(subject, plainTextBody, ctaHtml = '', prependHtml = '
     (_match, idx) => htmlBlocks[Number(idx)]
   );
 
-  return `<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin:0;padding:0;background:#fafaf9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1c1917;">
-  <div style="max-width:560px;margin:40px auto;background:#fff;border-radius:16px;border:1px solid #e7e5e4;overflow:hidden;">
-
-    <!-- Gold accent bar -->
-    <div style="height:4px;background:linear-gradient(90deg,#c8a97e 0%,#d4af37 50%,#c8a97e 100%);"></div>
-
-    <!-- Header -->
-    <div style="background:#1c1917;padding:28px 32px;">
-      <div style="margin-bottom:16px;">
-        <img src="${logoUrl}" alt="Annie's Car Rental" width="140" height="auto" style="display:block;max-width:140px;" />
-      </div>
-      <h1 style="margin:0;color:#fff;font-size:22px;font-weight:600;letter-spacing:-0.01em;">${escapeHtml(subject)}</h1>
-    </div>
-
-    <!-- Body -->
-    <div style="padding:32px;">
-      ${prependHtml}
-      ${finalBody}
-      ${ctaHtml}
-    </div>
-
-    <!-- Footer -->
-    <div style="padding:24px 32px;border-top:1px solid #e7e5e4;background:#fafaf9;text-align:center;">
-      <p style="margin:0 0 6px;font-size:13px;font-weight:600;color:#78716c;">Annie's Car Rental</p>
-      <p style="margin:0 0 4px;font-size:12px;color:#a8a29e;">Port St. Lucie, FL · (772) 985-6667</p>
-      <p style="margin:0;font-size:11px;color:#d6d3d1;">
-        <a href="${siteUrl}" style="color:#c8a97e;text-decoration:none;">anniescarrental.com</a>
-      </p>
-    </div>
-
-  </div>
-</body>
-</html>`;
-}
-
-
-function escapeHtml(str) {
-  return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return renderBrandedShell(subject, `${prependHtml}\n      ${finalBody}\n      ${ctaHtml}`);
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────

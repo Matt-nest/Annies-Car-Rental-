@@ -252,6 +252,49 @@ router.get('/daily', async (req, res) => {
 });
 
 /**
+ * GET /cron/morning — runs early in the day (Vercel cron @ 11:00 UTC = 7am EDT).
+ * Sends day-of reminders that should land before the customer leaves the house.
+ * F-4: wires day_of_pickup + day_of_return per Phase 1 audit decision.
+ *
+ * Idempotency: relies on notification_log (booking_code, stage, today) — manual
+ * cron replays won't re-text the customer.
+ */
+router.get('/morning', async (req, res) => {
+  const results = { dayOfPickups: 0, dayOfReturns: 0 };
+  try {
+    // 1. Day-of pickup — customer's pickup_date is today, vehicle should be ready
+    const { data: pickups } = await supabase
+      .from('bookings')
+      .select('*, customers(*), vehicles(*)')
+      .eq('pickup_date', today())
+      .in('status', ['approved', 'confirmed', 'ready_for_pickup']);
+
+    for (const b of pickups || []) {
+      sendBookingNotification('day_of_pickup', buildBookingPayload(b));
+      results.dayOfPickups++;
+    }
+
+    // 2. Day-of return — customer's return_date is today, rental is active
+    const { data: returns } = await supabase
+      .from('bookings')
+      .select('*, customers(*), vehicles(*)')
+      .eq('return_date', today())
+      .eq('status', 'active');
+
+    for (const b of returns || []) {
+      sendBookingNotification('day_of_return', buildBookingPayload(b));
+      results.dayOfReturns++;
+    }
+
+    console.log('[CRON/morning]', results);
+    res.json({ ok: true, ...results });
+  } catch (err) {
+    console.error('[CRON/morning] Error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
  * GET /cron/process-overage-charges — runs more frequently than the daily cron
  * (e.g. hourly via Vercel Cron) so overage charges fire within the hour after
  * their dispute window closes rather than waiting up to 24h.

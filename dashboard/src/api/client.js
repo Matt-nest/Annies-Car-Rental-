@@ -103,6 +103,9 @@ export const api = {
   createEmailTemplate: (template) => request('/messaging/email-templates', { method: 'POST', body: JSON.stringify(template) }),
   updateEmailTemplate: (id, template) => request(`/messaging/email-templates/${id}`, { method: 'PUT', body: JSON.stringify(template) }),
   deleteEmailTemplate: (id) => request(`/messaging/email-templates/${id}`, { method: 'DELETE' }),
+  // Phase 2B: test-send + per-stage source status
+  testSendEmailTemplate: (body) => request('/messaging/email-templates/test-send', { method: 'POST', body: JSON.stringify(body) }),
+  getEmailTemplateStatus: () => request('/messaging/email-templates/status'),
 
   // Agreements
   getPendingCounterSign: () => request('/agreements/pending-counter-sign'),

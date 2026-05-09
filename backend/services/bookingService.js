@@ -260,6 +260,11 @@ export async function createBooking(payload) {
   sendBookingNotification('booking_submitted', buildBookingPayload(fullBooking));
 
   // 9. Confirmation email to customer (fire-and-forget)
+  // ⚠ IMPLICIT CONTRACT (Phase 1 audit F-3):
+  // notifyService.sendBookingNotification skips email dispatch when
+  // stage === 'booking_submitted' on the assumption that this call is firing
+  // the branded confirmation. Removing or renaming this call leaves customers
+  // with NO email after submission. Guarded by tests/booking-submitted-contract.test.js.
   sendBookingConfirmation({
     customer,
     booking,

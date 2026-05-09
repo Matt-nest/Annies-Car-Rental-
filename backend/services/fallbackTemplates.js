@@ -555,6 +555,71 @@ The customer's Stripe charge HAS gone through. They are not aware of this failur
 
 — Annie's Car Rental Internal Alert`,
   },
+
+  // ── Phase 1 audit F-4: orphan stages now wired ───────────────────────────
+
+  damage_notification: {
+    channel: 'email',
+    subject: 'A note about your recent rental — {{booking_code}}',
+    body: `Hi {{first_name}},
+
+We wanted to reach out about your recent rental of the {{vehicle}} (booking {{booking_code}}). During our post-rental inspection we noted some damage that we'll need to follow up on.
+
+WHAT WE FOUND
+{{damage_description}}
+
+NEXT STEPS
+We'll review the details and contact you within 1 business day to walk through what we found, what (if anything) is owed beyond your security deposit, and answer any questions you may have.
+
+If you'd like to get ahead of this, you can reach us directly:
+  Matthew: (772) 834-0117
+  Robin:   (772) 834-7637
+
+Your booking details are also available in your customer portal:
+{{portal_link}}
+
+Thank you for renting with us — we'll be in touch soon.
+
+Annie's Car Rental
+Port Saint Lucie, FL`,
+  },
+
+  day_of_pickup: {
+    channel: 'sms',
+    subject: null,
+    body: null,
+    sms_body: `Good morning, {{first_name}}! Your {{vehicle}} is ready for pickup today at {{pickup_time}}.
+
+📍 586 NW Mercantile Pl, Port Saint Lucie, FL 34986 (back of building)
+🔑 Lockbox code: {{lockbox_code}}
+
+Complete your check-in here: {{portal_link}}
+
+Drive safe — text us if anything comes up.
+
+— Annie's Car Rental
+(772) 834-0117`,
+  },
+
+  day_of_return: {
+    channel: 'sms',
+    subject: null,
+    body: null,
+    sms_body: `Good morning, {{first_name}}! Your {{vehicle}} is due back today by {{return_time}}.
+
+📍 586 NW Mercantile Pl, Port Saint Lucie (back of building, near the dumpster)
+🔑 Place key in lockbox (code {{lockbox_code}})
+
+Quick checklist:
+• Same fuel level as pickup
+• Snap a photo of where you parked
+• Reply to extend if your plans changed
+
+Thanks again for renting with us!
+
+— Annie's Car Rental
+(772) 834-0117`,
+  },
 };
 
 export default FALLBACK_TEMPLATES;

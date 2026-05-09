@@ -5,6 +5,352 @@
 
 ---
 
+## 2026-05-07 — Messaging Phase 2D — Crisp absorption (one-way ingestion)
+
+**Why:** Phase 2 design called for unifying customer comms in `/messaging` to remove the context-switch to `app.crisp.chat`. User chose one-way ingestion: pull Crisp chats into our `messages` table; admin still replies through Crisp's app. No two-way push to keep blast radius small and reversible.
+
+**Files (5):**
+- [backend/middleware/crispSignature.js](backend/middleware/crispSignature.js) **(new)** — HMAC-SHA256 verifier for `X-Crisp-Signature`. Tries both observed signing schemes (`${ts}|${body}` and raw `${body}`). 5-minute timestamp-skew window for replay defense. Bypass via `X-Webhook-Secret: $CRISP_WEBHOOK_SECRET` header. Dev: skipped if `CRISP_WEBHOOK_SECRET` unset.
+- [backend/api/index.js](backend/api/index.js#L62), [backend/server.js](backend/server.js#L57) — added path-specific `express.json({ verify: ... })` for `/messaging/webhook/crisp` so rawBody is captured for HMAC verification (parallel to the 2C inbound-email pattern).
+- [backend/routes/messaging.js](backend/routes/messaging.js#L218) — new `POST /messaging/webhook/crisp`. Filters on `event === 'message:send'` (silently acks other Crisp events). Extracts the customer's email from `data.user.email` (set by CrispWidget on identification — anonymous chats are dropped with a warn). Maps `from='user'` → `direction='inbound'`, `from='operator'` → `direction='outbound'` so admin replies sent from Crisp's app also appear in our thread. Stores with `channel='chat'` and a deduplicated externalId (`crisp-{session_id}-{fingerprint}`).
+- [dashboard/src/components/messaging/ConversationList.jsx](dashboard/src/components/messaging/ConversationList.jsx#L240) — added a third channel badge variant: `chat` renders as a purple "Chat" pill (was: only SMS green / Email blue). System messages still render as Email-styled but won't appear in conversations from this path.
+
+**Customer setup required (NOT code work):**
+1. **Crisp dashboard** → Settings → Webhooks → add `https://<api-domain>/api/v1/messaging/webhook/crisp`. Subscribe to `message:send` events at minimum. Copy the webhook secret.
+2. **Vercel backend env vars** — add `CRISP_WEBHOOK_SECRET` (the value from step 1).
+
+**Why one-way (not two-way):**
+- Smaller blast radius: a webhook misconfiguration can't accidentally push noise back to the customer.
+- Reversible: turning off the webhook doesn't break Crisp; the Crisp widget still works exactly as it did before.
+- Two-way push would require either (a) an outbound Crisp REST integration when admin replies from `/messaging`, or (b) hiding the in-app compose for chat channel. Both add complexity that wasn't requested.
+
+### Verification
+- `node --check` on touched backend files → OK.
+- `cd backend && npm test` → 35/35 pass.
+- `cd dashboard && npm run build` → clean.
+- After deploy + Crisp dashboard config + env var: send a chat from the customer portal while logged in (CrispWidget identifies the user). Verify the message appears in dashboard `/messaging` with a purple "Chat" badge in the conversation list.
+
+### Open items
+- Anonymous chats (no email) are silently dropped. A future enhancement could store them under a placeholder customer or surface them in a separate "Unmatched" view.
+- The unified inbox's channel filter (in ChatPanel) shows All / Email / SMS only — Chat appears under "All" but has no dedicated tab. Add if/when chat volume justifies it.
+
+---
+
+## 2026-05-07 — Messaging Phase 2B — Templates UX additions (minimal scope)
+
+**Why:** Per user decision, minimal-scope additions to the templates surface — test-send button, fallback indicator, Live badge. Skipped: version history (deferred). Built on top of the 2E decomposition.
+
+**Files (3):**
+- [backend/routes/messaging.js](backend/routes/messaging.js#L243) — two new endpoints:
+  - `POST /messaging/email-templates/test-send` — accepts a draft `{ subject, body, to? }`, renders with a representative mock payload (matches `tests/merge-field-coverage.test.js` fixture), wraps in the branded shell with a `[TEST]` subject prefix and a yellow "this is a test" banner, sends via Resend. Defaults `to` to the authenticated admin's email.
+  - `GET /messaging/email-templates/status` — returns per-stage status `{ stage, source: 'db' | 'fallback' | 'none', db_template_name?, has_fallback }`. FE uses this to show the fallback indicator banner.
+- [dashboard/src/api/client.js](dashboard/src/api/client.js#L106) — added `testSendEmailTemplate(body)` and `getEmailTemplateStatus()`.
+- [dashboard/src/components/messaging/EmailTemplatesTab.jsx](dashboard/src/components/messaging/EmailTemplatesTab.jsx) — three UX additions:
+  - **Test-send button** (Send icon) on each template card and in the editor. Renders the current draft with mock data and emails it to the logged-in admin. `[TEST]` subject prefix + yellow disclaimer banner so the test can't be confused for a real customer message.
+  - **Fallback indicator banner** at the top of the listing — surfaces stages currently rendering from the hardcoded fallback (no active DB template). Lists the stages so the admin can see exactly what to override.
+  - **LIVE badge** on every active template card — green pulsing dot + "LIVE" label so admin sees at a glance which template is the one that fires.
+  - **TestToast component** — bottom-right toast confirming send result (4-second auto-dismiss).
+
+### Verification
+- `cd dashboard && npm run build` → clean (3.09s, 3103 modules — no new bundle weight).
+- `cd backend && npm test` → 35/35 pass.
+- After deploy: Templates tab → click Send icon on any template → check your email for a `[TEST]` prefixed message with mock merge fields rendered.
+
+---
+
+## 2026-05-07 — Messaging Phase 2E — MessagingPage decomposition
+
+**Why:** [pages/MessagingPage.jsx](dashboard/src/pages/MessagingPage.jsx) had grown to 1,406 lines mixing four concerns (conversation list, chat thread, templates CRUD, sequences listing). Phase 2 audit recommended splitting along those component lines while keeping the same `/messaging` route. Pure refactor — no behavior change.
+
+**Files (5 new + 1 rewritten):**
+- [dashboard/src/components/messaging/shared.js](dashboard/src/components/messaging/shared.js) **(new)** — utilities (`timeAgo`, `formatDate`, `getInitials`, `getAvatarColor`) + constants (`EASE`, `SPRING`, `TEMPLATE_STAGES`).
+- [dashboard/src/components/messaging/ConversationList.jsx](dashboard/src/components/messaging/ConversationList.jsx) **(new)** — left-panel customer list (~170 lines).
+- [dashboard/src/components/messaging/ChatPanel.jsx](dashboard/src/components/messaging/ChatPanel.jsx) **(new)** — message thread + compose UI (~500 lines).
+- [dashboard/src/components/messaging/EmailTemplatesTab.jsx](dashboard/src/components/messaging/EmailTemplatesTab.jsx) **(new)** — templates CRUD with preview, toggle, edit, delete (~330 lines).
+- [dashboard/src/components/messaging/SequencesTab.jsx](dashboard/src/components/messaging/SequencesTab.jsx) **(new)** — read-only listing of cron-driven stages (~120 lines).
+- [dashboard/src/pages/MessagingPage.jsx](dashboard/src/pages/MessagingPage.jsx) — rewritten as slim orchestrator. **1,406 → 210 lines.** Imports the four components + shared utilities. Same route, same layout, same default export.
+
+**No behavior changes:** every component preserved verbatim — same JSX, same handlers, same state, same animations. Only structural difference: each component is now in its own file with explicit imports. Future work (Phase 2B etc.) lands in the appropriate component file rather than bloating the orchestrator.
+
+### Verification
+- `cd dashboard && npm run build` → clean (3.27s, 3103 modules — was 3098, +5 = the new files).
+- Visual smoke test pending production deploy. Dev server `npm run dev` would render identically.
+
+---
+
+## 2026-05-07 — Messaging Phase 2C — inbound email via Resend
+
+**Why:** Customer email replies were going to a black hole — no inbound parsing, no `messages` table row, nothing in the admin inbox. Symmetric counterpart to the Twilio inbound SMS path that landed in Phase 1.
+
+**Files (4):**
+- [backend/middleware/resendSignature.js](backend/middleware/resendSignature.js) **(new)** — Svix HMAC-SHA256 signature verifier (Resend uses Svix for webhooks). Verifies `svix-id`/`svix-timestamp`/`svix-signature` headers against the body, with a 5-minute timestamp-skew window for replay defense. Bypass via `INBOUND_EMAIL_SECRET` + `X-Webhook-Secret` header (admin replay tooling). Dev: skipped if `RESEND_WEBHOOK_SECRET` unset.
+- [backend/api/index.js](backend/api/index.js#L57), [backend/server.js](backend/server.js#L52) — mount path-specific `express.json({ verify: ... })` for the inbound-email route to capture `req.rawBody` (needed for Svix signature validation). Mounted before the global JSON parser so it claims the body first.
+- [backend/routes/messaging.js](backend/routes/messaging.js#L165) — new `POST /messaging/webhook/inbound-email`. Tolerates either `{ data: { from, to, subject, text, ... } }` envelope or flat shape. Extracts the bare email from `From:` (handles `"Name <addr>"` format), matches case-insensitive against `customers.email`, writes the row via `storeLocalMessage` with `direction='inbound'`, `channel='email'`. Unmatched senders log warn and 200 (no Resend retry).
+
+**Customer setup required (NOT code work):**
+1. **DNS:** add an MX record on `replies.anniescarrental.com` pointing to Resend's MX server (Resend dashboard tells you which one when you configure the inbound domain).
+2. **Resend dashboard:** configure inbound webhook URL to `https://<api-domain>/api/v1/messaging/webhook/inbound-email`.
+3. **Vercel env vars:** add `RESEND_WEBHOOK_SECRET` (the `whsec_...` signing secret from the Resend dashboard). Optionally `INBOUND_EMAIL_SECRET` for admin replay bypass.
+
+**Email From: address recommendation:** to actually receive replies, outbound emails should be sent from an address on `replies.anniescarrental.com` (or have `Reply-To:` set to one). Update `EMAIL_FROM` once the subdomain is live.
+
+### Verification
+- `node --check` on touched files → OK.
+- Backend test suite still 35/35.
+- After deploy + DNS + Resend config: reply to any customer-facing email → message should appear in dashboard `/messaging`. Test bypass: `curl -X POST $API/messaging/webhook/inbound-email -H 'Content-Type: application/json' -H "X-Webhook-Secret: $INBOUND_EMAIL_SECRET" --data '{"data":{"from":"matt@x.com","subject":"test","text":"hi"}}'`.
+
+### Open items
+- Threading by booking_code is not implemented — messages append to the customer's thread regardless of which email they reply to. If reply-threading by booking is later wanted, parse the `In-Reply-To`/`References` headers or include a tag in the outbound `Reply-To`.
+
+---
+
+## 2026-05-07 — Messaging Phase 2A — foundation refactors (7 items)
+
+**Why:** Phase 1 deferred 7 mechanical hygiene items behind the bigger product/integration work. Phase 2A clears them in a single pass — no behavior changes that customers will see, but the codebase is materially safer to extend.
+
+**Items shipped (file:line + outcome):**
+
+### F-8 — single branded email shell
+Two parallel chrome renderers (`emailShell` in emailService.js, `wrapInBrandedHTML` in notifyService.js) drifted. Extracted to one place.
+- [backend/utils/emailShell.js](backend/utils/emailShell.js) **(new)** — exports `renderBrandedShell(subject, innerHtml)` and `escapeHtml`. Single source of truth for header/logo/gold-bar/footer chrome.
+- [backend/services/emailService.js](backend/services/emailService.js#L13) — `emailShell` is now a thin alias for `renderBrandedShell`. Removed local `esc` (imports `escapeHtml` from utils).
+- [backend/services/notifyService.js](backend/services/notifyService.js#L14) — imports `renderBrandedShell` and `escapeHtml`. `wrapInBrandedHTML` keeps its plain-text-to-HTML conversion (template-specific) but delegates chrome to the shared shell. Removed inline shell HTML (~35 lines) and local `escapeHtml`.
+
+### F-19 — interpolator hardening
+The `{{#if}}` loop used `.test()` with `/g`, advancing `lastIndex` between calls — could return false when matches remain. Also a 10-iteration cap.
+- [backend/services/notifyService.js](backend/services/notifyService.js#L302) — replaced `while (pattern.test(result) && ...)` with a fixed-point loop (`do { prev = result; result = result.replace(...); } while (result !== prev)`). Supports arbitrarily deep nesting up to a 50-iter safety cap.
+- [backend/tests/interpolator.test.js](backend/tests/interpolator.test.js) **(new)** — 13 tests covering flat keys, missing keys, truthiness rule, 3-level nesting, 8-level nesting, mixed key/if usage, HTML-escape mode, and malformed input. All pass.
+
+### F-14 — storeLocalMessage failure surfacing
+Insert failures previously logged to console only. Send had succeeded; admin couldn't tell the conversation thread was missing the row.
+- [backend/services/messagingService.js](backend/services/messagingService.js#L57) — on insert failure, fires `createNotification('message_store_failed', ...)` so the admin sees a dashboard alert. Fire-and-forget so a notification-side failure doesn't cascade. Return type unchanged (still null on failure for caller compat).
+- [backend/routes/messaging.js](backend/routes/messaging.js#L92) — `POST /conversations/:id/send` response now includes `stored: true|false` so the frontend can flag "sent but not in thread" (UI hookup deferred to 2B/2E).
+
+### F-18 — one active template per stage (DB-enforced)
+Two rows with the same `stage` and `is_active=true` made `getRenderedTemplate`'s `.single()` throw, silently falling through to the hardcoded fallback.
+- [backend/db/migrations/015_one_active_template_per_stage.sql](backend/db/migrations/015_one_active_template_per_stage.sql) **(new)** — two-step: (1) cleanup any existing duplicates by deactivating older rows (keep most-recent updated_at as active), (2) `CREATE UNIQUE INDEX ... WHERE is_active = TRUE`. Postgres will now reject duplicate-active inserts/updates with 23505.
+- [dashboard/src/pages/MessagingPage.jsx](dashboard/src/pages/MessagingPage.jsx#L805) — `handleToggle` now auto-deactivates any other active template for the same stage before activating this one. Optimistic UI; on server error rolls back via fetchTemplates.
+
+### F-20 — phone-match strictness
+Inbound webhook used bidirectional substring (`localPhone.endsWith(normalized) || normalized.endsWith(localPhone)`), which would false-match a UK inbound `+447728340117` against a US customer with `7728340117`.
+- [backend/routes/messaging.js](backend/routes/messaging.js#L139) — exact last-10-digits match with length guard. Handles all US format variations (`+1XXX`, `(XXX) XXX-XXXX`, raw 10-digit) without the international false-positive.
+
+### F-10 — conversations RPC (server-side DISTINCT ON)
+The 1000-message scan would silently drop older customers from the list as the messages table grew.
+- [backend/db/migrations/016_conversation_summaries_view.sql](backend/db/migrations/016_conversation_summaries_view.sql) **(new)** — `CREATE VIEW v_conversation_summaries AS SELECT DISTINCT ON (customer_id) ...`. One row per customer, bounded by customer count not message volume. Index `idx_messages_customer_created` added defensively.
+- [backend/routes/messaging.js](backend/routes/messaging.js#L17) — `GET /conversations` now reads from the view + a single customers lookup. Response shape unchanged so frontend is untouched.
+
+### F-16 — Crisp mount-once
+CrispWidget unmounted/remounted on every portal view change, leaking iframes and listeners that Crisp's script injects.
+- [src/components/portal/CrispWidget.tsx](src/components/portal/CrispWidget.tsx#L18) — added `visible?: boolean` prop. On mount applies initial visibility via `chat:show`/`chat:hide`. New effect responds to `visible` prop changes via the same API.
+- [src/components/portal/CustomerPortal.tsx](src/components/portal/CustomerPortal.tsx#L1761) — mounts `<CrispWidget>` once unconditionally, passes `visible={view === 'dashboard'}`. Login view hides chat, dashboard shows it — no remount.
+
+### Verification
+- `cd backend && npm test` → 35/35 pass (13 new interpolator tests + existing 22).
+- `cd dashboard && npm run build` → clean (3.06s, 3098 modules).
+- `cd /Applications/Annies && npm run build` (customer site) → clean (1.94s, 2138 modules).
+- `node --check` on every touched backend file → OK.
+
+### Migrations to apply manually
+- [backend/db/migrations/015_one_active_template_per_stage.sql](backend/db/migrations/015_one_active_template_per_stage.sql) — paste into Supabase SQL Editor. Cleanup runs first; safe even if no duplicates exist.
+- [backend/db/migrations/016_conversation_summaries_view.sql](backend/db/migrations/016_conversation_summaries_view.sql) — paste into Supabase SQL Editor. View is reproducible; safe to re-run.
+
+### Phase 1 + 2A combined status
+**15 of 19 audit items shipped.** Phase 1: 8/8. Phase 2A: 7/7. Phase 2B/2C/2D/2E pending (Templates UX, inbound email, Crisp absorption, MessagingPage decomposition) — those need product/account decisions surfaced in handoff §2B-2E.
+
+Migrations queued for Supabase: 012 (notification_log), 013 (sms_opt_out), 014 (orphan cleanup), 015 (one-active-per-stage), 016 (conversations view).
+
+---
+
+## 2026-05-07 — Messaging Phase 1 — F-4/F-5 (partial) — feat: wire 3 orphan stages, retire 3, surface Bonzah conflict
+
+**Why:** Phase 1 audit found 9 orphan stages (seeded in `email_templates` and/or exposed in the picker but with no code caller). Per user product decisions: wire `damage_notification` (moderate+ severity, email-only), `day_of_pickup` (SMS, morning-of), `day_of_return` (SMS, morning-of); retire `delivery_offer` + `refund_processed` + `inspection_complete`; keep `invoice_sent` as a manual-only template; **defer** the Bonzah pair (`insurance_policy_issued` + `insurance_bind_failed`) — see "Surface" section below.
+
+**Files (8, +1 migration):**
+- [backend/services/notifyService.js](backend/services/notifyService.js#L46) — added `STAGE_CTA` entries for `damage_notification` (portal_link) and `day_of_return` (portal_link). Added `EVENT_SUMMARIES` entries for both. Removed `inspection_complete` from both maps (deleted entirely per user decision).
+- [backend/services/fallbackTemplates.js](backend/services/fallbackTemplates.js#L559) — appended fallback templates for `damage_notification` (email-only, neutral tone, prompts admin follow-up), `day_of_pickup` (SMS, lockbox + portal CTA), `day_of_return` (SMS, return checklist). Drafted in Annie's voice matching the existing `pickup_reminder` / `payment_confirmed` style — admin can edit in dashboard.
+- [backend/routes/damageReports.js](backend/routes/damageReports.js#L13) — `POST /bookings/:id/damage` now fires `sendBookingNotification('damage_notification', payload)` only when severity is `moderate`/`major`/`totaled`. Damage fields (`damage_description`, `damage_type`, `damage_fee`) are injected into the payload from the request body since they live in `damage_reports` (not the booking row). Fire-and-forget with try/catch.
+- [backend/routes/cron.js](backend/routes/cron.js#L254) — new `GET /cron/morning` endpoint that fires `day_of_pickup` (today's pickups, status approved/confirmed/ready) and `day_of_return` (today's returns, status active). Same `verifyCron` auth as the daily endpoint. Idempotent via the F-7 `notification_log`.
+- [backend/vercel.json](backend/vercel.json#L13) — added cron schedule `0 11 * * *` (11am UTC = 7am EDT) for `/cron/morning`. Sits before the existing 1pm UTC daily so morning reminders go out before customers leave the house.
+- [dashboard/src/pages/MessagingPage.jsx](dashboard/src/pages/MessagingPage.jsx#L22) — removed `delivery_offer` and `refund_processed` from `TEMPLATE_STAGES` picker. Picker no longer offers UI traps for retired stages.
+- [backend/db/migrations/014_orphan_stage_cleanup.sql](backend/db/migrations/014_orphan_stage_cleanup.sql) **(new)** — `DELETE FROM email_templates WHERE stage IN ('delivery_offer', 'refund_processed', 'inspection_complete')`. Idempotent.
+
+### Surface — Bonzah pair NOT wired (deliberate)
+Audit said `insurance_policy_issued` and `insurance_bind_failed` were orphans. **They are deliberate orphans** — the 2026-05-01 changelog entry documents the design: *"Bonzah sends their own policy email to the customer captured in the quote payload. The in-app `bonzah_bind_failed` dashboard notification is preserved as the canonical reconciliation channel. Templates left in fallbackTemplates.js for now (unwired but available — easier to re-enable than re-author)."* Wiring those stages now would override that prior product decision. Templates and merge-field plumbing (F-6) are ready if the call is reversed in a future session — just add `sendBookingNotification('insurance_policy_issued', payload)` after the bind-success block in [stripeService.js:284](backend/services/stripeService.js#L284) and `sendBookingNotification('insurance_bind_failed', payload, { audience: 'admin' })` in the failure block. The `audience` param does not yet exist; add to `sendBookingNotification` if/when admin email routing is wanted.
+
+### Verification
+- `cd dashboard && npm run build` → clean (2.98s, 3098 modules).
+- `cd backend && npm test` → 23/23 pass.
+- `node --check` on every touched backend file → OK.
+- After deploy + migrations applied: file a moderate+ damage report, verify customer email lands. Hit `GET /api/v1/cron/morning` with valid bearer (or wait for the 11 UTC trigger), verify SMS lands for any booking with pickup/return today.
+
+### Migrations to apply manually
+- [backend/db/migrations/014_orphan_stage_cleanup.sql](backend/db/migrations/014_orphan_stage_cleanup.sql) — paste into Supabase SQL Editor.
+
+### Phase 1 status
+**8 of 8 audit items addressed.** F-4/F-5 partial only because the Bonzah pair was deferred per documented prior decision; everything else shipped. Three migrations queued for manual application in Supabase: 012 (notification_log), 013 (sms_opt_out), 014 (orphan cleanup).
+
+---
+
+## 2026-05-07 — Messaging Phase 1 — F-6 — fix: lift Bonzah + dashboard + amount_owed merge fields into buildMergeFields
+
+**Why:** Phase 1 audit found 8 merge-field keys referenced in `fallbackTemplates.js` (`bonzah_policy_no`, `bonzah_quote_id`, `bonzah_tier_label`, `bonzah_premium`, `bonzah_total_charged`, `bonzah_coverage_summary`, `dashboard_link`, `amount_owed`) that are populated by `buildBookingPayload` but never lifted into the merge map by `buildMergeFields`. `interpolateTemplate` falls through to the `match` literal (line 269) when a key is undefined, so any template using these would render the literal string `{{bonzah_policy_no}}` in customer emails. Latent until F-5 wires the callers — at which point detonates immediately.
+
+**Files (2):**
+- [backend/services/notifyService.js](backend/services/notifyService.js#L218) — added 8 keys to the `buildMergeFields` return object: `bonzah_policy_no`, `bonzah_quote_id`, `bonzah_tier_label`, `bonzah_premium`, `bonzah_total_charged`, `bonzah_coverage_summary`, `dashboard_link`, `amount_owed`. `amount_owed` is formatted to 2dp; the rest pass through as strings.
+- [backend/tests/merge-field-coverage.test.js](backend/tests/merge-field-coverage.test.js) **(new)** — 3 tests that grep every `{{key}}` and `{{#if key}}` reference from `fallbackTemplates.js` and assert each is set by `buildMergeFields()` for a representative payload. Also verifies the 8 F-6 keys specifically + that `amount_owed` handles null. Catches future drift — adding a new template referencing `{{shiny_field}}` without updating `buildMergeFields` fails CI.
+
+### Verification
+- `cd backend && npm test` → 23/23 pass (3 new merge-coverage + 5 contract + 8 pricing + 7 inspection).
+- `node --check backend/services/notifyService.js` → OK.
+- Coverage test confirmed no other unmapped keys — every `{{key}}` referenced in fallback templates resolves.
+
+### Open items
+- F-4 / F-5 next: orphan stages — wire 7, delete 2, with admin-only routing for `insurance_bind_failed`. **This is the biggest remaining task** — wiring stages affects what customers actually receive. Worth a checkpoint before merging.
+
+---
+
+## 2026-05-07 — Messaging Phase 1 — F-21 — feat: SMS opt-out tracking + STOP keyword handling
+
+**Why:** Phase 1 audit found no app-level SMS consent tracking. Twilio's carrier honors STOP keywords automatically (subsequent messages fail with error 21610), but the app stored no consent state — making `repeat_customer` and `extension_offer` (unsolicited marketing stages) a TCPA exposure if the carrier-level block is ever bypassed (second `From` number, provider migration). Customer's STOP intent was lost the moment Twilio swallowed it.
+
+**Files (3, +1 migration):**
+- [backend/db/migrations/013_sms_opt_out.sql](backend/db/migrations/013_sms_opt_out.sql) **(new)** — adds `sms_opt_out BOOLEAN NOT NULL DEFAULT FALSE` and `sms_opt_out_at TIMESTAMPTZ` columns to `customers`. Partial index on rows where `sms_opt_out = TRUE` (small index even at scale). No backfill — Twilio's carrier-level STOPs were never surfaced into the app, so we have no historical signal to seed from. All existing customers default to opted-in.
+- [backend/services/notifyService.js](backend/services/notifyService.js#L101) — `sendSMS` now queries `customers` by normalized last-10-digit phone match and short-circuits with `{ skipped: 'opted_out' }` if any matching row is opted out. Single point of enforcement so future callers are automatically protected. Lookup failures (missing table, RLS, network) log a warning but don't block dispatch — defensive default.
+- [backend/routes/messaging.js](backend/routes/messaging.js#L153) — `/webhook/inbound` detects STOP/UNSUB/UNSUBSCRIBE/CANCEL/END/QUIT (case-insensitive, whitespace-tolerant) on inbound message body. On match, flips `customers.sms_opt_out=true` and stamps `sms_opt_out_at`. Then continues storing the message in the conversation thread (admin sees the opt-out request in context).
+
+**Design choices:**
+- **Phone match by last-10-digits**, not E.164 equality. The codebase has inconsistent phone formats (some `+17725551234`, some `(772) 555-1234`, some raw 10-digit). Last-10 match is forgiving and correct for US numbers. F-20 (international suffix-match bug) is deferred to Phase 2 — not introduced here.
+- **No bypass for "operational" SMS**. TCPA's STOP applies to all messages, not just marketing. `late_return_escalation` won't fire to opted-out customers either. Email path is unaffected (this is SMS-only opt-out).
+- **No app-level START / UNSTOP**. Twilio re-enables a customer at the carrier level if they text START. The app flag would persist `sms_opt_out=true`. If/when this becomes a real customer journey, add a START detector in the inbound webhook to flip the flag back. Not needed for Phase 1.
+
+### Verification
+- `node --check` on touched backend files → OK.
+- Backend test suite still green (20/20 — opt-out lookup is defensive, doesn't affect existing tests).
+- After migration applied + deploy: text STOP from a test phone → `customers.sms_opt_out` flips to true. Trigger a `repeat_customer` cron path for that customer → no SMS dispatch, log shows `Skipping SMS to ... — customer has sms_opt_out=true`. Email path still fires as expected.
+
+### Migration to apply manually
+- [backend/db/migrations/013_sms_opt_out.sql](backend/db/migrations/013_sms_opt_out.sql) — paste into Supabase SQL Editor.
+
+### Open items
+- F-6 next: lift Bonzah/dashboard/amount_owed merge fields into `buildMergeFields`.
+
+---
+
+## 2026-05-07 — Messaging Phase 1 — F-9 — fix: template preview button works on the template list
+
+**Why:** Phase 1 audit found the eye-icon Preview button on each template card ([MessagingPage.jsx:1051](dashboard/src/pages/MessagingPage.jsx#L1051)) was a no-op. Clicking set the `preview` state but the modal markup lived inside the editor branch (`if (editing !== null) { return ... }`) — when the user was on the listing page, `editing === null`, the modal was unmounted, so click did nothing visible. Admin saw a button that produced no result.
+
+**Files (1):**
+- [dashboard/src/pages/MessagingPage.jsx](dashboard/src/pages/MessagingPage.jsx#L824) — extracted the `<AnimatePresence>` preview overlay block (~30 lines of JSX) into a `previewNode` constant declared above the `if (editing !== null)` conditional. Referenced as `{previewNode}` in both the editor branch and the listing branch returns. No structural change to the overlay — same animation, same close-on-backdrop-click, same body rendering.
+
+### Verification
+- `cd dashboard && npm run build` → clean (2.94s, 3098 modules).
+- After deploy: Templates tab → click eye icon on any template card → modal appears with subject + body. Click backdrop → closes. Open the editor view, click eye on the form-bottom Preview button → still works.
+
+### Open items
+- F-21 next: SMS opt-out flag + STOP keyword detector.
+
+---
+
+## 2026-05-07 — Messaging Phase 1 — F-3 — feat: surface booking_submitted email contract with comments + static test
+
+**Why:** Phase 1 audit found that `notifyService.sendBookingNotification` skips email dispatch when `stage === 'booking_submitted'` because `bookingService.createBooking` calls `emailService.sendBookingConfirmation` separately (richer branded layout). The dependency was undocumented and untested. If anyone deletes/refactors that one call, customers receive nothing after submitting a booking — no email, no SMS via fallback (no fallback template for `booking_submitted` either), no error logged.
+
+**Files (4):**
+- [backend/services/notifyService.js](backend/services/notifyService.js#L529) — added a 7-line comment block above `skipEmail = stage === 'booking_submitted'` documenting the implicit contract and pointing at the guarding test.
+- [backend/services/bookingService.js](backend/services/bookingService.js#L262) — added a 5-line comment block above the `sendBookingConfirmation` call with the matching contract reference.
+- [backend/tests/booking-submitted-contract.test.js](backend/tests/booking-submitted-contract.test.js) **(new)** — 5 static-source assertions: (1) emailService exports `sendBookingConfirmation`, (2) bookingService imports it, (3) `createBooking` calls it, (4) notifyService still has the skip flag, (5) F-3 comments are present in both files. Build fails if any of these regress.
+- [backend/package.json](backend/package.json#L11) — `test` script now globs `tests/` so all `*.test.js` files run (was hardcoded to pricingService).
+
+**Why a static test, not a mocked integration test:** Backend has no mocking framework (`node --test` + `node:assert` only). Mocking ES module imports would require either a dependency (`vitest`/`jest`) or DI refactor — both out of Phase 1 scope. A static-source check catches the only regression we actually care about (someone removing the call) at zero infrastructure cost.
+
+### Verification
+- `cd backend && npm test` → all 20 tests pass (5 new + 8 pricing + 7 inspection).
+- Manually verified the regression catch: temporarily removing the `sendBookingConfirmation(...)` call would fail test #3.
+
+### Open items
+- F-9 next: move template-preview overlay above the early return in MessagingPage.
+
+---
+
+## 2026-05-07 — Messaging Phase 1 — F-7 — feat: notification idempotency log
+
+**Why:** Phase 1 audit found that 8 cron-driven stages (`pickup_reminder`, `return_reminder`, `late_return_warning`, `mid_rental_checkin`, `extension_offer`, `rental_completed`, `repeat_customer`, `late_return_escalation`) had no per-booking-per-stage tracking. Cron retries on 5xx, manual replays, and env-var redeploys all double-fire every applicable reminder. Only `payment_confirmed` had idempotency (PI metadata `receipt_sent_at`). Customers were getting double-texts when the cron retried.
+
+**Files (2, +1 migration):**
+- [backend/db/migrations/012_notification_log.sql](backend/db/migrations/012_notification_log.sql) **(new)** — adds `notification_log` table with `UNIQUE (booking_code, stage, event_date)` and lookup index. Includes idempotent backfill from `messages` table (deduped via `GROUP BY` + `ON CONFLICT DO NOTHING`) so historical sends are recorded before the first cron run after deploy.
+- [backend/services/notifyService.js](backend/services/notifyService.js#L482) — `sendBookingNotification` now inserts a log row before dispatch. On Postgres duplicate-key error (23505), the function returns early without sending. Other DB errors are logged but don't block dispatch — defensive default keeps notifications flowing if the log table is misconfigured.
+
+**Design choices:**
+- **Key on `booking_code`, not `booking_id`.** The buildBookingPayload output includes `booking_code` everywhere; `booking_id` is inconsistent. `booking_code` is unique enough (BK-YYYYMMDD-XXXX format) and already the externalId convention in the messages table.
+- **Day-grain dedup (`event_date`).** Per-day naturally also gives lifetime-once for stages that only fire once anyway (e.g., `booking_approved`). Stages that legitimately span multiple days (e.g., a `late_return_warning` re-fire tomorrow if still overdue) still work because each day is a fresh row.
+- **Manual sends bypass.** Admin compose UI uses `sendDirectEmail`/`sendDirectSMS` (not `sendBookingNotification`) so manual re-sends are unaffected.
+- **Soft-fail on log errors.** If the log insert errors for any reason other than 23505, the notification still goes out. Better to occasionally double-send than to block legitimate customer comms on a logging issue.
+
+### Verification
+- `node --check backend/services/notifyService.js` → OK.
+- After migration applied: `SELECT COUNT(*) FROM notification_log;` should equal the count of automated messages-table rows with non-empty `metadata->>'booking_code'`. (Sanity-check value depends on existing message volume.)
+- After deploy: hit `GET /api/v1/cron/daily` twice with valid bearer; second call should log `[Notify] Skipping duplicate "..." for ...` and produce zero new Twilio/Resend dispatches.
+
+### Migration to apply manually
+- [backend/db/migrations/012_notification_log.sql](backend/db/migrations/012_notification_log.sql) — paste into Supabase SQL Editor. Backfill is idempotent; safe to re-run.
+
+### Open items
+- F-3 next: comments + integration test on the booking_submitted skip-flag dependency.
+
+---
+
+## 2026-05-07 — Messaging Phase 1 — F-2 — feat: Twilio signature verification on /messaging/webhook/inbound
+
+**Why:** Phase 1 audit found the inbound SMS webhook had no authentication. The doc-comment claimed "Secured via x-webhook-secret header or Twilio signature (basic check)" but no header read or signature validation existed. Anyone with the URL could POST a fake `From` and `Body` to inject arbitrary messages into a customer's thread (phishing the admin into responding to fake numbers, planting fake conversation evidence, spam).
+
+**Files (3, +1 new middleware):**
+- [backend/middleware/twilioSignature.js](backend/middleware/twilioSignature.js) **(new)** — `verifyTwilioSignature(req, res, next)`. Reconstructs the public URL from `x-forwarded-proto` + `Host` + `originalUrl`, builds Twilio's HMAC-SHA1 payload (URL + sorted-params concatenated as `k1v1k2v2...`), keys with `TWILIO_AUTH_TOKEN`, base64-compares to `X-Twilio-Signature` via `crypto.timingSafeEqual`. Bypass: `X-Webhook-Secret` header matching `INBOUND_WEBHOOK_SECRET` (admin replay). Dev: skipped with a warn log if `TWILIO_AUTH_TOKEN` unset.
+- [backend/routes/messaging.js](backend/routes/messaging.js#L113) — wired `verifyTwilioSignature` middleware into the `/webhook/inbound` route. Updated doc-comment.
+- [backend/routes/messaging.js](backend/routes/messaging.js#L4) — import.
+
+**What's intentionally NOT in this commit:**
+- Twilio status callback signing (e.g., delivery receipts) — there's no such endpoint yet; if/when one lands it should reuse this middleware.
+
+### Verification
+- `node --check` on touched files → OK.
+- After deploy:
+  - Real Twilio inbound: should pass (Twilio supplies `X-Twilio-Signature`).
+  - Unauthenticated `curl` POST: should return 403 with `Invalid webhook signature`.
+  - Replay tooling: include `X-Webhook-Secret: $INBOUND_WEBHOOK_SECRET` header to bypass.
+- If Twilio inbound starts 403'ing in production, the URL reconstruction is the most likely culprit. Compare what we hash to what Twilio's debugger shows the request URL was. Set `INBOUND_WEBHOOK_SECRET` env var as the immediate unblock while debugging.
+
+### New env var
+- `INBOUND_WEBHOOK_SECRET` (optional) — admin replay bypass. Add to Vercel backend env vars if you want manual testing/replay capability without computing real signatures.
+
+### Open items
+- F-7 next: notification idempotency.
+
+---
+
+## 2026-05-07 — Messaging Phase 1 — F-1 — fix: inbound SMS webhook accepts Twilio's default form-encoded payloads
+
+**Why:** Phase 1 audit (see [MESSAGING_PHASE1_HANDOFF.md](MESSAGING_PHASE1_HANDOFF.md)) found that `/messaging/webhook/inbound` was silently dropping every customer SMS reply in production. Twilio's default callback content-type is `application/x-www-form-urlencoded`. The Express app had only `express.json()` mounted, so `req.body` resolved to empty and `From`/`Body` were missing — route returned 400. The route also accepts JSON shape (`from`/`body`/`message`), so manual JSON tests passed and masked the production failure.
+
+**Files (2):**
+- [backend/api/index.js](backend/api/index.js#L55) — added `app.use(express.urlencoded({ extended: false, limit: '1mb' }))` after the JSON parser (Vercel serverless entry).
+- [backend/server.js](backend/server.js#L58) — added the urlencoded parser with the same Stripe-webhook-skip pattern the existing JSON parser already uses (local dev entry).
+
+**What's intentionally NOT fixed in this commit:**
+- F-2 (Twilio signature verification on `/messaging/webhook/inbound`) — next task. F-1 alone restores the channel; F-2 closes the spoofing surface.
+- The latent issue that `api/index.js` runs `express.json` globally before the Stripe webhook's `express.raw` (server.js correctly skips for the webhook path). Out of scope for F-1 — separate finding worth its own ticket.
+
+### Verification
+- `node --check` on both touched files → OK.
+- After deploy: customer SMS replies should land in `messages` table and appear in dashboard `/messaging`. Verify with: `curl -X POST $API/messaging/webhook/inbound -H 'Content-Type: application/x-www-form-urlencoded' --data 'From=%2B17725551234&Body=test'` returns 200 (or 200 with empty TwiML even when no customer matches the `From` — that's the expected branch at [routes/messaging.js:143](backend/routes/messaging.js#L143)).
+- Confirm Twilio Console → Phone Number → Messaging webhook URL points to the production `/api/v1/messaging/webhook/inbound`.
+
+### Open items
+- F-2 next: Twilio signature verification.
+
+---
+
 ## 2026-05-04 — Task 3 — feat: admin "New Booking" with continue-booking link
 
 **Why:** Admins couldn't start a booking on behalf of a walk-in / phoned-in customer. They needed to manually create one, capture vehicle + dates + basic customer info + add-ons, and send the customer a link to finish (sign, insurance, pay).
