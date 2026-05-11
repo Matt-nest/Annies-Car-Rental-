@@ -5,6 +5,34 @@
 
 ---
 
+## 2026-05-11 — Insurance step: re-introduce own-insurance path alongside Bonzah
+
+**Why:** Last commit (21e19b2) made CDW Essential mandatory by removing the own-insurance option entirely. Product decision reversed: customers who already carry auto insurance should be able to attest to their own coverage and continue without buying Bonzah. CDW Essential remains mandatory *within* the Bonzah path — it's only optional in the sense that the customer can choose the own-insurance path instead.
+
+**Files (1):**
+- [src/components/booking/confirm-booking/wizard-steps/InsuranceStep.tsx](src/components/booking/confirm-booking/wizard-steps/InsuranceStep.tsx) — restructured into three sub-views driven by local `view` state (`'choice' | 'own' | 'bonzah'`), initialized from `draft.insuranceChoice` so a refresh keeps the customer where they were.
+  - **Choice view (new):** two equal cards side-by-side on `sm+`, stacked on mobile. "I have my own insurance" (UserCheck icon) vs "Buy coverage from us" (ShieldCheck icon). Selected card highlights with accent-color border at 2px. Bottom Back button returns to signature step (`onBack`).
+  - **Own view (new):** inline form for `company`, `policyNumber`, `expiry` (required), `agentName`, `agentPhone` (optional). Writes to `draft.personalInsurance` which `ConfirmBooking.tsx` already submits to `/agreements/:code/sign`. ConfirmBooking already PATCHes `{source: 'own'}` to `/bookings/:code/insurance`, and backend already maps that to `insurance_provider='own'`, `insurance_status='external'` ([backend/routes/bookings.js:542](backend/routes/bookings.js#L542)). Top breadcrumb + bottom Back both return to choice view.
+  - **Bonzah view:** existing tier UI mostly intact. CDW Essential still mandatory (yellow notice retained, "Included" badge replaces the prior "Required" badge to reflect the new framing), Continue still gated on a tier being selected. Top helper copy tweaked from "CDW required for all rentals" → "Essential CDW is the minimum included." Eligibility/exclusion notices now suggest the own-insurance path as a fallback.
+  - **Perf:** Bonzah config + tier quotes now only fetch when `view === 'bonzah'` (was: fetched eagerly on mount, hitting Bonzah's API for every customer who entered the step). Auto-select Essential now only fires if `!draft.bonzahTierId` so a returning customer's tier choice is preserved.
+
+**No changes to:**
+- `WizardDraft` shape (`personalInsurance` and `insuranceChoice: 'own' | 'bonzah' | null` already existed).
+- Backend (`/bookings/:code/insurance` already supports `source: 'own'`).
+- Submit flow in [ConfirmBooking.tsx](src/components/booking/ConfirmBooking.tsx#L128) (already branches on `insuranceChoice` and submits personal-insurance fields with the agreement).
+- OrderSummary already renders "Your own insurance — no charge" when `insuranceChoice === 'own'`.
+
+### Verification
+- `npm run build` (customer site) → clean (1.98s, 2139 modules).
+- TS hints about `prev`/`t` implicit-any are pre-existing project-wide config noise (no `@types/react` at root), not new errors. Same hints exist on the original file pre-edit.
+- **Not browser-tested** — needs manual smoke: (1) choice screen renders two cards; (2) clicking "own" → form, fill 3 required fields → Continue → reaches payment with `$0` insurance line; (3) clicking "buy from us" → tier list with Essential preselected → Continue works; (4) back/breadcrumb from sub-views returns to choice; (5) back from choice returns to signature step; (6) refresh on any sub-view restores that sub-view.
+
+### Open items
+- Customer's own-insurance attestation is trust-only. No declarations-page upload or admin verification gate. User explicitly chose this trade-off (option 1: trust own insurance fully, industry-standard for Hertz/Enterprise). Damage collection from an underinsured customer is now Annie's risk to manage.
+- Eligibility-blocked customers (under 21, excluded state) entering the Bonzah view see a notice telling them to use own insurance instead. Could be smarter: hide/disable the "Buy from us" card on the choice screen when we already know they're ineligible. Skipped because the eligibility check requires the Bonzah config to be loaded, and loading config eagerly defeats the perf improvement above. Worth revisiting if the eligibility-rejection rate is high.
+
+---
+
 ## 2026-05-07 — Messaging Phase 2D — Crisp absorption (one-way ingestion)
 
 **Why:** Phase 2 design called for unifying customer comms in `/messaging` to remove the context-switch to `app.crisp.chat`. User chose one-way ingestion: pull Crisp chats into our `messages` table; admin still replies through Crisp's app. No two-way push to keep blast radius small and reversible.
