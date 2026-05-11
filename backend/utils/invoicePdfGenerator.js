@@ -7,10 +7,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 /* ────────────────────────────────────────────────────────
-   Brand Constants
+   Brand Constants — Aaron's Garage LLC, DBA Annie's & Co
    ──────────────────────────────────────────────────────── */
 const BRAND = {
-  accent: '#F5A623',        // Yellow accent bar
+  accent: '#F5A623',
   accentDark: '#D4941E',
   dark: '#1C1917',
   medium: '#57534E',
@@ -22,11 +22,13 @@ const BRAND = {
   red: '#DC2626',
 
   companyName: "Annie's & Co",
-  legalName: 'Aaron\'s Garage LLC',
+  tagline: 'Your Trusted Vehicle Rental',
+  legalName: "Aaron's Garage LLC",
   dba: "DBA Annie's & Co",
   address: '586 NW Mercantile Pl',
   cityStateZip: 'Port Saint Lucie, FL 34986',
   phone: '(772) 985-6667',
+  email: 'info@anniescarrental.com',
   website: 'anniescarrental.com',
   ein: '99-0908048',
 };
@@ -35,12 +37,18 @@ const BRAND = {
    Helpers
    ──────────────────────────────────────────────────────── */
 function fmt(amount) {
-  return `$${Number(amount || 0).toFixed(2)}`;
+  return `$${Number(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function fmtDate(dateStr) {
   if (!dateStr) return '—';
   const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function fmtDatetime(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
@@ -51,15 +59,13 @@ function generateInvoiceNumber(booking) {
 }
 
 /**
- * Try to load the logo from the public directory (runs at build time on the server).
- * Falls back gracefully if not found.
+ * Load logo from backend/assets — reliable path that works in dev and production.
  */
 function loadLogo() {
-  // Try multiple possible paths relative to the backend root
   const candidates = [
+    join(__dirname, '..', 'assets', 'logo.png'),
     join(__dirname, '..', '..', 'public', 'logo.png'),
     join(__dirname, '..', '..', 'dist', 'logo.png'),
-    join(__dirname, '..', 'public', 'logo.png'),
   ];
   for (const p of candidates) {
     if (existsSync(p)) {
@@ -70,11 +76,11 @@ function loadLogo() {
 }
 
 /* ────────────────────────────────────────────────────────
-   Main Generator
+   Main PDF Generator
    ──────────────────────────────────────────────────────── */
 
 /**
- * Generate a professional invoice PDF and pipe it to a writable stream (usually res).
+ * Generate a professional invoice PDF and pipe it to a writable stream.
  *
  * @param {Object} params
  * @param {Object} params.booking - Full booking row (joined with customers, vehicles, payments, rental_agreements)
@@ -87,7 +93,7 @@ export async function generateInvoicePdf({ booking, invoiceNumber, stream }) {
     try {
       const doc = new PDFDocument({
         size: 'LETTER',
-        margins: { top: 40, bottom: 60, left: 50, right: 50 },
+        margins: { top: 40, bottom: 80, left: 50, right: 50 },
         bufferPages: true,
       });
 
@@ -100,157 +106,175 @@ export async function generateInvoicePdf({ booking, invoiceNumber, stream }) {
         : booking.rental_agreements || {};
       const payments = Array.isArray(booking.payments) ? booking.payments : [];
       const pageWidth = 612;
-      const contentWidth = pageWidth - 100; // 50px margins each side
-      const leftMargin = 50;
-      const rightEdge = pageWidth - 50;
+      const contentWidth = pageWidth - 100;
+      const L = 50;       // left margin
+      const R = pageWidth - 50; // right edge
+      const issueDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const vehicleName = `${vehicle.year || ''} ${vehicle.make || ''} ${vehicle.model || ''}`.trim() || 'Vehicle';
 
       /* ═══════════════════════════════════════════════════════
-         ACCENT BAR
+         TOP ACCENT BAR
          ═══════════════════════════════════════════════════════ */
-      doc.rect(0, 0, pageWidth, 6).fill(BRAND.accent);
+      doc.rect(0, 0, pageWidth, 5).fill(BRAND.accent);
 
       /* ═══════════════════════════════════════════════════════
-         HEADER — Logo + Company Info (left) | Invoice Meta (right)
+         HEADER — Logo + Business Info (left) | Invoice Meta (right)
          ═══════════════════════════════════════════════════════ */
-      let y = 24;
+      let y = 22;
 
-      // Try to embed logo
+      // ── Logo ──
       const logoBuf = loadLogo();
       if (logoBuf) {
         try {
-          doc.image(logoBuf, leftMargin, y, { height: 40 });
-        } catch { /* logo failed — skip gracefully */ }
+          doc.image(logoBuf, L, y, { height: 50 });
+        } catch { /* skip gracefully */ }
       }
 
-      // Company name (below or beside logo)
-      const companyNameY = logoBuf ? y + 46 : y;
-      doc.fontSize(16).font('Helvetica-Bold').fillColor(BRAND.dark)
-        .text(BRAND.companyName, leftMargin, companyNameY);
-      doc.fontSize(8).font('Helvetica').fillColor(BRAND.light)
-        .text('Your Trusted Vehicle Rental', leftMargin, companyNameY + 18);
+      // ── Business info under logo ──
+      const bizY = logoBuf ? y + 58 : y;
+      doc.fontSize(11).font('Helvetica-Bold').fillColor(BRAND.dark)
+        .text(BRAND.companyName, L, bizY);
+      doc.fontSize(7).font('Helvetica').fillColor(BRAND.light)
+        .text(BRAND.tagline, L, bizY + 14);
 
-      // Invoice title + meta (right side)
+      // Business address block
+      doc.fontSize(7).font('Helvetica').fillColor(BRAND.medium);
+      doc.text(BRAND.address, L, bizY + 28);
+      doc.text(BRAND.cityStateZip, L, bizY + 38);
+      doc.text(`Phone: ${BRAND.phone}`, L, bizY + 48);
+      doc.text(`Web: ${BRAND.website}`, L, bizY + 58);
+
+      // Legal identity
+      doc.fontSize(7).font('Helvetica-Bold').fillColor(BRAND.medium);
+      doc.text(`${BRAND.legalName}`, L, bizY + 72);
+      doc.fontSize(7).font('Helvetica').fillColor(BRAND.medium);
+      doc.text(BRAND.dba, L, bizY + 82);
+      doc.text(`EIN: ${BRAND.ein}`, L, bizY + 92);
+
+      // ── Invoice title (right) ──
       doc.fontSize(22).font('Helvetica-Bold').fillColor(BRAND.dark)
-        .text('INVOICE', rightEdge - 200, y, { width: 200, align: 'right' });
+        .text('INVOICE', R - 180, y, { width: 180, align: 'right' });
 
-      const issueDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-      const metaY = y + 30;
-      const metaLabelX = rightEdge - 200;
-      const metaValueX = rightEdge - 90;
+      // Meta table (right side, properly spaced)
+      const metaStartY = y + 32;
+      const metaLabelX = R - 180;
+      const metaValueX = R - 90;
 
-      doc.fontSize(9).font('Helvetica').fillColor(BRAND.medium);
-      doc.text('Invoice No:', metaLabelX, metaY, { width: 110, align: 'right' });
-      doc.text('Issue Date:', metaLabelX, metaY + 14, { width: 110, align: 'right' });
-      doc.text('Reference:', metaLabelX, metaY + 28, { width: 110, align: 'right' });
+      const metaRows = [
+        ['Invoice No:', invoiceNumber],
+        ['Issue Date:', issueDate],
+        ['Reference:', booking.booking_code || '—'],
+      ];
 
-      doc.font('Helvetica-Bold').fillColor(BRAND.dark);
-      doc.text(invoiceNumber, metaValueX, metaY, { width: 90, align: 'right' });
-      doc.text(issueDate, metaValueX, metaY + 14, { width: 90, align: 'right' });
-      doc.text(booking.booking_code || '—', metaValueX, metaY + 28, { width: 90, align: 'right' });
+      metaRows.forEach((row, i) => {
+        const rowY = metaStartY + i * 16;
+        doc.fontSize(8).font('Helvetica').fillColor(BRAND.medium)
+          .text(row[0], metaLabelX, rowY, { width: 80, align: 'right' });
+        doc.fontSize(8).font('Helvetica-Bold').fillColor(BRAND.dark)
+          .text(row[1], metaValueX, rowY, { width: 90, align: 'right' });
+      });
 
       /* ═══════════════════════════════════════════════════════
          SEPARATOR
          ═══════════════════════════════════════════════════════ */
-      y = companyNameY + 42;
-      doc.moveTo(leftMargin, y).lineTo(rightEdge, y).strokeColor(BRAND.border).lineWidth(1).stroke();
-      y += 16;
+      y = bizY + 106;
+      doc.moveTo(L, y).lineTo(R, y).strokeColor(BRAND.border).lineWidth(1).stroke();
+      y += 14;
 
       /* ═══════════════════════════════════════════════════════
          BILL TO (left) | VEHICLE INFO (right)
          ═══════════════════════════════════════════════════════ */
-      // Bill To
-      doc.fontSize(8).font('Helvetica-Bold').fillColor(BRAND.accent)
-        .text('BILL TO', leftMargin, y);
-      y += 14;
+      const sectionStartY = y;
+
+      // ── Bill To ──
+      doc.fontSize(7).font('Helvetica-Bold').fillColor(BRAND.accent)
+        .text('BILL TO', L, y);
+      y += 12;
 
       const customerName = `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Customer';
       doc.fontSize(10).font('Helvetica-Bold').fillColor(BRAND.dark)
-        .text(customerName, leftMargin, y);
+        .text(customerName, L, y);
       y += 14;
 
-      doc.fontSize(9).font('Helvetica').fillColor(BRAND.medium);
-      if (customer.email) { doc.text(customer.email, leftMargin, y); y += 12; }
-      if (customer.phone) { doc.text(customer.phone, leftMargin, y); y += 12; }
+      doc.fontSize(8).font('Helvetica').fillColor(BRAND.medium);
+      if (customer.email) { doc.text(customer.email, L, y); y += 11; }
+      if (customer.phone) { doc.text(customer.phone, L, y); y += 11; }
 
-      // Address from agreement or customer
       const addr = agreement.address_line1 || customer.address_line1;
       const city = agreement.city || customer.city;
       const state = agreement.state || customer.state;
       const zip = agreement.zip || customer.zip;
       if (addr) {
-        doc.text(addr, leftMargin, y); y += 12;
-        if (city || state || zip) {
-          doc.text(`${city || ''}${city && state ? ', ' : ''}${state || ''} ${zip || ''}`.trim(), leftMargin, y);
-          y += 12;
-        }
+        doc.text(addr, L, y); y += 11;
+        const csz = `${city || ''}${city && state ? ', ' : ''}${state || ''} ${zip || ''}`.trim();
+        if (csz) { doc.text(csz, L, y); y += 11; }
       }
 
-      // Vehicle Info (right column, same vertical start)
-      const rightColX = 340;
-      let ry = y - (addr ? 62 : 38);
+      // ── Vehicle Info (right column) ──
+      const rightColX = 330;
+      let ry = sectionStartY;
 
-      doc.fontSize(8).font('Helvetica-Bold').fillColor(BRAND.accent)
+      doc.fontSize(7).font('Helvetica-Bold').fillColor(BRAND.accent)
         .text('VEHICLE', rightColX, ry);
-      ry += 14;
+      ry += 12;
 
-      const vehicleName = `${vehicle.year || ''} ${vehicle.make || ''} ${vehicle.model || ''}`.trim() || 'Vehicle';
       doc.fontSize(10).font('Helvetica-Bold').fillColor(BRAND.dark)
         .text(vehicleName, rightColX, ry);
       ry += 14;
 
-      doc.fontSize(9).font('Helvetica').fillColor(BRAND.medium);
-      if (vehicle.vin) { doc.text(`VIN: ${vehicle.vin}`, rightColX, ry); ry += 12; }
-      doc.text(`Pickup: ${fmtDate(booking.pickup_date)} ${booking.pickup_time || ''}`.trim(), rightColX, ry); ry += 12;
-      doc.text(`Return: ${fmtDate(booking.return_date)} ${booking.return_time || ''}`.trim(), rightColX, ry); ry += 12;
-      doc.text(`Rental Days: ${booking.rental_days || '—'}`, rightColX, ry); ry += 12;
+      doc.fontSize(8).font('Helvetica').fillColor(BRAND.medium);
+      if (vehicle.vin) { doc.text(`VIN: ${vehicle.vin}`, rightColX, ry); ry += 11; }
+      doc.text(`Pickup: ${fmtDate(booking.pickup_date)}${booking.pickup_time ? ` at ${booking.pickup_time}` : ''}`, rightColX, ry); ry += 11;
+      doc.text(`Return: ${fmtDate(booking.return_date)}${booking.return_time ? ` at ${booking.return_time}` : ''}`, rightColX, ry); ry += 11;
+      doc.text(`Rental Days: ${booking.rental_days || '—'}`, rightColX, ry); ry += 11;
       if (booking.pickup_location) {
-        doc.text(`Location: ${booking.pickup_location}`, rightColX, ry); ry += 12;
+        doc.text(`Location: ${booking.pickup_location}`, rightColX, ry); ry += 11;
       }
 
-      y = Math.max(y, ry) + 12;
+      y = Math.max(y, ry) + 14;
 
       /* ═══════════════════════════════════════════════════════
-         SUMMARY BAR (yellow accent background)
+         SUMMARY BAR (yellow accent)
          ═══════════════════════════════════════════════════════ */
-      const barH = 32;
-      doc.rect(leftMargin, y, contentWidth, barH).fill(BRAND.accent);
+      const barH = 30;
+      doc.rect(L, y, contentWidth, barH).fill(BRAND.accent);
 
-      doc.fontSize(9).font('Helvetica-Bold').fillColor(BRAND.white);
+      // Evenly spaced columns within the bar
       const barCols = [
-        { label: 'Invoice No.', value: invoiceNumber, x: leftMargin + 10 },
-        { label: 'Issue Date', value: issueDate, x: leftMargin + 170 },
-        { label: 'Booking Code', value: booking.booking_code || '—', x: leftMargin + 310 },
-        { label: 'Total Due', value: fmt(booking.total_cost), x: rightEdge - 100 },
+        { label: 'Invoice No.', value: invoiceNumber, x: L + 8, w: 130 },
+        { label: 'Issue Date', value: issueDate, x: L + 148, w: 100 },
+        { label: 'Booking Code', value: booking.booking_code || '—', x: L + 290, w: 120 },
+        { label: 'Total Due', value: fmt(booking.total_cost), x: R - 108, w: 100 },
       ];
       barCols.forEach(col => {
-        doc.fontSize(7).font('Helvetica').fillColor('#FFFFFF99')
-          .text(col.label, col.x, y + 5);
-        doc.fontSize(10).font('Helvetica-Bold').fillColor(BRAND.white)
-          .text(col.value, col.x, y + 16);
+        doc.fontSize(6).font('Helvetica').fillColor('rgba(255,255,255,0.7)')
+          .text(col.label, col.x, y + 5, { width: col.w });
+        doc.fontSize(9).font('Helvetica-Bold').fillColor(BRAND.white)
+          .text(col.value, col.x, y + 15, { width: col.w });
       });
 
-      y += barH + 16;
+      y += barH + 14;
 
       /* ═══════════════════════════════════════════════════════
          LINE ITEMS TABLE
          ═══════════════════════════════════════════════════════ */
-      // Table header
-      const colDesc = leftMargin;
-      const colQty = leftMargin + 280;
-      const colUnit = leftMargin + 350;
-      const colAmt = rightEdge - 10;
+      const colDesc = L;
+      const colQty = L + 290;
+      const colUnit = L + 360;
+      const colAmt = R;
 
-      doc.fontSize(8).font('Helvetica-Bold').fillColor(BRAND.medium);
+      // Table header
+      doc.fontSize(8).font('Helvetica-Bold').fillColor(BRAND.dark);
       doc.text('Description', colDesc, y);
       doc.text('Qty', colQty, y, { width: 50, align: 'center' });
       doc.text('Unit Price', colUnit, y, { width: 70, align: 'right' });
-      doc.text('Amount', colAmt - 60, y, { width: 70, align: 'right' });
+      doc.text('Amount', colAmt - 70, y, { width: 70, align: 'right' });
 
       y += 4;
-      doc.moveTo(leftMargin, y + 10).lineTo(rightEdge, y + 10).strokeColor(BRAND.dark).lineWidth(0.5).stroke();
+      doc.moveTo(L, y + 10).lineTo(R, y + 10).strokeColor(BRAND.dark).lineWidth(0.5).stroke();
       y += 16;
 
-      // Build line items from booking data
+      // ── Build line items ──
       const lineItems = [];
 
       // Base rental
@@ -262,212 +286,216 @@ export async function generateInvoicePdf({ booking, invoiceNumber, stream }) {
           : Number(booking.daily_rate) * 7;
 
         if (fullWeeks > 0) {
-          lineItems.push({
-            desc: `Weekly Rental — ${vehicleName}`,
-            qty: fullWeeks,
-            unit: weeklyRate,
-            amount: fullWeeks * weeklyRate,
-          });
+          lineItems.push({ desc: `Weekly Rental — ${vehicleName}`, qty: fullWeeks, unit: weeklyRate, amount: fullWeeks * weeklyRate });
         }
         if (remainderDays > 0) {
-          lineItems.push({
-            desc: `Daily Rental (remainder) — ${vehicleName}`,
-            qty: remainderDays,
-            unit: Number(booking.daily_rate),
-            amount: remainderDays * Number(booking.daily_rate),
-          });
+          lineItems.push({ desc: `Daily Rental (remainder) — ${vehicleName}`, qty: remainderDays, unit: Number(booking.daily_rate), amount: remainderDays * Number(booking.daily_rate) });
+        }
+      } else if (booking.rate_type && booking.rate_type.startsWith('monthly')) {
+        const months = Math.floor((booking.rental_days || 0) / 30);
+        const remainderDays = (booking.rental_days || 0) % 30;
+        if (months > 0) {
+          lineItems.push({ desc: `Monthly Rental — ${vehicleName}`, qty: months, unit: Number(booking.monthly_rate || booking.daily_rate * 30), amount: months * Number(booking.monthly_rate || booking.daily_rate * 30) });
+        }
+        if (remainderDays > 0) {
+          lineItems.push({ desc: `Daily Rental (remainder) — ${vehicleName}`, qty: remainderDays, unit: Number(booking.daily_rate), amount: remainderDays * Number(booking.daily_rate) });
         }
       } else {
-        lineItems.push({
-          desc: `Daily Rental — ${vehicleName}`,
-          qty: booking.rental_days || 1,
-          unit: Number(booking.daily_rate),
-          amount: Number(booking.subtotal || 0),
-        });
+        lineItems.push({ desc: `Daily Rental — ${vehicleName}`, qty: booking.rental_days || 1, unit: Number(booking.daily_rate), amount: Number(booking.subtotal || 0) });
       }
 
       // Delivery fee
       if (Number(booking.delivery_fee) > 0) {
-        lineItems.push({
-          desc: `Delivery Fee${booking.delivery_address ? ` (${booking.delivery_address})` : ''}`,
-          qty: 1,
-          unit: Number(booking.delivery_fee),
-          amount: Number(booking.delivery_fee),
-        });
+        lineItems.push({ desc: `Delivery Fee${booking.delivery_address ? ` — ${booking.delivery_address}` : ''}`, qty: 1, unit: Number(booking.delivery_fee), amount: Number(booking.delivery_fee) });
       }
 
       // Unlimited Miles add-on
       if (Number(booking.mileage_addon_fee) > 0) {
-        lineItems.push({
-          desc: 'Unlimited Miles Add-on',
-          qty: 1,
-          unit: Number(booking.mileage_addon_fee),
-          amount: Number(booking.mileage_addon_fee),
-        });
+        lineItems.push({ desc: 'Unlimited Miles Add-on', qty: 1, unit: Number(booking.mileage_addon_fee), amount: Number(booking.mileage_addon_fee) });
       }
 
       // Unlimited Tolls add-on
       if (Number(booking.toll_addon_fee) > 0) {
-        lineItems.push({
-          desc: 'Unlimited Tolls Add-on',
-          qty: 1,
-          unit: Number(booking.toll_addon_fee),
-          amount: Number(booking.toll_addon_fee),
-        });
+        lineItems.push({ desc: 'Unlimited Tolls Add-on', qty: 1, unit: Number(booking.toll_addon_fee), amount: Number(booking.toll_addon_fee) });
       }
 
-      // Bonzah insurance premium (charged to customer)
+      // Insurance
       if (booking.bonzah_total_charged_cents && Number(booking.bonzah_total_charged_cents) > 0) {
         const tierLabel = booking.bonzah_tier_id
           ? booking.bonzah_tier_id.charAt(0).toUpperCase() + booking.bonzah_tier_id.slice(1)
           : 'Protection';
-        lineItems.push({
-          desc: `Insurance — ${tierLabel} Coverage`,
-          qty: 1,
-          unit: Number(booking.bonzah_total_charged_cents) / 100,
-          amount: Number(booking.bonzah_total_charged_cents) / 100,
-        });
+        lineItems.push({ desc: `Insurance — ${tierLabel} Coverage`, qty: 1, unit: Number(booking.bonzah_total_charged_cents) / 100, amount: Number(booking.bonzah_total_charged_cents) / 100 });
       }
 
-      // Render line items
+      // Young driver fee
+      if (Number(booking.young_driver_fee) > 0) {
+        lineItems.push({ desc: 'Young Driver Surcharge', qty: 1, unit: Number(booking.young_driver_fee), amount: Number(booking.young_driver_fee) });
+      }
+
+      // Extra charges (late return, damage, etc.)
+      if (Number(booking.extra_charges) > 0) {
+        lineItems.push({ desc: booking.extra_charges_note || 'Additional Charges', qty: 1, unit: Number(booking.extra_charges), amount: Number(booking.extra_charges) });
+      }
+
+      // ── Render line items ──
       lineItems.forEach(item => {
         doc.fontSize(9).font('Helvetica').fillColor(BRAND.dark);
-        doc.text(item.desc, colDesc, y, { width: 270 });
+        doc.text(item.desc, colDesc, y, { width: 280 });
         doc.text(String(item.qty), colQty, y, { width: 50, align: 'center' });
         doc.text(fmt(item.unit), colUnit, y, { width: 70, align: 'right' });
-        doc.text(fmt(item.amount), colAmt - 60, y, { width: 70, align: 'right' });
-
+        doc.text(fmt(item.amount), colAmt - 70, y, { width: 70, align: 'right' });
         y += 18;
-        doc.moveTo(leftMargin, y - 4).lineTo(rightEdge, y - 4).strokeColor(BRAND.border).lineWidth(0.3).stroke();
+        doc.moveTo(L, y - 4).lineTo(R, y - 4).strokeColor(BRAND.border).lineWidth(0.3).stroke();
       });
 
       // Discount line (negative)
       if (Number(booking.discount_amount) > 0) {
         doc.fontSize(9).font('Helvetica').fillColor(BRAND.green);
-        doc.text('Discount', colDesc, y);
-        doc.text('', colQty, y, { width: 50, align: 'center' });
-        doc.text('', colUnit, y, { width: 70, align: 'right' });
-        doc.text(`-${fmt(booking.discount_amount)}`, colAmt - 60, y, { width: 70, align: 'right' });
+        doc.text(`Discount${booking.discount_code ? ` (${booking.discount_code})` : ''}`, colDesc, y);
+        doc.text(`-${fmt(booking.discount_amount)}`, colAmt - 70, y, { width: 70, align: 'right' });
         y += 18;
-        doc.moveTo(leftMargin, y - 4).lineTo(rightEdge, y - 4).strokeColor(BRAND.border).lineWidth(0.3).stroke();
+        doc.moveTo(L, y - 4).lineTo(R, y - 4).strokeColor(BRAND.border).lineWidth(0.3).stroke();
       }
 
-      y += 8;
+      y += 10;
 
       /* ═══════════════════════════════════════════════════════
          TOTALS SECTION (right-aligned)
          ═══════════════════════════════════════════════════════ */
-      const totalsX = rightEdge - 200;
-      const totalsValueX = rightEdge - 10;
-      const totalsWidth = 120;
+      const totLabelX = R - 200;
+      const totValueX = R - 70;
+      const totW = 70;
 
-      // Subtotal
+      // Subtotal (sum of all line items before tax)
+      const calcSubtotal = lineItems.reduce((s, item) => s + item.amount, 0) - Number(booking.discount_amount || 0);
+
       doc.fontSize(9).font('Helvetica').fillColor(BRAND.medium);
-      doc.text('Subtotal:', totalsX, y, { width: 80, align: 'right' });
+      doc.text('Subtotal:', totLabelX, y, { width: 120, align: 'right' });
       doc.font('Helvetica-Bold').fillColor(BRAND.dark);
-      doc.text(fmt(booking.subtotal), totalsValueX - totalsWidth, y, { width: totalsWidth, align: 'right' });
+      doc.text(fmt(calcSubtotal), totValueX, y, { width: totW, align: 'right' });
       y += 16;
 
       // Tax
+      const taxAmount = Number(booking.tax_amount || 0);
+      const taxRate = calcSubtotal > 0 ? Math.round((taxAmount / calcSubtotal) * 100) : 7;
       doc.fontSize(9).font('Helvetica').fillColor(BRAND.medium);
-      doc.text('Tax (7%):', totalsX, y, { width: 80, align: 'right' });
+      doc.text(`Tax (${taxRate}%):`, totLabelX, y, { width: 120, align: 'right' });
       doc.font('Helvetica-Bold').fillColor(BRAND.dark);
-      doc.text(fmt(booking.tax_amount), totalsValueX - totalsWidth, y, { width: totalsWidth, align: 'right' });
+      doc.text(fmt(taxAmount), totValueX, y, { width: totW, align: 'right' });
       y += 16;
 
-      // Delivery fee (if taxed separately — already in subtotal line items, so skip if already in line items)
-      // Total
-      doc.moveTo(totalsX, y).lineTo(rightEdge, y).strokeColor(BRAND.dark).lineWidth(1).stroke();
+      // Total line
+      doc.moveTo(totLabelX, y).lineTo(R, y).strokeColor(BRAND.dark).lineWidth(1).stroke();
       y += 8;
 
       doc.fontSize(12).font('Helvetica-Bold').fillColor(BRAND.dark);
-      doc.text('Total:', totalsX, y, { width: 80, align: 'right' });
-      doc.text(fmt(booking.total_cost), totalsValueX - totalsWidth, y, { width: totalsWidth, align: 'right' });
-      y += 24;
+      doc.text('Total:', totLabelX, y, { width: 120, align: 'right' });
+      doc.text(fmt(booking.total_cost), totValueX, y, { width: totW, align: 'right' });
+      y += 22;
 
-      // Deposit
+      // Security Deposit
       if (Number(booking.deposit_amount) > 0) {
         doc.fontSize(9).font('Helvetica').fillColor(BRAND.medium);
-        doc.text(`Security Deposit (${booking.deposit_status || 'held'}):`, totalsX - 40, y, { width: 120, align: 'right' });
+        doc.text(`Security Deposit (${booking.deposit_status || 'held'}):`, totLabelX - 20, y, { width: 140, align: 'right' });
         doc.font('Helvetica-Bold').fillColor(BRAND.dark);
-        doc.text(fmt(booking.deposit_amount), totalsValueX - totalsWidth, y, { width: totalsWidth, align: 'right' });
-        y += 16;
+        doc.text(fmt(booking.deposit_amount), totValueX, y, { width: totW, align: 'right' });
+        y += 18;
       }
 
       /* ═══════════════════════════════════════════════════════
          PAYMENTS RECEIVED
          ═══════════════════════════════════════════════════════ */
-      const paidPayments = payments.filter(p => p.payment_type !== 'refund');
+      const paidPayments = payments.filter(p => p.payment_type !== 'refund' && p.payment_type !== 'deposit');
+      const depositPayments = payments.filter(p => p.payment_type === 'deposit');
       const refunds = payments.filter(p => p.payment_type === 'refund');
 
-      if (paidPayments.length > 0 || refunds.length > 0) {
-        y += 8;
-        doc.moveTo(leftMargin, y).lineTo(rightEdge, y).strokeColor(BRAND.border).lineWidth(0.5).stroke();
+      if (paidPayments.length > 0 || depositPayments.length > 0 || refunds.length > 0) {
+        y += 6;
+        doc.moveTo(L, y).lineTo(R, y).strokeColor(BRAND.border).lineWidth(0.5).stroke();
         y += 12;
 
-        doc.fontSize(8).font('Helvetica-Bold').fillColor(BRAND.accent)
-          .text('PAYMENTS RECEIVED', leftMargin, y);
+        doc.fontSize(7).font('Helvetica-Bold').fillColor(BRAND.accent)
+          .text('PAYMENTS RECEIVED', L, y);
         y += 14;
 
         for (const p of paidPayments) {
-          const pDate = p.created_at ? new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
-          doc.fontSize(9).font('Helvetica').fillColor(BRAND.medium);
-          doc.text(`${p.method || 'Payment'} — ${pDate}${p.reference_id ? ` (${p.reference_id})` : ''}`, leftMargin, y, { width: 350 });
+          const pDate = fmtDatetime(p.created_at);
+          const label = (p.method || 'Payment').charAt(0).toUpperCase() + (p.method || 'payment').slice(1);
+          doc.fontSize(8).font('Helvetica').fillColor(BRAND.medium);
+          doc.text(`${label} — ${pDate}`, L, y, { width: 340 });
           doc.font('Helvetica-Bold').fillColor(BRAND.green);
-          doc.text(fmt(p.amount), totalsValueX - totalsWidth, y, { width: totalsWidth, align: 'right' });
+          doc.text(fmt(p.amount), totValueX, y, { width: totW, align: 'right' });
           y += 14;
+        }
+
+        if (depositPayments.length > 0) {
+          for (const p of depositPayments) {
+            const pDate = fmtDatetime(p.created_at);
+            doc.fontSize(8).font('Helvetica').fillColor(BRAND.medium);
+            doc.text(`Security Deposit — ${pDate}`, L, y, { width: 340 });
+            doc.font('Helvetica-Bold').fillColor(BRAND.medium);
+            doc.text(fmt(p.amount), totValueX, y, { width: totW, align: 'right' });
+            y += 14;
+          }
         }
 
         for (const r of refunds) {
-          const rDate = r.created_at ? new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
-          doc.fontSize(9).font('Helvetica').fillColor(BRAND.medium);
-          doc.text(`Refund — ${rDate}${r.reference_id ? ` (${r.reference_id})` : ''}`, leftMargin, y, { width: 350 });
+          const rDate = fmtDatetime(r.created_at);
+          doc.fontSize(8).font('Helvetica').fillColor(BRAND.medium);
+          doc.text(`Refund — ${rDate}`, L, y, { width: 340 });
           doc.font('Helvetica-Bold').fillColor(BRAND.red);
-          doc.text(`-${fmt(r.amount)}`, totalsValueX - totalsWidth, y, { width: totalsWidth, align: 'right' });
+          doc.text(`-${fmt(r.amount)}`, totValueX, y, { width: totW, align: 'right' });
           y += 14;
         }
 
-        // Balance
+        // Balance calculation
         const totalPaid = paidPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
         const totalRefunded = refunds.reduce((s, r) => s + Number(r.amount || 0), 0);
         const netPaid = totalPaid - totalRefunded;
         const balance = Number(booking.total_cost || 0) - netPaid;
 
         y += 4;
-        doc.moveTo(totalsX, y).lineTo(rightEdge, y).strokeColor(BRAND.border).lineWidth(0.5).stroke();
+        doc.moveTo(totLabelX, y).lineTo(R, y).strokeColor(BRAND.border).lineWidth(0.5).stroke();
         y += 8;
 
-        doc.fontSize(10).font('Helvetica-Bold').fillColor(balance > 0 ? BRAND.red : BRAND.green);
-        doc.text(balance > 0 ? 'Balance Due:' : 'Overpayment:', totalsX - 40, y, { width: 120, align: 'right' });
-        doc.text(fmt(Math.abs(balance)), totalsValueX - totalsWidth, y, { width: totalsWidth, align: 'right' });
+        if (balance > 0) {
+          doc.fontSize(10).font('Helvetica-Bold').fillColor(BRAND.red);
+          doc.text('Balance Due:', totLabelX, y, { width: 120, align: 'right' });
+          doc.text(fmt(balance), totValueX, y, { width: totW, align: 'right' });
+        } else if (balance < 0) {
+          doc.fontSize(10).font('Helvetica-Bold').fillColor(BRAND.green);
+          doc.text('Overpayment:', totLabelX, y, { width: 120, align: 'right' });
+          doc.text(fmt(Math.abs(balance)), totValueX, y, { width: totW, align: 'right' });
+        } else {
+          doc.fontSize(10).font('Helvetica-Bold').fillColor(BRAND.green);
+          doc.text('Paid in Full', totLabelX, y, { width: 120, align: 'right' });
+          doc.text(fmt(0), totValueX, y, { width: totW, align: 'right' });
+        }
         y += 20;
       }
 
       /* ═══════════════════════════════════════════════════════
-         FOOTER
+         FOOTER — anchored to bottom of page
          ═══════════════════════════════════════════════════════ */
-      const footerY = 720;
+      const footerY = 700;
 
-      // Separator line
-      doc.moveTo(leftMargin, footerY).lineTo(rightEdge, footerY).strokeColor(BRAND.border).lineWidth(0.5).stroke();
+      doc.moveTo(L, footerY).lineTo(R, footerY).strokeColor(BRAND.border).lineWidth(0.5).stroke();
 
-      // Contact info footer
-      doc.fontSize(8).font('Helvetica').fillColor(BRAND.light);
-      doc.text(`${BRAND.phone}`, leftMargin, footerY + 10);
-      doc.text(BRAND.website, leftMargin + (contentWidth / 2) - 40, footerY + 10, { width: 80, align: 'center' });
-
-      // Legal business name
+      // Contact row
       doc.fontSize(7).font('Helvetica').fillColor(BRAND.light);
-      doc.text(`${BRAND.legalName} · ${BRAND.dba}`, leftMargin, footerY + 24);
-      doc.text(
-        `${BRAND.address} · ${BRAND.cityStateZip}`,
-        leftMargin, footerY + 34
-      );
-      doc.text(`EIN: ${BRAND.ein}`, leftMargin, footerY + 44);
+      doc.text(BRAND.phone, L, footerY + 10);
+      doc.text(BRAND.website, L + (contentWidth / 2) - 40, footerY + 10, { width: 80, align: 'center' });
+      doc.text(BRAND.email, R - 130, footerY + 10, { width: 130, align: 'right' });
 
-      // "Internal Use Only" watermark text
+      // Legal identity
+      doc.fontSize(7).font('Helvetica-Bold').fillColor(BRAND.light);
+      doc.text(`${BRAND.legalName} · ${BRAND.dba}`, L, footerY + 24);
       doc.fontSize(7).font('Helvetica').fillColor(BRAND.light);
-      doc.text('Internal Use Only — Not a customer-facing document', rightEdge - 200, footerY + 44, { width: 200, align: 'right' });
+      doc.text(`${BRAND.address} · ${BRAND.cityStateZip} · EIN: ${BRAND.ein}`, L, footerY + 34);
+
+      // Internal use label
+      doc.fontSize(7).font('Helvetica').fillColor(BRAND.light);
+      doc.text('Internal Use Only — Not a customer-facing document', R - 220, footerY + 34, { width: 220, align: 'right' });
 
       /* ═══════════════════════════════════════════════════════
          FINALIZE
