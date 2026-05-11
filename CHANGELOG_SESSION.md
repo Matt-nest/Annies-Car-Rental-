@@ -5,6 +5,21 @@
 
 ---
 
+## 2026-05-11 — Sidebar: group Monthly Leads / Reviews / Pricing Rules / Loyalty under "Growth"
+
+**Why:** These four items were tail-end stragglers in `MAIN_NAV` mixed in with core operations. They share a different purpose — customer acquisition (Monthly Leads), social proof (Reviews), monetization levers (Pricing Rules), and retention (Loyalty) — so they get their own section.
+
+**File:**
+- [dashboard/src/components/layout/Sidebar.jsx](dashboard/src/components/layout/Sidebar.jsx) — extracted the four items from `MAIN_NAV` into a new `GROWTH_NAV` array, rendered as a new section ("Growth") between Menu and System with the same styling/animation as existing sections. Visibility unchanged: still shown to all logged-in users (System remains admin/owner-only).
+
+**Name choice:** "Growth" — matches the existing single-word section labels ("Menu", "System") and covers the full lifecycle (acquisition → proof → price → retention) without being narrow like "Marketing" or vague like "Engagement."
+
+### Verification
+- `cd dashboard && npm run build` → clean (2.97s, 3104 modules).
+- No route changes, no permissions changes — pure layout regrouping.
+
+---
+
 ## 2026-05-11 — Insurance step: re-introduce own-insurance path alongside Bonzah
 
 **Why:** Last commit (21e19b2) made CDW Essential mandatory by removing the own-insurance option entirely. Product decision reversed: customers who already carry auto insurance should be able to attest to their own coverage and continue without buying Bonzah. CDW Essential remains mandatory *within* the Bonzah path — it's only optional in the sense that the customer can choose the own-insurance path instead.
