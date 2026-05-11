@@ -5,6 +5,55 @@
 
 ---
 
+## 2026-05-11 — Bouncie telematics integration (full build)
+
+**Why:** Annie wants live GPS, trip history, mileage capture, and engine diagnostics for the fleet, managed from a dedicated dashboard section. Bouncie (OBD-II dongle + telematics SaaS) is the data source. User explicitly opted for: all phases in one shot, Mapbox free tier for maps, top-level **Telematics** sidebar item under Menu, auto-link Bouncie vehicles to fleet by VIN with a manual fallback UI.
+
+**Files added (8):**
+- [backend/db/migrations/017_bouncie_integration.sql](backend/db/migrations/017_bouncie_integration.sql) — 5 new tables (`bouncie_credentials` singleton, `bouncie_vehicles`, `bouncie_trips`, `bouncie_events` audit log, `bouncie_geozones`) + 4 new columns on `bookings` for pickup/return odometer snapshots.
+- [backend/services/bouncieService.js](backend/services/bouncieService.js) — OAuth 2.0 authorization-code flow against `auth.bouncie.com`, JWT-signed state (reuses `PORTAL_JWT_SECRET`), refresh-on-expiry token cache, REST wrapper that logs every call to `bouncie_events`, `syncVehicles()` that VIN-matches against the fleet automatically. Note: Bouncie's `Authorization` header is the access token *verbatim*, NOT `Bearer <token>` — explicitly handled.
+- [backend/routes/bouncie.js](backend/routes/bouncie.js) — admin endpoints mounted at `/api/v1/admin/bouncie` behind `requireAuth + requireRole('owner','admin')`: `/status`, `/oauth/start`, `/disconnect`, `/sync`, `/vehicles`, `PATCH /vehicles/:id/mapping`, `/trips`, `/trips/refresh`, `/events`, `/geozones` CRUD, `/stats`.
+- [backend/routes/bouncieWebhooks.js](backend/routes/bouncieWebhooks.js) — public endpoints mounted at `/api/v1/bouncie/{oauth/callback, webhook}`. OAuth callback verifies the signed state, exchanges code, persists tokens, redirects to dashboard. Webhook receiver handles all 11 event types (connect, disconnect, vinChange, mil, battery, tripStart, tripData, tripMetrics, tripEnd, applicationGeozone, userGeozone) → updates `bouncie_vehicles` / `bouncie_trips` and creates admin notifications via `createNotification()` for actionable events (disconnect, MIL, low/critical battery, geo-zone exit). Webhook auth is a static shared-secret header (`BOUNCIE_WEBHOOK_SECRET`) with `crypto.timingSafeEqual()`.
+- [dashboard/src/api/bouncie.js](dashboard/src/api/bouncie.js) — frontend client, mirrors backend admin endpoints. Uses the existing Supabase JWT injection pattern.
+- [dashboard/src/pages/TelematicsPage.jsx](dashboard/src/pages/TelematicsPage.jsx) — single-file page with 6 internal tabs (Overview / Vehicles / Trips / Alerts / Geo-Zones / Settings). Uses `react-map-gl` (Mapbox) with auto light/dark style. Inline encoded-polyline decoder for trip GPS rendering — no extra dep. Not-connected empty state with one-click Connect CTA. Mapbox-missing-token graceful fallback. Theme auto-switches via MutationObserver on `document.documentElement.classList`.
+
+**Files modified (5):**
+- [backend/api/index.js](backend/api/index.js#L37), [backend/server.js](backend/server.js#L35) — registered the two new route files. Webhook mounted at `/api/v1/bouncie` so its raw body goes through the global JSON parser (auth is via header, not signature, so no `express.json({verify})` needed).
+- [backend/routes/portal.js](backend/routes/portal.js#L246) — at customer self-service check-in AND check-out, snapshot the Bouncie cached `last_odometer_miles` into `bookings.bouncie_pickup_odometer / bouncie_return_odometer`. Best-effort; failures logged and the transition continues. Admin can compare manual vs. telematics reading to spot tampering.
+- [dashboard/src/App.jsx](dashboard/src/App.jsx#L62) — registered `/telematics` route.
+- [dashboard/src/components/layout/Sidebar.jsx](dashboard/src/components/layout/Sidebar.jsx#L21) — added Telematics entry to `MAIN_NAV` with the `Satellite` icon, placed between Insurance and Revenue.
+- [dashboard/package.json](dashboard/package.json) — added `mapbox-gl@^3.23.1` + `react-map-gl@^7.1.9`.
+
+### Setup required before this is usable (manual steps, user-side):
+
+1. **Register an OAuth app at https://www.bouncie.dev/** — get a Client ID + Client Secret. Set the **Redirect URI** to `https://<backend-vercel>.vercel.app/api/v1/bouncie/oauth/callback`.
+2. **Register the webhook** in the same Bouncie dev portal at `https://<backend-vercel>.vercel.app/api/v1/bouncie/webhook`. Pick the events you want (recommend all 11). Set the `Authorization` header to whatever string you choose for `BOUNCIE_WEBHOOK_SECRET` below.
+3. **Backend env vars** (Vercel → backend project):
+   - `BOUNCIE_CLIENT_ID` — from step 1
+   - `BOUNCIE_CLIENT_SECRET` — from step 1
+   - `BOUNCIE_REDIRECT_URI` — exact match to what you set in step 1 (e.g. `https://<backend>.vercel.app/api/v1/bouncie/oauth/callback`)
+   - `BOUNCIE_WEBHOOK_SECRET` — any long random string; must match what you put in Bouncie's webhook config
+   - `PORTAL_JWT_SECRET` already exists and is reused to sign OAuth state. (Override with `BOUNCIE_STATE_SECRET` if you want isolation.)
+4. **Dashboard env var** (Vercel → dashboard project):
+   - `VITE_MAPBOX_TOKEN` — get a public token at mapbox.com (free tier covers 50k loads/month; you'll comfortably fit)
+5. **Run the SQL migration** — apply `backend/db/migrations/017_bouncie_integration.sql` against Supabase. Either via Supabase SQL editor or the existing `scripts/run_migration_*.js` runner pattern (one will need to be added; the SQL is idempotent so safe to paste directly).
+6. Visit `/telematics` → Settings tab → click **Connect Bouncie** → log in to Bouncie → grant access → redirected back as connected. The Settings tab on the page itself lists this same checklist with the exact URLs filled in dynamically.
+
+### Verification
+- `cd backend && node --check` on every new file → OK.
+- `cd backend && npm test` → **35/35 pass** (no existing tests broken; new code is integration-tested via the manual flow above, no unit tests added in this pass).
+- `cd dashboard && npm run build` → clean, 5.39s, 3135 modules. Mapbox chunk auto-split at ~1.8MB and only fetched when `/telematics` page loads — other pages unaffected.
+
+### What's deferred / open items
+- **No automatic vehicle-sync cron.** Vehicles refresh only when the admin clicks "Sync now" on Overview, or naturally when webhooks fire. Bouncie's webhooks update last-known location continuously during trips and odometer/fuel via REST polls — for most workflows the manual sync button is enough. If we want a periodic refresh, add a Vercel cron entry pointing to a new `/api/v1/cron/bouncie-sync` endpoint that calls `syncVehicles()`. ~30 min to wire up.
+- **Trip → booking auto-linking is empty.** `bouncie_trips.annie_booking_id` is left NULL on insert; we don't currently find the active booking for a trip's time window. Trivial to add as a follow-up: after upserting a trip, look up the active booking where `vehicle_id = annie_vehicle_id AND trip_start_date <= start_at <= trip_end_date`. Skipped here to keep this PR focused.
+- **Geo-zone UI is circle-only.** Backend supports polygon (`geometry_type='polygon'` with `polygon_geojson`) but the UI form only takes center+radius. Polygon drawing would need Mapbox Draw or similar tool integration.
+- **Driver behavior scoring is data-only.** We store `hard_brake_count` / `hard_accel_count` per trip, but there's no aggregate "score per customer / per vehicle" view. Phase 2 candidate.
+- **Bouncie's response field names are best-guess.** Bouncie's OpenAPI spec lists the webhook shapes precisely but is vague on the REST `/vehicles` and `/trips` response shapes. The code tries multiple property name variants (`v.model?.make || v.make`, `v.startLocation?.lon ?? v.startLocation?.lng`, etc.) to be robust. First real connection will surface any drift — the `bouncie_events` audit log captures every REST response so we can adjust.
+- **Webhook deduplication for `tripData`.** Bouncie warns that `tripData` can duplicate after a device reconnects after offline storage. Our implementation handles this implicitly: we only use `tripData` to update the vehicle's last-known location, so re-receiving the same points is harmless (just slightly wasted writes). If we ever store the GPS pings as rows, dedupe by timestamp.
+
+---
+
 ## 2026-05-11 — Sidebar: group Monthly Leads / Reviews / Pricing Rules / Loyalty under "Growth"
 
 **Why:** These four items were tail-end stragglers in `MAIN_NAV` mixed in with core operations. They share a different purpose — customer acquisition (Monthly Leads), social proof (Reviews), monetization levers (Pricing Rules), and retention (Loyalty) — so they get their own section.

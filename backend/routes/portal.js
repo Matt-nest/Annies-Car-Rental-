@@ -242,14 +242,38 @@ router.post('/checkin', requirePortalAuth, async (req, res) => {
       created_by: 'customer',
     });
 
+    // ── Snapshot Bouncie's cached odometer if we have one ─────────
+    // Best-effort; failures here must never block check-in.
+    const extraFields = {
+      actual_pickup_at: new Date().toISOString(),
+      checkin_odometer: odometer,
+    };
+    try {
+      const { data: bookingForVehicle } = await supabase
+        .from('bookings')
+        .select('vehicle_id')
+        .eq('id', bookingId)
+        .single();
+      if (bookingForVehicle?.vehicle_id) {
+        const { data: bv } = await supabase
+          .from('bouncie_vehicles')
+          .select('last_odometer_miles, last_synced_at')
+          .eq('annie_vehicle_id', bookingForVehicle.vehicle_id)
+          .maybeSingle();
+        if (bv?.last_odometer_miles != null) {
+          extraFields.bouncie_pickup_odometer = bv.last_odometer_miles;
+          extraFields.bouncie_pickup_at = bv.last_synced_at;
+        }
+      }
+    } catch (e) {
+      console.warn('[Bouncie] pickup odometer snapshot failed:', e.message);
+    }
+
     // ── Transition to active ───────────────────────────────────────
     const result = await transitionBooking(bookingId, 'active', {
       changedBy: 'customer',
       reason: 'Customer completed self-service check-in',
-      extraFields: {
-        actual_pickup_at: new Date().toISOString(),
-        checkin_odometer: odometer,
-      },
+      extraFields,
     });
 
     // Update vehicle status to rented
@@ -341,14 +365,37 @@ router.post('/checkout', requirePortalAuth, async (req, res) => {
       created_by: 'customer',
     });
 
+    // Snapshot Bouncie's cached odometer (best-effort; never block)
+    const checkoutExtras = {
+      actual_return_at: new Date().toISOString(),
+      checkout_odometer: odometer,
+    };
+    try {
+      const { data: bookingForVehicle } = await supabase
+        .from('bookings')
+        .select('vehicle_id')
+        .eq('id', req.portal.bookingId)
+        .single();
+      if (bookingForVehicle?.vehicle_id) {
+        const { data: bv } = await supabase
+          .from('bouncie_vehicles')
+          .select('last_odometer_miles, last_synced_at')
+          .eq('annie_vehicle_id', bookingForVehicle.vehicle_id)
+          .maybeSingle();
+        if (bv?.last_odometer_miles != null) {
+          checkoutExtras.bouncie_return_odometer = bv.last_odometer_miles;
+          checkoutExtras.bouncie_return_at = bv.last_synced_at;
+        }
+      }
+    } catch (e) {
+      console.warn('[Bouncie] return odometer snapshot failed:', e.message);
+    }
+
     // Transition to returned (pending inspection)
     const result = await transitionBooking(req.portal.bookingId, 'returned', {
       changedBy: 'customer',
       reason: 'Customer completed self-service check-out',
-      extraFields: {
-        actual_return_at: new Date().toISOString(),
-        checkout_odometer: odometer,
-      },
+      extraFields: checkoutExtras,
     });
 
     // Reset vehicle status back to available — mirrors admin return flow.

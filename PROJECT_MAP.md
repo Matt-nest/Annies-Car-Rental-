@@ -344,6 +344,78 @@ pending_approval → approved → confirmed → ready_for_pickup → active → 
 
 ---
 
+## Bouncie Telematics Integration (added 2026-05-11)
+
+OAuth 2.0 integration with Bouncie (OBD-II dongle telematics) for live GPS, trip history, vehicle health, geo-fences.
+
+### Backend
+
+| File | Description | Used By |
+|------|-------------|---------|
+| `backend/services/bouncieService.js` | OAuth flow + token refresh + REST wrapper + `syncVehicles()` VIN-matcher. Quirk: `Authorization` header is the raw token (no `Bearer` prefix). | bouncie + bouncieWebhooks routes, portal route (indirectly via cached odometer reads) |
+| `backend/routes/bouncie.js` | Admin REST under `/api/v1/admin/bouncie/*` — gated by `requireAuth + requireRole('owner','admin')` | api/index.js, server.js |
+| `backend/routes/bouncieWebhooks.js` | Public — OAuth callback + 11 webhook event types at `/api/v1/bouncie/{oauth/callback, webhook}` | api/index.js, server.js |
+
+### Frontend
+
+| File | Description | API Calls |
+|------|-------------|-----------|
+| `dashboard/src/api/bouncie.js` | Admin client — mirrors backend admin endpoints | All `/admin/bouncie/*` |
+| `dashboard/src/pages/TelematicsPage.jsx` | Single-file page with 6 internal tabs: Overview / Vehicles / Trips / Alerts / Geo-Zones / Settings. Uses `react-map-gl` + Mapbox GL. | All bouncieApi methods + `api.getVehicles()` for the manual-map dropdown |
+
+### New Supabase Tables
+
+| Table | Purpose |
+|-------|---------|
+| `bouncie_credentials` | OAuth tokens (singleton — partial unique index enforces one active row) |
+| `bouncie_vehicles` | Mirror of Bouncie's vehicle list + last-known live stats; FK `annie_vehicle_id` to `vehicles(id)` |
+| `bouncie_trips` | Trip history. FK to `vehicles(id)` and `bookings(id)` |
+| `bouncie_events` | Audit log of every webhook receipt + every REST call (used for debugging and Alerts feed) |
+| `bouncie_geozones` | Admin-managed Application Geo-Zones (synced to Bouncie via 3-step location→schedule→geozone) |
+
+### New `bookings` columns
+`bouncie_pickup_odometer`, `bouncie_pickup_at`, `bouncie_return_odometer`, `bouncie_return_at` — populated by `routes/portal.js` at customer check-in/out from `bouncie_vehicles.last_odometer_miles`.
+
+### Routes
+
+```
+ADMIN (JWT required)
+  GET    /admin/bouncie/status              connection status
+  GET    /admin/bouncie/oauth/start         returns Bouncie authorize URL with signed state
+  POST   /admin/bouncie/disconnect          soft-disconnect (preserves history)
+  POST   /admin/bouncie/sync                pull /vehicles from Bouncie + VIN-auto-match
+  GET    /admin/bouncie/vehicles            local bouncie_vehicles join annie's fleet
+  PATCH  /admin/bouncie/vehicles/:id/mapping  set annie_vehicle_id manually
+  GET    /admin/bouncie/trips               local trips
+  POST   /admin/bouncie/trips/refresh       pull from Bouncie /trips for a date window
+  GET    /admin/bouncie/events              audit feed (Alerts tab)
+  GET    /admin/bouncie/geozones            list
+  POST   /admin/bouncie/geozones            create (3-step on Bouncie + 1 local row)
+  DELETE /admin/bouncie/geozones/:id        delete
+  GET    /admin/bouncie/stats               counts for Overview tab
+
+PUBLIC
+  GET    /bouncie/oauth/callback            Bouncie redirect target — exchanges code, persists
+  POST   /bouncie/webhook                   Bouncie pushes events here; auth via static header
+```
+
+### Env Vars (Required for production)
+
+**Backend (Vercel — backend project):**
+- `BOUNCIE_CLIENT_ID`, `BOUNCIE_CLIENT_SECRET` — from bouncie.dev developer portal
+- `BOUNCIE_REDIRECT_URI` — must match what's registered on bouncie.dev
+- `BOUNCIE_WEBHOOK_SECRET` — long random string; must match the `Authorization` header value set in Bouncie's webhook config
+- `BOUNCIE_STATE_SECRET` (optional) — overrides `PORTAL_JWT_SECRET` for signing OAuth state
+
+**Dashboard (Vercel — dashboard project):**
+- `VITE_MAPBOX_TOKEN` — Mapbox public token (free tier: 50k loads/month)
+
+### Migration to apply: `017_bouncie_integration.sql`
+
+Idempotent. Apply via Supabase SQL editor or `scripts/run_migration_017.js` (not yet authored — paste-and-run is fine).
+
+---
+
 ## Supabase Auth Flow
 
 ```

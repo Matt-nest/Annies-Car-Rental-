@@ -34,6 +34,8 @@ import reviewRoutes from '../routes/reviews.js';
 import pricingRulesRoutes from '../routes/pricingRules.js';
 import loyaltyRoutes from '../routes/loyalty.js';
 import bonzahRoutes from '../routes/bonzah.js';
+import bouncieRoutes from '../routes/bouncie.js';
+import bouncieWebhookRoutes from '../routes/bouncieWebhooks.js';
 
 const app = express();
 
@@ -103,6 +105,8 @@ app.use('/api/v1/reviews', reviewRoutes);
 app.use('/api/v1/pricing-rules', pricingRulesRoutes);
 app.use('/api/v1/loyalty', loyaltyRoutes);
 app.use('/api/v1/admin/bonzah', bonzahRoutes);
+app.use('/api/v1/admin/bouncie', bouncieRoutes);
+app.use('/api/v1/bouncie', bouncieWebhookRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ error: `${req.method} ${req.path} not found` }));

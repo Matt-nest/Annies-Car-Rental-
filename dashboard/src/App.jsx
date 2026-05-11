@@ -24,6 +24,7 @@ import ReviewsPage from './pages/ReviewsPage';
 import PricingRulesPage from './pages/PricingRulesPage';
 import LoyaltyPage from './pages/LoyaltyPage';
 import InsurancePage from './pages/InsurancePage';
+import TelematicsPage from './pages/TelematicsPage';
 
 export default function App() {
   return (
@@ -59,6 +60,7 @@ export default function App() {
             <Route path="/pricing-rules" element={<PricingRulesPage />} />
             <Route path="/loyalty" element={<LoyaltyPage />} />
             <Route path="/insurance" element={<InsurancePage />} />
+            <Route path="/telematics" element={<TelematicsPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
