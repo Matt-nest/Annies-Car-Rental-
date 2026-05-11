@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Shield, ShieldCheck, Check, ChevronDown, Loader2, AlertCircle } from 'lucide-react';
+import { Shield, ShieldCheck, Check, ChevronDown, Loader2, AlertCircle, ShieldAlert } from 'lucide-react';
 import {
   API_URL,
   formatCurrency,
@@ -57,7 +57,6 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
   const [config, setConfig] = useState<BonzahConfig | null>(null);
   const [configLoading, setConfigLoading] = useState(true);
   const [configError, setConfigError] = useState('');
-  const [ownExpanded, setOwnExpanded] = useState(draft.insuranceChoice === 'own');
   // Per-tier maps so all three quotes can load in parallel and each card shows its own state.
   const [tierQuotes, setTierQuotes] = useState<Record<string, BonzahQuote>>({});
   const [tierLoading, setTierLoading] = useState<Record<string, boolean>>({});
@@ -69,7 +68,7 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
   const stateName = normalizeState(pickupState);
   const stateBlocked = !!config && config.excluded_states.includes(stateName);
 
-  // Hide Bonzah entirely when ineligible — force own-insurance path.
+  // Bonzah available when enabled and driver qualifies
   const bonzahAvailable = !!config?.enabled && ageOk && !stateBlocked;
 
   // Hide Complete tier in PAI-restricted states
@@ -80,6 +79,9 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
       return true;
     });
   }, [config, stateName]);
+
+  // The essential tier (always the minimum required)
+  const essentialTier = useMemo(() => visibleTiers.find(t => t.id === 'essential'), [visibleTiers]);
 
   // ── Load public Bonzah config on mount ──────────────────────────────
   useEffect(() => {
@@ -141,9 +143,10 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
     let cancelled = false;
     Promise.all(visibleTiers.map(t => fetchQuote(t.id))).then(quotes => {
       if (cancelled) return;
-      // Auto-select the default tier (with its just-fetched quote) if user hasn't picked yet.
-      if (!draft.insuranceChoice) {
-        const idx = Math.max(0, visibleTiers.findIndex(t => t.default));
+      // Auto-select Essential (the mandatory minimum) if user hasn't picked yet or picked 'own'
+      if (!draft.insuranceChoice || draft.insuranceChoice === 'own') {
+        const essIdx = visibleTiers.findIndex(t => t.id === 'essential');
+        const idx = essIdx >= 0 ? essIdx : 0;
         const def = visibleTiers[idx];
         const defQuote = quotes[idx];
         if (def && defQuote) {
@@ -155,12 +158,6 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config, bonzahAvailable]);
 
-  const handleSelectOwn = () => {
-    onUpdate({ insuranceChoice: 'own', bonzahTierId: null, bonzahQuote: null });
-    setOwnExpanded(true);
-    setError('');
-  };
-
   // Selecting a tier just reads from the cache — no refetch. Quotes pre-populated on mount.
   const handleSelectTier = (tierId: string) => {
     const quote = tierQuotes[tierId];
@@ -169,38 +166,17 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
     setError('');
   };
 
-  const updatePersonalInsurance = (patch: Partial<WizardDraft['personalInsurance']>) => {
-    onUpdate({ personalInsurance: { ...draft.personalInsurance, ...patch } });
-  };
-
   const handleContinue = () => {
-    if (!draft.insuranceChoice) {
-      setError('Please select an insurance option to continue');
+    if (!draft.insuranceChoice || draft.insuranceChoice !== 'bonzah') {
+      setError('CDW Essential Coverage is required to rent a vehicle. Please select a coverage tier.');
       return;
     }
-    if (draft.insuranceChoice === 'bonzah') {
-      if (!draft.bonzahTierId || !draft.bonzahQuote) {
-        setError('Insurance pricing is still loading — please wait a moment and try again');
-        return;
-      }
-    }
-    if (draft.insuranceChoice === 'own') {
-      const pi = draft.personalInsurance;
-      if (!pi.company.trim() || !pi.policyNumber.trim() || !pi.expiry) {
-        setError('Please fill in your insurance company, policy number, and policy expiry');
-        return;
-      }
+    if (!draft.bonzahTierId || !draft.bonzahQuote) {
+      setError('Insurance pricing is still loading — please wait a moment and try again');
+      return;
     }
     onContinue();
   };
-
-  const inputStyle: React.CSSProperties = {
-    backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
-    borderColor: 'var(--border-subtle)',
-    color: 'var(--text-primary)',
-  };
-  const inputClass = 'w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:border-[var(--accent-color)] transition-colors';
-  const labelClass = 'text-[11px] uppercase tracking-wider font-semibold mb-1.5 block';
 
   // ── Loading / config-error states ───────────────────────────────────
   if (configLoading) {
@@ -226,7 +202,18 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
           <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Insurance Coverage</h3>
         </div>
         <p className="text-xs leading-relaxed ml-[42px]" style={{ color: 'var(--text-tertiary)' }}>
-          Florida law requires auto insurance coverage during your rental period. Choose how you'd like to be covered.
+          CDW Essential Coverage is <strong style={{ color: 'var(--text-primary)' }}>required</strong> for all rentals.
+          You may upgrade to Standard or Complete for additional protection.
+        </p>
+      </div>
+
+      {/* Required coverage notice */}
+      <div className="rounded-xl border p-3 flex items-start gap-2.5"
+        style={{ backgroundColor: 'rgba(200,169,126,0.08)', borderColor: 'rgba(200,169,126,0.25)' }}>
+        <ShieldAlert size={16} className="shrink-0 mt-0.5" style={{ color: 'var(--accent-color)' }} />
+        <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+          <strong>CDW Essential Coverage is mandatory.</strong> This ensures every rental has minimum collision damage waiver protection.
+          Choose your coverage tier below — Essential is pre-selected and included in your total.
         </p>
       </div>
 
@@ -234,24 +221,23 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
       {!configError && config && !ageOk && driverAge !== null && (
         <div className="rounded-xl border p-3 text-xs"
           style={{ backgroundColor: 'rgba(245,158,11,0.08)', borderColor: 'rgba(245,158,11,0.25)', color: 'var(--text-secondary)' }}>
-          Bonzah insurance requires drivers 21 or older. Please use your own auto insurance below.
+          Bonzah insurance requires drivers 21 or older. Please contact us at (772) 985-6667 to arrange your rental.
         </div>
       )}
       {!configError && config && stateBlocked && (
         <div className="rounded-xl border p-3 text-xs"
           style={{ backgroundColor: 'rgba(245,158,11,0.08)', borderColor: 'rgba(245,158,11,0.25)', color: 'var(--text-secondary)' }}>
-          Bonzah insurance is not available for rentals picked up in {stateName}. Please use your own auto insurance below.
+          Bonzah insurance is not available for rentals picked up in {stateName}. Please contact us at (772) 985-6667 to arrange your rental.
         </div>
       )}
       {configError && (
         <div className="rounded-xl border p-3 text-xs"
           style={{ backgroundColor: 'rgba(239,68,68,0.08)', borderColor: 'rgba(239,68,68,0.25)', color: '#ef4444' }}>
-          {configError} — you can still continue with your own insurance.
+          {configError} — Please contact us at (772) 985-6667 to arrange your rental.
         </div>
       )}
 
-      {/* Aggregate-failure banner — shows when every visible tier failed to load.
-          Surfaces the underlying Bonzah error message instead of silent "Unavailable" pills. */}
+      {/* Aggregate-failure banner — shows when every visible tier failed to load. */}
       {bonzahAvailable
         && visibleTiers.length > 0
         && visibleTiers.every(t => tierErrors[t.id])
@@ -260,16 +246,16 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
           style={{ backgroundColor: 'rgba(239,68,68,0.08)', borderColor: 'rgba(239,68,68,0.25)', color: '#ef4444' }}>
           <AlertCircle size={14} className="shrink-0 mt-0.5" />
           <div className="min-w-0">
-            <p className="font-semibold">Bonzah pricing is unavailable for this booking.</p>
+            <p className="font-semibold">Insurance pricing is unavailable for this booking.</p>
             <p className="opacity-90 mt-0.5 break-words">
               {tierErrors[visibleTiers[0].id]}
             </p>
-            <p className="opacity-75 mt-1">You can continue with your own insurance below.</p>
+            <p className="opacity-75 mt-1">Please contact us at (772) 985-6667 to complete your booking.</p>
           </div>
         </div>
       )}
 
-      {/* Bonzah path — 3 tier cards */}
+      {/* Bonzah coverage tiers */}
       {bonzahAvailable && (
         <div className="rounded-xl border overflow-hidden"
           style={{
@@ -285,9 +271,9 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
                   <Shield size={20} />
                 </div>
                 <div>
-                  <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Buy Bonzah Insurance</p>
+                  <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Select Your Coverage</p>
                   <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
-                    Real-time quote · added to your total at checkout
+                    Essential is required · upgrade for more protection
                   </p>
                 </div>
               </div>
@@ -303,6 +289,7 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
                 const totalDollars = cardQuote ? cardQuote.total_cents / 100 : null;
                 const perDay = totalDollars != null && rentalDays > 0 ? totalDollars / rentalDays : null;
                 const isDisabled = isLoading || !!tierError || !cardQuote;
+                const isEssential = tier.id === 'essential';
 
                 return (
                   <button
@@ -330,7 +317,13 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
                           </div>
                         )}
                         <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{tier.label}</p>
-                        {tier.recommended && (
+                        {isEssential && (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                            style={{ backgroundColor: 'rgba(22,163,74,0.1)', color: '#16a34a' }}>
+                            Required
+                          </span>
+                        )}
+                        {tier.recommended && !isEssential && (
                           <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
                             style={{ backgroundColor: 'var(--accent-glow)', color: 'var(--accent-color)' }}>
                             Recommended
@@ -389,131 +382,6 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
           </div>
         </div>
       )}
-
-      {/* Own insurance path */}
-      <div className="rounded-xl border overflow-hidden"
-        style={{
-          backgroundColor: 'var(--bg-card)',
-          borderColor: draft.insuranceChoice === 'own' ? 'var(--accent-color)' : 'var(--border-subtle)',
-          borderWidth: draft.insuranceChoice === 'own' ? '2px' : '1px',
-        }}>
-        <button
-          type="button"
-          onClick={() => {
-            const next = !ownExpanded;
-            setOwnExpanded(next);
-            if (next) handleSelectOwn();
-          }}
-          className="w-full p-4 sm:p-5 text-left transition-colors hover:bg-[var(--bg-card-hover)]"
-          aria-expanded={ownExpanded}
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-                style={{
-                  backgroundColor: draft.insuranceChoice === 'own' ? 'var(--accent-glow)' : theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-                  color: draft.insuranceChoice === 'own' ? 'var(--accent-color)' : 'var(--text-tertiary)',
-                }}>
-                <ShieldCheck size={20} />
-              </div>
-              <div className="min-w-0">
-                <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>I have my own insurance</p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
-                  Use your personal auto policy · No extra charge
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {draft.insuranceChoice === 'own' && (
-                <div className="w-6 h-6 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: 'var(--accent-color)' }}>
-                  <Check size={14} style={{ color: 'var(--accent-fg)' }} />
-                </div>
-              )}
-              <ChevronDown
-                size={18}
-                style={{
-                  color: 'var(--text-tertiary)',
-                  transform: ownExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                  transition: 'transform 200ms ease',
-                }}
-              />
-            </div>
-          </div>
-        </button>
-
-        {ownExpanded && (
-          <div className="px-4 sm:px-5 pb-5 pt-0 space-y-3" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-            <p className="text-[11px] leading-relaxed mt-3" style={{ color: 'var(--text-tertiary)' }}>
-              Florida requires that your coverage is active for the entire rental period. We'll keep these on file in case of a claim.
-            </p>
-
-            <div>
-              <label className={labelClass} style={{ color: 'var(--text-tertiary)' }}>Insurance Company *</label>
-              <input
-                type="text"
-                placeholder="e.g. Geico, State Farm, Progressive"
-                className={inputClass}
-                style={inputStyle}
-                value={draft.personalInsurance.company}
-                onChange={e => updatePersonalInsurance({ company: e.target.value })}
-                onFocus={() => { if (draft.insuranceChoice !== 'own') handleSelectOwn(); }}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={labelClass} style={{ color: 'var(--text-tertiary)' }}>Policy Number *</label>
-                <input
-                  type="text"
-                  placeholder="Policy #"
-                  className={inputClass}
-                  style={inputStyle}
-                  value={draft.personalInsurance.policyNumber}
-                  onChange={e => updatePersonalInsurance({ policyNumber: e.target.value })}
-                  onFocus={() => { if (draft.insuranceChoice !== 'own') handleSelectOwn(); }}
-                />
-              </div>
-              <div>
-                <label className={labelClass} style={{ color: 'var(--text-tertiary)' }}>Policy Expires *</label>
-                <input
-                  type="date"
-                  className={inputClass}
-                  style={inputStyle}
-                  value={draft.personalInsurance.expiry}
-                  onChange={e => updatePersonalInsurance({ expiry: e.target.value })}
-                  onFocus={() => { if (draft.insuranceChoice !== 'own') handleSelectOwn(); }}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={labelClass} style={{ color: 'var(--text-tertiary)' }}>Agent Name (optional)</label>
-                <input
-                  type="text"
-                  placeholder="Your agent's name"
-                  className={inputClass}
-                  style={inputStyle}
-                  value={draft.personalInsurance.agentName}
-                  onChange={e => updatePersonalInsurance({ agentName: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className={labelClass} style={{ color: 'var(--text-tertiary)' }}>Agent Phone (optional)</label>
-                <input
-                  type="tel"
-                  placeholder="(555) 555-5555"
-                  className={inputClass}
-                  style={inputStyle}
-                  value={draft.personalInsurance.agentPhone}
-                  onChange={e => updatePersonalInsurance({ agentPhone: e.target.value })}
-                />
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
 
       {error && (
         <div className="flex items-start gap-3 p-4 rounded-xl border text-sm"
