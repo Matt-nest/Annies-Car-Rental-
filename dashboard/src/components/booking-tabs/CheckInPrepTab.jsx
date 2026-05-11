@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { api } from '../../api/client';
 import { useAlerts } from '../../lib/alertsContext';
+import { compressImage } from '../../lib/compressImage';
 import { Camera, X, Loader2, ImagePlus, CheckCircle, Key, AlertCircle, Fuel } from 'lucide-react';
 
 /* ── Fuel Level Tap Selector ────────────────────────────────────────── */
@@ -49,7 +50,9 @@ function AdminPhotoUploader({ bookingId, photos, setPhotos }) {
     setUploading(true);
     try {
       for (const file of Array.from(files).slice(0, 10 - photos.length)) {
-        const result = await api.uploadVehicleImage(file);
+        // Compress to stay under Vercel's 4.5MB body-size limit
+        const compressed = await compressImage(file);
+        const result = await api.uploadVehicleImage(compressed);
         setPhotos(prev => [...prev, result.url]);
       }
     } catch (e) {

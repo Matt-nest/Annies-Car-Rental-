@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../../api/client';
 import { useAlerts } from '../../lib/alertsContext';
+import { compressImage } from '../../lib/compressImage';
 import Section from '../shared/Section';
 import {
   CheckCircle, AlertCircle, Loader2, Camera, X, ImagePlus,
@@ -54,7 +55,9 @@ function AdminPhotoUploader({ photos, setPhotos }) {
     setUploading(true);
     try {
       for (const file of Array.from(files).slice(0, 10 - photos.length)) {
-        const result = await api.uploadVehicleImage(file);
+        // Compress to stay under Vercel's 4.5MB body-size limit
+        const compressed = await compressImage(file);
+        const result = await api.uploadVehicleImage(compressed);
         setPhotos(prev => [...prev, result.url]);
       }
     } catch (e) { console.error(e); }

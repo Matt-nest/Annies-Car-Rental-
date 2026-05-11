@@ -2,6 +2,7 @@ import React from 'react';
 import { CreditCard, Upload, X, CheckCircle } from 'lucide-react';
 import { US_STATES } from '../../../../data/rentalTerms';
 import { API_URL } from '../constants';
+import { compressImage } from '../../../../utils/compressImage';
 import type { WizardDraft } from '../constants';
 
 interface Props {
@@ -41,8 +42,10 @@ export default function LicenseStep({ draft, onUpdate, onContinue, onBack, theme
   const handlePhotoUpload = async (side: PhotoSide, file: File) => {
     setUploading(prev => ({ ...prev, [side]: true }));
     try {
+      // Compress to stay under Vercel's 4.5MB body-size limit
+      const compressed = await compressImage(file);
       const form = new FormData();
-      form.append('file', file);
+      form.append('file', compressed);
       const res = await fetch(`${API_URL}/uploads/id-photo`, { method: 'POST', body: form });
       if (!res.ok) throw new Error('Upload failed');
       const { url, path } = await res.json();

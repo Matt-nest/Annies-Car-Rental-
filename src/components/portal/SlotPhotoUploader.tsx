@@ -10,6 +10,7 @@ import React, { useState, useRef } from 'react';
 import { Camera, X, Loader2, Check, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { API_URL } from '../../config';
+import { compressImage } from '../../utils/compressImage';
 import { SLOT_ICONS } from './VehicleSlotIcons';
 
 // ── Slot Configuration ────────────────────────────────────────────────────
@@ -64,7 +65,11 @@ export default function SlotPhotoUploader({ token, onSlotsChange }: SlotPhotoUpl
 
     try {
       const formData = new FormData();
-      Array.from(files).forEach(f => formData.append('photos', f));
+      // Compress each file to stay under Vercel's 4.5MB body-size limit
+      const compressedFiles = await Promise.all(
+        Array.from(files).map(f => compressImage(f))
+      );
+      compressedFiles.forEach(f => formData.append('photos', f));
 
       const res = await fetch(`${API_URL}/uploads/checkin-photos`, {
         method: 'POST',
