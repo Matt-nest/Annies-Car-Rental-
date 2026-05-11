@@ -178,6 +178,14 @@ export const api = {
   generateInvoice: (bookingId) => request(`/bookings/${bookingId}/invoice`, { method: 'POST' }),
   getInvoice: (bookingId) => request(`/bookings/${bookingId}/invoice`),
   sendInvoice: (invoiceId) => request(`/invoices/${invoiceId}/send`, { method: 'POST' }),
+  downloadInvoicePdf: async (bookingId) => {
+    const authHeader = await getAuthHeader();
+    const res = await fetch(`${BASE}/bookings/${bookingId}/invoice/pdf`, {
+      headers: { ...authHeader },
+    });
+    if (!res.ok) throw new Error('Failed to download invoice PDF');
+    return res.blob();
+  },
 
   // Tolls
   getVehicleTolls: (vehicleId) => request(`/vehicles/${vehicleId}/tolls`),

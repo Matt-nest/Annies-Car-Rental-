@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../api/client';
 import Section from '../shared/Section';
-import { FileText, Send, DollarSign, CheckCircle, AlertCircle, Eye, RefreshCw, Mail, ArrowRight, Printer } from 'lucide-react';
+import { FileText, Send, DollarSign, CheckCircle, AlertCircle, Eye, RefreshCw, Mail, ArrowRight, Printer, Download } from 'lucide-react';
 
 export default function InvoiceTab({ booking, onReload }) {
   const [invoice, setInvoice] = useState(null);
@@ -11,6 +11,7 @@ export default function InvoiceTab({ booking, onReload }) {
   const [releasing, setReleasing] = useState(false);
   const [settling, setSettling] = useState(false);
   const [sending, setSending] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
@@ -58,6 +59,22 @@ export default function InvoiceTab({ booking, onReload }) {
       await loadData();
     } catch (e) { console.error(e); alert(e.message); }
     setSending(false);
+  }
+
+  async function handleDownloadPdf() {
+    setDownloading(true);
+    try {
+      const blob = await api.downloadInvoicePdf(booking.id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Invoice-${booking.booking_code}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) { console.error(e); alert(e.message); }
+    setDownloading(false);
   }
 
   async function handleReleaseDeposit() {
@@ -180,6 +197,10 @@ export default function InvoiceTab({ booking, onReload }) {
                 <button onClick={handleGenerate} disabled={generating} className="btn-ghost text-xs">
                   <RefreshCw size={13} className={generating ? 'animate-spin' : ''} />
                   Regenerate
+                </button>
+                <button onClick={handleDownloadPdf} disabled={downloading} className="btn-primary text-xs">
+                  <Download size={13} className={downloading ? 'animate-bounce' : ''} />
+                  {downloading ? 'Downloading…' : 'Download Invoice'}
                 </button>
               </div>
             </div>
@@ -315,14 +336,20 @@ export default function InvoiceTab({ booking, onReload }) {
         ) : (
           <div className="text-center py-8">
             <FileText size={36} className="mx-auto text-[var(--text-tertiary)] mb-3" />
-            <p className="text-sm text-[var(--text-secondary)] mb-1">No invoice generated yet</p>
+            <p className="text-sm text-[var(--text-secondary)] mb-1">No settlement invoice generated yet</p>
             <p className="text-xs text-[var(--text-tertiary)] mb-4">
-              Generate an invoice from the booking charges and incidentals to review before sending.
+              Generate a settlement invoice from incidentals, or download a rental invoice PDF.
             </p>
-            <button onClick={handleGenerate} disabled={generating} className="btn-primary">
-              <FileText size={15} />
-              {generating ? 'Generating…' : 'Generate Invoice'}
-            </button>
+            <div className="flex items-center justify-center gap-3">
+              <button onClick={handleGenerate} disabled={generating} className="btn-secondary">
+                <FileText size={15} />
+                {generating ? 'Generating…' : 'Generate Settlement'}
+              </button>
+              <button onClick={handleDownloadPdf} disabled={downloading} className="btn-primary">
+                <Download size={15} />
+                {downloading ? 'Downloading…' : 'Download Invoice PDF'}
+              </button>
+            </div>
           </div>
         )}
       </Section>
