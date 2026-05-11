@@ -54,8 +54,11 @@ function fmtDatetime(dateStr) {
 
 function generateInvoiceNumber(booking) {
   const date = new Date();
-  const ymd = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
-  return `INV-${ymd}-${booking.booking_code}`;
+  const mmdd = `${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
+  // Extract the short code suffix from booking_code (e.g. 'WCD9' from 'BK-20260511-WCD9')
+  const parts = (booking.booking_code || '').split('-');
+  const shortCode = parts[parts.length - 1] || booking.booking_code;
+  return `INV-${shortCode}-${mmdd}`;
 }
 
 /**
