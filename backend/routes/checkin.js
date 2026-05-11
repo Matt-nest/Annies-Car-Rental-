@@ -144,7 +144,55 @@ router.get('/bookings/:id/checkin-records', requireAuth, asyncHandler(async (req
     .order('created_at', { ascending: true });
 
   if (error) throw error;
-  res.json(data || []);
+
+  // Resolve storage paths in photo_urls and photo_slots to signed URLs.
+  // New records store paths (e.g. "booking-123/uuid.jpg"); old ones have full URLs.
+  const records = data || [];
+  for (const record of records) {
+    if (Array.isArray(record.photo_urls)) {
+      record.photo_urls = await Promise.all(
+        record.photo_urls.map(async (pathOrUrl) => {
+          if (pathOrUrl && typeof pathOrUrl === 'string' && !pathOrUrl.startsWith('http')) {
+            try {
+              const { data: signedData } = await supabase.storage
+                .from('checkin-photos')
+                .createSignedUrl(pathOrUrl, 60 * 60 * 2); // 2 hours
+              return signedData?.signedUrl || pathOrUrl;
+            } catch { return pathOrUrl; }
+          }
+          return pathOrUrl;
+        })
+      );
+    }
+    if (record.photo_slots && typeof record.photo_slots === 'object') {
+      for (const [key, value] of Object.entries(record.photo_slots)) {
+        if (typeof value === 'string' && !value.startsWith('http')) {
+          try {
+            const { data: signedData } = await supabase.storage
+              .from('checkin-photos')
+              .createSignedUrl(value, 60 * 60 * 2);
+            record.photo_slots[key] = signedData?.signedUrl || value;
+          } catch { /* keep raw path */ }
+        } else if (Array.isArray(value)) {
+          record.photo_slots[key] = await Promise.all(
+            value.map(async (v) => {
+              if (typeof v === 'string' && !v.startsWith('http')) {
+                try {
+                  const { data: signedData } = await supabase.storage
+                    .from('checkin-photos')
+                    .createSignedUrl(v, 60 * 60 * 2);
+                  return signedData?.signedUrl || v;
+                } catch { return v; }
+              }
+              return v;
+            })
+          );
+        }
+      }
+    }
+  }
+
+  res.json(records);
 }));
 
 export default router;

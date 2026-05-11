@@ -164,7 +164,7 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
           throw new Error(`Photo upload failed: ${uploadRes.status}`);
         }
         const uploadData = await uploadRes.json();
-        id_photo_url = uploadData.url;
+        id_photo_url = uploadData.path || uploadData.url;
       } catch {
         setSubmitError('Failed to upload your photo ID. Please try again.');
         setIsSubmitting(false);

@@ -35,6 +35,7 @@ const BASE_API = import.meta.env.VITE_API_URL || '/api/v1';
 function IdPhotoGallery({ paths, legacyUrl, onView }) {
   const [signedUrls, setSignedUrls] = useState({});
   const [loading, setLoading] = useState({});
+  const [legacySignedUrl, setLegacySignedUrl] = useState(null);
 
   // Pre-fetch signed URLs on mount so the photos render inline (no click-to-load).
   // Click-to-zoom is preserved via the lightbox.
@@ -63,6 +64,31 @@ function IdPhotoGallery({ paths, legacyUrl, onView }) {
     })();
     return () => { cancelled = true; };
   }, [JSON.stringify(paths)]);
+
+  // If legacyUrl is a storage path (not a URL), sign it on demand
+  useEffect(() => {
+    if (!legacyUrl || paths?.length > 0) return;
+    // Already a full URL — use as-is
+    if (legacyUrl.startsWith('http')) {
+      setLegacySignedUrl(legacyUrl);
+      return;
+    }
+    // It's a storage path — sign it
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        const res = await fetch(
+          `${BASE_API}/uploads/signed-url?bucket=id-photos&path=${encodeURIComponent(legacyUrl)}`,
+          { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+        );
+        const { url } = await res.json();
+        if (!cancelled) setLegacySignedUrl(url);
+      } catch { if (!cancelled) setLegacySignedUrl(legacyUrl); }
+    })();
+    return () => { cancelled = true; };
+  }, [legacyUrl, paths?.length]);
 
   // New system: array of storage paths — render inline, click to enlarge
   if (paths?.length > 0) {
@@ -93,17 +119,23 @@ function IdPhotoGallery({ paths, legacyUrl, onView }) {
     );
   }
 
-  // Legacy: single pre-signed URL stored on customer record
+  // Legacy/path: single stored value (could be pre-signed URL or storage path)
   if (legacyUrl) {
     return (
       <div>
-        <button onClick={() => onView(legacyUrl)} className="cursor-pointer" title="Click to enlarge">
-          <img
-            src={legacyUrl}
-            alt="Customer photo ID"
-            className="h-32 w-auto rounded-lg border border-[var(--border-subtle)] object-cover hover:opacity-80 hover:shadow-md transition-all"
-          />
-        </button>
+        {legacySignedUrl ? (
+          <button onClick={() => onView(legacySignedUrl)} className="cursor-pointer" title="Click to enlarge">
+            <img
+              src={legacySignedUrl}
+              alt="Customer photo ID"
+              className="h-32 w-auto rounded-lg border border-[var(--border-subtle)] object-cover hover:opacity-80 hover:shadow-md transition-all"
+            />
+          </button>
+        ) : (
+          <div className="h-32 w-48 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-hover)] flex items-center justify-center">
+            <span className="text-xs animate-pulse text-[var(--text-secondary)]">Loading…</span>
+          </div>
+        )}
       </div>
     );
   }

@@ -27,6 +27,47 @@ function Field({ label, value }) {
   );
 }
 
+function CustomerIdPhoto({ url, onView }) {
+  const [resolvedUrl, setResolvedUrl] = useState(null);
+
+  useEffect(() => {
+    if (!url) return;
+    if (url.startsWith('http')) {
+      setResolvedUrl(url);
+      return;
+    }
+    // Storage path — resolve via signed URL
+    let cancelled = false;
+    (async () => {
+      try {
+        const signed = await api.getSignedUrl('id-photos', url);
+        if (!cancelled) setResolvedUrl(signed.url);
+      } catch { if (!cancelled) setResolvedUrl(null); }
+    })();
+    return () => { cancelled = true; };
+  }, [url]);
+
+  return (
+    <div className="pt-3 border-t border-[var(--border-subtle)]">
+      <p className="text-xs text-[var(--text-tertiary)] mb-2">Photo ID</p>
+      {resolvedUrl ? (
+        <button onClick={() => onView(resolvedUrl)} className="cursor-pointer">
+          <img
+            src={resolvedUrl}
+            alt="Customer photo ID"
+            className="h-28 w-auto rounded-lg border border-[var(--border-subtle)] object-cover hover:opacity-80 hover:shadow-md transition-all"
+          />
+        </button>
+      ) : (
+        <div className="h-28 w-36 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] flex items-center justify-center">
+          <span className="text-xs animate-pulse text-[var(--text-secondary)]">Loading…</span>
+        </div>
+      )}
+      <p className="text-xs text-[var(--text-tertiary)] mt-1">Click to enlarge</p>
+    </div>
+  );
+}
+
 export default function CustomerDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -134,17 +175,7 @@ export default function CustomerDetailPage() {
             </div>
           )}
           {customer.id_photo_url && (
-            <div className="pt-3 border-t border-[var(--border-subtle)]">
-              <p className="text-xs text-[var(--text-tertiary)] mb-2">Photo ID</p>
-              <button onClick={() => setLightboxUrl(customer.id_photo_url)} className="cursor-pointer">
-                <img
-                  src={customer.id_photo_url}
-                  alt="Customer photo ID"
-                  className="h-28 w-auto rounded-lg border border-[var(--border-subtle)] object-cover hover:opacity-80 hover:shadow-md transition-all"
-                />
-              </button>
-              <p className="text-xs text-[var(--text-tertiary)] mt-1">Click to enlarge</p>
-            </div>
+            <CustomerIdPhoto url={customer.id_photo_url} onView={setLightboxUrl} />
           )}
           {customer.tags?.length > 0 && (
             <div className="flex flex-wrap gap-1.5 pt-2">

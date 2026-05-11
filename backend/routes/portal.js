@@ -56,12 +56,60 @@ router.get('/booking', requirePortalAuth, async (req, res) => {
       .select('*')
       .eq('booking_id', req.portal.bookingId);
 
-    // Include check-in records
+    // Include check-in records — resolve storage paths to signed URLs
     const { data: checkinRecords } = await supabase
       .from('checkin_records')
       .select('*')
       .eq('booking_id', req.portal.bookingId)
       .order('created_at', { ascending: true });
+
+    // Server-side: resolve storage paths in photo_urls and photo_slots
+    // so the portal client can display them without needing signed-url access.
+    if (checkinRecords) {
+      for (const record of checkinRecords) {
+        if (Array.isArray(record.photo_urls)) {
+          record.photo_urls = await Promise.all(
+            record.photo_urls.map(async (pathOrUrl) => {
+              if (pathOrUrl && typeof pathOrUrl === 'string' && !pathOrUrl.startsWith('http')) {
+                try {
+                  const { data } = await supabase.storage
+                    .from('checkin-photos')
+                    .createSignedUrl(pathOrUrl, 60 * 60 * 2); // 2 hours
+                  return data?.signedUrl || pathOrUrl;
+                } catch { return pathOrUrl; }
+              }
+              return pathOrUrl;
+            })
+          );
+        }
+        if (record.photo_slots && typeof record.photo_slots === 'object') {
+          for (const [key, value] of Object.entries(record.photo_slots)) {
+            if (typeof value === 'string' && !value.startsWith('http')) {
+              try {
+                const { data } = await supabase.storage
+                  .from('checkin-photos')
+                  .createSignedUrl(value, 60 * 60 * 2);
+                record.photo_slots[key] = data?.signedUrl || value;
+              } catch { /* keep raw path */ }
+            } else if (Array.isArray(value)) {
+              record.photo_slots[key] = await Promise.all(
+                value.map(async (v) => {
+                  if (typeof v === 'string' && !v.startsWith('http')) {
+                    try {
+                      const { data } = await supabase.storage
+                        .from('checkin-photos')
+                        .createSignedUrl(v, 60 * 60 * 2);
+                      return data?.signedUrl || v;
+                    } catch { return v; }
+                  }
+                  return v;
+                })
+              );
+            }
+          }
+        }
+      }
+    }
 
     // Include invoice (if completed)
     const { data: invoice } = await supabase
@@ -156,19 +204,21 @@ router.post('/checkin', requirePortalAuth, async (req, res) => {
       return res.status(400).json({ error: `Missing required photos: ${missingSlots.join(', ')}` });
     }
 
-    // ── Security: Verify uploaded photo URLs belong to this booking's folder ──
+    // ── Security: Verify uploaded photo paths belong to this booking's folder ──
+    // Paths are now storage paths like "booking-123/uuid.jpg" (no http prefix)
+    // or legacy signed URLs containing the booking folder in the path.
     // @security-auditor — booking-ID-matches-JWT check
     const expectedFolder = `booking-${bookingId}`;
-    const allSlotUrls = Object.values(photoSlots).flat().filter(Boolean);
-    for (const url of allSlotUrls) {
-      if (typeof url === 'string' && !url.includes(expectedFolder)) {
+    const allSlotValues = Object.values(photoSlots).flat().filter(Boolean);
+    for (const pathOrUrl of allSlotValues) {
+      if (typeof pathOrUrl === 'string' && !pathOrUrl.includes(expectedFolder)) {
         return res.status(403).json({
-          error: 'One or more photo URLs do not belong to this booking. Upload photos through the portal.',
+          error: 'One or more photo paths do not belong to this booking. Upload photos through the portal.',
         });
       }
     }
 
-    // Flatten all slot URLs into a flat array for backward-compat photo_urls column
+    // Flatten all slot paths into a flat array for photo_urls column
     const flatPhotoUrls = [];
     for (const slot of [...REQUIRED_SLOTS, 'dashboard']) {
       if (photoSlots[slot]) flatPhotoUrls.push(photoSlots[slot]);
@@ -258,13 +308,13 @@ router.post('/checkout', requirePortalAuth, async (req, res) => {
       return res.status(400).json({ error: `Missing required return photos: ${missingSlots.join(', ')}` });
     }
 
-    // ── Security: Verify uploaded photo URLs belong to this booking's folder ──
+    // ── Security: Verify uploaded photo paths belong to this booking's folder ──
     const expectedFolder = `booking-${bookingId}`;
-    const allSlotUrls = Object.values(photoSlots).flat().filter(Boolean);
-    for (const url of allSlotUrls) {
-      if (typeof url === 'string' && !url.includes(expectedFolder)) {
+    const allSlotValues = Object.values(photoSlots).flat().filter(Boolean);
+    for (const pathOrUrl of allSlotValues) {
+      if (typeof pathOrUrl === 'string' && !pathOrUrl.includes(expectedFolder)) {
         return res.status(403).json({
-          error: 'One or more photo URLs do not belong to this booking. Upload photos through the portal.',
+          error: 'One or more photo paths do not belong to this booking. Upload photos through the portal.',
         });
       }
     }

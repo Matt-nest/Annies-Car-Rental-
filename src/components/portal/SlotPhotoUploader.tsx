@@ -51,6 +51,8 @@ export default function SlotPhotoUploader({ token, onSlotsChange }: SlotPhotoUpl
   const [uploading, setUploading] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState('');
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  // Maps storage paths → signed URLs for immediate preview in this session
+  const previewMap = useRef<Record<string, string>>({});
 
   const filledCount = REQUIRED_SLOTS.filter(k => slots[k]).length;
   const allFilled = filledCount === REQUIRED_SLOTS.length;
@@ -76,20 +78,29 @@ export default function SlotPhotoUploader({ token, onSlotsChange }: SlotPhotoUpl
       }
 
       const data = await res.json();
-      const urls: string[] = data.photos?.map((p: any) => p.url) || data.urls || data.files?.map((f: any) => f.url) || [];
+      // Each photo returns { url: signedUrl, path: storagePath, bucket }.
+      // We store the PERMANENT storage path for the database (won't expire).
+      // The signed url is used only for immediate preview in this session.
+      const photosData: { url: string; path: string }[] = data.photos || [];
 
-      if (urls.length === 0) throw new Error('No files uploaded');
+      if (photosData.length === 0) throw new Error('No files uploaded');
 
       const slotDef = SLOTS.find(s => s.key === slotKey);
       const updated = { ...slots };
 
       if (slotDef?.multi) {
-        // Damage: append to array
+        // Damage: append to array — store paths
         const existing = Array.isArray(updated[slotKey]) ? (updated[slotKey] as string[]) : [];
-        updated[slotKey] = [...existing, ...urls];
+        updated[slotKey] = [...existing, ...photosData.map(p => p.path)];
       } else {
-        // Single: replace
-        updated[slotKey] = urls[0];
+        // Single: replace — store path
+        updated[slotKey] = photosData[0].path;
+      }
+
+      // Keep a local preview map so we can show the image immediately
+      // using the signed URL from this session
+      for (const p of photosData) {
+        previewMap.current[p.path] = p.url;
       }
 
       setSlots(updated);
@@ -163,9 +174,13 @@ export default function SlotPhotoUploader({ token, onSlotsChange }: SlotPhotoUpl
           const hasPhoto = slot.multi
             ? Array.isArray(slots[slot.key]) && (slots[slot.key] as string[]).length > 0
             : !!slots[slot.key];
-          const photoUrl = slot.multi
+          // Resolve storage path to a displayable URL via the preview map
+          const rawPath = slot.multi
             ? (Array.isArray(slots[slot.key]) ? (slots[slot.key] as string[])[0] : undefined)
             : (slots[slot.key] as string | undefined);
+          const photoUrl = rawPath
+            ? (previewMap.current[rawPath] || (rawPath.startsWith('http') ? rawPath : undefined))
+            : undefined;
 
           return (
             <div key={slot.key} className="relative group">

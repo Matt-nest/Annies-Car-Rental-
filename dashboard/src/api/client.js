@@ -197,6 +197,9 @@ export const api = {
   getDisputes: (params = {}) => request(`/disputes?${new URLSearchParams(params)}`),
   resolveDispute: (id, body) => request(`/disputes/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
 
+  // Uploads / Storage
+  getSignedUrl: (bucket, path) => request(`/uploads/signed-url?bucket=${encodeURIComponent(bucket)}&path=${encodeURIComponent(path)}`),
+
   // System
   getSystemHealth: () => request('/system/health'),
 
