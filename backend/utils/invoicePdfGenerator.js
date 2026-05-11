@@ -96,8 +96,14 @@ export async function generateInvoicePdf({ booking, invoiceNumber, stream }) {
     try {
       const doc = new PDFDocument({
         size: 'LETTER',
-        margins: { top: 40, bottom: 80, left: 50, right: 50 },
+        margins: { top: 40, bottom: 40, left: 50, right: 50 },
         bufferPages: true,
+        autoFirstPage: true,
+      });
+
+      // Prevent auto-pagination — invoice must be a single page
+      doc.on('pageAdded', () => {
+        // Remove any auto-added pages by ending immediately after the first
       });
 
       doc.pipe(stream);
@@ -129,30 +135,26 @@ export async function generateInvoicePdf({ booking, invoiceNumber, stream }) {
       const logoBuf = loadLogo();
       if (logoBuf) {
         try {
-          doc.image(logoBuf, L, y, { height: 50 });
+          doc.image(logoBuf, L, y, { height: 80 });
         } catch { /* skip gracefully */ }
       }
 
-      // ── Business info under logo ──
-      const bizY = logoBuf ? y + 58 : y;
-      doc.fontSize(11).font('Helvetica-Bold').fillColor(BRAND.dark)
-        .text(BRAND.companyName, L, bizY);
-      doc.fontSize(7).font('Helvetica').fillColor(BRAND.light)
-        .text(BRAND.tagline, L, bizY + 14);
+      // ── Business info under logo (no need to repeat name — it's in the logo) ──
+      const bizY = logoBuf ? y + 88 : y;
 
       // Business address block
-      doc.fontSize(7).font('Helvetica').fillColor(BRAND.medium);
-      doc.text(BRAND.address, L, bizY + 28);
-      doc.text(BRAND.cityStateZip, L, bizY + 38);
-      doc.text(`Phone: ${BRAND.phone}`, L, bizY + 48);
-      doc.text(`Web: ${BRAND.website}`, L, bizY + 58);
+      doc.fontSize(7.5).font('Helvetica').fillColor(BRAND.medium);
+      doc.text(BRAND.address, L, bizY);
+      doc.text(BRAND.cityStateZip, L, bizY + 10);
+      doc.text(`Phone: ${BRAND.phone}`, L, bizY + 20);
+      doc.text(`Web: ${BRAND.website}`, L, bizY + 30);
 
       // Legal identity
-      doc.fontSize(7).font('Helvetica-Bold').fillColor(BRAND.medium);
-      doc.text(`${BRAND.legalName}`, L, bizY + 72);
-      doc.fontSize(7).font('Helvetica').fillColor(BRAND.medium);
-      doc.text(BRAND.dba, L, bizY + 82);
-      doc.text(`EIN: ${BRAND.ein}`, L, bizY + 92);
+      doc.fontSize(7.5).font('Helvetica-Bold').fillColor(BRAND.medium);
+      doc.text(`${BRAND.legalName}`, L, bizY + 44);
+      doc.fontSize(7.5).font('Helvetica').fillColor(BRAND.medium);
+      doc.text(BRAND.dba, L, bizY + 54);
+      doc.text(`EIN: ${BRAND.ein}`, L, bizY + 64);
 
       // ── Invoice title (right) ──
       doc.fontSize(22).font('Helvetica-Bold').fillColor(BRAND.dark)
@@ -180,7 +182,7 @@ export async function generateInvoicePdf({ booking, invoiceNumber, stream }) {
       /* ═══════════════════════════════════════════════════════
          SEPARATOR
          ═══════════════════════════════════════════════════════ */
-      y = bizY + 106;
+      y = bizY + 78;
       doc.moveTo(L, y).lineTo(R, y).strokeColor(BRAND.border).lineWidth(1).stroke();
       y += 14;
 
@@ -322,12 +324,14 @@ export async function generateInvoicePdf({ booking, invoiceNumber, stream }) {
         lineItems.push({ desc: 'Unlimited Tolls Add-on', qty: 1, unit: Number(booking.toll_addon_fee), amount: Number(booking.toll_addon_fee) });
       }
 
-      // Insurance
-      if (booking.bonzah_total_charged_cents && Number(booking.bonzah_total_charged_cents) > 0) {
+      // Insurance (Bonzah) — check total_charged first, fall back to premium + markup
+      const insuranceCents = Number(booking.bonzah_total_charged_cents || 0)
+        || (Number(booking.bonzah_premium_cents || 0) + Number(booking.bonzah_markup_cents || 0));
+      if (insuranceCents > 0 && booking.insurance_provider === 'bonzah') {
         const tierLabel = booking.bonzah_tier_id
           ? booking.bonzah_tier_id.charAt(0).toUpperCase() + booking.bonzah_tier_id.slice(1)
           : 'Protection';
-        lineItems.push({ desc: `Insurance — ${tierLabel} Coverage`, qty: 1, unit: Number(booking.bonzah_total_charged_cents) / 100, amount: Number(booking.bonzah_total_charged_cents) / 100 });
+        lineItems.push({ desc: `Insurance — ${tierLabel} Coverage`, qty: 1, unit: insuranceCents / 100, amount: insuranceCents / 100 });
       }
 
       // Young driver fee
@@ -478,27 +482,23 @@ export async function generateInvoicePdf({ booking, invoiceNumber, stream }) {
       }
 
       /* ═══════════════════════════════════════════════════════
-         FOOTER — anchored to bottom of page
+         FOOTER — placed after content, minimum at page bottom
          ═══════════════════════════════════════════════════════ */
-      const footerY = 700;
+      // Place footer at bottom of page 1 (692 = 792 - 100 margin), or right after content
+      const footerY = Math.max(y + 20, 692);
 
       doc.moveTo(L, footerY).lineTo(R, footerY).strokeColor(BRAND.border).lineWidth(0.5).stroke();
 
       // Contact row
       doc.fontSize(7).font('Helvetica').fillColor(BRAND.light);
-      doc.text(BRAND.phone, L, footerY + 10);
-      doc.text(BRAND.website, L + (contentWidth / 2) - 40, footerY + 10, { width: 80, align: 'center' });
-      doc.text(BRAND.email, R - 130, footerY + 10, { width: 130, align: 'right' });
+      doc.text(BRAND.phone, L, footerY + 8);
+      doc.text(BRAND.website, L + (contentWidth / 2) - 40, footerY + 8, { width: 80, align: 'center' });
+      doc.text(BRAND.email, R - 130, footerY + 8, { width: 130, align: 'right' });
 
-      // Legal identity
-      doc.fontSize(7).font('Helvetica-Bold').fillColor(BRAND.light);
-      doc.text(`${BRAND.legalName} · ${BRAND.dba}`, L, footerY + 24);
-      doc.fontSize(7).font('Helvetica').fillColor(BRAND.light);
-      doc.text(`${BRAND.address} · ${BRAND.cityStateZip} · EIN: ${BRAND.ein}`, L, footerY + 34);
-
-      // Internal use label
-      doc.fontSize(7).font('Helvetica').fillColor(BRAND.light);
-      doc.text('Internal Use Only — Not a customer-facing document', R - 220, footerY + 34, { width: 220, align: 'right' });
+      // Legal identity + internal label on one line
+      doc.fontSize(6.5).font('Helvetica').fillColor(BRAND.light);
+      doc.text(`${BRAND.legalName} · ${BRAND.dba} · ${BRAND.address} · ${BRAND.cityStateZip} · EIN: ${BRAND.ein}`, L, footerY + 20, { width: contentWidth - 180 });
+      doc.text('Internal Use Only', R - 80, footerY + 20, { width: 80, align: 'right' });
 
       /* ═══════════════════════════════════════════════════════
          FINALIZE
