@@ -34,9 +34,11 @@ export async function sendDirectSMS({ customer, message }) {
     return { error: 'No phone number on file' };
   }
 
+  // source='manual' bypasses quiet hours — admin is explicitly replying now.
   const result = await sendSMS({
     to: customer.phone,
     body: message,
+    source: 'manual',
   });
 
   return result;

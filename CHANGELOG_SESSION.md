@@ -5,6 +5,134 @@
 
 ---
 
+## 2026-05-12 — Phase 2: notification timeline redesign + cron timing externalization
+
+**Why:** The legacy Templates + Sequences tabs treated each notification as a row in a list, divorced from when it actually fires. Admin couldn't see the rental lifecycle at a glance or preview what a customer would receive. Phase 2 introduces a horizontal lifecycle timeline (Request → Approval → Payment → Ready → Pickup → During → Return → Post-trip), with each notification stage as a draggable card that opens a full editor with byte-identical live email + SMS previews.
+
+**Scope:** 8 files (1 migration, 3 backend, 4 frontend — 2 new components, 2 modified). Build verified clean (3138 modules, +24 KB raw / +5 KB gzip). Three commits shipped together this turn behind a feature flag so cron behavior is unchanged in production until explicitly flipped.
+
+### Schema (1 new migration)
+- `db/migrations/020_template_timing.sql` — added `lifecycle_position` (0-7), `visual_order`, `trigger_kind` ('event'|'cron'), `trigger_anchor`, `trigger_offset_minutes` (-7d to +30d CHECK), `trigger_status_filter` (TEXT[]). Backfilled all canonical stages with values that **mathematically reproduce** the hardcoded queries in `routes/cron.js` (verified: `offset_minutes=-1440` → `today+1` = old `tomorrow()`, etc.). CHECK constraints on `trigger_kind`, `lifecycle_position`, and offset range. Idempotent.
+
+### Backend Changes (3 files)
+- **`services/notifyService.js`** — `wrapInBrandedHTML` is now `export`ed. Single source of truth for the branded email shell, so the preview endpoint (below) renders through the same code path as real customer sends. No behavior change to existing callers.
+- **`routes/messaging.js`** — (1) New `POST /email-templates/preview-html` returns the rendered branded shell as `text/html` for the frontend iframe. Uses the same mock fixture as `/test-send`. Renders CTA buttons matching the stage map. (2) Extended `PUT /email-templates/:id` to accept `visual_order` and `trigger_offset_minutes` (bounded -10080 to 43200 per the DB CHECK; returns 400 on out-of-range). `trigger_anchor` + `trigger_kind` + `trigger_status_filter` are intentionally NOT in the writable set — Option C (admin tunes timing only, system owns the semantics).
+- **`routes/cron.js`** — Feature-flagged rewrite. New `FEATURE_TIMELINE_TIMING` env flag (default off). When off, behavior is byte-identical to before — `STAGE_DEFAULTS` mirrors every hardcoded offset, and `getTimingForStage()` returns the default without touching the DB. When on, reads `email_templates` per stage; fail-open fallback to `STAGE_DEFAULTS` if the DB row is missing, out-of-bounds, or errors. Helper `dateForOffset(minutes)` does the date arithmetic (verified against `tomorrow()`/`daysAgo(N)` for all 9 externalized stages). Specifically NOT externalized: `late_return_warning` (ongoing-daily, uses `.lt()` not `.eq()`), auto-decline cutoff, auto-no-show. Comment notes the contract.
+
+### Frontend Changes (4 files)
+- **`api/client.js`** — Added `previewEmailTemplate({subject, body, stage})` — custom fetch that returns `text/html` (the existing `request()` helper assumes JSON, so it has its own path mirroring `downloadAgreementPdf`'s blob pattern). Build passes through visual_order + trigger_offset_minutes via the existing `updateEmailTemplate`.
+- **`components/messaging/TimelineView.jsx`** (NEW) — Horizontal 8-column grid by `lifecycle_position`. Each column has its own `DndContext` + `SortableContext` (vertical strategy). Pointer activation distance = 4px so click-to-edit doesn't fire on tiny mouse jitters. Reorder persists `visual_order` optimistically; failures log but don't roll back UI (worst case: refresh re-syncs). Templates without `lifecycle_position` are filtered off the timeline — they remain editable via the legacy Templates tab until cleanup.
+- **`components/messaging/TimelineEditorPanel.jsx`** (NEW) — Slide-in right panel (640px max). Sticky header shows stage + trigger description. Editable: active toggle, channel (Email/SMS/Both pill switcher), subject, body, sms_body, and **timing offset** (numeric input + 13 preset chips: -7d, -3d, -2d, -24h, -12h, -6h, -1h, morning-of, +1d, +2d, +4d, +7d, +30d). Cron-only stages show timing controls; `late_return_warning` shows a "not editable — ongoing trigger" notice. Critical-stage deactivation (booking_approved, payment_confirmed, ready_for_pickup, pickup_reminder) triggers a `window.confirm` guard. SMS char counter shows segments + estimated cost. Test-send buttons reuse the Phase 1 endpoints.
+  - **`EmailPreview` subcomponent**: 400ms debounced fetch to `/email-templates/preview-html`, renders the response inside a `<iframe sandbox="allow-same-origin">`. Critical: the iframe shows what the customer would actually receive because backend uses `wrapInBrandedHTML` (now exported).
+  - **`SmsPreview` subcomponent**: iMessage-style gray bubble, client-side merge field interpolation matching the same mock fixture the backend uses.
+- **`pages/MessagingPage.jsx`** — Added 5th tab "Timeline" with `GitBranch` icon. Routed to `TimelineView`. Old Templates + Sequences tabs remain (cleanup deferred until production verification). Order: Conversations · **Timeline** · Templates · Sequences · Opt-Outs.
+
+### Production safety
+- **Cron behavior is unchanged in production today.** `FEATURE_TIMELINE_TIMING` env var is unset → reads as false → `getTimingForStage` returns hardcoded defaults → date queries identical to the byte-for-byte hardcoded versions. Migration 020 only adds new nullable columns + backfill values that ALSO match the hardcoded defaults. There is no path by which deploying this code changes when reminders fire.
+- **To enable admin-editable timing:** set `FEATURE_TIMELINE_TIMING=true` in Vercel → backend env → redeploy. Edits saved via the timeline editor are persisted regardless, but they only affect the cron query when the flag is on.
+
+### Invariants preserved
+- **F-7 idempotency** — `notification_log` unchanged. The cron rewrite still calls `sendBookingNotification` with the same stage strings, which still inserts into `notification_log` first.
+- **F-18 partial unique index** — One active template per stage. The PUT extension doesn't widen the writable set in a way that bypasses this.
+- **F-21 SMS opt-out** — `sendSMS` short-circuits regardless of which caller (cron, preview test, manual reply) — still single point of enforcement.
+- **Ghost-block invariant** — `transitionBooking` untouched. `late_return_warning`'s `.lt()` clause preserved exactly.
+- **F-3 booking_submitted email contract** — Untouched. `bookingService.createBooking` still calls `sendBookingConfirmation` for the welcome.
+
+### API/Data Impact
+- **New routes:** `POST /messaging/email-templates/preview-html` (returns text/html). No existing routes renamed/changed.
+- **New columns** on `email_templates`: lifecycle_position, visual_order, trigger_kind, trigger_anchor, trigger_offset_minutes, trigger_status_filter.
+- **New env var (optional):** `FEATURE_TIMELINE_TIMING` — default off.
+
+### Files That Need Verification
+- `/messaging` page → click new Timeline tab → 8 columns render, cards populated, drag reorder works within a column
+- Click any card → editor slides in from right; live email preview iframe renders inside ~400ms
+- Edit a subject → preview updates after pause
+- Edit SMS body → character count + bubble preview update immediately
+- Send Test Email + Send Test SMS still work
+- Toggle Active off on a critical stage (e.g. pickup_reminder) → confirmation prompt fires
+- Old Templates tab + Sequences tab unchanged (deferred for cleanup)
+- Cron behavior unchanged in production (FEATURE_TIMELINE_TIMING unset)
+
+### Build Status
+- [x] `cd dashboard && npm run build` — clean, 3138 modules, +24KB raw
+- [x] `node --check` on every modified backend file — pass
+- [ ] User: deploy backend, deploy dashboard, smoke test Timeline tab
+
+### Known issues / follow-up
+- The legacy `EmailTemplatesTab.jsx` + `SequencesTab.jsx` are still in the repo and reachable via the Templates + Sequences tabs. Final cleanup commit will delete them once the user has verified the Timeline view works in production. Phase 2 plan calls this commit 3 of the PR (currently sitting in commits 1+2+3 in this hand-off).
+- No cross-column drag — by design (Option C: lifecycle_position is system-defined).
+- `late_return_warning` shows up on the Timeline but its timing field is read-only ("ongoing trigger" notice). Cannot externalize without a different schema model.
+- The legacy `EmailTemplatesTab` create-new-template flow doesn't set `lifecycle_position` — any new template created there won't appear on the Timeline. Acceptable transitional state until cleanup commit.
+
+---
+
+## 2026-05-12 — Phase 1: SMS guardrails + trusted-customer auto-approve
+
+**Why:** New Twilio number (`+17722071655`) installed; admin needed real controls before flipping live texts on. Specifically: (1) quiet hours so customers aren't pinged at 3am, (2) per-template Send-Test for SMS to verify the new number works end-to-end, (3) an admin view of opted-out customers with TCPA-defensible re-opt-in flow, (4) a "trusted customer" flag that skips manual approval on bookings.
+
+**Scope:** 13 files (2 new migrations, 5 backend mod/new, 6 frontend mod/new). Blast radius = HIGH but the existing critical paths were extended, not replaced — F-7 idempotency, F-18 partial unique index, F-21 opt-out enforcement, and the ghost-block invariant all preserved.
+
+### Schema (2 new migrations)
+- `db/migrations/018_business_settings.sql` — singleton `business_settings` (quiet hours config) + append-only `sms_opt_out_log` (TCPA audit trail). Backfills a 'backfill' log row for every pre-existing `sms_opt_out=true` customer.
+- `db/migrations/019_trusted_customers.sql` — `customers.is_trusted`, `trusted_at`, `trusted_by`, `trusted_note` columns + partial index `idx_customers_is_trusted`.
+
+### Backend Changes (5 files)
+- **`services/notifyService.js`** — Added `isInQuietHours()` helper (reads singleton, handles timezone via `Intl.DateTimeFormat`, midnight-wrap-around math). Extended `sendSMS({to, body, source = 'auto'})`. `source='auto'` short-circuits during quiet hours with `{skipped:'quiet_hours'}`; `source='manual'` bypasses. Fail-open if settings lookup errors (never blocks a legit send on infra hiccup).
+- **`services/messagingService.js`** — `sendDirectSMS` now passes `source:'manual'` so admin compose-and-reply is never blocked by quiet hours.
+- **`routes/settings.js`** (NEW) — `GET /settings/business` (any authed user) + `PUT /settings/business` (owner/admin only, whitelisted fields, time-format + policy enum validation).
+- **`routes/messaging.js`** — Added `POST /email-templates/test-send-sms` mirroring the existing test-send-email route. Uses `source:'manual'` so quiet hours don't block test sends.
+- **`routes/customers.js`** — Added `GET /customers/sms-opt-outs`, `POST /customers/:id/sms-opt-in` (owner/admin, writes audit row), `PATCH /customers/:id/trust` (owner/admin). Imported `requireRole`.
+- **`services/bookingService.js`** — `createBooking` now calls `transitionBooking(..., 'approved', ...)` after the standard submitted-notification path when `customer.is_trusted=true`. Reuses canonical transition (so `booking_approved` notification + status log + clamp logic all fire correctly). Wrapped in try/catch — auto-approve failure logs but doesn't roll back a valid booking.
+- **`api/index.js`** — Registered `settingsRoutes` at `/api/v1/settings`.
+
+### Frontend Changes (6 files)
+- **`api/client.js`** — Added `getSmsOptOuts`, `smsOptInCustomer`, `setCustomerTrust`, `testSendSmsTemplate`, `getBusinessSettings`, `updateBusinessSettings`.
+- **`pages/SettingsPage.jsx`** — New `QuietHoursSection` component injected into System tab. Toggle, start/end `<input type="time">`, timezone select (ET/CT/MT/PT). Saves via `api.updateBusinessSettings`. Also: fixed pre-existing label bug `TWILIO_FROM_NUMBER` → `TWILIO_PHONE_NUMBER` (code reads the latter).
+- **`components/messaging/EmailTemplatesTab.jsx`** — Added `handleTestSendSms` paralleling `handleTestSend`. Card-view Send button is now channel-aware: email-only templates show only the email-test icon, SMS-only show only the SMS-test icon, `both` shows both. Toast surfaces opt-out and Twilio errors specifically.
+- **`components/messaging/OptOutsTab.jsx`** (NEW) — Lists `getSmsOptOuts()` with phone, email, time-ago. Re-opt-in opens `OptInConfirmModal` requiring a free-text consent note + an explicit "I confirm explicit recent consent" checkbox. TCPA warning rendered prominently.
+- **`pages/MessagingPage.jsx`** — Added 4th tab "Opt-Outs" (Icon: ShieldOff) wired to `OptOutsTab`.
+- **`pages/CustomerDetailPage.jsx`** — Added `CustomerTrustToggle` section. Toggling ON optionally captures a note. Shows `trusted_at` + note when active. Hooked to `api.setCustomerTrust`.
+
+### Invariants Preserved
+- **F-7 idempotency** — `notification_log` unchanged. Trusted auto-approve fires `booking_approved` via `transitionBooking`, which itself does NOT insert into notification_log (that's `sendBookingNotification`'s job). Manual approval has the same idempotency surface.
+- **F-18 partial unique index** — Templates editor untouched in this phase.
+- **F-20 phone last-10 match** — Inbound opt-out STOP handler unchanged.
+- **F-21 SMS opt-out** — Still enforced inside `sendSMS` for BOTH auto and manual sources. The re-opt-in admin action writes a `sms_opt_out_log` row with `actor_id` for defensibility.
+- **Ghost-block invariant** — Trusted auto-approve uses `transitionBooking`, which already clamps `return_date` for terminal states. `approved` is not terminal, so no clamping involved — but the canonical path is preserved.
+- **F-3 booking_submitted contract** — Trusted auto-approve fires AFTER `sendBookingConfirmation`. Customer still gets the welcome email; ~1s later they get the approval CTA. Both wanted.
+
+### API/Data Impact
+- New routes (none renamed/changed): `GET /settings/business`, `PUT /settings/business`, `POST /messaging/email-templates/test-send-sms`, `GET /customers/sms-opt-outs`, `POST /customers/:id/sms-opt-in`, `PATCH /customers/:id/trust`.
+- New tables: `business_settings`, `sms_opt_out_log`.
+- New `customers` columns: `is_trusted`, `trusted_at`, `trusted_by`, `trusted_note`.
+- No existing endpoint signatures changed. `api/client.js` is additive only.
+
+### Files That Need Verification
+- `pages/SettingsPage.jsx` — load `/settings` page, edit quiet hours, save, reload to confirm persistence
+- `pages/MessagingPage.jsx` — open Opt-Outs tab, verify it renders empty state (or rows if any exist)
+- `pages/CustomerDetailPage.jsx` — open a customer, toggle Trust, refresh — verify badge + date appears
+- `components/messaging/EmailTemplatesTab.jsx` — open an SMS-channel template, click the new SMS test button → expect text to admin's profile phone
+- Backend `routes/cron.js` — unchanged, but verify cron/daily still fires `sendBookingNotification` paths normally (quiet hours will skip SMS at 9am ET = outside default window)
+
+### Config / Env Vars
+- Required: `TWILIO_PHONE_NUMBER=+17722071655` (new number)
+- Twilio auth token rotated (legacy token revoked)
+- No new env vars introduced
+
+### Build Status
+- [ ] `cd dashboard && npm run build` — TODO: user to verify
+- [ ] Backend deploy — TODO: user to push to main
+
+### Committed
+- [ ] Pending — review then commit
+
+### Known Issues / Follow-up
+- The template EDITOR (not the card view) still tests email only — adding SMS test in the editor requires lifting `sms_body` into the form state (out of Phase 1 scope; will land in Phase 2 timeline redesign).
+- Quiet-hours policy is hardcoded to 'skip' for now. The DB has a `defer` option but no implementation. Acceptable per Phase 1 plan Q2.
+- `trusted_by` is a raw UUID with no name resolution in the UI yet. Defer to a `staff_lookup` helper later.
+
+---
+
 ## 2026-05-11 — Bouncie telematics integration (full build)
 
 **Why:** Annie wants live GPS, trip history, mileage capture, and engine diagnostics for the fleet, managed from a dedicated dashboard section. Bouncie (OBD-II dongle + telematics SaaS) is the data source. User explicitly opted for: all phases in one shot, Mapbox free tier for maps, top-level **Telematics** sidebar item under Menu, auto-link Bouncie vehicles to fleet by VIN with a manual fallback UI.

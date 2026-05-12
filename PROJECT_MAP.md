@@ -248,6 +248,8 @@ AGREEMENTS (→ rental_agreements table)
 | `toll_charges` | Per-vehicle toll tracking |
 | `checkin_records` | Odometer/fuel/condition at each lifecycle stage |
 | `email_templates` | Automated email/SMS template content + merge fields |
+| `business_settings` | Singleton — admin-tunable config (quiet hours, future business hours/tax/fees). Migration 018. |
+| `sms_opt_out_log` | Append-only audit trail for SMS opt-out/opt-in actions (TCPA defense). Migration 018. |
 | Views/RPCs | `stats/overview`, `stats/revenue`, `stats/upcoming`, `stats/vehicles`, `stats/activity` |
 
 ### Supabase Storage
@@ -341,6 +343,100 @@ pending_approval → approved → confirmed → ready_for_pickup → active → 
 {{total_miles}}, {{overage_miles}}, {{mileage_charge}},
 {{invoice_total}}, {{invoice_status}}, {{refund_amount}}
 ```
+
+---
+
+## Phase 2 Notification Timeline (added 2026-05-12)
+
+Horizontal lifecycle view of every notification stage with drag-to-reorder, full editor + live email/SMS preview, and editable timing offsets (cron stages only). Cron behavior unchanged in production until `FEATURE_TIMELINE_TIMING=true` is set.
+
+### Schema additions
+- Migration: `020_template_timing.sql`
+- New `email_templates` columns: `lifecycle_position` (0-7), `visual_order`, `trigger_kind` ('event'|'cron'), `trigger_anchor`, `trigger_offset_minutes` (-10080 to 43200 CHECK), `trigger_status_filter` (TEXT[])
+
+### Backend
+| File | Description |
+|------|-------------|
+| `backend/services/notifyService.js` | Exported `wrapInBrandedHTML` (was private). Single source of truth for the branded shell — preview endpoint now renders through the same code path as real sends. |
+| `backend/routes/messaging.js` | New `POST /email-templates/preview-html` (returns text/html). Extended `PUT /email-templates/:id` to accept `visual_order` + `trigger_offset_minutes` (bounded). |
+| `backend/routes/cron.js` | DB-driven anchor/offset/filter behind `FEATURE_TIMELINE_TIMING` env flag (default off). `STAGE_DEFAULTS` mirrors every hardcoded value byte-for-byte. Fail-open fallback if DB row invalid. `late_return_warning` intentionally NOT externalized (ongoing-daily semantics). |
+
+### Frontend
+| File | Description |
+|------|-------------|
+| `dashboard/src/api/client.js` | Added `previewEmailTemplate({subject, body, stage})` — text/html fetch (mirrors `downloadAgreementPdf`'s blob pattern). |
+| `dashboard/src/components/messaging/TimelineView.jsx` (NEW) | Horizontal 8-column timeline by `lifecycle_position`. Per-column dnd-kit drag-to-reorder persists `visual_order`. Click card → opens TimelineEditorPanel. |
+| `dashboard/src/components/messaging/TimelineEditorPanel.jsx` (NEW) | Slide-in editor (640px). Active toggle, channel pill switcher, subject/body/sms_body, timing offset input + 13 preset chips, EmailPreview iframe, SmsPreview bubble, test-send buttons. Critical-stage deactivation guard via `window.confirm`. |
+| `dashboard/src/pages/MessagingPage.jsx` | Added 5th tab "Timeline" (GitBranch icon). Old Templates + Sequences tabs preserved for transitional safety; cleanup commit deletes them once production-verified. |
+
+### New API routes
+```
+POST   /api/v1/messaging/email-templates/preview-html  Server-rendered email preview HTML
+PUT    /api/v1/messaging/email-templates/:id           Now accepts visual_order + trigger_offset_minutes
+```
+
+### Env vars
+- `FEATURE_TIMELINE_TIMING` — `'true'` enables DB-driven cron timing. Default false. Migration 020 backfills DB values that match hardcoded defaults so flipping the flag on is a no-op for behavior; admin edits then take effect from that moment.
+
+### Component imports
+```
+TimelineView      → TimelineEditorPanel (inline EmailPreview + SmsPreview)
+TimelineView      → @dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities  (same versions as DashboardLayoutSettings)
+TimelineEditorPanel → api.updateEmailTemplate, api.previewEmailTemplate, api.testSendEmailTemplate, api.testSendSmsTemplate
+EmailPreview      → POST /messaging/email-templates/preview-html  (sandboxed iframe)
+SmsPreview        → client-side {{merge}} regex with mock fixture matching backend
+```
+
+### Invariants preserved
+F-7 (notification_log idempotency unchanged), F-18 (one-active-template-per-stage), F-21 (sendSMS opt-out + quiet hours short-circuit), ghost-block (transitionBooking + late_return_warning .lt() clause untouched), F-3 (booking_submitted email contract).
+
+### Known transitional state
+Legacy `EmailTemplatesTab.jsx` + `SequencesTab.jsx` are still in the repo and reachable via their tabs. Cleanup commit deletes them after production verification of Timeline. Custom templates created via the legacy Templates tab won't have `lifecycle_position` set — they won't appear on the Timeline (intentional; legacy escape hatch).
+
+---
+
+## Phase 1 Admin Guardrails (added 2026-05-12)
+
+SMS quiet hours, send-test-SMS, opt-out admin view, trusted-customer auto-approve. Extends existing notification path without replacing it.
+
+### Schema additions
+- Migrations: `018_business_settings.sql`, `019_trusted_customers.sql`
+- New tables: `business_settings` (singleton), `sms_opt_out_log` (audit)
+- New `customers` columns: `is_trusted`, `trusted_at`, `trusted_by`, `trusted_note`
+
+### Backend
+| File | Description |
+|------|-------------|
+| `backend/services/notifyService.js` | Added `isInQuietHours()` helper. `sendSMS({to, body, source})` — `source='auto'` (default) skips during quiet hours, `source='manual'` bypasses. Fail-open on settings lookup failures. |
+| `backend/services/messagingService.js` | `sendDirectSMS` passes `source: 'manual'`. |
+| `backend/routes/settings.js` (NEW) | `GET /settings/business` (auth), `PUT /settings/business` (owner/admin). Whitelisted fields. |
+| `backend/routes/messaging.js` | New: `POST /email-templates/test-send-sms`. Mirrors test-send-email. |
+| `backend/routes/customers.js` | New: `GET /customers/sms-opt-outs`, `POST /customers/:id/sms-opt-in` (owner/admin, writes `sms_opt_out_log`), `PATCH /customers/:id/trust` (owner/admin). |
+| `backend/services/bookingService.js` | `createBooking` auto-transitions to `approved` via `transitionBooking` when `customer.is_trusted=true`. Reuses canonical path — F-7 idempotency, status_log, and `booking_approved` notification all fire normally. |
+| `backend/api/index.js` | Registered `/api/v1/settings`. |
+
+### Frontend
+| File | Description |
+|------|-------------|
+| `dashboard/src/api/client.js` | Added: `getBusinessSettings`, `updateBusinessSettings`, `testSendSmsTemplate`, `getSmsOptOuts`, `smsOptInCustomer`, `setCustomerTrust`. |
+| `dashboard/src/pages/SettingsPage.jsx` | New `QuietHoursSection` in System tab. Fixed pre-existing env label `TWILIO_FROM_NUMBER` → `TWILIO_PHONE_NUMBER`. |
+| `dashboard/src/components/messaging/EmailTemplatesTab.jsx` | Channel-aware test-send buttons (email + SMS icons rendered based on template `channel`). New `handleTestSendSms` handler. |
+| `dashboard/src/components/messaging/OptOutsTab.jsx` (NEW) | Lists opted-out customers. Re-opt-in modal requires consent note + explicit checkbox confirmation. TCPA warning. |
+| `dashboard/src/pages/MessagingPage.jsx` | Added 4th tab "Opt-Outs" wired to OptOutsTab. |
+| `dashboard/src/pages/CustomerDetailPage.jsx` | New `CustomerTrustToggle` section. Toggle ON captures optional note. Shows `trusted_at` + note when active. |
+
+### New API routes
+```
+GET    /api/v1/settings/business                      authed read
+PUT    /api/v1/settings/business                      owner/admin only
+POST   /api/v1/messaging/email-templates/test-send-sms test SMS with mock data
+GET    /api/v1/customers/sms-opt-outs                  list opted-out customers
+POST   /api/v1/customers/:id/sms-opt-in                clear flag + audit (owner/admin)
+PATCH  /api/v1/customers/:id/trust                     set is_trusted (owner/admin)
+```
+
+### Invariants preserved
+F-3 (booking_submitted email contract), F-7 (notification_log idempotency), F-18 (one-active-template-per-stage partial unique index), F-20 (phone last-10 match), F-21 (sms_opt_out enforcement in sendSMS), ghost-block invariant (transitionBooking remains canonical).
 
 ---
 

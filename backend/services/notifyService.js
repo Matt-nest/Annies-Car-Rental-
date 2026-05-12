@@ -94,13 +94,66 @@ export async function sendEmail({ to, subject, html }) {
 }
 
 /**
+ * Quiet-hours check — reads the singleton business_settings row and returns
+ * true if the current time (in the configured timezone) falls within the
+ * configured nightly silence window. Used by sendSMS for automated sends only;
+ * manual admin-initiated sends bypass via `source: 'manual'`.
+ *
+ * Migration 018 introduced business_settings. If the table or row is missing
+ * (fresh dev DB), we return false (= not in quiet hours) so SMS flows
+ * unchanged. Single read per SMS — Twilio call dwarfs the DB roundtrip.
+ */
+async function isInQuietHours() {
+  try {
+    const { data, error } = await supabase
+      .from('business_settings')
+      .select('quiet_hours_enabled, quiet_hours_start, quiet_hours_end, quiet_hours_timezone')
+      .eq('id', 1)
+      .single();
+    if (error || !data || !data.quiet_hours_enabled) return false;
+
+    // Current time in configured TZ → minutes since midnight
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: data.quiet_hours_timezone || 'America/New_York',
+      hour12: false, hour: '2-digit', minute: '2-digit',
+    });
+    const parts = fmt.formatToParts(new Date());
+    const hh = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
+    const mm = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
+    const nowMin = hh * 60 + mm;
+
+    // Parse 'HH:MM[:SS]' from Postgres TIME column → minutes
+    const toMin = (t) => {
+      const [h, m] = String(t).split(':').map(Number);
+      return h * 60 + (m || 0);
+    };
+    const startMin = toMin(data.quiet_hours_start);
+    const endMin   = toMin(data.quiet_hours_end);
+
+    if (startMin === endMin) return false;                       // 24h "off"
+    if (startMin < endMin) return nowMin >= startMin && nowMin < endMin;
+    return nowMin >= startMin || nowMin < endMin;                // wraps midnight
+  } catch (err) {
+    // Fail-open: never block a legitimate send because the settings lookup failed.
+    console.warn('[Notify] quiet-hours lookup failed:', err.message);
+    return false;
+  }
+}
+
+/**
  * Send an SMS via Twilio REST API (no SDK needed).
- * Returns { sid } on success or { error } on failure.
+ * Returns { sid } on success or { skipped, ... } / { error } on failure.
  *
  * F-21: short-circuits if any customer with this phone has sms_opt_out=true.
  * Single point of enforcement so new callers are automatically protected.
+ *
+ * `source` controls quiet-hours behavior:
+ *   'auto'   (default) — automated sends from cron / sendBookingNotification.
+ *                        Skipped silently during quiet hours.
+ *   'manual'           — admin-initiated (replies, test sends). Bypasses
+ *                        quiet hours since the admin made the choice.
  */
-export async function sendSMS({ to, body }) {
+export async function sendSMS({ to, body, source = 'auto' }) {
   if (!TWILIO_SID || !TWILIO_TOKEN || !TWILIO_FROM) {
     console.log(`[Notify] Twilio not configured — skipping SMS to ${to}`);
     return { skipped: true };
@@ -108,6 +161,12 @@ export async function sendSMS({ to, body }) {
   if (!to) {
     console.warn('[Notify] No phone number provided — skipping SMS');
     return { skipped: true };
+  }
+
+  // Quiet hours — only blocks automated sends. Migration 018.
+  if (source === 'auto' && await isInQuietHours()) {
+    console.log(`[Notify] Skipping SMS to ${to} — quiet hours active`);
+    return { skipped: 'quiet_hours' };
   }
 
   // Normalize phone number — ensure it starts with +1 for US
@@ -756,8 +815,13 @@ function renderPickupNextStepsHtml(mergeFields) {
  *
  * `prependHtml` (optional) is inserted above the rendered body — used by
  * stage-specific enrichments (e.g. itemized receipt for `payment_confirmed`).
+ *
+ * Exported so the dashboard preview endpoint can render previews through the
+ * exact same code path as real customer-facing sends. Keeping the preview and
+ * the real send on the same renderer is what makes "what you see in preview
+ * is what the customer gets" a guarantee instead of a hope.
  */
-function wrapInBrandedHTML(subject, plainTextBody, ctaHtml = '', prependHtml = '') {
+export function wrapInBrandedHTML(subject, plainTextBody, ctaHtml = '', prependHtml = '') {
   // ── Convert mixed plain-text + HTML body to safe email HTML ──
   //
   // Templates contain a mix of plain text (paragraphs, bullet points)

@@ -14,13 +14,15 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { MessageSquare, FileText, Clock } from 'lucide-react';
+import { MessageSquare, FileText, Clock, ShieldOff, GitBranch } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { api } from '../api/client';
 import ConversationList from '../components/messaging/ConversationList';
 import ChatPanel from '../components/messaging/ChatPanel';
 import EmailTemplatesTab from '../components/messaging/EmailTemplatesTab';
 import SequencesTab from '../components/messaging/SequencesTab';
+import OptOutsTab from '../components/messaging/OptOutsTab';
+import TimelineView from '../components/messaging/TimelineView';
 import { EASE } from '../components/messaging/shared.js';
 
 export default function MessagingPage() {
@@ -117,8 +119,10 @@ export default function MessagingPage() {
           }}>
             {[
               { key: 'conversations', label: 'Conversations', Icon: MessageSquare },
+              { key: 'timeline',      label: 'Timeline',      Icon: GitBranch },
               { key: 'templates',     label: 'Templates',     Icon: FileText },
               { key: 'sequences',     label: 'Sequences',     Icon: Clock },
+              { key: 'optouts',       label: 'Opt-Outs',      Icon: ShieldOff },
             ].map(({ key, label, Icon }) => (
               <motion.button
                 key={key}
@@ -144,13 +148,21 @@ export default function MessagingPage() {
       )}
 
       {/* Content area */}
-      {tab === 'sequences' ? (
+      {tab === 'timeline' ? (
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          <TimelineView />
+        </div>
+      ) : tab === 'sequences' ? (
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px 16px' }}>
           <SequencesTab />
         </div>
       ) : tab === 'templates' ? (
         <div style={{ flex: 1, overflowY: 'auto' }}>
           <EmailTemplatesTab />
+        </div>
+      ) : tab === 'optouts' ? (
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          <OptOutsTab />
         </div>
       ) : (
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>

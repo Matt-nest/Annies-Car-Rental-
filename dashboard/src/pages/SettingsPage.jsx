@@ -598,7 +598,7 @@ function SystemTab() {
           <EnvRow label="From Address" envKey="EMAIL_FROM" note="e.g. Annie's Car Rental <noreply@anniescarrental.com>" />
           <EnvRow label="Twilio Account SID" envKey="TWILIO_ACCOUNT_SID" note="SMS delivery" />
           <EnvRow label="Twilio Auth Token" envKey="TWILIO_AUTH_TOKEN" />
-          <EnvRow label="Twilio Phone" envKey="TWILIO_FROM_NUMBER" note="Outbound SMS number" />
+          <EnvRow label="Twilio Phone" envKey="TWILIO_PHONE_NUMBER" note="Outbound SMS number" />
           <EnvRow label="Site URL" envKey="SITE_URL" note="Used in email links and confirmation URLs" />
         </div>
       </Section>
@@ -610,6 +610,8 @@ function SystemTab() {
           <EnvRow label="Publishable Key" envKey="VITE_STRIPE_PUBLISHABLE_KEY" note="Frontend (customer site)" />
         </div>
       </Section>
+
+      <QuietHoursSection />
 
       <Section title="Booking Automation" description="Timing for auto-expire and reminders (configured in cron)">
         <div className="grid sm:grid-cols-2 gap-4 text-sm">
@@ -634,6 +636,162 @@ function SystemTab() {
 
       <DashboardLayoutSettings />
     </div>
+  );
+}
+
+/* ─── SMS Quiet Hours (Phase 1 — migration 018 business_settings) ─── */
+function QuietHoursSection() {
+  const [settings, setSettings] = useState(null);
+  const [draft, setDraft] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    api.getBusinessSettings()
+      .then(data => { if (mounted) { setSettings(data); setDraft(data); } })
+      .catch(err => { if (mounted) setError(err.message || 'Failed to load settings'); })
+      .finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
+  }, []);
+
+  const dirty = draft && settings && (
+    draft.quiet_hours_enabled !== settings.quiet_hours_enabled ||
+    draft.quiet_hours_start !== settings.quiet_hours_start ||
+    draft.quiet_hours_end !== settings.quiet_hours_end ||
+    draft.quiet_hours_timezone !== settings.quiet_hours_timezone
+  );
+
+  async function handleSave() {
+    setSaving(true);
+    setError('');
+    try {
+      const updated = await api.updateBusinessSettings({
+        quiet_hours_enabled: draft.quiet_hours_enabled,
+        quiet_hours_start: draft.quiet_hours_start,
+        quiet_hours_end: draft.quiet_hours_end,
+        quiet_hours_timezone: draft.quiet_hours_timezone,
+      });
+      setSettings(updated);
+      setDraft(updated);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2400);
+    } catch (err) {
+      setError(err.message || 'Save failed');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Trim 'HH:MM:SS' → 'HH:MM' for <input type="time">
+  const trim = (t) => (t ? String(t).slice(0, 5) : '');
+
+  return (
+    <Section title="SMS Quiet Hours" description="Automated SMS sends are skipped during this nightly window. Manual replies and test sends always go through.">
+      {loading ? (
+        <div className="flex items-center gap-2 text-[var(--text-secondary)] text-sm">
+          <RefreshCw size={14} className="animate-spin" /> Loading…
+        </div>
+      ) : error ? (
+        <div className="flex items-start gap-2 text-sm text-[#ef4444]">
+          <AlertCircle size={14} className="mt-0.5 shrink-0" />
+          <span>{error}</span>
+        </div>
+      ) : draft ? (
+        <div className="space-y-4">
+          {/* Enabled toggle */}
+          <div className="flex items-center justify-between gap-4 py-2">
+            <div>
+              <p className="text-sm font-medium text-[var(--text-primary)]">Enable quiet hours</p>
+              <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
+                When off, automated SMS sends fire 24/7. Manual replies are never blocked.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setDraft({ ...draft, quiet_hours_enabled: !draft.quiet_hours_enabled })}
+              className="relative shrink-0"
+              style={{
+                width: 42, height: 24, borderRadius: 12,
+                border: 'none', cursor: 'pointer', padding: 0,
+                background: draft.quiet_hours_enabled
+                  ? 'linear-gradient(135deg, #465FFF, #3b4cdb)'
+                  : 'var(--bg-card, rgba(255,255,255,0.06))',
+                boxShadow: draft.quiet_hours_enabled
+                  ? '0 2px 8px rgba(70,95,255,0.3)'
+                  : 'inset 0 1px 3px rgba(0,0,0,0.15)',
+                transition: 'background 0.25s, box-shadow 0.25s',
+              }}
+              aria-pressed={draft.quiet_hours_enabled}
+              aria-label="Toggle quiet hours"
+            >
+              <span style={{
+                position: 'absolute', top: 2, width: 20, height: 20,
+                borderRadius: '50%', background: '#fff',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                transition: 'left 0.25s cubic-bezier(0.4,0,0.2,1)',
+                left: draft.quiet_hours_enabled ? 20 : 2,
+              }} />
+            </button>
+          </div>
+
+          {/* Time pickers + timezone */}
+          <div className={`grid sm:grid-cols-3 gap-3 ${draft.quiet_hours_enabled ? '' : 'opacity-50 pointer-events-none'}`}>
+            <div>
+              <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-1.5 block">Start</label>
+              <input
+                type="time"
+                className="input text-sm w-full"
+                value={trim(draft.quiet_hours_start)}
+                onChange={e => setDraft({ ...draft, quiet_hours_start: e.target.value })}
+                disabled={!draft.quiet_hours_enabled}
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-1.5 block">End</label>
+              <input
+                type="time"
+                className="input text-sm w-full"
+                value={trim(draft.quiet_hours_end)}
+                onChange={e => setDraft({ ...draft, quiet_hours_end: e.target.value })}
+                disabled={!draft.quiet_hours_enabled}
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-1.5 block">Timezone</label>
+              <select
+                className="input text-sm w-full"
+                value={draft.quiet_hours_timezone}
+                onChange={e => setDraft({ ...draft, quiet_hours_timezone: e.target.value })}
+                disabled={!draft.quiet_hours_enabled}
+              >
+                <option value="America/New_York">Eastern (New York)</option>
+                <option value="America/Chicago">Central (Chicago)</option>
+                <option value="America/Denver">Mountain (Denver)</option>
+                <option value="America/Los_Angeles">Pacific (Los Angeles)</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-1">
+            {saved && (
+              <span className="flex items-center gap-1 text-xs text-[#22c55e]"><Check size={12} /> Saved</span>
+            )}
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={!dirty || saving}
+              className="btn-primary text-xs"
+              style={{ opacity: !dirty || saving ? 0.5 : 1 }}
+            >
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </Section>
   );
 }
 

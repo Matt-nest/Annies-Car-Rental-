@@ -393,7 +393,13 @@ router.post('/email-templates', requireAuth, asyncHandler(async (req, res) => {
 
 /** PUT /email-templates/:id — update a template */
 router.put('/email-templates/:id', requireAuth, asyncHandler(async (req, res) => {
-  const { name, stage, subject, body, is_active, channel, sms_body, trigger_type, description } = req.body;
+  const {
+    name, stage, subject, body, is_active, channel, sms_body, trigger_type, description,
+    // Phase 2 timing fields. Anchor/kind/filter are intentionally NOT accepted
+    // here — they're system-defined per stage. Only the offset and visual order
+    // are admin-editable (Option C). Migration 020 + cron rewrite (commit 2).
+    visual_order, trigger_offset_minutes,
+  } = req.body;
   const updates = {};
   if (name !== undefined) updates.name = name;
   if (stage !== undefined) updates.stage = stage;
@@ -404,6 +410,17 @@ router.put('/email-templates/:id', requireAuth, asyncHandler(async (req, res) =>
   if (sms_body !== undefined) updates.sms_body = sms_body;
   if (trigger_type !== undefined) updates.trigger_type = trigger_type;
   if (description !== undefined) updates.description = description;
+  if (visual_order !== undefined) updates.visual_order = visual_order;
+  if (trigger_offset_minutes !== undefined) {
+    // Mirror the DB CHECK constraint (-7d to +30d) with a clear 400 instead
+    // of a Postgres error. Same bound the cron rewrite will use as its
+    // sanity fallback trigger (commit 2).
+    const n = Number(trigger_offset_minutes);
+    if (!Number.isFinite(n) || n < -10080 || n > 43200) {
+      return res.status(400).json({ error: 'trigger_offset_minutes must be between -10080 (-7d) and 43200 (+30d)' });
+    }
+    updates.trigger_offset_minutes = n;
+  }
   updates.updated_at = new Date().toISOString();
 
   const { data, error } = await supabase
@@ -477,6 +494,120 @@ router.post('/email-templates/test-send', requireAuth, asyncHandler(async (req, 
 
   const result = await sendEmail({ to: recipient, subject: renderedSubject, html });
   res.json({ ok: !result?.error, to: recipient, result });
+}));
+
+/**
+ * POST /email-templates/preview-html — render an email through the SAME code
+ * path as a real send (interpolate merge fields → wrap in branded shell) and
+ * return the resulting HTML. The frontend drops the response into a sandboxed
+ * iframe so the preview is byte-identical to what the customer would receive.
+ *
+ * Accepts a draft body (so unsaved edits can be previewed) plus an optional
+ * `stage` to drive the CTA button (booking_approved gets the gold "Complete
+ * Agreement & Pay" button, etc.). All merge fields use the same mock fixture
+ * as /test-send so preview ↔ test-send ↔ real-send all stay in lockstep.
+ *
+ * Returns text/html. Phase 2 — backs the EmailPreview component.
+ */
+router.post('/email-templates/preview-html', requireAuth, asyncHandler(async (req, res) => {
+  const { interpolateTemplate, buildMergeFields, wrapInBrandedHTML } = await import('../services/notifyService.js');
+
+  const { subject, body, stage } = req.body || {};
+  if (!subject || !body) {
+    return res.status(400).json({ error: 'subject and body are required' });
+  }
+
+  // Same mock fixture as /test-send. Single source of truth would be nicer
+  // but a tiny duplication beats an awkward shared import for ~25 lines.
+  const mockPayload = {
+    customer_id: 'preview',
+    booking_code: 'BK-PREVIEW',
+    customer: { first_name: 'Sarah', last_name: 'Preview', email: 'sarah@example.com', phone: '+17725551234' },
+    vehicle:  { year: 2024, make: 'Nissan', model: 'Altima', vin: '1N4PREVIEW', color: 'Pearl White', license_plate: 'ABC1234', thumbnail_url: '' },
+    pickup_date: '2026-05-15', return_date: '2026-05-20', pickup_time: '10:00', return_time: '10:00',
+    pickup_location: 'Port St. Lucie', total_cost: 500, tax_amount: 35, rental_days: 5,
+    deposit_amount: 150, lockbox_code: '2580',
+    daily_rate: 100, subtotal: 500,
+    bonzah_policy_no: 'POL-PREVIEW', bonzah_tier_label: 'Standard',
+    amount_owed: 42.5,
+  };
+
+  const fields = buildMergeFields(mockPayload);
+  const renderedSubject = interpolateTemplate(subject, fields, false);
+  const renderedBody    = interpolateTemplate(body, fields, true);
+
+  // CTA: if a stage is passed, build the same gold-or-dark button that real
+  // sends would attach. Without a stage we skip the CTA — accurate preview of
+  // a custom one-off template.
+  let ctaHtml = '';
+  if (stage) {
+    // Inline mini-impl mirroring buildCtaHtml — that function isn't exported
+    // and we want to avoid exporting more surface than necessary for preview.
+    const STAGE_CTA_PREVIEW = {
+      booking_submitted:   { label: 'Check Booking Status',           fieldKey: 'status_link' },
+      booking_approved:    { label: 'Complete Agreement & Pay →',     fieldKey: 'confirm_link',  style: 'gold' },
+      booking_declined:    { label: 'Browse Other Vehicles',          path: '/vehicles' },
+      booking_cancelled:   { label: 'Browse Other Vehicles',          path: '/vehicles' },
+      payment_confirmed:   { label: 'Go to My Customer Portal →',     fieldKey: 'portal_link',   style: 'gold' },
+      ready_for_pickup:    { label: 'View Pickup Details',            fieldKey: 'portal_link',   style: 'gold' },
+      pickup_reminder:     { label: 'View Pickup Details',            fieldKey: 'portal_link',   style: 'gold' },
+      day_of_pickup:       { label: 'View Pickup Details',            fieldKey: 'portal_link',   style: 'gold' },
+      return_reminder:     { label: 'View Return Details',            fieldKey: 'portal_link' },
+      rental_completed:    { label: 'Leave a Review ⭐',               fieldKey: 'review_link',   style: 'gold' },
+    };
+    const cta = STAGE_CTA_PREVIEW[stage];
+    if (cta) {
+      const siteUrl = process.env.SITE_URL || 'https://anniescarrental.com';
+      const href = cta.fieldKey ? (fields[cta.fieldKey] || `${siteUrl}/`) : `${siteUrl}${cta.path || '/'}`;
+      const bg = cta.style === 'gold'
+        ? 'background:linear-gradient(135deg,#D4AF37 0%,#B8941E 100%);color:#fff;'
+        : 'background:#1c1917;color:#fff;';
+      ctaHtml = `<div style="text-align:center;margin:28px 0 8px;"><a href="${href}" style="display:inline-block;${bg}font-size:15px;font-weight:600;padding:14px 32px;border-radius:10px;text-decoration:none;">${cta.label}</a></div>`;
+    }
+  }
+
+  const html = wrapInBrandedHTML(renderedSubject, renderedBody, ctaHtml, '');
+  res.set('Content-Type', 'text/html; charset=utf-8').send(html);
+}));
+
+/**
+ * POST /email-templates/test-send-sms — render an SMS body with mock data
+ * and text it to the requesting admin (or an explicit `to` number).
+ *
+ * Mirrors /test-send but for SMS-channel templates. Uses source='manual' to
+ * bypass quiet hours since the admin explicitly triggered the test.
+ */
+router.post('/email-templates/test-send-sms', requireAuth, asyncHandler(async (req, res) => {
+  const { interpolateTemplate, buildMergeFields, sendSMS } = await import('../services/notifyService.js');
+
+  const { sms_body, to } = req.body || {};
+  if (!sms_body) {
+    return res.status(400).json({ error: 'sms_body is required' });
+  }
+
+  // Resolve recipient — explicit body param, then admin's profile phone.
+  const recipient = to || req.user?.profile?.phone;
+  if (!recipient) {
+    return res.status(400).json({ error: 'No recipient — pass `to`, or add a phone number to your profile' });
+  }
+
+  // Same mock fixture as /test-send so previews match real behavior.
+  const mockPayload = {
+    customer_id: 'test-customer',
+    booking_code: 'BK-20260507-TEST',
+    customer: { first_name: 'Test', last_name: 'Customer', email: recipient, phone: recipient },
+    vehicle:  { year: 2024, make: 'Nissan', model: 'Altima', vin: '1N4TEST', color: 'Gray', license_plate: 'TST123', thumbnail_url: '' },
+    pickup_date: '2026-05-15', return_date: '2026-05-20', pickup_time: '10:00', return_time: '10:00',
+    pickup_location: 'Port St. Lucie', total_cost: 500, tax_amount: 35, rental_days: 5,
+    deposit_amount: 150, lockbox_code: '2580',
+    daily_rate: 100, subtotal: 500,
+  };
+
+  const fields = buildMergeFields(mockPayload);
+  const rendered = `[TEST] ${interpolateTemplate(sms_body, fields, false)}`;
+
+  const result = await sendSMS({ to: recipient, body: rendered, source: 'manual' });
+  res.json({ ok: !result?.error && !result?.skipped, to: recipient, result });
 }));
 
 /**

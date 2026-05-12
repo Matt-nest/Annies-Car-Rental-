@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, FileText, Trash2, Eye, Send, AlertCircle } from 'lucide-react';
+import { Plus, FileText, Trash2, Eye, Send, AlertCircle, MessageSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../../api/client';
 import { EASE, TEMPLATE_STAGES } from './shared.js';
@@ -49,6 +49,31 @@ export default function EmailTemplatesTab() {
       }
     } catch (err) {
       console.error('Test-send failed:', err);
+      setTestToast({ kind: 'err', text: err?.message || 'Send failed' });
+    }
+    setTestSending(null);
+    setTimeout(() => setTestToast(null), 4000);
+  };
+
+  // Phase 1: SMS test-send — mirrors handleTestSend but for sms_body templates.
+  // Bypasses quiet hours server-side (source='manual') since admin explicitly triggered.
+  const handleTestSendSms = async (template, slot = 'card-sms') => {
+    if (!template?.sms_body) {
+      setTestToast({ kind: 'err', text: 'Template has no SMS body to test' });
+      return;
+    }
+    setTestSending(slot);
+    try {
+      const result = await api.testSendSmsTemplate({ sms_body: template.sms_body });
+      if (result?.ok) {
+        setTestToast({ kind: 'ok', text: `Test SMS sent to ${result.to}` });
+      } else if (result?.result?.skipped === 'opted_out') {
+        setTestToast({ kind: 'err', text: 'Your number is opted out — text START to re-enroll' });
+      } else {
+        setTestToast({ kind: 'err', text: result?.result?.error?.message || 'Send failed — check console' });
+      }
+    } catch (err) {
+      console.error('SMS test-send failed:', err);
       setTestToast({ kind: 'err', text: err?.message || 'Send failed' });
     }
     setTestSending(null);
@@ -387,12 +412,24 @@ export default function EmailTemplatesTab() {
                       }} />
                     </button>
                     <button onClick={() => setPreview(t)} style={{ padding: 6, borderRadius: 8, background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer' }} title="Preview"><Eye size={14} /></button>
-                    <button
-                      onClick={() => handleTestSend(t, t.id)}
-                      disabled={testSending === t.id}
-                      style={{ padding: 6, borderRadius: 8, background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', opacity: testSending === t.id ? 0.5 : 1 }}
-                      title="Send test to my email"
-                    ><Send size={14} /></button>
+                    {/* Email test — shown for channel='email' or 'both' (default behavior when channel undefined) */}
+                    {(!t.channel || t.channel === 'email' || t.channel === 'both') && (
+                      <button
+                        onClick={() => handleTestSend(t, t.id)}
+                        disabled={testSending === t.id}
+                        style={{ padding: 6, borderRadius: 8, background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', opacity: testSending === t.id ? 0.5 : 1 }}
+                        title="Send test email to my inbox"
+                      ><Send size={14} /></button>
+                    )}
+                    {/* SMS test — shown for channel='sms' or 'both'. Phase 1. */}
+                    {(t.channel === 'sms' || t.channel === 'both') && (
+                      <button
+                        onClick={() => handleTestSendSms(t, `${t.id}-sms`)}
+                        disabled={testSending === `${t.id}-sms`}
+                        style={{ padding: 6, borderRadius: 8, background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', opacity: testSending === `${t.id}-sms` ? 0.5 : 1 }}
+                        title="Send test SMS to my phone"
+                      ><MessageSquare size={14} /></button>
+                    )}
                     <button onClick={() => startEdit(t)} style={{ padding: 6, borderRadius: 8, background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer' }} title="Edit"><FileText size={14} /></button>
                     <button onClick={() => handleDelete(t.id)} style={{ padding: 6, borderRadius: 8, background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer' }} title="Delete"><Trash2 size={14} /></button>
                   </div>

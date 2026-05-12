@@ -60,6 +60,10 @@ export const api = {
   getCustomer: (id) => request(`/customers/${id}`),
   updateCustomer: (id, body) => request(`/customers/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   getCustomerBookings: (id) => request(`/customers/${id}/bookings`),
+  // Phase 1: SMS opt-out admin + trusted-customer auto-approve
+  getSmsOptOuts: () => request('/customers/sms-opt-outs'),
+  smsOptInCustomer: (id, note) => request(`/customers/${id}/sms-opt-in`, { method: 'POST', body: JSON.stringify({ note }) }),
+  setCustomerTrust: (id, is_trusted, note) => request(`/customers/${id}/trust`, { method: 'PATCH', body: JSON.stringify({ is_trusted, note }) }),
 
   // Payments
   getAllPayments: (params = {}) => request(`/payments?${new URLSearchParams(params)}`),
@@ -105,7 +109,27 @@ export const api = {
   deleteEmailTemplate: (id) => request(`/messaging/email-templates/${id}`, { method: 'DELETE' }),
   // Phase 2B: test-send + per-stage source status
   testSendEmailTemplate: (body) => request('/messaging/email-templates/test-send', { method: 'POST', body: JSON.stringify(body) }),
+  testSendSmsTemplate: (body) => request('/messaging/email-templates/test-send-sms', { method: 'POST', body: JSON.stringify(body) }),
   getEmailTemplateStatus: () => request('/messaging/email-templates/status'),
+  // Phase 2: server-rendered email preview (returns HTML text, not JSON).
+  // Uses the same render path as a real send so preview ↔ customer experience matches.
+  previewEmailTemplate: async ({ subject, body, stage }) => {
+    const authHeader = await getAuthHeader();
+    const res = await fetch(`${BASE}/messaging/email-templates/preview-html`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader },
+      body: JSON.stringify({ subject, body, stage }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw Object.assign(new Error(err.error || 'Preview failed'), { status: res.status });
+    }
+    return res.text();
+  },
+
+  // Phase 1: business settings (quiet hours)
+  getBusinessSettings: () => request('/settings/business'),
+  updateBusinessSettings: (body) => request('/settings/business', { method: 'PUT', body: JSON.stringify(body) }),
 
   // Agreements
   getPendingCounterSign: () => request('/agreements/pending-counter-sign'),

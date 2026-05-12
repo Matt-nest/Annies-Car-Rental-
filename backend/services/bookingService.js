@@ -280,6 +280,26 @@ export async function createBooking(payload) {
     { booking_id: booking.id, booking_code }
   ).catch(() => { });
 
+  // 11. Trusted-customer auto-approve (migration 019).
+  // Fires AFTER the welcome email + admin notification so:
+  //   (a) the customer still gets the "we got it" branded confirmation
+  //   (b) the admin still sees the booking land in their feed
+  //   (c) the approval transition then fires booking_approved → "complete agreement" CTA
+  // Wrapped in try/catch so a transition failure (e.g. canTransition gate)
+  // doesn't roll back a valid booking. The admin can approve manually.
+  if (customer.is_trusted) {
+    try {
+      await transitionBooking(booking.id, 'approved', {
+        changedBy: 'system',
+        reason: 'Trusted customer — auto-approved on submission',
+      });
+      booking.status = 'approved';
+      booking.owner_approved_at = new Date().toISOString();
+    } catch (err) {
+      console.error(`[Booking] Trusted auto-approve failed for ${booking_code} (booking left pending):`, err.message);
+    }
+  }
+
   return booking;
 }
 

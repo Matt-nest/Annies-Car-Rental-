@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Phone, Mail, User, Calendar, DollarSign, FileText, CreditCard, MapPin, Home } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, User, Calendar, DollarSign, FileText, CreditCard, MapPin, Home, ShieldCheck, Zap } from 'lucide-react';
 import { api } from '../api/client';
 import StatusBadge from '../components/shared/StatusBadge';
 import { SkeletonDashboard } from '../components/shared/Skeleton';
@@ -23,6 +23,127 @@ function Field({ label, value }) {
     <div>
       <p className="text-xs text-[var(--text-tertiary)]">{label}</p>
       <p className="text-sm text-[var(--text-primary)] font-medium">{value || '—'}</p>
+    </div>
+  );
+}
+
+/**
+ * Trusted-customer toggle. When ON, future bookings from this customer skip
+ * pending_approval and go straight to `approved` (see bookingService.createBooking).
+ * Insurance + payment + agreement wizard still required — we're only skipping
+ * the manual admin approval step.
+ */
+function CustomerTrustToggle({ customer, onChange }) {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [showNote, setShowNote] = useState(false);
+  const [note, setNote] = useState('');
+
+  const isTrusted = !!customer.is_trusted;
+
+  async function handleToggle(nextValue, withNote) {
+    setSaving(true);
+    setError('');
+    try {
+      const updated = await api.setCustomerTrust(customer.id, nextValue, withNote || null);
+      onChange({ ...customer, ...updated });
+      setShowNote(false);
+      setNote('');
+    } catch (err) {
+      setError(err?.message || 'Failed to update');
+    }
+    setSaving(false);
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-[var(--text-primary)]">
+            {isTrusted ? 'Trusted — auto-approve bookings' : 'Not trusted — manual approval required'}
+          </p>
+          <p className="text-xs text-[var(--text-tertiary)] mt-0.5 leading-relaxed">
+            {isTrusted
+              ? 'New bookings from this customer skip the pending queue. They still complete the agreement + payment wizard before pickup.'
+              : 'New bookings land in your pending-approval queue for manual review.'}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            if (isTrusted) handleToggle(false);
+            else setShowNote(true);
+          }}
+          disabled={saving}
+          className="relative shrink-0"
+          style={{
+            width: 42, height: 24, borderRadius: 12,
+            border: 'none', cursor: saving ? 'not-allowed' : 'pointer', padding: 0,
+            background: isTrusted ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'var(--bg-card, rgba(255,255,255,0.06))',
+            boxShadow: isTrusted ? '0 2px 8px rgba(34,197,94,0.3)' : 'inset 0 1px 3px rgba(0,0,0,0.15)',
+            transition: 'background 0.25s, box-shadow 0.25s',
+            opacity: saving ? 0.6 : 1,
+          }}
+          aria-pressed={isTrusted}
+          aria-label="Toggle trusted customer"
+        >
+          <span style={{
+            position: 'absolute', top: 2, width: 20, height: 20,
+            borderRadius: '50%', background: '#fff',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+            transition: 'left 0.25s cubic-bezier(0.4,0,0.2,1)',
+            left: isTrusted ? 20 : 2,
+          }} />
+        </button>
+      </div>
+
+      {isTrusted && customer.trusted_at && (
+        <div className="flex items-center gap-2 text-xs text-[var(--text-tertiary)]">
+          <Zap size={12} className="text-[#22c55e]" />
+          <span>Trusted since {new Date(customer.trusted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+          {customer.trusted_note && (
+            <span className="italic">· "{customer.trusted_note}"</span>
+          )}
+        </div>
+      )}
+
+      {error && (
+        <p className="text-xs text-[#ef4444]">{error}</p>
+      )}
+
+      {showNote && !isTrusted && (
+        <div className="space-y-2 pt-1">
+          <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] block">
+            Why trust this customer? (optional)
+          </label>
+          <input
+            type="text"
+            value={note}
+            onChange={e => setNote(e.target.value)}
+            placeholder="e.g. 5 successful rentals, no incidents"
+            className="input text-sm w-full"
+            autoFocus
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => { setShowNote(false); setNote(''); }}
+              className="btn-ghost text-xs"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => handleToggle(true, note.trim())}
+              disabled={saving}
+              className="btn-primary text-xs"
+              style={{ opacity: saving ? 0.5 : 1 }}
+            >
+              {saving ? 'Saving…' : 'Mark trusted'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -222,6 +343,11 @@ export default function CustomerDetailPage() {
             placeholder="Add private notes about this customer…"
           />
           <p className="text-xs text-[var(--text-tertiary)]">Notes auto-save when you click away.</p>
+        </Section>
+
+        {/* Trust status (Phase 1 — migration 019) */}
+        <Section title="Trust Status" icon={ShieldCheck}>
+          <CustomerTrustToggle customer={customer} onChange={setCustomer} />
         </Section>
       </div>
 

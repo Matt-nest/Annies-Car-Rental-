@@ -27,14 +27,86 @@ function daysAgo(n) {
   return d.toISOString().slice(0, 10);
 }
 
-function tomorrow() {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().slice(0, 10);
-}
-
 function today() {
   return new Date().toISOString().slice(0, 10);
+}
+
+// ─── Phase 2: timing externalization (feature-flagged) ───────────
+//
+// When FEATURE_TIMELINE_TIMING=true, each cron stage reads its anchor +
+// offset + status filter from email_templates (migration 020). When off
+// (default) OR when the DB row is missing / out-of-bounds, getTimingForStage
+// returns the hardcoded default below — which mirrors the original cron
+// queries byte-for-byte. Sanity bounds: offset must be within [-7d, +30d],
+// matching the DB CHECK constraint in migration 020.
+//
+// Flip the flag in Vercel → backend env to enable admin-editable timing.
+const FEATURE_TIMELINE_TIMING = process.env.FEATURE_TIMELINE_TIMING === 'true';
+
+const STAGE_DEFAULTS = {
+  pickup_reminder:        { anchor: 'pickup_date', offset_minutes: -1440, status_filter: ['approved','confirmed','ready_for_pickup'] },
+  day_of_pickup:          { anchor: 'pickup_date', offset_minutes: 0,     status_filter: ['approved','confirmed','ready_for_pickup'] },
+  mid_rental_checkin:     { anchor: 'pickup_date', offset_minutes: 2880,  status_filter: ['active'] },
+  extension_offer:        { anchor: 'return_date', offset_minutes: -1440, status_filter: ['active'] },
+  return_reminder:        { anchor: 'return_date', offset_minutes: -1440, status_filter: ['active'] },
+  day_of_return:          { anchor: 'return_date', offset_minutes: 0,     status_filter: ['active'] },
+  late_return_escalation: { anchor: 'return_date', offset_minutes: 5760,  status_filter: ['active'] },
+  rental_completed:       { anchor: 'return_date', offset_minutes: 1440,  status_filter: ['completed'] },
+  repeat_customer:        { anchor: 'return_date', offset_minutes: 43200, status_filter: ['completed'] },
+};
+
+async function getTimingForStage(stage) {
+  const fallback = STAGE_DEFAULTS[stage];
+  if (!fallback) return null;                  // Unknown stage — caller decides
+  if (!FEATURE_TIMELINE_TIMING) return fallback;
+
+  try {
+    const { data, error } = await supabase
+      .from('email_templates')
+      .select('trigger_anchor, trigger_offset_minutes, trigger_status_filter')
+      .eq('stage', stage)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (error || !data) return fallback;
+
+    const offset = data.trigger_offset_minutes;
+    // Sanity gate — same bounds as the DB CHECK constraint.
+    if (typeof offset !== 'number' || offset < -10080 || offset > 43200) {
+      console.warn(`[CRON] Offset out of bounds for ${stage} (${offset}) — using fallback`);
+      return fallback;
+    }
+    if (!data.trigger_anchor) {
+      console.warn(`[CRON] Missing trigger_anchor for ${stage} — using fallback`);
+      return fallback;
+    }
+    if (!Array.isArray(data.trigger_status_filter) || data.trigger_status_filter.length === 0) {
+      console.warn(`[CRON] Missing trigger_status_filter for ${stage} — using fallback`);
+      return fallback;
+    }
+    return {
+      anchor: data.trigger_anchor,
+      offset_minutes: offset,
+      status_filter: data.trigger_status_filter,
+    };
+  } catch (err) {
+    console.warn(`[CRON] getTimingForStage(${stage}) threw, using fallback:`, err.message);
+    return fallback;
+  }
+}
+
+// Convert an offset (anchor_time - now, in minutes) to a YYYY-MM-DD target
+// date for SQL date-equality matching. Verified equivalent for the cases we
+// care about:
+//   offset = -1440 → today + 1 = tomorrow()
+//   offset = 0     → today()
+//   offset = +1440 → today - 1 = daysAgo(1)
+//   offset = +43200 → today - 30 = daysAgo(30)
+function dateForOffset(offsetMinutes) {
+  const daysOffset = -Math.round(offsetMinutes / 1440);
+  const target = new Date();
+  target.setDate(target.getDate() + daysOffset);
+  return target.toISOString().slice(0, 10);
 }
 
 // ─── Daily Job: Reminders + Overdue ───────────────────────────
@@ -57,11 +129,12 @@ router.get('/daily', async (req, res) => {
 
   try {
     // 1. Pickup reminders
+    const pickupCfg = await getTimingForStage('pickup_reminder');
     const { data: pickups } = await supabase
       .from('bookings')
       .select('*, customers(*), vehicles(*)')
-      .eq('pickup_date', tomorrow())
-      .in('status', ['approved', 'confirmed', 'ready_for_pickup']);
+      .eq(pickupCfg.anchor, dateForOffset(pickupCfg.offset_minutes))
+      .in('status', pickupCfg.status_filter);
 
     for (const b of pickups || []) {
       // Fetch admin's handoff record to include vehicle condition in the reminder
@@ -79,18 +152,22 @@ router.get('/daily', async (req, res) => {
     }
 
     // 2. Return reminders
+    const returnCfg = await getTimingForStage('return_reminder');
     const { data: returns } = await supabase
       .from('bookings')
       .select('*, customers(*), vehicles(*)')
-      .eq('return_date', tomorrow())
-      .eq('status', 'active');
+      .eq(returnCfg.anchor, dateForOffset(returnCfg.offset_minutes))
+      .in('status', returnCfg.status_filter);
 
     for (const b of returns || []) {
       sendBookingNotification('return_reminder', buildBookingPayload(b));
       results.returnReminders++;
     }
 
-    // 3. Overdue returns
+    // 3. Overdue returns — late_return_warning is intentionally NOT externalized.
+    // It uses `.lt(return_date, today())` (less-than, ongoing-daily) which doesn't
+    // map to a single offset. Editing this stage's timing in the UI is blocked
+    // (trigger_kind='cron' but no offset row).
     const { data: overdue } = await supabase
       .from('bookings')
       .select('*, customers(*), vehicles(*)')
@@ -144,24 +221,28 @@ router.get('/daily', async (req, res) => {
       results.approvalReminders++;
     }
 
-    // 5. Mid-rental check-in — day 3 (pickup_date exactly 2 days ago)
+    // 5. Mid-rental check-in
+    const midCfg = await getTimingForStage('mid_rental_checkin');
     const { data: midRentals } = await supabase
       .from('bookings')
       .select('*, customers(*), vehicles(*)')
-      .eq('pickup_date', daysAgo(2))
-      .eq('status', 'active');
+      .eq(midCfg.anchor, dateForOffset(midCfg.offset_minutes))
+      .in('status', midCfg.status_filter);
 
     for (const b of midRentals || []) {
       sendBookingNotification('mid_rental_checkin', buildBookingPayload(b));
       results.midRentalCheckins++;
     }
 
-    // 6. Extension offer — 1 day before return, rental >= 3 days (avoids 1-2 day annoyance)
+    // 6. Extension offer — fires at timing offset, restricted to rentals ≥ 3 days
+    // (avoids 1-2 day annoyance). The rental_days filter stays hardcoded in
+    // Phase 2 — it's a business rule, not a timing knob.
+    const extCfg = await getTimingForStage('extension_offer');
     const { data: extCandidates } = await supabase
       .from('bookings')
       .select('*, customers(*), vehicles(*)')
-      .eq('return_date', tomorrow())
-      .eq('status', 'active')
+      .eq(extCfg.anchor, dateForOffset(extCfg.offset_minutes))
+      .in('status', extCfg.status_filter)
       .gte('rental_days', 3);
 
     for (const b of extCandidates || []) {
@@ -169,36 +250,39 @@ router.get('/daily', async (req, res) => {
       results.extensionOffers++;
     }
 
-    // 7. Review request — return_date was yesterday, status completed
+    // 7. Review request (rental_completed) — fires day after return
+    const reviewCfg = await getTimingForStage('rental_completed');
     const { data: completedYesterday } = await supabase
       .from('bookings')
       .select('*, customers(*), vehicles(*)')
-      .eq('return_date', daysAgo(1))
-      .eq('status', 'completed');
+      .eq(reviewCfg.anchor, dateForOffset(reviewCfg.offset_minutes))
+      .in('status', reviewCfg.status_filter);
 
     for (const b of completedYesterday || []) {
       sendBookingNotification('rental_completed', buildBookingPayload(b));
       results.reviewRequests++;
     }
 
-    // 8. Repeat customer loyalty — 30 days after return
+    // 8. Repeat customer loyalty
+    const repeatCfg = await getTimingForStage('repeat_customer');
     const { data: repeatCandidates } = await supabase
       .from('bookings')
       .select('*, customers(*), vehicles(*)')
-      .eq('return_date', daysAgo(30))
-      .eq('status', 'completed');
+      .eq(repeatCfg.anchor, dateForOffset(repeatCfg.offset_minutes))
+      .in('status', repeatCfg.status_filter);
 
     for (const b of repeatCandidates || []) {
       sendBookingNotification('repeat_customer', buildBookingPayload(b));
       results.repeatCustomers++;
     }
 
-    // 9. Late return escalation — 4 days overdue (warning already fired on day 1)
+    // 9. Late return escalation
+    const escalateCfg = await getTimingForStage('late_return_escalation');
     const { data: escalated } = await supabase
       .from('bookings')
       .select('*, customers(*), vehicles(*)')
-      .eq('return_date', daysAgo(4))
-      .eq('status', 'active');
+      .eq(escalateCfg.anchor, dateForOffset(escalateCfg.offset_minutes))
+      .in('status', escalateCfg.status_filter);
 
     for (const b of escalated || []) {
       sendBookingNotification('late_return_escalation', buildBookingPayload(b));
@@ -262,24 +346,26 @@ router.get('/daily', async (req, res) => {
 router.get('/morning', async (req, res) => {
   const results = { dayOfPickups: 0, dayOfReturns: 0 };
   try {
-    // 1. Day-of pickup — customer's pickup_date is today, vehicle should be ready
+    // 1. Day-of pickup
+    const dopCfg = await getTimingForStage('day_of_pickup');
     const { data: pickups } = await supabase
       .from('bookings')
       .select('*, customers(*), vehicles(*)')
-      .eq('pickup_date', today())
-      .in('status', ['approved', 'confirmed', 'ready_for_pickup']);
+      .eq(dopCfg.anchor, dateForOffset(dopCfg.offset_minutes))
+      .in('status', dopCfg.status_filter);
 
     for (const b of pickups || []) {
       sendBookingNotification('day_of_pickup', buildBookingPayload(b));
       results.dayOfPickups++;
     }
 
-    // 2. Day-of return — customer's return_date is today, rental is active
+    // 2. Day-of return
+    const dorCfg = await getTimingForStage('day_of_return');
     const { data: returns } = await supabase
       .from('bookings')
       .select('*, customers(*), vehicles(*)')
-      .eq('return_date', today())
-      .eq('status', 'active');
+      .eq(dorCfg.anchor, dateForOffset(dorCfg.offset_minutes))
+      .in('status', dorCfg.status_filter);
 
     for (const b of returns || []) {
       sendBookingNotification('day_of_return', buildBookingPayload(b));
