@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import {
   User, Users, Server, Save, Eye, EyeOff, Plus, Shield,
-  ChevronDown, Check, X, RefreshCw, Lock, Mail, Phone, Info,
-  ExternalLink, AlertCircle, Plug, Zap, Loader2,
+  ChevronDown, ChevronUp, Check, X, RefreshCw, Lock, Mail, Phone, Info,
+  ExternalLink, AlertCircle, Plug, Zap, Loader2, PhoneCall, Trash2,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { bonzahApi } from '../api/bonzah';
@@ -613,6 +613,8 @@ function SystemTab() {
 
       <QuietHoursSection />
 
+      <HuntGroupSection />
+
       <Section title="Booking Automation" description="Timing for auto-expire and reminders (configured in cron)">
         <div className="grid sm:grid-cols-2 gap-4 text-sm">
           <div className="bg-[var(--bg-card)] rounded-lg p-3">
@@ -789,6 +791,329 @@ function QuietHoursSection() {
               {saving ? 'Saving…' : 'Save'}
             </button>
           </div>
+        </div>
+      ) : null}
+    </Section>
+  );
+}
+
+/* ─── Voice Hunt Group (Phase Voice — migration 021) ─── */
+function HuntGroupSection() {
+  const [settings, setSettings] = useState(null);
+  const [draft, setDraft] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    api.getBusinessSettings()
+      .then(data => {
+        if (!mounted) return;
+        // Coerce hunt_group_members from possible string/null to array
+        const safe = {
+          ...data,
+          hunt_group_members: Array.isArray(data?.hunt_group_members) ? data.hunt_group_members : [],
+        };
+        setSettings(safe);
+        setDraft(safe);
+      })
+      .catch(err => { if (mounted) setError(err.message || 'Failed to load'); })
+      .finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
+  }, []);
+
+  const members = draft?.hunt_group_members || [];
+
+  const dirty = draft && settings && JSON.stringify({
+    e: draft.hunt_group_enabled, m: draft.hunt_group_members,
+    f: draft.hunt_group_fallback, v: draft.voicemail_email, g: draft.voicemail_greeting,
+  }) !== JSON.stringify({
+    e: settings.hunt_group_enabled, m: settings.hunt_group_members,
+    f: settings.hunt_group_fallback, v: settings.voicemail_email, g: settings.voicemail_greeting,
+  });
+
+  function updateMember(idx, patch) {
+    const next = [...members];
+    next[idx] = { ...next[idx], ...patch };
+    setDraft({ ...draft, hunt_group_members: next });
+  }
+
+  function moveMember(idx, dir) {
+    const target = idx + dir;
+    if (target < 0 || target >= members.length) return;
+    const next = [...members];
+    [next[idx], next[target]] = [next[target], next[idx]];
+    setDraft({ ...draft, hunt_group_members: next });
+  }
+
+  function deleteMember(idx) {
+    const next = members.filter((_, i) => i !== idx);
+    setDraft({ ...draft, hunt_group_members: next });
+  }
+
+  function addMember() {
+    setDraft({
+      ...draft,
+      hunt_group_members: [...members, { name: '', phone: '+1', ring_seconds: 30, enabled: true }],
+    });
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    setError('');
+    try {
+      const updated = await api.updateBusinessSettings({
+        hunt_group_enabled: draft.hunt_group_enabled,
+        hunt_group_members: draft.hunt_group_members,
+        hunt_group_fallback: draft.hunt_group_fallback,
+        voicemail_email: draft.voicemail_email || null,
+        voicemail_greeting: draft.voicemail_greeting || null,
+      });
+      const safe = { ...updated, hunt_group_members: Array.isArray(updated?.hunt_group_members) ? updated.hunt_group_members : [] };
+      setSettings(safe);
+      setDraft(safe);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2400);
+    } catch (err) {
+      setError(err.message || 'Save failed');
+    }
+    setSaving(false);
+  }
+
+  return (
+    <Section title="Voice Hunt Group" description="Incoming calls to +17722071655 ring this list in order. After all legs miss, the configured fallback fires.">
+      {loading ? (
+        <div className="flex items-center gap-2 text-[var(--text-secondary)] text-sm">
+          <RefreshCw size={14} className="animate-spin" /> Loading…
+        </div>
+      ) : error && !draft ? (
+        <div className="flex items-start gap-2 text-sm text-[#ef4444]">
+          <AlertCircle size={14} className="mt-0.5 shrink-0" />
+          <span>{error}</span>
+        </div>
+      ) : draft ? (
+        <div className="space-y-4">
+          {/* Enabled toggle */}
+          <div className="flex items-center justify-between gap-4 py-2">
+            <div>
+              <p className="text-sm font-medium text-[var(--text-primary)]">Hunt group enabled</p>
+              <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
+                When off, every call goes straight to the fallback (voicemail or hangup).
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setDraft({ ...draft, hunt_group_enabled: !draft.hunt_group_enabled })}
+              className="relative shrink-0"
+              style={{
+                width: 42, height: 24, borderRadius: 12,
+                border: 'none', cursor: 'pointer', padding: 0,
+                background: draft.hunt_group_enabled
+                  ? 'linear-gradient(135deg, #22c55e, #16a34a)'
+                  : 'var(--bg-card, rgba(255,255,255,0.06))',
+                boxShadow: draft.hunt_group_enabled
+                  ? '0 2px 8px rgba(34,197,94,0.3)'
+                  : 'inset 0 1px 3px rgba(0,0,0,0.15)',
+                transition: 'background 0.25s',
+              }}
+            >
+              <span style={{
+                position: 'absolute', top: 2, width: 20, height: 20, borderRadius: '50%',
+                background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                transition: 'left 0.25s cubic-bezier(0.4,0,0.2,1)',
+                left: draft.hunt_group_enabled ? 20 : 2,
+              }} />
+            </button>
+          </div>
+
+          {/* Members list */}
+          <div className={`space-y-2 ${!draft.hunt_group_enabled ? 'opacity-50 pointer-events-none' : ''}`}>
+            <label className="text-[11px] uppercase tracking-wider font-semibold text-[var(--text-tertiary)] block">
+              Ring order ({members.length} member{members.length === 1 ? '' : 's'})
+            </label>
+            {members.length === 0 ? (
+              <p className="text-xs text-[var(--text-tertiary)] py-3">No staff added. Calls will go straight to fallback.</p>
+            ) : (
+              members.map((m, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-2 p-2.5 rounded-xl"
+                  style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
+                >
+                  {/* Order number + arrows */}
+                  <div className="flex flex-col items-center shrink-0">
+                    <span className="text-[10px] font-mono text-[var(--text-tertiary)] leading-none mb-1">#{i + 1}</span>
+                    <div className="flex flex-col gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => moveMember(i, -1)}
+                        disabled={i === 0}
+                        className="p-0.5 rounded"
+                        style={{ background: 'transparent', border: 'none', cursor: i === 0 ? 'not-allowed' : 'pointer', opacity: i === 0 ? 0.3 : 0.7 }}
+                        title="Move up"
+                      ><ChevronUp size={12} /></button>
+                      <button
+                        type="button"
+                        onClick={() => moveMember(i, 1)}
+                        disabled={i === members.length - 1}
+                        className="p-0.5 rounded"
+                        style={{ background: 'transparent', border: 'none', cursor: i === members.length - 1 ? 'not-allowed' : 'pointer', opacity: i === members.length - 1 ? 0.3 : 0.7 }}
+                        title="Move down"
+                      ><ChevronDown size={12} /></button>
+                    </div>
+                  </div>
+
+                  {/* Enabled toggle */}
+                  <button
+                    type="button"
+                    onClick={() => updateMember(i, { enabled: !m.enabled })}
+                    title={m.enabled ? 'Skip this member' : 'Include this member'}
+                    className="shrink-0"
+                    style={{
+                      width: 32, height: 18, borderRadius: 9, border: 'none', cursor: 'pointer', padding: 0, position: 'relative',
+                      background: m.enabled
+                        ? 'linear-gradient(135deg, #465FFF, #3b4cdb)'
+                        : 'var(--bg-elevated)',
+                    }}
+                  >
+                    <span style={{
+                      position: 'absolute', top: 2, width: 14, height: 14, borderRadius: '50%',
+                      background: '#fff', transition: 'left 0.2s',
+                      left: m.enabled ? 16 : 2,
+                    }} />
+                  </button>
+
+                  {/* Name */}
+                  <input
+                    type="text"
+                    value={m.name || ''}
+                    onChange={e => updateMember(i, { name: e.target.value })}
+                    placeholder="Name"
+                    className="input text-sm"
+                    style={{ width: 110 }}
+                  />
+
+                  {/* Phone */}
+                  <input
+                    type="tel"
+                    value={m.phone || ''}
+                    onChange={e => updateMember(i, { phone: e.target.value })}
+                    placeholder="+17725551234"
+                    className="input text-sm flex-1"
+                    style={{ minWidth: 130, fontVariantNumeric: 'tabular-nums' }}
+                  />
+
+                  {/* Ring seconds */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <input
+                      type="number"
+                      min="5"
+                      max="60"
+                      value={m.ring_seconds ?? 30}
+                      onChange={e => updateMember(i, { ring_seconds: parseInt(e.target.value, 10) || 30 })}
+                      className="input text-sm"
+                      style={{ width: 56, textAlign: 'right' }}
+                    />
+                    <span className="text-[10px] text-[var(--text-tertiary)]">sec</span>
+                  </div>
+
+                  {/* Delete */}
+                  <button
+                    type="button"
+                    onClick={() => deleteMember(i)}
+                    title="Remove"
+                    className="p-1.5 rounded-lg shrink-0"
+                    style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer' }}
+                    onMouseEnter={e => { e.currentTarget.style.color = '#ef4444'; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-tertiary)'; }}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))
+            )}
+
+            <button
+              type="button"
+              onClick={addMember}
+              className="flex items-center gap-1.5 text-xs font-semibold mt-2"
+              style={{ background: 'transparent', border: '1px dashed var(--border-subtle)', borderRadius: 10, padding: '8px 12px', color: 'var(--text-secondary)', cursor: 'pointer', width: '100%', justifyContent: 'center' }}
+            >
+              <Plus size={12} /> Add staff member
+            </button>
+          </div>
+
+          {/* Fallback */}
+          <div>
+            <label className="text-[11px] uppercase tracking-wider font-semibold text-[var(--text-tertiary)] mb-1.5 block">
+              If no one answers
+            </label>
+            <select
+              value={draft.hunt_group_fallback || 'voicemail_textback'}
+              onChange={e => setDraft({ ...draft, hunt_group_fallback: e.target.value })}
+              className="input text-sm w-full"
+            >
+              <option value="voicemail_textback">📨 Voicemail + auto-text caller back (recommended)</option>
+              <option value="voicemail">📞 Voicemail only</option>
+              <option value="hangup">🚫 Hang up (worst UX — don't use unless you must)</option>
+            </select>
+          </div>
+
+          {/* Voicemail email */}
+          <div>
+            <label className="text-[11px] uppercase tracking-wider font-semibold text-[var(--text-tertiary)] mb-1.5 block">
+              Email voicemails to
+            </label>
+            <input
+              type="email"
+              value={draft.voicemail_email || ''}
+              onChange={e => setDraft({ ...draft, voicemail_email: e.target.value })}
+              placeholder="aaron@anniescarrental.com"
+              className="input text-sm w-full"
+            />
+          </div>
+
+          {/* Greeting */}
+          <div>
+            <label className="text-[11px] uppercase tracking-wider font-semibold text-[var(--text-tertiary)] mb-1.5 block">
+              Voicemail greeting (spoken to callers)
+            </label>
+            <textarea
+              rows={3}
+              value={draft.voicemail_greeting || ''}
+              onChange={e => setDraft({ ...draft, voicemail_greeting: e.target.value })}
+              placeholder="Hi, you've reached Annie's Car Rental..."
+              className="input text-sm w-full"
+              style={{ resize: 'vertical' }}
+            />
+            <p className="text-[11px] text-[var(--text-tertiary)] mt-1">Twilio's text-to-speech reads this when callers fall through to voicemail.</p>
+          </div>
+
+          {error && (
+            <p className="text-xs text-[#ef4444]">{error}</p>
+          )}
+
+          <div className="flex items-center justify-end gap-2 pt-1">
+            {saved && (
+              <span className="flex items-center gap-1 text-xs text-[#22c55e]"><Check size={12} /> Saved</span>
+            )}
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={!dirty || saving}
+              className="btn-primary text-xs"
+              style={{ opacity: !dirty || saving ? 0.5 : 1 }}
+            >
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+
+          <p className="text-[11px] text-[var(--text-tertiary)] pt-2 border-t border-[var(--border-subtle)]">
+            <PhoneCall size={10} className="inline mr-1 align-middle" />
+            Calls to <span className="font-mono">+17722071655</span> hit your backend voice route, which reads this config and builds the hunt sequence at request time. Changes save instantly — no Twilio Console trip needed.
+          </p>
         </div>
       ) : null}
     </Section>

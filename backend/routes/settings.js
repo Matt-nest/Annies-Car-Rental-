@@ -23,6 +23,13 @@ const EDITABLE_FIELDS = [
   'quiet_hours_end',
   'quiet_hours_timezone',
   'quiet_hours_policy',
+  // Voice hunt group (migration 021). hunt_group_members is JSONB; backend
+  // validates shape below before persisting.
+  'hunt_group_enabled',
+  'hunt_group_members',
+  'hunt_group_fallback',
+  'voicemail_email',
+  'voicemail_greeting',
 ];
 
 /** GET /settings/business — returns the singleton row. */
@@ -58,6 +65,28 @@ router.put('/business', requireAuth, requireRole('owner', 'admin'), asyncHandler
   // clear 400 beats a 500 from Supabase.
   if (updates.quiet_hours_policy && !['skip', 'defer'].includes(updates.quiet_hours_policy)) {
     return res.status(400).json({ error: 'quiet_hours_policy must be "skip" or "defer"' });
+  }
+
+  // Validate hunt group fallback policy
+  if (updates.hunt_group_fallback && !['voicemail', 'voicemail_textback', 'hangup'].includes(updates.hunt_group_fallback)) {
+    return res.status(400).json({ error: 'hunt_group_fallback must be "voicemail", "voicemail_textback", or "hangup"' });
+  }
+
+  // Validate hunt group members shape — array of { name, phone, ring_seconds?, enabled? }.
+  // Phone must be E.164 (+1XXXXXXXXXX) so Twilio doesn't reject the Dial verb at runtime.
+  if (updates.hunt_group_members !== undefined) {
+    if (!Array.isArray(updates.hunt_group_members)) {
+      return res.status(400).json({ error: 'hunt_group_members must be an array' });
+    }
+    for (const [i, m] of updates.hunt_group_members.entries()) {
+      if (!m || typeof m !== 'object') return res.status(400).json({ error: `member ${i}: must be an object` });
+      if (!m.name || typeof m.name !== 'string') return res.status(400).json({ error: `member ${i}: missing string "name"` });
+      if (!m.phone || !/^\+1\d{10}$/.test(m.phone)) return res.status(400).json({ error: `member ${i}: phone must be E.164 like +17725551234` });
+      if (m.ring_seconds !== undefined) {
+        const n = Number(m.ring_seconds);
+        if (!Number.isFinite(n) || n < 5 || n > 60) return res.status(400).json({ error: `member ${i}: ring_seconds must be 5-60` });
+      }
+    }
   }
 
   // Validate TIME format (HH:MM or HH:MM:SS) for the two time fields. Same idea:
