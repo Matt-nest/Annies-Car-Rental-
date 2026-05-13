@@ -114,11 +114,11 @@ export default function MonthlyInquiryModal({ vehicle, onClose }: MonthlyInquiry
                 No pressure — just a conversation.
               </p>
               <a
-                href="tel:+17729856667"
+                href="tel:+17722071655"
                 className="inline-flex items-center gap-2 text-sm font-medium"
                 style={{ color: '#D4AF37' }}
               >
-                <Phone size={14} /> Or call now: (772) 985-6667
+                <Phone size={14} /> Or call now: (772) 207-1655
               </a>
             </motion.div>
           ) : (
@@ -138,7 +138,7 @@ export default function MonthlyInquiryModal({ vehicle, onClose }: MonthlyInquiry
               </div>
 
               <a
-                href="tel:+17729856667"
+                href="tel:+17722071655"
                 className="flex items-center gap-3 rounded-xl px-4 py-3 mb-6 transition-colors cursor-pointer"
                 style={{
                   backgroundColor: 'rgba(212,175,55,0.1)',
@@ -148,7 +148,7 @@ export default function MonthlyInquiryModal({ vehicle, onClose }: MonthlyInquiry
                 <Phone size={16} style={{ color: '#D4AF37', flexShrink: 0 }} />
                 <div>
                   <p className="text-xs font-medium" style={{ color: '#D4AF37' }}>Prefer to talk?</p>
-                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>(772) 985-6667</p>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>(772) 207-1655</p>
                 </div>
               </a>
 

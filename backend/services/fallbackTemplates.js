@@ -54,8 +54,7 @@ Don't want to come to us? We offer delivery and pickup:
 Reply to this email or text us to arrange delivery.
 
 Questions? We're here:
-  Matthew: (772) 834-0117
-  Robin:   (772) 834-7637
+  (772) 207-1655
 
 Annie's Car Rental
 Port Saint Lucie, FL`,
@@ -92,8 +91,7 @@ REASON
 WHAT YOU CAN DO
 We may have other vehicles available for your dates. Please give us a call and we'll help find something that works:
 
-  Matthew: (772) 834-0117
-  Robin:   (772) 834-7637
+  (772) 207-1655
 
 We appreciate your interest and hope to serve you soon.
 
@@ -103,7 +101,7 @@ Port Saint Lucie, FL`,
 
 {{decline_reason}}
 
-We'd love to help you find an alternative. Give us a call at (772) 834-0117.
+We'd love to help you find an alternative. Give us a call at (772) 207-1655.
 
 — Annie's Car Rental`,
   },
@@ -184,8 +182,7 @@ Your \${{deposit_amount}} security deposit is fully refundable. After your retur
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Questions? We're always here:
-  Matthew: (772) 834-0117
-  Robin:   (772) 834-7637
+  (772) 207-1655
 
 Annie's Car Rental
 Port Saint Lucie, FL`,
@@ -196,7 +193,7 @@ Pickup: {{pickup_date}} at {{pickup_time}}
 
 Your Customer Portal: {{portal_link}}
 
-We'll text you pickup instructions the day before. Questions? Call (772) 834-0117.
+We'll text you pickup instructions the day before. Questions? Call (772) 207-1655.
 
 — Annie's Car Rental`,
   },
@@ -253,9 +250,7 @@ IMPORTANT REMINDERS
 • Text us when you arrive so we know you're all set.
 
 CONTACT
-  Matthew: (772) 834-0117
-  Robin:   (772) 834-7637
-  Aaron:   (772) 985-6667
+  (772) 207-1655
 
 Annie's Car Rental
 Port Saint Lucie, FL`,
@@ -274,7 +269,7 @@ When you arrive:
 
 Complete your check-in: {{portal_link}}
 
-Need help? Call Matthew at (772) 834-0117.
+Need help? Call us at (772) 207-1655.
 
 — Annie's Car Rental`,
   },
@@ -306,8 +301,7 @@ WANT TO EXTEND?
 If your plans have changed, we can often extend your rental or swap you into another vehicle. Just reply to this email or text us.
 
 CONTACT
-  Matthew: (772) 834-0117
-  Robin:   (772) 834-7637
+  (772) 207-1655
 
 Annie's Car Rental
 Port Saint Lucie, FL`,
@@ -341,7 +335,7 @@ If you need to extend, reply to this message and we'll check availability.
 Return address: 586 NW Mercantile Pl, Port Saint Lucie, FL 34986
 
 — Annie's Car Rental
-(772) 834-0117`,
+(772) 207-1655`,
   },
 
   rental_completed: {
@@ -362,7 +356,7 @@ We'd love to have you back.
 
 Annie's Car Rental
 Port Saint Lucie, FL
-(772) 834-0117`,
+(772) 207-1655`,
     sms_body: `Hi {{first_name}}, we hope you enjoyed your {{vehicle}}.
 
 If you have a moment, a review would mean a lot to our small business. As a thank you, we'll give you 5% off your next rental.
@@ -388,8 +382,7 @@ Dates:      {{pickup_date}} – {{return_date}}
 If a deposit was collected, it will be refunded to your original payment method within 3–5 business days per our cancellation policy.
 
 If you'd like to rebook or have questions, we're here to help:
-  Matthew: (772) 834-0117
-  Robin:   (772) 834-7637
+  (772) 207-1655
 
 Annie's Car Rental
 Port Saint Lucie, FL`,
@@ -399,7 +392,7 @@ Ref: {{booking_code}}
 
 If a deposit was collected, it will be refunded within 3–5 business days.
 
-Questions? Call us at (772) 834-0117.
+Questions? Call us at (772) 207-1655.
 
 — Annie's Car Rental`,
   },
@@ -426,8 +419,7 @@ Your refund of \${{refund_amount}} will be returned to your original payment met
 Thank you for taking great care of the vehicle — we hope to see you again soon.
 
 Questions? We're always here:
-  Matthew: (772) 834-0117
-  Robin:   (772) 834-7637
+  (772) 207-1655
 
 Annie's Car Rental
 Port Saint Lucie, FL`,
@@ -460,8 +452,7 @@ Refund Amount:   \${{refund_amount}}
 If you have any questions about the charges applied to your deposit, please don't hesitate to reach out. You can also view your booking details and submit a dispute through your Customer Portal.
 
 Contact us anytime:
-  Matthew: (772) 834-0117
-  Robin:   (772) 834-7637
+  (772) 207-1655
 
 Annie's Car Rental
 Port Saint Lucie, FL`,
@@ -473,7 +464,7 @@ Refund:  \${{refund_amount}}
 
 Ref: {{booking_code}}
 
-The refund will appear on your statement within 5–10 business days. Questions? Call (772) 834-0117.
+The refund will appear on your statement within 5–10 business days. Questions? Call (772) 207-1655.
 
 — Annie's Car Rental`,
   },
@@ -495,8 +486,7 @@ Amount Owed:     \${{amount_owed}}
 This charge will be processed automatically in 48 hours. If you'd like to dispute any portion before that window closes, log into your Customer Portal — disputed charges are paused for review.
 
 Contact us anytime:
-  Matthew: (772) 834-0117
-  Robin:   (772) 834-7637
+  (772) 207-1655
 
 Annie's Car Rental
 Port Saint Lucie, FL`,
@@ -523,8 +513,7 @@ Effective:    {{pickup_date}} – {{return_date}}
 The policy is held with Bonzah (Insillion) — keep this email for your records. If you have a claim during your rental, contact Bonzah directly using the policy number above.
 
 Need to reach us?
-  Matthew: (772) 834-0117
-  Robin:   (772) 834-7637
+  (772) 207-1655
 
 Annie's Car Rental
 Port Saint Lucie, FL`,
@@ -572,8 +561,7 @@ NEXT STEPS
 We'll review the details and contact you within 1 business day to walk through what we found, what (if anything) is owed beyond your security deposit, and answer any questions you may have.
 
 If you'd like to get ahead of this, you can reach us directly:
-  Matthew: (772) 834-0117
-  Robin:   (772) 834-7637
+  (772) 207-1655
 
 Your booking details are also available in your customer portal:
 {{portal_link}}
@@ -598,7 +586,7 @@ Complete your check-in here: {{portal_link}}
 Drive safe — text us if anything comes up.
 
 — Annie's Car Rental
-(772) 834-0117`,
+(772) 207-1655`,
   },
 
   day_of_return: {
@@ -618,7 +606,7 @@ Quick checklist:
 Thanks again for renting with us!
 
 — Annie's Car Rental
-(772) 834-0117`,
+(772) 207-1655`,
   },
 };
 

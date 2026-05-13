@@ -156,7 +156,7 @@ router.get('/lockbox', requirePortalAuth, async (req, res) => {
 
     const lockboxCode = booking.vehicles?.lockbox_code;
     if (!lockboxCode) {
-      return res.status(503).json({ error: 'Lockbox code not configured for this vehicle. Please contact Annie\'s at (772) 985-6667.' });
+      return res.status(503).json({ error: 'Lockbox code not configured for this vehicle. Please contact Annie\'s at (772) 207-1655.' });
     }
     res.json({ lockbox_code: lockboxCode });
   } catch (err) {
@@ -290,7 +290,7 @@ router.post('/checkin', requirePortalAuth, async (req, res) => {
     console.log(`[Portal] Check-in lockbox for booking ${bookingId}: vehicle=${booking.vehicle_id}, lockbox_code=${lockboxCode || 'NOT SET'}`);
     if (!lockboxCode) {
       // Check-in succeeded but lockbox not configured — don't block, but flag it
-      return res.json({ success: true, lockbox_code: null, lockbox_error: 'Lockbox code not configured. Call (772) 985-6667.', ...result });
+      return res.json({ success: true, lockbox_code: null, lockbox_error: 'Lockbox code not configured. Call (772) 207-1655.', ...result });
     }
 
     res.json({ success: true, lockbox_code: lockboxCode, ...result });

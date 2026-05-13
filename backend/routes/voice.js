@@ -172,7 +172,7 @@ router.post('/recording-done', verifyTwilioSignature, asyncHandler(async (req, r
 
   // 3. Text-back to caller (if configured)
   if (settings?.hunt_group_fallback === 'voicemail_textback') {
-    const textBody = `Hi${customerName ? ' ' + customerName.split(' ')[0] : ''}, this is Annie's Car Rental. We just missed your call and got your voicemail. We'll call you back as soon as possible. — Annie's Car Rental, (772) 985-6667`;
+    const textBody = `Hi${customerName ? ' ' + customerName.split(' ')[0] : ''}, this is Annie's Car Rental. We just missed your call and got your voicemail. We'll call you back as soon as possible. — Annie's Car Rental, (772) 207-1655`;
     sendSMS({ to: callerPhone, body: textBody, source: 'manual' })
       .catch(err => console.error('[Voice] text-back failed:', err.message));
   }

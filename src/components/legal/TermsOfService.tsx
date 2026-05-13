@@ -54,7 +54,7 @@ export default function TermsOfService() {
 
         <Section title="2. About Annie's">
           <p>
-            Annie's Car Rental is operated by <strong>Aaron's Garage LLC</strong>, a Florida limited liability company (EIN 99-0908048), located at 586 NW Mercantile Pl, Port St. Lucie, FL 34986. Contact: <a href="tel:+17729856667" className="underline">(772) 985-6667</a> · <a href="mailto:aaron@anniescarrental.com" className="underline">aaron@anniescarrental.com</a>.
+            Annie's Car Rental is operated by <strong>Aaron's Garage LLC</strong>, a Florida limited liability company (EIN 99-0908048), located at 586 NW Mercantile Pl, Port St. Lucie, FL 34986. Contact: <a href="tel:+17722071655" className="underline">(772) 207-1655</a> · <a href="mailto:aaron@anniescarrental.com" className="underline">aaron@anniescarrental.com</a>.
           </p>
         </Section>
 
@@ -72,7 +72,7 @@ export default function TermsOfService() {
             <strong>To stop receiving messages, reply STOP, UNSUB, CANCEL, END, or QUIT.</strong> You will receive a single confirmation reply. After that, you will receive no further automated SMS from Annie's. The opt-out is honored both at the Twilio carrier layer and within Annie's own application database.
           </p>
           <p>
-            <strong>For help, reply HELP</strong> or call <a href="tel:+17729856667" className="underline">(772) 985-6667</a> or email <a href="mailto:aaron@anniescarrental.com" className="underline">aaron@anniescarrental.com</a>.
+            <strong>For help, reply HELP</strong> or call <a href="tel:+17722071655" className="underline">(772) 207-1655</a> or email <a href="mailto:aaron@anniescarrental.com" className="underline">aaron@anniescarrental.com</a>.
           </p>
           <p>
             We use Twilio Inc. as our SMS delivery provider. Phone numbers are not shared with third parties for marketing purposes and are never sold. Full SMS data handling is described in our <a href="/privacy" className="underline">Privacy Policy</a>.
@@ -150,7 +150,7 @@ export default function TermsOfService() {
             Aaron's Garage LLC, dba Annie's Car Rental<br />
             586 NW Mercantile Pl<br />
             Port St. Lucie, FL 34986<br />
-            <a href="tel:+17729856667" className="underline">(772) 985-6667</a><br />
+            <a href="tel:+17722071655" className="underline">(772) 207-1655</a><br />
             <a href="mailto:aaron@anniescarrental.com" className="underline">aaron@anniescarrental.com</a>
           </p>
         </Section>

@@ -37,16 +37,16 @@ export default function ContactSection({ onBrowseFleet }: ContactSectionProps) {
               and we'll remember you next season.
             </p>
             <div className="space-y-4 sm:space-y-5">
-              <a href="tel:+17729856667" className="flex items-center gap-3 sm:gap-4 text-base sm:text-lg font-medium transition-opacity hover:opacity-70 group">
+              <a href="tel:+17722071655" className="flex items-center gap-3 sm:gap-4 text-base sm:text-lg font-medium transition-opacity hover:opacity-70 group">
                 <div
                   className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-transform duration-500 group-hover:scale-110"
                   style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
                 >
                   <Phone size={18} />
                 </div>
-                (772) 985-6667
+                (772) 207-1655
               </a>
-              <a href="sms:+17729856667" className="flex items-center gap-3 sm:gap-4 text-base sm:text-lg font-medium transition-opacity hover:opacity-70 group">
+              <a href="sms:+17722071655" className="flex items-center gap-3 sm:gap-4 text-base sm:text-lg font-medium transition-opacity hover:opacity-70 group">
                 <div
                   className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center border transition-transform duration-500 group-hover:scale-110"
                   style={{ backgroundColor: 'var(--bg-card-hover)', borderColor: 'var(--border-subtle)' }}
@@ -74,7 +74,7 @@ export default function ContactSection({ onBrowseFleet }: ContactSectionProps) {
                 <div>
                   <p className="text-base sm:text-lg font-medium leading-snug">Rideshare drivers — we have weekly plans.</p>
                   <a
-                    href="tel:+17729856667"
+                    href="tel:+17722071655"
                     className="text-sm font-medium transition-opacity hover:opacity-70"
                     style={{ color: 'var(--accent-color)' }}
                   >

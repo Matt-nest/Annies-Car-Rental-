@@ -68,7 +68,7 @@ export default function BookingStatusPage({ onBack }: Props) {
         setResult(await res.json());
       }
     } catch {
-      setError('Could not connect. Please try again or call (772) 985-6667.');
+      setError('Could not connect. Please try again or call (772) 207-1655.');
     }
     setLoading(false);
   }
@@ -217,7 +217,7 @@ export default function BookingStatusPage({ onBack }: Props) {
 
           <p className="text-center text-xs" style={{ color: 'var(--text-tertiary)' }}>
             Need help? Call us at{' '}
-            <a href="tel:+17729856667" className="underline">(772) 985-6667</a>
+            <a href="tel:+17722071655" className="underline">(772) 207-1655</a>
           </p>
         </div>
       </div>

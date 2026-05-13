@@ -10,7 +10,7 @@ const router = Router();
 const inquiryRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 3,
-  message: { error: 'Too many inquiry requests. Please call us directly at (772) 985-6667.' },
+  message: { error: 'Too many inquiry requests. Please call us directly at (772) 207-1655.' },
   standardHeaders: true,
   legacyHeaders: false,
 });

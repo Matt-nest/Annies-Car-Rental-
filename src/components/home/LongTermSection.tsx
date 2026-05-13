@@ -168,7 +168,7 @@ export default function LongTermSection() {
           >
             <div className="flex flex-col sm:flex-row gap-3 mb-4">
               <a
-                href="tel:+17729856667"
+                href="tel:+17722071655"
                 className="flex-1 py-3.5 rounded-full font-medium transition-all duration-500 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 text-sm"
                 style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
               >
@@ -176,7 +176,7 @@ export default function LongTermSection() {
                 Call Annie
               </a>
               <a
-                href="sms:+17729856667"
+                href="sms:+17722071655"
                 className="flex-1 py-3.5 rounded-full font-medium border transition-all duration-500 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 text-sm"
                 style={{ borderColor: 'var(--border-medium)', color: 'var(--text-secondary)' }}
               >

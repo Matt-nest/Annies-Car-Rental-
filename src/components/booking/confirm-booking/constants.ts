@@ -6,7 +6,7 @@ export { API_URL } from '../../../config';
 /* ────────────────────────────────────────────────────────
    Constants
    ──────────────────────────────────────────────────────── */
-export const PHONE_NUMBER = '(772) 985-6667';
+export const PHONE_NUMBER = '(772) 207-1655';
 
 export const STAGES = [
   { number: 1, label: 'Agreement',  sublabel: 'Sign rental contract', subSteps: 6 },

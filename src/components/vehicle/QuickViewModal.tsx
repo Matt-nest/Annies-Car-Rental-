@@ -222,7 +222,7 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
                     </div>
                   ) : (
                     <a
-                      href="tel:+17729856667"
+                      href="tel:+17722071655"
                       className="text-base font-medium hover:opacity-70 transition-opacity"
                       style={{ color: 'var(--accent-color)' }}
                     >
@@ -300,7 +300,7 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
             <ArrowRight size={15} className="transition-transform duration-300 group-hover:translate-x-1" />
           </button>
           <a
-            href="tel:+17729856667"
+            href="tel:+17722071655"
             className="shrink-0 py-3.5 px-5 rounded-full font-medium border transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 text-[14px]"
             style={{ borderColor: 'var(--border-medium)', color: 'var(--text-secondary)' }}
           >

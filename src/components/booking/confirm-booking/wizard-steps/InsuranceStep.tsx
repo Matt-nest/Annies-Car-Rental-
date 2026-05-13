@@ -495,7 +495,7 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
       {configError && (
         <div className="rounded-xl border p-3 text-xs"
           style={{ backgroundColor: 'rgba(239,68,68,0.08)', borderColor: 'rgba(239,68,68,0.25)', color: '#ef4444' }}>
-          {configError} — Please contact us at (772) 985-6667 or use your own insurance.
+          {configError} — Please contact us at (772) 207-1655 or use your own insurance.
         </div>
       )}
 
@@ -510,7 +510,7 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
           <div className="min-w-0">
             <p className="font-semibold">Bonzah pricing is unavailable for this booking.</p>
             <p className="opacity-90 mt-0.5 break-words">{tierErrors[visibleTiers[0].id]}</p>
-            <p className="opacity-75 mt-1">Please use your own insurance or contact us at (772) 985-6667.</p>
+            <p className="opacity-75 mt-1">Please use your own insurance or contact us at (772) 207-1655.</p>
           </div>
         </div>
       )}

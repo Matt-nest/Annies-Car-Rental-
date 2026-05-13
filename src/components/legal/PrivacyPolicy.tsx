@@ -46,7 +46,7 @@ export default function PrivacyPolicy() {
 
         <Section title="1. Who we are">
           <p>
-            Annie's Car Rental is operated by <strong>Aaron's Garage LLC</strong>, a Florida limited liability company located at 586 NW Mercantile Pl, Port St. Lucie, FL 34986. In this policy, "we," "us," and "Annie's" all refer to the same entity. Questions about this policy can be directed to <a href="mailto:aaron@anniescarrental.com" className="underline">aaron@anniescarrental.com</a> or <a href="tel:+17729856667" className="underline">(772) 985-6667</a>.
+            Annie's Car Rental is operated by <strong>Aaron's Garage LLC</strong>, a Florida limited liability company located at 586 NW Mercantile Pl, Port St. Lucie, FL 34986. In this policy, "we," "us," and "Annie's" all refer to the same entity. Questions about this policy can be directed to <a href="mailto:aaron@anniescarrental.com" className="underline">aaron@anniescarrental.com</a> or <a href="tel:+17722071655" className="underline">(772) 207-1655</a>.
           </p>
         </Section>
 
@@ -77,7 +77,7 @@ export default function PrivacyPolicy() {
             <li>Occasional loyalty messages thirty days after a completed rental</li>
           </ul>
           <p>
-            <strong>Message and data rates may apply.</strong> Message frequency varies by rental length. You can reply <strong>STOP</strong>, <strong>UNSUB</strong>, <strong>CANCEL</strong>, <strong>END</strong>, or <strong>QUIT</strong> at any time to stop receiving messages. Reply <strong>HELP</strong> for support or call <a href="tel:+17729856667" className="underline">(772) 985-6667</a>.
+            <strong>Message and data rates may apply.</strong> Message frequency varies by rental length. You can reply <strong>STOP</strong>, <strong>UNSUB</strong>, <strong>CANCEL</strong>, <strong>END</strong>, or <strong>QUIT</strong> at any time to stop receiving messages. Reply <strong>HELP</strong> for support or call <a href="tel:+17722071655" className="underline">(772) 207-1655</a>.
           </p>
           <p>
             <strong>We do not share your phone number with third parties for marketing purposes. We do not sell your phone number. We do not use your phone number for marketing by any other company.</strong> SMS opt-in data is not shared with anyone, ever — including affiliates.
@@ -155,7 +155,7 @@ export default function PrivacyPolicy() {
             Annie's Car Rental (Aaron's Garage LLC)<br />
             586 NW Mercantile Pl<br />
             Port St. Lucie, FL 34986<br />
-            <a href="tel:+17729856667" className="underline">(772) 985-6667</a><br />
+            <a href="tel:+17722071655" className="underline">(772) 207-1655</a><br />
             <a href="mailto:aaron@anniescarrental.com" className="underline">aaron@anniescarrental.com</a>
           </p>
         </Section>

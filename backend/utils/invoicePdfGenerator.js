@@ -27,7 +27,7 @@ const BRAND = {
   dba: "DBA Annie's & Co",
   address: '586 NW Mercantile Pl',
   cityStateZip: 'Port Saint Lucie, FL 34986',
-  phone: '(772) 985-6667',
+  phone: '(772) 207-1655',
   email: 'info@anniescarrental.com',
   website: 'anniescarrental.com',
   ein: '99-0908048',

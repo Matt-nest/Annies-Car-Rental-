@@ -45,7 +45,7 @@ export class ErrorBoundary extends Component<Props, State> {
             </h1>
             <p style={{ opacity: 0.7, marginBottom: '1.5rem', lineHeight: 1.5 }}>
               We're sorry — an unexpected error occurred. Please refresh the page or contact us at{' '}
-              <a href="tel:+17729856667" style={{ color: '#d4a843' }}>(772) 985-6667</a>.
+              <a href="tel:+17722071655" style={{ color: '#d4a843' }}>(772) 207-1655</a>.
             </p>
             <button
               onClick={() => window.location.reload()}

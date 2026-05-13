@@ -79,7 +79,7 @@ export async function sendPaymentDeclined({ customer, booking, amountCents, reas
     ${ctaButton(portalLink, 'Update Payment Method →', 'gold')}
 
     <p style="margin:0;text-align:center;font-size:12px;color:#a8a29e;">
-      Questions? Call or text us at <strong>(772) 985-6667</strong>
+      Questions? Call or text us at <strong>(772) 207-1655</strong>
     </p>
   `;
 
@@ -119,7 +119,7 @@ export async function sendBookingConfirmation({ customer, booking, vehicle }) {
     ${ctaButton(statusUrl, 'Check Booking Status →')}
 
     <p style="margin:0;text-align:center;font-size:12px;color:#a8a29e;">
-      Questions? Call or text us at <strong>(772) 985-6667</strong>
+      Questions? Call or text us at <strong>(772) 207-1655</strong>
     </p>
   `;
 
@@ -161,7 +161,7 @@ export async function sendContinueBookingEmail({ customer, booking, vehicle }) {
     ${ctaButton(continueUrl, 'Continue Your Booking →', 'gold')}
 
     <p style="margin:0;text-align:center;font-size:12px;color:#a8a29e;">
-      Questions? Call or text us at <strong>(772) 985-6667</strong>
+      Questions? Call or text us at <strong>(772) 207-1655</strong>
     </p>
   `;
 

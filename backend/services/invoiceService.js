@@ -255,7 +255,7 @@ export async function sendInvoiceEmail(invoiceId) {
       <div style="margin-top:28px;padding-top:20px;border-top:1px solid #f5f5f4;text-align:center;">
         <p style="font-size:13px;color:#57534e;margin:0 0 12px;">Questions about your settlement? We're here to help.</p>
         <p style="font-size:12px;color:#a8a29e;margin:0;">Annie\u2019s Car Rental · 586 NW Mercantile Pl, Port St. Lucie, FL 34986</p>
-        <p style="font-size:12px;color:#a8a29e;margin:4px 0 0;">(772) 985-6667 · <a href="${SITE_URL}" style="color:#c8a97e;">anniescarrental.com</a></p>
+        <p style="font-size:12px;color:#a8a29e;margin:4px 0 0;">(772) 207-1655 · <a href="${SITE_URL}" style="color:#c8a97e;">anniescarrental.com</a></p>
       </div>
     </div>
   </div>

@@ -339,7 +339,7 @@ export default function CustomerPortal() {
         // Lockbox not configured in database — show the fallback message
         setActionSuccess(`Check-in complete! ${data.lockbox_error}`);
       } else {
-        setActionSuccess('Check-in complete! Contact Annie\'s at (772) 985-6667 for your key pickup instructions.');
+        setActionSuccess('Check-in complete! Contact Annie\'s at (772) 207-1655 for your key pickup instructions.');
       }
       await loadBooking();
     } catch (err: any) { setError(err.message); }
@@ -1276,7 +1276,7 @@ export default function CustomerPortal() {
           {/* ── Emergency tap-to-call (active, under Return Vehicle) ── */}
           {status === 'active' && (
             <motion.a
-              href="tel:+17729856667"
+              href="tel:+17722071655"
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ ease: EASE.standard }}
@@ -1291,7 +1291,7 @@ export default function CustomerPortal() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-[10px] uppercase tracking-wider font-bold" style={{ color: '#ef4444' }}>Emergency · Tap to call</p>
-                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>(772) 985-6667</p>
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>(772) 207-1655</p>
               </div>
               <ChevronRight size={14} style={{ color: 'var(--text-tertiary)' }} />
             </motion.a>
@@ -1309,7 +1309,7 @@ export default function CustomerPortal() {
                     <li>Ensure everyone is safe — call 911 if needed</li>
                     <li>Exchange info with the other driver</li>
                     <li>Take photos of all vehicles and the scene</li>
-                    <li>Call Annie at (772) 985-6667 immediately</li>
+                    <li>Call Annie at (772) 207-1655 immediately</li>
                   </ol>
                 </div>
 
@@ -1743,7 +1743,7 @@ export default function CustomerPortal() {
             <button
               onClick={() => {
                 try { openCrispChat(); }
-                catch { window.location.href = 'tel:+17729856667'; }
+                catch { window.location.href = 'tel:+17722071655'; }
               }}
               className="flex items-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm transition-all hover:scale-[1.03] active:scale-95 cursor-pointer"
               style={{ backgroundColor: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.3)', color: '#D4AF37' }}
@@ -1752,7 +1752,7 @@ export default function CustomerPortal() {
               Message Annie
             </button>
             <span>
-              Or call <a href="tel:+17729856667" style={{ color: 'var(--accent-color)' }}>(772) 985-6667</a>
+              Or call <a href="tel:+17722071655" style={{ color: 'var(--accent-color)' }}>(772) 207-1655</a>
             </span>
           </div>
         </div>

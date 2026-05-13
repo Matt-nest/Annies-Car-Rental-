@@ -55,11 +55,11 @@ export default function Footer() {
               Contact
             </h4>
             <div className="space-y-3">
-              <a href="tel:+17729856667" className="flex items-center gap-3 text-sm transition-opacity hover:opacity-70 group">
+              <a href="tel:+17722071655" className="flex items-center gap-3 text-sm transition-opacity hover:opacity-70 group">
                 <Phone size={14} style={{ color: 'var(--text-tertiary)' }} />
-                <span style={{ color: 'var(--text-secondary)' }}>(772) 985-6667</span>
+                <span style={{ color: 'var(--text-secondary)' }}>(772) 207-1655</span>
               </a>
-              <a href="sms:+17729856667" className="flex items-center gap-3 text-sm transition-opacity hover:opacity-70">
+              <a href="sms:+17722071655" className="flex items-center gap-3 text-sm transition-opacity hover:opacity-70">
                 <MessageSquare size={14} style={{ color: 'var(--text-tertiary)' }} />
                 <span style={{ color: 'var(--text-secondary)' }}>Text Us</span>
               </a>

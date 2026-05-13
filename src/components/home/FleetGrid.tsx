@@ -232,15 +232,15 @@ export default function FleetGrid({ onSelectVehicle, rateMode = 'daily', onRateM
 
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <a
-                  href="tel:+17729856667"
+                  href="tel:+17722071655"
                   className="px-8 py-4 rounded-full font-medium transition-all duration-500 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 text-sm"
                   style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
                 >
                   <Phone size={15} />
-                  Call (772) 985-6667
+                  Call (772) 207-1655
                 </a>
                 <a
-                  href="sms:+17729856667"
+                  href="sms:+17722071655"
                   className="px-8 py-4 rounded-full font-medium border transition-all duration-500 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 text-sm"
                   style={{ borderColor: 'var(--border-medium)', color: 'var(--text-secondary)' }}
                 >

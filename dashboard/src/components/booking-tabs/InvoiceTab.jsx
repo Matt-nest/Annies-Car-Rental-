@@ -339,7 +339,7 @@ export default function InvoiceTab({ booking, onReload }) {
                         <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid #f5f5f4', textAlign: 'center' }}>
                           <p style={{ fontSize: 13, color: '#57534e', margin: '0 0 12px' }}>Questions about your settlement? We're here to help.</p>
                           <p style={{ fontSize: 12, color: '#a8a29e', margin: 0 }}>Annie's Car Rental · 586 NW Mercantile Pl, Port St. Lucie, FL 34986</p>
-                          <p style={{ fontSize: 12, color: '#a8a29e', margin: '4px 0 0' }}>(772) 985-6667 · anniescarrental.com</p>
+                          <p style={{ fontSize: 12, color: '#a8a29e', margin: '4px 0 0' }}>(772) 207-1655 · anniescarrental.com</p>
                         </div>
                       </div>
                     </div>
