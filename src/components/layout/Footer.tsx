@@ -92,8 +92,8 @@ export default function Footer() {
               <div className="pt-1" style={{ borderTop: '1px solid var(--border-subtle)' }}>
                 <p className="text-[11px] mb-2 pt-2" style={{ color: 'var(--text-tertiary)' }}>Legal</p>
                 <div className="flex flex-col gap-2">
-                  <a href="#" className="nav-link text-sm">Terms of Service</a>
-                  <a href="#" className="nav-link text-sm">Privacy Policy</a>
+                  <a href="/terms" className="nav-link text-sm">Terms of Service</a>
+                  <a href="/privacy" className="nav-link text-sm">Privacy Policy</a>
                   <a href="https://www.bonzah.com/faq" target="_blank" rel="noopener noreferrer" className="nav-link text-sm">Bonzah FAQs</a>
                 </div>
               </div>

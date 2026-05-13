@@ -23,9 +23,11 @@ import ConfirmBooking from './components/booking/ConfirmBooking';
 import RentalAgreementPage from './components/booking/RentalAgreementPage';
 import BookingStatusPage from './components/booking/BookingStatusPage';
 import CustomerPortal from './components/portal/CustomerPortal';
+import PrivacyPolicy from './components/legal/PrivacyPolicy';
+import TermsOfService from './components/legal/TermsOfService';
 import CustomCursor from './components/home/CustomCursor';
 
-type Page = 'home' | 'detail' | 'confirm' | 'rental-agreement' | 'booking-status' | 'portal';
+type Page = 'home' | 'detail' | 'confirm' | 'rental-agreement' | 'booking-status' | 'portal' | 'privacy' | 'terms';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>(() => {
@@ -34,6 +36,8 @@ export default function App() {
     if (path === '/rental-agreement') return 'rental-agreement';
     if (path === '/booking-status') return 'booking-status';
     if (path === '/portal') return 'portal';
+    if (path === '/privacy') return 'privacy';
+    if (path === '/terms') return 'terms';
     return 'home';
   });
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
@@ -127,6 +131,26 @@ export default function App() {
             transition={{ duration: 0.4, ease: EASE.dramatic }}
           >
             <BookingStatusPage onBack={() => { setCurrentPage('home'); window.history.pushState({}, '', '/'); }} />
+          </motion.div>
+        ) : currentPage === 'privacy' ? (
+          <motion.div
+            key="privacy"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4, ease: EASE.dramatic }}
+          >
+            <PrivacyPolicy />
+          </motion.div>
+        ) : currentPage === 'terms' ? (
+          <motion.div
+            key="terms"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4, ease: EASE.dramatic }}
+          >
+            <TermsOfService />
           </motion.div>
         ) : currentPage === 'rental-agreement' ? (
           <motion.div

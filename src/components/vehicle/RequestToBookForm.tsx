@@ -740,6 +740,26 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
           />
         </div>
 
+        {/* SMS consent disclosure — required for Twilio A2P 10DLC campaign approval.
+            Twilio reviewers verify this disclosure exists directly above the submit
+            button. Do not remove or hide without updating the A2P consent text. */}
+        <div
+          className="rounded-xl border p-3.5 text-[12px] leading-relaxed"
+          style={{
+            backgroundColor: 'var(--bg-card, rgba(0,0,0,0.02))',
+            borderColor: 'var(--border-subtle)',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          By submitting this booking, you consent to receive SMS messages from
+          Annie's Car Rental about your rental, including confirmations, reminders,
+          and updates. Message and data rates may apply. Message frequency varies.
+          Reply STOP to opt out or HELP for help. See our{' '}
+          <a href="/privacy" className="underline" style={{ color: 'var(--text-primary)' }}>Privacy Policy</a>
+          {' '}and{' '}
+          <a href="/terms" className="underline" style={{ color: 'var(--text-primary)' }}>Terms of Service</a>
+          {' '}for details.
+        </div>
 
         <button
           type="submit"
