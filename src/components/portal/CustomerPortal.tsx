@@ -16,7 +16,9 @@ import CrispWidget, { openCrispChat } from './CrispWidget';
 import PortalActionBar from './PortalActionBar';
 import StatusHero from './StatusHero';
 import BookingTimelineStepper from './BookingTimelineStepper';
+import Sheet from '../common/Sheet';
 import { usePullToRefresh } from '../../hooks/usePullToRefresh';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 
 /* ── Helpers ────────────────────────────────────────────── */
 const fmt = (d: string) => {
@@ -311,6 +313,23 @@ export default function CustomerPortal() {
   // Pull-to-refresh — refetches the booking when the user swipes down at
   // the top of the page. No-op on desktop/mouse pointers.
   const { pullDistance, isRefreshing, progress, triggered } = usePullToRefresh(loadBooking);
+
+  // Sprint 7c: phone-first bottom-sheet flow for check-in / check-out.
+  // On mobile (<768px) the action bar opens these sheets instead of scrolling
+  // to a long inline form. On desktop the inline form renders as before.
+  const isMobile = useMediaQuery('(max-width: 767px)');
+  const [checkInSheetOpen, setCheckInSheetOpen] = useState(false);
+  const [checkOutSheetOpen, setCheckOutSheetOpen] = useState(false);
+
+  // Auto-close the active sheet when a check-in/out completes successfully —
+  // user should see the resulting lockbox reveal / completion state in the
+  // main page rather than a sheet that's no longer relevant.
+  useEffect(() => {
+    if (actionSuccess) {
+      setCheckInSheetOpen(false);
+      setCheckOutSheetOpen(false);
+    }
+  }, [actionSuccess]);
 
   /* ── Self-Service Check-In ── */
   const handleCheckIn = async () => {
@@ -1013,15 +1032,14 @@ export default function CustomerPortal() {
             );
           })()}
 
-          {/* Self-Service Check-In (ready_for_pickup) */}
-          {status === 'ready_for_pickup' && (
-            <motion.div
-              id="portal-checkin"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3, ease: EASE.standard }}
-              style={{ ...card(theme), scrollMarginTop: '100px' }}
-            >
+          {/* Self-Service Check-In (ready_for_pickup) — Sprint 7c:
+              on mobile renders inside a Vaul bottom sheet, opened by the
+              PortalActionBar. On desktop renders inline as before. The
+              `formBody` JSX is shared via closure so only ONE instance
+              mounts at a time (SlotPhotoUploader / file inputs / refs
+              would race if both render paths were active simultaneously). */}
+          {status === 'ready_for_pickup' && (() => {
+            const formBody = (
               <div className="p-5 space-y-5">
                 <h3 className="text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
                   <Check size={20} style={{ color: '#22c55e' }} /> Start Your Rental
@@ -1115,8 +1133,28 @@ export default function CustomerPortal() {
                   </p>
                 )}
               </div>
-            </motion.div>
-          )}
+            );
+            return isMobile ? (
+              <Sheet
+                open={checkInSheetOpen}
+                onOpenChange={(o) => !o && setCheckInSheetOpen(false)}
+                title="Check in to your rental"
+                maxWidth="32rem"
+              >
+                {formBody}
+              </Sheet>
+            ) : (
+              <motion.div
+                id="portal-checkin"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3, ease: EASE.standard }}
+                style={{ ...card(theme), scrollMarginTop: '100px' }}
+              >
+                {formBody}
+              </motion.div>
+            );
+          })()}
 
           {/* Lockbox Code — only revealed AFTER successful check-in.
               The entire code block is a single tap target on mobile so the
@@ -1196,16 +1234,11 @@ export default function CustomerPortal() {
             )}
           </AnimatePresence>
 
-          {/* Self-Service Check-Out (active) — mirrors check-in: required
-              slot photos, odometer, fuel, plus key-returned acknowledgement. */}
-          {status === 'active' && (
-            <motion.div
-              id="portal-checkout"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3, ease: EASE.standard }}
-              style={{ ...card(theme), scrollMarginTop: '100px' }}
-            >
+          {/* Self-Service Check-Out (active) — Sprint 7c bottom-sheet on
+              mobile, inline card on desktop. See check-in block above for
+              the closure pattern. */}
+          {status === 'active' && (() => {
+            const formBody = (
               <div className="p-5 space-y-5">
                 <h3 className="text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
                   <Car size={20} style={{ color: 'var(--accent-color)' }} /> Return Your Vehicle
@@ -1298,8 +1331,28 @@ export default function CustomerPortal() {
                   </p>
                 )}
               </div>
-            </motion.div>
-          )}
+            );
+            return isMobile ? (
+              <Sheet
+                open={checkOutSheetOpen}
+                onOpenChange={(o) => !o && setCheckOutSheetOpen(false)}
+                title="Return your vehicle"
+                maxWidth="32rem"
+              >
+                {formBody}
+              </Sheet>
+            ) : (
+              <motion.div
+                id="portal-checkout"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3, ease: EASE.standard }}
+                style={{ ...card(theme), scrollMarginTop: '100px' }}
+              >
+                {formBody}
+              </motion.div>
+            );
+          })()}
 
           {/* ── Customer Check-In Record (under Return Vehicle, active only) ── */}
           {status === 'active' && booking.checkinRecords && (() => {
@@ -1844,9 +1897,15 @@ export default function CustomerPortal() {
         </div>
       </main>
 
-      {/* Sticky bottom CTA — phone-only, per-state primary action,
-          smooth-scrolls to the relevant section. Sprint 7a. */}
-      <PortalActionBar status={status as any} disabled={actionLoading} />
+      {/* Sticky bottom CTA — phone-only, per-state primary action.
+          Sprint 7c: ready_for_pickup + active states now open a Vaul
+          bottom-sheet form instead of scrolling to a long inline section. */}
+      <PortalActionBar
+        status={status as any}
+        disabled={actionLoading}
+        onCheckIn={() => setCheckInSheetOpen(true)}
+        onCheckOut={() => setCheckOutSheetOpen(true)}
+      />
 
       <Footer />
       {/* F-16: mount once at the portal root, toggle visibility via prop. */}

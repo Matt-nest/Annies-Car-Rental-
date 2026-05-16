@@ -34,6 +34,13 @@ interface PortalActionBarProps {
   disabled?: boolean;
   /** Customer phone for fallback tel: link, used when no inline action exists */
   ownerPhone?: string;
+  /**
+   * If provided, called for `ready_for_pickup` instead of scroll-to-anchor.
+   * Used to open the mobile Vaul check-in sheet (Sprint 7c).
+   */
+  onCheckIn?: () => void;
+  /** If provided, called for `active` instead of scroll-to-anchor (Sprint 7c). */
+  onCheckOut?: () => void;
 }
 
 interface ActionConfig {
@@ -64,8 +71,24 @@ function actionFor(status: BookingStatus): ActionConfig | null {
   }
 }
 
-export default function PortalActionBar({ status, disabled = false }: PortalActionBarProps) {
+export default function PortalActionBar({
+  status,
+  disabled = false,
+  onCheckIn,
+  onCheckOut,
+}: PortalActionBarProps) {
   const action = actionFor(status);
+
+  function handleTap() {
+    if ('vibrate' in navigator) navigator.vibrate?.(10);
+    // Sprint 7c: if a direct trigger is wired, prefer it over scroll-to-anchor.
+    if (status === 'ready_for_pickup' && onCheckIn) return onCheckIn();
+    if (status === 'active' && onCheckOut) return onCheckOut();
+    if (action) {
+      const el = document.querySelector(action.scrollTo);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
 
   return (
     <AnimatePresence>
@@ -86,12 +109,7 @@ export default function PortalActionBar({ status, disabled = false }: PortalActi
             <button
               type="button"
               disabled={disabled}
-              onClick={() => {
-                // Soft haptic — Android only, iOS ignores.
-                if ('vibrate' in navigator) navigator.vibrate?.(10);
-                const el = document.querySelector(action.scrollTo);
-                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              }}
+              onClick={handleTap}
               className="tap-target w-full flex items-center justify-center gap-2 py-4 rounded-full font-semibold text-sm shadow-lg active:scale-95 transition-transform disabled:opacity-50"
               style={
                 action.tone === 'success'
