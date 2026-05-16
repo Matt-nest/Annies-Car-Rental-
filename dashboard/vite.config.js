@@ -26,13 +26,19 @@ export default defineConfig(({ mode }) => {
           // runtime-cached on demand via the rules below.
           globPatterns: ['**/*.{js,css,html,svg,ico,woff2}'],
           globIgnores: [
-            '**/vendor-mapbox-*.js',
-            '**/vendor-mapbox-*.css',
-            '**/vendor-charts-*.js',
-            '**/vendor-stripe-*.js',
-            '**/vendor-signature-*.js',
-            '**/vendor-dnd-*.js',
+            // Heavy auto-split vendor chunks (Vite names them after the lib).
+            '**/mapbox-gl-*.js',
+            '**/mapbox-gl-*.css',
+            '**/generateCategoricalChart-*.js',  // Recharts main
+            '**/AreaChart-*.js',                  // Recharts AreaChart
+            '**/sortable.esm-*.js',               // @dnd-kit sortable
+            '**/@stripe-*.js',
+            '**/signature_pad-*.js',
+            // Heavy lazy pages.
             '**/{TelematicsPage,BookingDetailPage,MessagingPage,SettingsPage,RevenuePage,InsurancePage,PricingRulesPage}-*.js',
+            // Lazy widget chunks (Sprint 6a).
+            '**/KPICardsWidget-*.js',
+            '**/RevenueTrendWidget-*.js',
           ],
           clientsClaim: true,
           skipWaiting: false,
@@ -87,13 +93,14 @@ export default defineConfig(({ mode }) => {
       // Pairs with route-level React.lazy() in src/App.jsx.
       rollupOptions: {
         output: {
+          // NOTE: do NOT manualChunk libs that are only used by a single lazy
+          // route (mapbox-gl, recharts, @stripe, signature_pad, @dnd-kit). Vite
+          // injects modulepreload tags for every manualChunk reachable from the
+          // entry — which preloads them even when only a lazy route uses them.
+          // Letting Vite auto-split those libs co-locates them with the lazy
+          // chunk that imports them, so they're only fetched on navigation.
           manualChunks: (id) => {
             if (id.includes('node_modules')) {
-              if (id.includes('mapbox-gl') || id.includes('react-map-gl')) return 'vendor-mapbox';
-              if (id.includes('recharts') || id.includes('d3-')) return 'vendor-charts';
-              if (id.includes('@stripe')) return 'vendor-stripe';
-              if (id.includes('signature_pad')) return 'vendor-signature';
-              if (id.includes('@dnd-kit')) return 'vendor-dnd';
               if (id.includes('framer-motion') || id.includes('motion-dom') || id.includes('motion-utils')) return 'vendor-motion';
               if (id.includes('react-router')) return 'vendor-router';
               if (id.includes('lucide-react')) return 'vendor-icons';

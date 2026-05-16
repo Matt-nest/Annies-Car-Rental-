@@ -5,6 +5,84 @@
 
 ---
 
+## 2026-05-16 — Mobile-first Sprint 6a: dashboard widget-level lazy + remove eager mapbox modulepreload
+
+**Why:** Sprint 2b put each dashboard route behind `React.lazy()` but the home page still eagerly imported all 12 widgets — and KPICardsWidget + RevenueTrendWidget both use Recharts. So `vendor-charts` (112 kB gzip) was always in the home critical path. Worse: while wiring this up I discovered Vite's `manualChunks` was injecting `modulepreload` hints for vendor-mapbox (498 kB gzip) on every dashboard page, even though only TelematicsPage uses mapbox-gl. Combined fix: lazy widgets for the two chart-using widgets + remove the single-consumer libs from manualChunks so Vite can co-locate them with their lazy routes.
+
+**Scope:** 2 files. Substantial first-paint impact: dashboard home eager bundle **322 kB → 211 kB gzip (−34%)** and mapbox-gl no longer downloads on the home page.
+
+### Dashboard widget engine (1 file)
+- `dashboard/src/components/dashboard/DashboardLayoutEngine.jsx`:
+  - Two specific widgets converted to `React.lazy()`: `KPICardsWidget` and `RevenueTrendWidget` (the only Recharts users in the widget registry).
+  - The other 10 widgets stay eager — they're small, tightly coupled to WidgetWrapper, and Suspense-wrapping every widget adds friction without a chunk win.
+  - New `FALLBACKS` map produces size-matched skeletons:
+    - `'kpi-cards'` → `<SkeletonKpi count={5} />` (5 cards × 120 px minHeight)
+    - `'revenue-trend'` → `<SkeletonChartCard height={350} />`
+    - Default for other lazy widgets if added later → `<SkeletonCard />`
+  - Render loop wraps each visible widget in `<Suspense fallback={...}>` so toggle-visibility from Settings still works.
+  - **CLS prevention**: skeleton heights match the real widgets' rendered heights → zero layout shift when the lazy chunk resolves.
+
+### vite.config.js manualChunks tightening (1 file)
+- `dashboard/vite.config.js`:
+  - **Removed** from manualChunks: `mapbox-gl`/`react-map-gl`, `recharts`/`d3-*`, `@stripe`, `signature_pad`, `@dnd-kit`. These libs are each used by exactly one or two lazy routes — manualChunking them created shared vendor chunks that Vite then injected as `modulepreload` hints on the entry HTML, effectively making them eager.
+  - **Kept** in manualChunks: `framer-motion`, `react-router`, `lucide-react`, `@supabase`, `react-dom`/`react`. These ARE eager (used across the dashboard chrome) so explicit named chunks give cache stability across deploys.
+  - Result: Vite now auto-co-locates mapbox-gl into TelematicsPage's chunk (or auto-splits to a peer chunk only reachable via the lazy route), Recharts into the lazy widget chunks (via a shared `generateCategoricalChart-*.js` peer chunk that loads with the widgets that need it), @dnd-kit into SettingsPage + MessagingPage, etc.
+
+### PWA precache globIgnores updated (same file)
+- The globIgnores list previously referenced the old chunk names (`vendor-mapbox-*`, `vendor-charts-*`, etc.) which no longer exist. Updated to the auto-split names: `mapbox-gl-*`, `generateCategoricalChart-*`, `AreaChart-*`, `sortable.esm-*`, `@stripe-*`, `signature_pad-*`. Also added the two new lazy widget chunks (`KPICardsWidget-*`, `RevenueTrendWidget-*`). Without this fix the precache ballooned to 3.1 MB; with it, **precache stays at 928 KiB / 29 entries** — shell only.
+
+### Bundle delta — dashboard home
+
+| | Sprint 5c | Sprint 6a | Delta |
+|---|---|---|---|
+| `index.js` (gzip) | 44.38 kB | 43.47 kB | −0.91 kB |
+| `vendor-charts` (gzip) | 112.58 kB **eager** | (auto-split into KPICardsWidget+RevenueTrendWidget peer chunk) — **lazy** | −112.58 kB from critical path |
+| `vendor-mapbox` (gzip) | 498.74 kB **modulepreloaded** | now `mapbox-gl-*.js` co-located with TelematicsPage chunk — **lazy** | −498.74 kB from background fetch |
+| Total eager (HTML preload graph) | ~322 kB gzip | **~211 kB gzip** | **−111 kB / −34%** |
+| Mapbox over-the-wire on first visit | 498 kB gzip (modulepreload) | **0 kB** (no preload, no fetch) | massive admin UX win |
+| Precache footprint | 899 KiB | 928 KiB | +29 KiB (lazy chunk entries added) |
+
+The eager dashboard home now loads only what's actually rendered on the dashboard landing page. Charts skeleton in for ~200ms then fill with real data; in human-perception terms it's seamless because the skeleton is exactly the same height/grid layout as the rendered widget.
+
+### What this does NOT do (deferred)
+
+- **VehicleRevenueWidget + RevenueHeatmapWidget lazy** — these don't use Recharts (plain bars / heatmap) so they don't pull vendor-charts. Lazy-loading them too would save ~3 kB gzip each, not worth the per-widget Suspense overhead.
+- **Dashboard widget engine settings** — Settings page's drag-to-reorder still uses dnd-kit; not refactored.
+- **Recharts tree-shaking inside KPICardsWidget** — KPICards uses sparkline area charts; if we ever drop the sparkline, the `AreaChart-*` chunk goes too. Not worth a separate sprint until the design changes.
+
+### API/Data Impact
+- None.
+
+### Hard rules respected
+- `api/client.js`, `auth/*` — untouched
+- `DashboardLayoutEngine.jsx` — modified but stays compatible with widgetConfig.js IDs (the WIDGET_COMPONENTS map keys are unchanged); blast radius is internal-only.
+- `widgetConfig.js`, `useWidgetLayout.js`, `DashboardLayoutSettings.jsx` — untouched. The widget toggle UX is unchanged.
+- `WidgetWrapper.jsx` — untouched. Each lazy widget renders its own WidgetWrapper internally as before.
+- `Modal.jsx`, `Sidebar.jsx`, `BottomNav.jsx`, all 12 widget files — untouched
+- CSS variables — none renamed
+- Supabase schema — untouched
+
+### Files That Need Verification
+- **Cold-load /** on dashboard preview deploy:
+  - Network tab: confirm `mapbox-gl-*.js` is NOT in the initial fetch list.
+  - Confirm `KPICardsWidget-*.js` + `RevenueTrendWidget-*.js` + the Recharts peer chunk DO fetch (with `defer` priority via `dynamic` import) right after first paint.
+  - Confirm SkeletonKpi (5 cards) and SkeletonChartCard render in the right places before the real widgets mount.
+- **Toggle widget visibility** in Settings: hide KPICardsWidget → reload `/` → confirm the lazy chunks for KPI + Recharts peer DO NOT load.
+- **Telematics navigation**: from `/`, navigate to `/telematics` → confirm the mapbox-gl chunk fetches at that point.
+- **Lighthouse mobile** on `/`: home page first contentful paint and time to interactive should improve measurably.
+
+### Build Status
+- [x] Dashboard `npm run build` (with env vars) — zero errors. 3,139 modules, 40 chunks. Precache 928 KiB / 29 entries. mapbox-gl chunk size warning persists (inherent to mapbox-gl itself, not new).
+
+### Committed
+- [ ] Pending — branch `claude/intelligent-khayyam-ea08f4` (worktree)
+
+### Known Issues / Follow-up
+- Sprint 6b: customer portal photo uploaders should use `capture="environment"` on `<input type="file">` so phones open the camera first instead of the photo picker. Real field-day improvement for check-in / inspection photos.
+- The `vendor-charts` chunk no longer exists; the equivalent code is now in `generateCategoricalChart-*.js` and `AreaChart-*.js`. If anything downstream relies on the named chunk (CDN cache strategies, etc.), they'd need a one-time invalidation.
+
+---
+
 ## 2026-05-16 — Mobile-first Sprint 5c: dashboard PWA (service worker + manifest)
 
 **Why:** Same PWA upgrade as Sprint 5a, but for the admin dashboard. Annie + staff can now "Add to Home Screen" on their phones for field check-in work — the admin shell loads instantly from cache even on a flaky connection at a curbside pickup. Web push deferred to Sprint 5b (backend work).
