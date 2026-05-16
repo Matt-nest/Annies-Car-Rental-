@@ -13,6 +13,8 @@ import Footer from '../layout/Footer';
 import PhotoUploader from './PhotoUploader';
 import SlotPhotoUploader, { type PhotoSlots } from './SlotPhotoUploader';
 import CrispWidget, { openCrispChat } from './CrispWidget';
+import PortalActionBar from './PortalActionBar';
+import { usePullToRefresh } from '../../hooks/usePullToRefresh';
 
 /* ── Helpers ────────────────────────────────────────────── */
 const fmt = (d: string) => {
@@ -304,6 +306,10 @@ export default function CustomerPortal() {
 
   useEffect(() => { loadBooking(); }, [loadBooking]);
 
+  // Pull-to-refresh — refetches the booking when the user swipes down at
+  // the top of the page. No-op on desktop/mouse pointers.
+  const { pullDistance, isRefreshing, progress, triggered } = usePullToRefresh(loadBooking);
+
   /* ── Self-Service Check-In ── */
   const handleCheckIn = async () => {
     if (!conditionConfirmed || !allSlotsReady) return;
@@ -588,7 +594,44 @@ export default function CustomerPortal() {
   return (
     <>
       <Navbar onNavigate={scrollToSection} />
-      <main className="min-h-dvh px-4 sm:px-6" style={{ paddingTop: '100px', paddingBottom: '80px' }}>
+
+      {/* Pull-to-refresh visual indicator — sits below Navbar, animates in as
+          the user pulls down. Saturates at `triggered` then spins while
+          isRefreshing. Touch-only — desktop never sees this. */}
+      {(pullDistance > 0 || isRefreshing) && (
+        <div
+          className="md:hidden fixed left-1/2 -translate-x-1/2 z-[95] pointer-events-none flex items-center justify-center w-10 h-10 rounded-full"
+          style={{
+            top: `calc(env(safe-area-inset-top, 0px) + ${64 + pullDistance * 0.6}px)`,
+            backgroundColor: 'var(--bg-elevated)',
+            border: '1px solid var(--border-subtle)',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+            opacity: progress,
+            transition: isRefreshing ? 'top 200ms ease-out' : 'none',
+          }}
+          aria-hidden="true"
+        >
+          <Loader2
+            size={18}
+            className={isRefreshing ? 'animate-spin' : ''}
+            style={{
+              color: triggered ? 'var(--accent-color)' : 'var(--text-tertiary)',
+              transform: isRefreshing ? 'none' : `rotate(${progress * 270}deg)`,
+              transition: 'color 200ms',
+            }}
+          />
+        </div>
+      )}
+
+      <main
+        className="min-h-dvh px-4 sm:px-6"
+        style={{
+          paddingTop: '100px',
+          // Reserve space for the sticky bottom action bar (visible on mobile only)
+          // + safe-area-inset-bottom. lg keeps the original 80px since no bar there.
+          paddingBottom: 'max(120px, calc(96px + env(safe-area-inset-bottom)))',
+        }}
+      >
         <div className="max-w-lg mx-auto space-y-5">
 
           {/* Compact identity header — name + booking code */}
@@ -985,10 +1028,11 @@ export default function CustomerPortal() {
           {/* Self-Service Check-In (ready_for_pickup) */}
           {status === 'ready_for_pickup' && (
             <motion.div
+              id="portal-checkin"
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, ease: EASE.standard }}
-              style={card(theme)}
+              style={{ ...card(theme), scrollMarginTop: '100px' }}
             >
               <div className="p-5 space-y-5">
                 <h3 className="text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
@@ -1168,10 +1212,11 @@ export default function CustomerPortal() {
               slot photos, odometer, fuel, plus key-returned acknowledgement. */}
           {status === 'active' && (
             <motion.div
+              id="portal-checkout"
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, ease: EASE.standard }}
-              style={card(theme)}
+              style={{ ...card(theme), scrollMarginTop: '100px' }}
             >
               <div className="p-5 space-y-5">
                 <h3 className="text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
@@ -1375,10 +1420,11 @@ export default function CustomerPortal() {
           {/* Deposit & Invoice (returned / completed) */}
           {['returned', 'completed'].includes(status) && (
             <motion.div
+              id="portal-inspection"
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, ease: EASE.standard }}
-              style={card(theme)}
+              style={{ ...card(theme), scrollMarginTop: '100px' }}
             >
               <div className="p-5 space-y-4">
                 <h3 className="text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
@@ -1493,10 +1539,11 @@ export default function CustomerPortal() {
           {/* Review prompt — completed rentals only */}
           {status === 'completed' && !reviewDone && (
             <motion.div
+              id="portal-review"
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, ease: EASE.standard }}
-              style={card(theme)}
+              style={{ ...card(theme), scrollMarginTop: '100px' }}
             >
               <div className="p-5 space-y-4">
                 <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
@@ -1786,7 +1833,11 @@ export default function CustomerPortal() {
           )}
 
           {/* Contact footer */}
-          <div className="flex flex-col items-center gap-3 py-5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+          <div
+            id="portal-message"
+            className="flex flex-col items-center gap-3 py-5 text-xs"
+            style={{ color: 'var(--text-tertiary)', scrollMarginTop: '100px' }}
+          >
             <button
               onClick={() => {
                 try { openCrispChat(); }
@@ -1804,6 +1855,11 @@ export default function CustomerPortal() {
           </div>
         </div>
       </main>
+
+      {/* Sticky bottom CTA — phone-only, per-state primary action,
+          smooth-scrolls to the relevant section. Sprint 7a. */}
+      <PortalActionBar status={status as any} disabled={actionLoading} />
+
       <Footer />
       {/* F-16: mount once at the portal root, toggle visibility via prop. */}
       <CrispWidget booking={booking} visible={view === 'dashboard'} />
