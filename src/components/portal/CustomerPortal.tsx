@@ -14,6 +14,8 @@ import PhotoUploader from './PhotoUploader';
 import SlotPhotoUploader, { type PhotoSlots } from './SlotPhotoUploader';
 import CrispWidget, { openCrispChat } from './CrispWidget';
 import PortalActionBar from './PortalActionBar';
+import StatusHero from './StatusHero';
+import BookingTimelineStepper from './BookingTimelineStepper';
 import { usePullToRefresh } from '../../hooks/usePullToRefresh';
 
 /* ── Helpers ────────────────────────────────────────────── */
@@ -578,18 +580,8 @@ export default function CustomerPortal() {
   }
 
   const { status, customers: c, vehicles: v } = booking;
-  const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
-    pending_approval: { label: 'Pending Approval', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
-    approved: { label: 'Approved', color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
-    confirmed: { label: 'Confirmed', color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
-    ready_for_pickup: { label: 'Ready for Pickup', color: '#06b6d4', bg: 'rgba(6,182,212,0.1)' },
-    active: { label: 'Active Rental', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
-    returned: { label: 'Returned — Under Inspection', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
-    completed: { label: 'Completed', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
-    cancelled: { label: 'Cancelled', color: '#ef4444', bg: 'rgba(239,68,68,0.1)' },
-    declined: { label: 'Declined', color: '#ef4444', bg: 'rgba(239,68,68,0.1)' },
-  };
-  const sc = statusConfig[status] || { label: status, color: 'var(--text-secondary)', bg: 'var(--bg-card-hover)' };
+  // Status badge styling moved into StatusHero (Sprint 7b). No longer rendered
+  // inline here — the old `statusConfig` map and `sc` local lookup were removed.
 
   return (
     <>
@@ -634,27 +626,23 @@ export default function CustomerPortal() {
       >
         <div className="max-w-lg mx-auto space-y-5">
 
-          {/* Compact identity header — name + booking code */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: DURATION.slow, ease: EASE.dramatic }}
-            className="text-center"
-          >
-            <div
-              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-3"
-              style={{ backgroundColor: sc.bg, color: sc.color, border: `1px solid ${sc.color}30` }}
-            >
-              <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: sc.color }} />
-              {sc.label}
-            </div>
-            <h1 className="text-xl sm:text-2xl font-light" style={{ color: 'var(--text-primary)' }}>
-              {c?.first_name} {c?.last_name}
-            </h1>
-            <p className="text-xs font-mono mt-1" style={{ color: 'var(--text-tertiary)' }}>
-              {booking.booking_code}
-            </p>
-          </motion.div>
+          {/* Status Hero — Sprint 7b. Big state-driven card with live
+              countdown timer + identity footer. Replaces the small pill +
+              name + code header that was here previously. */}
+          <StatusHero
+            status={status as any}
+            customerName={`${c?.first_name || ''} ${c?.last_name || ''}`.trim() || 'Customer'}
+            bookingCode={booking.booking_code}
+            pickupDate={booking.pickup_date}
+            pickupTime={booking.pickup_time}
+            returnDate={booking.return_date}
+            returnTime={booking.return_time}
+          />
+
+          {/* Trip Timeline Stepper — Sprint 7b. Horizontal 5-step progress
+              indicator (Confirmed → Pickup → Driving → Return → Complete).
+              Hidden for cancelled/declined states. */}
+          <BookingTimelineStepper status={status as any} />
 
           {/* Success Message */}
           <AnimatePresence>
