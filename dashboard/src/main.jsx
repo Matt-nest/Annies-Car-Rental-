@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 import App from './App';
+import { registerSW } from './pwa/registerSW';
 import './styles/globals.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -12,3 +13,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <SpeedInsights />
   </React.StrictMode>
 );
+
+// Register the production service worker. No-op in dev / tests.
+registerSW();

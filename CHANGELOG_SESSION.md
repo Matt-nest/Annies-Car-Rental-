@@ -5,6 +5,77 @@
 
 ---
 
+## 2026-05-16 — Mobile-first Sprint 5c: dashboard PWA (service worker + manifest)
+
+**Why:** Same PWA upgrade as Sprint 5a, but for the admin dashboard. Annie + staff can now "Add to Home Screen" on their phones for field check-in work — the admin shell loads instantly from cache even on a flaky connection at a curbside pickup. Web push deferred to Sprint 5b (backend work).
+
+**Scope:** 4 files (1 new, 3 modified) + 2 new dev dependencies. Same risk-mitigation as Sprint 5a: SW does NOT auto-update mid-session.
+
+### Build (1 file)
+- `dashboard/vite.config.js` — added `VitePWA({...})` with admin-tuned config:
+  - Same `registerType: 'prompt'`, `manifest: false`, `injectRegister: false` pattern as the customer site.
+  - **Aggressive `globIgnores`** to keep the precache small — excludes `vendor-mapbox*` (498 kB gzip), `vendor-charts*` (Recharts, 112 kB gzip), `vendor-stripe*`, `vendor-signature*`, `vendor-dnd*`, plus the heavy page chunks (TelematicsPage, BookingDetailPage, MessagingPage, SettingsPage, RevenuePage, InsurancePage, PricingRulesPage). These all runtime-cache on demand as admins navigate.
+  - **Result: precache 899.57 KiB / 29 entries** — the admin shell + light routes only. Compare to 670 KiB on the customer side (dashboard has more eager state code).
+  - `navigateFallbackDenylist: [/^\/api\//, /^\/login/, /^\/oauth/]` — never intercept login/auth/OAuth callbacks (the dashboard talks to backend at /api and Bouncie OAuth lives at /oauth).
+  - Image cache rule extended to include `*.supabase.co` (rental-photos bucket) so vehicle thumbnails + check-in photos are stale-while-revalidate cached.
+
+### Service worker registration (1 new file)
+- `dashboard/src/pwa/registerSW.js` (NEW, 90 lines): JavaScript version of the customer site's `registerSW.ts`. Admin-flavored toast copy ("A new admin build is ready"). Toast positioned `bottom: 80px` (above the BottomNav from Sprint 3a, with safe-area-inset-bottom factored in via `calc()`). Uses dashboard CSS vars (`--bg-elevated: #1F2A37`, `--accent-color: #465FFF`).
+- `dashboard/src/main.jsx` — imports `registerSW` and calls it after the React tree mounts.
+
+### Enhanced manifest (1 file)
+- `dashboard/public/site.webmanifest` — expanded from 22 lines → 50:
+  - `name`: "Annie's Car Rental — Admin", `short_name`: "Annie's Admin"
+  - `description`, `id: "/"`, `start_url: "/?source=pwa"`, `scope`, `lang`, `dir`
+  - `display_override` + `orientation: "any"` (admin work happens in both portrait and landscape)
+  - `theme_color: "#111928"` (matches Sprint 1's dark mode theme-color meta — `--bg-primary` in dark)
+  - `background_color: "#111928"`
+  - `categories: ["business", "productivity"]`
+  - Each icon has `any` + `maskable` variants
+  - Two shortcuts: "Today's Bookings" → `/bookings?source=pwa` and "Fleet Status" → `/fleet?source=pwa`
+
+### Bundle delta
+
+| | Sprint 2b/3a | Sprint 5c | Delta |
+|---|---|---|---|
+| Dashboard home gzip | ~322 kB | **~325 kB** | +3 kB (workbox-window) |
+| Precache footprint | (none) | 899 KiB / 29 entries | shell only — heavy vendors excluded |
+| `sw.js` + `workbox-*.js` | (none) | ~25 kB raw | cached after first load |
+
+### What this does NOT do (deferred)
+
+- **Sprint 5b — Web push backend**: shared with customer site. Single VAPID keypair, two subscription endpoints (customer + admin), Supabase `push_subscriptions` table, `notifyService.js` integration. ~6 hours of backend work. Required for the iOS 16.4+ install-only push to fire.
+- **Background sync for offline check-in**: the admin field check-in tab could queue mutations offline (via Workbox Background Sync API on Chrome/Edge, IndexedDB queue + retry-on-online on iOS). Useful for poor reception at pickup locations. Separate slice.
+- **Offline /bookings list**: currently the bookings list is API-only and won't render offline. Could add a last-known-state IndexedDB cache. Defer.
+
+### API/Data Impact
+- None. All `/api/*` requests bypass the SW entirely. Login flow (`/login`, `/oauth/*`) is denied in `navigateFallbackDenylist`. Supabase Storage reads (`*.supabase.co`) are SWR-cached as images.
+
+### Hard rules respected
+- `api/client.js`, `auth/*` (AuthProvider, supabaseClient, ProtectedRoute, LoginPage), Modal, Sidebar, BottomNav, all 25 widgets, all CSS variables — untouched
+- `notifyService.js` and email templates — N/A (backend)
+- Supabase schema — untouched
+
+### Files That Need Verification
+- **Vercel preview** dashboard URL → DevTools → Application → Service Workers → confirm registered + activated.
+- **Add to Home Screen on Android Chrome** while logged into the admin — should install with dark-themed icon. After install, two long-press shortcuts visible (Today's Bookings / Fleet Status).
+- **Update prompt** — push a second deploy; confirm the bottom-center toast appears with dashboard-themed styling (indigo Refresh button). Position should sit above the BottomNav (bottom: 80px + safe-area) on mobile.
+- **Login bypass** — confirm hitting `/login` while offline does NOT serve the cached SPA shell. The denylist should route it directly.
+- **Telematics offline** — open Telematics tab while online, go offline, navigate away and back. The map tiles will fail (Mapbox requires network) but the page chrome and last-known vehicle state should render.
+
+### Build Status
+- [x] Dashboard `npm run build` (with env vars) — zero errors. PWA emitted: `dist/sw.js` + `dist/workbox-*.js`. Precache 899 KiB / 29 entries. Mapbox warning persists (pre-existing, not new).
+
+### Committed
+- [ ] Pending — branch `claude/intelligent-khayyam-ea08f4` (worktree)
+
+### Known Issues / Follow-up
+- Same Sprint 5b backlog as customer site: backend web push.
+- The dashboard has `index.html` updated by Sprint 1 with `viewport-fit=cover` + theme-color — those still apply.
+- After deploy, run Lighthouse PWA against the dashboard preview URL (must be signed in for some routes, but PWA category checks the manifest + SW regardless).
+
+---
+
 ## 2026-05-16 — Mobile-first Sprint 5a: customer site PWA (service worker + enhanced manifest)
 
 **Why:** PWA was the user's explicitly-approved scope (web push deferred to Sprint 5b — requires backend VAPID/subscription infrastructure). Returning customers can now "Add to Home Screen" and get an app-like standalone experience: cached shell loads instantly, fonts and images are warm on second visit, the back/forward buttons feel native, and on iOS 16.4+ the install lays the groundwork for future web push.
