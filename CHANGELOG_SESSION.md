@@ -5,6 +5,85 @@
 
 ---
 
+## 2026-05-16 — Mobile-first Sprint 2b: dashboard code splitting + lazy mapbox + lazy routes
+
+**Why:** Sprint 2a fixed the customer site. The dashboard had the same shape of problem but worse: 1,608 kB single JS bundle (425 kB gzip) plus a 1,781 kB mapbox-gl chunk (498 kB gzip) that loaded eagerly the moment a user opened TelematicsPage — and was forced into the dashboard bundle even for admins who never visit Telematics. Most admin work happens on Dashboard / Bookings / Fleet; mapbox shouldn't be on the critical path. Same fix as Sprint 2a: route-level `React.lazy()` + hand-tuned vendor manualChunks.
+
+**Scope:** 2 files (vite.config.js + App.jsx). Zero hard-rule files touched. Build verified clean. Dashboard home gzip drops ~103 kB; mapbox (498 kB gzip) demoted from eager to demand-loaded.
+
+### Build (1 file)
+- `dashboard/vite.config.js` — added explicit `manualChunks` function:
+  - `vendor-mapbox` (`mapbox-gl`, `react-map-gl`) — 1,801 kB / **498.74 kB gzip** — only loads on /telematics
+  - `vendor-charts` (`recharts`, `d3-*`) — 422 kB / 112.58 kB gzip — eager (Dashboard widgets use it)
+  - `vendor-stripe` (`@stripe/*`) — only loads on /stripe + booking payment
+  - `vendor-signature` (`signature_pad`) — only loads when AgreementSection mounts
+  - `vendor-dnd` (`@dnd-kit/*`) — 45.88 kB / 15.28 kB gzip — Settings + Messaging Timeline
+  - `vendor-motion` (`framer-motion`, `motion-dom`, `motion-utils`) — 42.01 kB gzip — eager
+  - `vendor-router` (`react-router-dom`) — 23.33 kB / 8.60 kB gzip — eager
+  - `vendor-icons` (`lucide-react`) — 39.98 kB / 7.49 kB gzip — eager
+  - `vendor-supabase` (`@supabase/*`) — 193.82 kB / 50.95 kB gzip — eager (auth)
+  - `vendor-react` — 144.68 kB / 46.61 kB gzip — eager
+
+### Route-level lazy loading (1 file)
+- `dashboard/src/App.jsx` — converted 20 page imports to `React.lazy()`. Eager pages: `LoginPage` (auth flow), `DashboardPage` (home), `DashboardLayout` (shell). Everything else lazy.
+- Added a `RouteFallback` component (8 lines) styled with `min-h-dvh` + dashboard CSS vars.
+- Added an `L = (el) => <Suspense fallback={...}>{el}</Suspense>` helper to keep the routes table compact instead of 20 individual Suspense wrappers.
+
+### Bundle delta
+
+| Page first-paint | Sprint 1 baseline | Sprint 2b result | Delta |
+|---|---|---|---|
+| Dashboard home (gzip JS+CSS) | **~425 kB** (single bundle + mapbox forced in) | **~322 kB** (chunked, parallel; mapbox excluded) | **−103 kB** |
+| /telematics extra payload | (already loaded) | +mapbox **498.74 kB** + TelematicsPage 8.08 kB ≈ 507 kB | only on first visit |
+| /bookings/:id extra | (already loaded) | +BookingDetailPage **22.06 kB** | only when opened |
+| /messaging extra | (already loaded) | +dnd 15.28 + MessagingPage 17.75 ≈ 33 kB | only when opened |
+| /settings extra | (already loaded) | +dnd 15.28 + SettingsPage 12.41 ≈ 28 kB | only when opened |
+| /revenue extra | (already loaded) | +RevenuePage 4.94 kB (charts already eager) | only when opened |
+
+Headline: admin who works the Dashboard + Bookings flow now downloads **~24% less JS** on first paint. An admin who never opens Telematics (or maybe opens it once a week) no longer pays a 500 kB gzip tax on every cold load.
+
+### What this does NOT do (deferred to later sprints)
+
+- **Widget-level Recharts lazy** — `vendor-charts` (112.58 kB gzip) is still eager because the DashboardPage widget engine statically imports all widgets. Splitting widget chunks (lazy-load individual widgets via the WidgetWrapper) is a follow-up; cheapest path is `React.lazy` inside `DashboardLayoutEngine.WIDGET_COMPONENTS` map, with a Skeleton fallback.
+- **Bouncie chart libs / Telematics tabs** — the 6 internal tabs of TelematicsPage could be lazy-loaded too, but the mapbox-gl chunk dominates that page's payload by 10× so optimizing tab chunks is low ROI until mapbox itself shrinks.
+- **AgreementSection signature_pad** — already moved to vendor-signature; verify that BookingDetailPage's AgreementSection actually triggers the demand load by clicking through (network tab).
+
+### API/Data Impact
+- None. No `api/client.js` calls changed. No backend changes. No Supabase queries changed.
+
+### Hard rules respected
+- `api/client.js` — untouched
+- `auth/*` (AuthProvider, ProtectedRoute, LoginPage, supabaseClient) — untouched; LoginPage stays eager so login isn't gated behind a chunk fetch
+- `DashboardLayout` — untouched and stays eager (the shell)
+- `DashboardPage` — untouched and stays eager (the home)
+- Supabase schema — untouched
+- Notification system — untouched
+- Widget IDs — N/A (widget engine not changed)
+- CSS variables — none renamed
+
+### Files That Need Verification
+- **Cold-load every nav target** on a Vercel preview deploy with network throttled to Fast 3G. Confirm each lazy route fetches a single chunk and renders without console errors. Specifically check:
+  - /bookings/:id (BookingDetailPage is the biggest non-mapbox lazy chunk at 22 kB gzip + booking-tabs)
+  - /telematics (mapbox-gl fetches; vendor-mapbox.css + .js should both appear in Network)
+  - /messaging (dnd fetches for Timeline)
+  - /settings (dnd fetches for DashboardLayoutSettings)
+- **AnimatePresence-like transitions** — dashboard uses framer-motion in some places; verify nothing visibly flashes on lazy fetch over local dev.
+- **Login flow** — LoginPage stays eager, so login → / redirect should be instant. After login, DashboardPage shouldn't suspend (it's eager). First navigation away (e.g. to /bookings) will trigger a chunk fetch — confirm the Loading fallback shows briefly and resolves.
+
+### Build Status
+- [x] Dashboard `npm run build` (with VITE_API_URL set) — zero errors. 3,139 modules → 40 chunks.
+- [x] Chunk-size warning persists ONLY for `vendor-mapbox` (498 kB gzip — inherent to mapbox-gl). Now it's lazy, so home page no longer pays it.
+
+### Committed
+- [ ] Pending — branch `claude/intelligent-khayyam-ea08f4` (worktree)
+
+### Known Issues / Follow-up
+- The dashboard's preview Vercel deploy uses an existing `prj_9mMO7xEw4oyPwAp0Pu69OTaROdhw` project — env vars (`VITE_API_URL`, `VITE_SUPABASE_*`) are already set there. No env action needed.
+- Local `npm run build` without env vars still fails per the existing env guard. Use `VITE_API_URL=... VITE_SUPABASE_URL=... VITE_SUPABASE_ANON_KEY=... npm run build` or rely on Vercel.
+- Next obvious follow-up: lazy-load individual dashboard widgets so Recharts (112.58 kB gzip) is only fetched when a chart widget is actually visible. Today the DashboardLayoutEngine statically imports all widgets.
+
+---
+
 ## 2026-05-16 — Mobile-first Sprint 2: customer-site code splitting + lazy Stripe + lazy signature_pad
 
 **Why:** Sprint 1 fixed iOS hygiene but left the biggest mobile performance problem alone: `vite-plugin-singlefile` was bundling the entire customer app — Stripe SDK, signature_pad, every route, every wizard step — into one inlined 926 kB HTML (238 kB gzip). Every visitor downloaded everything on first paint, even users who never reach `/confirm` or `/portal`. This sprint restores proper Rollup code-splitting, lazy-loads heavy routes via `React.lazy()`, and breaks the Stripe SDK out of the constants module so it stops side-effect-loading on every page.
