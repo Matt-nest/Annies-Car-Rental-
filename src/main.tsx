@@ -2,6 +2,7 @@ import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 import App from './App.tsx';
+import { registerSW } from './pwa/registerSW';
 import './index.css';
 
 createRoot(document.getElementById('root')!).render(
@@ -12,3 +13,7 @@ createRoot(document.getElementById('root')!).render(
     <SpeedInsights />
   </StrictMode>,
 );
+
+// Register the production service worker after the app mounts.
+// No-op in dev (kills HMR) and in test environments (Playwright sets webdriver).
+registerSW();

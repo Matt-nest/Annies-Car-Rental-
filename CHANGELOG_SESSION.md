@@ -5,6 +5,95 @@
 
 ---
 
+## 2026-05-16 — Mobile-first Sprint 5a: customer site PWA (service worker + enhanced manifest)
+
+**Why:** PWA was the user's explicitly-approved scope (web push deferred to Sprint 5b — requires backend VAPID/subscription infrastructure). Returning customers can now "Add to Home Screen" and get an app-like standalone experience: cached shell loads instantly, fonts and images are warm on second visit, the back/forward buttons feel native, and on iOS 16.4+ the install lays the groundwork for future web push.
+
+**Scope:** 5 files (2 new, 3 modified) + 2 new dev dependencies. Customer site only. Dashboard PWA is a separate slice. Risk-mitigated: SW does NOT auto-update — uses an in-app prompt before swapping caches mid-session, critical for a checkout flow.
+
+**Skill grounding:** `progressive-web-app`, `web-performance-optimization`. Research: WebKit web push for iOS Home Screen apps blog post (iOS 16.4+), Workbox docs on `registerType: 'prompt'` pattern, web.dev manifest spec.
+
+### Build (1 file)
+- `vite.config.ts` — added `VitePWA({...})` plugin. Configuration highlights:
+  - `registerType: 'prompt'` — the new SW installs in the background and stays "waiting" until the user accepts an in-app refresh prompt. **Never silently swaps caches mid-booking.**
+  - `manifest: false` + `injectRegister: false` — we hand-manage `public/site.webmanifest` so designers/SEO can review JSON changes in source control. The plugin only generates the SW + workbox runtime.
+  - `globPatterns` precaches the **shell only** (JS / CSS / HTML / SVG / favicons / woff2). Photos in `/public` (hero, fleet, driver shots) and lazy route chunks are NOT precached — they runtime-cache via StaleWhileRevalidate as the user navigates. Result: **precache size 670 KiB / 11 entries** instead of the 45 MB the default config produced.
+  - `globIgnores` explicitly excludes the lazy route chunks (ConfirmBooking, CustomerPortal, etc.) so they don't get precached either — keeps the install fast.
+  - `clientsClaim: true` + `skipWaiting: false` — the new SW takes control on activate, but only activates when the user accepts the prompt.
+  - `navigateFallback: '/index.html'` + `navigateFallbackDenylist: [/^\/api\//, /^\/admin/]` — SPA routes resolve offline; the backend API is never intercepted.
+  - 4 runtime caching rules:
+    - Google Fonts CSS → StaleWhileRevalidate
+    - Google Fonts woff2 → CacheFirst, 1-year TTL, 30 entries
+    - Same-origin `/assets/*` (hashed chunks) → CacheFirst, 30-day TTL, 100 entries
+    - Same-origin image requests → StaleWhileRevalidate, 30-day TTL, 60 entries
+  - `devOptions: { enabled: false }` — SW is never registered in `vite dev` (kills HMR).
+
+### Service worker registration (1 new file)
+- `src/pwa/registerSW.ts` (NEW, 100 lines):
+  - Uses `workbox-window`'s `Workbox` class directly (the same library `vite-plugin-pwa` uses under the hood; gives us first-class lifecycle event access).
+  - **Skips registration in three cases:** server-side, dev (HMR conflict), automated tests (`navigator.webdriver`).
+  - Listens for `'waiting'` event → renders a tiny vanilla-JS toast (no React import) at the bottom of the viewport with safe-area-inset-bottom padding. Toast uses CSS variables so it inherits the active theme without coupling to ThemeContext.
+  - Toast has two affordances: "Refresh" (calls `messageSkipWaiting()` + reloads when the new SW takes control) and "×" (dismiss).
+  - SW registration failures are caught and logged — non-fatal. The app keeps working as a regular website.
+- `src/main.tsx` — imports `registerSW` and calls it after the React tree is mounted. Production-only thanks to the dev guard inside the function.
+
+### Enhanced manifest (1 file)
+- `public/site.webmanifest` — expanded from the minimal 22-line manifest to the production-ready 60-line version per the PWA Builder spec:
+  - Added `description`, `id: "/"`, `start_url: "/?source=pwa"` (source-tagged for analytics), `scope: "/"`, `lang: "en-US"`, `dir: "ltr"`.
+  - Added `display_override: ["standalone", "minimal-ui"]` so older browsers without `display_override` support fall back to `standalone` cleanly.
+  - Added `orientation: "portrait"` (matches Annie's customers' use case — phone in portrait).
+  - Updated `theme_color` from `#E8A825` (gold-ish) to `#0A0A0A` (dark theme primary) to match the Sprint 1 `<meta name="theme-color">` choice. The gold was the brand accent, not the UI chrome.
+  - Updated `background_color` from `#000000` to `#0A0A0A` — exact match to `--bg-primary` in dark mode (light mode users see the splash briefly then transition to the actual theme).
+  - Added `categories: ["travel", "automotive", "business"]` (App Store / Play Store category hints for future packaging).
+  - Each icon entry duplicated with `purpose: "any"` AND `purpose: "maskable"` — the original only had maskable. Now Android dynamic-island masking + iOS full-icon both work correctly.
+  - Added two `shortcuts` entries: "Browse Fleet" → `/?source=pwa#fleet` and "Manage Rental" → `/portal?source=pwa`. Long-pressing the home-screen icon on Android now shows these as a context menu.
+
+### Bundle delta
+
+| | Sprint 4 | Sprint 5a | Delta |
+|---|---|---|---|
+| Homepage `index.js` (gzip) | 41.29 kB | **44.38 kB** | +3.09 kB — `workbox-window` Workbox class is eagerly imported into main.tsx |
+| New SW + workbox runtime | (none) | `sw.js` + `workbox-4516e109.js` | ~25 kB raw, cached by browser after first load |
+| Precache footprint | (none) | **670 KiB / 11 entries** | tight shell only |
+| Total homepage first-paint gzip | ~170 kB | ~173 kB | +3 kB acceptable trade |
+
+The +3 kB on homepage is the price of admission for the SW lifecycle code. Could be lazy-loaded (dynamic import inside `registerSW`) as a future micro-optimization but: SW only registers in production, after first paint, and after the React tree mounts — so the load happens after LCP. Not worth the complexity yet.
+
+### What this does NOT do (deferred)
+
+- **Web push notifications (Sprint 5b)** — Requires backend infrastructure: VAPID keypair generation, `/api/push/subscribe` + `/api/push/unsubscribe` endpoints on the Express backend, a `push_subscriptions` table in Supabase, integration with the existing `notifyService.js` so notifications can target opted-in browser subscribers. iOS 16.4+ supports web push from installed PWAs only. ~6 hours of backend work; flagged as its own slice.
+- **Dashboard PWA (Sprint 5c)** — Same plugin, different config (admin-only routes, longer offline horizon for field check-in work). Separate sprint.
+- **Offline page fallback** — Currently if a user visits a page that's not in cache and they're offline, they see the browser's default offline page. A custom branded `/offline.html` could be added; deferred until we know if users actually go offline.
+- **iOS install prompt** — iOS Safari does not expose `beforeinstallprompt`. The Share → Add to Home Screen flow is manual. Could add an iOS-specific instructional banner; deferred until we measure how many users install.
+
+### API/Data Impact
+- None. The SW deny-lists `/api/*` paths. The backend booking flow / Stripe payment intent / customer portal API are untouched and always go straight to the network.
+
+### Hard rules respected
+- `api/client.js` (N/A on customer site — uses `src/config.ts`), `auth/*` (customer site is unauthenticated), notification templates, Supabase schema — all untouched
+- CSS variables — none renamed; the toast UI references existing tokens (`--bg-elevated`, `--text-primary`, `--accent-color`, etc.)
+
+### Files That Need Verification
+- **Vercel preview deploy** — must be a production build (Vercel does this automatically for branch deploys). Open the preview in Chrome DevTools → Application → Service Workers → confirm sw.js is registered, status "activated".
+- **Add-to-Home-Screen flow on iPhone Safari** — open the preview, tap Share → Add to Home Screen. Open the installed app — should load standalone (no browser chrome), display the splash with the dark theme, and start at `?source=pwa`.
+- **Add-to-Home-Screen on Android Chrome** — should prompt automatically after 30s of engagement (or via the address bar menu). The two shortcuts (Browse Fleet / Manage Rental) should appear when long-pressing the home-screen icon.
+- **SW update flow** — push two deploys in succession. On the second deploy, the user should see the bottom-center "A new version is available — Refresh / ×" toast. Tapping Refresh should reload to the new version without breaking the current page state.
+- **Offline behavior** — load the home page online, go offline in DevTools, reload — should still render (shell + fonts + last-seen images from runtime cache). Booking flow (POST /api/...) should fail gracefully with a clear error.
+- **Dev environment** — `npm run dev` should NOT register an SW. Confirm `import.meta.env.DEV` guards the registration.
+
+### Build Status
+- [x] Customer site `npm run build` — zero errors. PWA emitted: `dist/sw.js` + `dist/workbox-*.js`. Precache 670 KiB / 11 entries. Bundle parity except for +3 kB on home for workbox-window.
+
+### Committed
+- [ ] Pending — branch `claude/intelligent-khayyam-ea08f4` (worktree)
+
+### Known Issues / Follow-up
+- **Sprint 5b — Web push:** backend VAPID + subscription endpoints + integration with `notifyService.js`. iOS 16.4+ only, requires home-screen install first (conversion typically <5% per the research doc — set expectations accordingly).
+- **Sprint 5c — Dashboard PWA:** admin-only PWA. Useful for field check-in work but lower priority than customer-side.
+- Lighthouse PWA category should be re-run on the preview deploy to confirm a green checkmark on every category.
+
+---
+
 ## 2026-05-16 — Mobile-first Sprint 4: modern web platform polish
 
 **Why:** Polish-tier sprint with the cheapest, most-cited CSS + browser API wins from the research doc — `text-wrap: balance` (eliminates orphan words on headlines), Speculation Rules API (near-instant fleet→detail navigation on Chrome/Edge), and a bfcache audit (verifies the back button feels instant on mobile). Everything degrades cleanly on unsupported browsers.
