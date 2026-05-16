@@ -28,6 +28,7 @@ import {
   type WizardDraft,
 } from './confirm-booking/constants';
 import { getStripe } from './confirm-booking/stripeClient';
+import { useKeyboardInset } from '../../hooks/useKeyboardInset';
 
 // Stripe SDK is loaded here (not in constants.ts) so importing wizard helpers
 // elsewhere doesn't pull in @stripe/stripe-js.
@@ -306,6 +307,10 @@ export default function ConfirmBooking() {
     window.location.href = '/#' + section;
   }, []);
 
+  // Mobile keyboard tracking — when iOS keyboard opens, expand bottom padding
+  // of the wizard so the focused input + Continue button can scroll into view.
+  const keyboardInset = useKeyboardInset();
+
   const refCode = getRefCode();
   const [theme, setTheme] = useState(() =>
     document.documentElement.getAttribute('data-theme') || 'dark'
@@ -500,7 +505,18 @@ export default function ConfirmBooking() {
   return (
     <>
       <Navbar onNavigate={scrollToSection} />
-      <div className="min-h-dvh px-4" style={{ paddingTop: '100px', paddingBottom: '80px' }}>
+      <div
+        className="min-h-dvh px-4"
+        style={{
+          paddingTop: '100px',
+          // Bottom padding expands by the keyboard height so the Continue
+          // button can be scrolled into view on iOS. Adds 16px breathing room
+          // above the keyboard. Falls back to the original 80px on desktop /
+          // when keyboard is closed (keyboardInset === 0).
+          paddingBottom: keyboardInset > 0 ? `${keyboardInset + 16}px` : '80px',
+          transition: 'padding-bottom 200ms ease-out',
+        }}
+      >
         <div className="max-w-lg mx-auto">
           {/* Header */}
           <motion.div

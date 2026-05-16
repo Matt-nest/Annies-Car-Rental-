@@ -5,6 +5,78 @@
 
 ---
 
+## 2026-05-16 — Mobile-first Sprint 3c: keyboard-aware booking wizard + huge tappable lockbox code
+
+**Why:** Two specific mobile UX gaps remained on the customer site after Sprint 3b. (1) In the booking wizard's text-input steps (Address, License), focusing an input near the bottom of the form opened the iOS keyboard which then covered the "Continue" button — users had to dismiss the keyboard to advance. (2) The customer portal's lockbox code display was visually centered but the only tap target was a small "Tap to Copy" button — Annie's customers were photographing the screen instead of copying. Both are field-day pain points.
+
+**Scope:** 3 files (1 new, 2 modified). All changes behind lazy routes — homepage payload unchanged.
+
+**Skill grounding:** `mobile-design` (touch psychology — visible tap targets, one-thumb reach), `react-patterns` (visualViewport hook pattern). Research: MDN VisualViewport API, web.dev "visualViewport in standalone PWAs."
+
+### New hook (1 file)
+- `src/hooks/useKeyboardInset.ts` (NEW, 49 lines):
+  - Reads `window.visualViewport.height` + `offsetTop` against `window.innerHeight` to compute the current keyboard occlusion in pixels.
+  - Subscribes to `visualViewport.resize` AND `visualViewport.scroll` (the latter catches keyboard-induced viewport scroll events on iOS).
+  - Returns 0 on server, on desktop, and when the keyboard is closed — components can safely call this on every render.
+  - Documented with a research link and explicit reasoning ("CSS `100dvh` does NOT shrink for the keyboard, only for browser chrome").
+
+### Booking wizard keyboard awareness (1 file)
+- `src/components/booking/ConfirmBooking.tsx`:
+  - Imported `useKeyboardInset` and called it at the top of the component (always on, even during loading/error states — cheap because the hook returns 0 when the keyboard is closed).
+  - The wizard container's `paddingBottom` now switches to `${keyboardInset + 16}px` when the keyboard is open. The user can now scroll the focused input + the Continue button into view; before the change, the Continue button was rendered ~80 px above the bottom and was hidden under the keyboard.
+  - Added `transition: 'padding-bottom 200ms ease-out'` so the layout change is smooth, not jarring.
+  - Loading/error/missing-ref states are unaffected (they don't have form inputs).
+
+### Lockbox code — full-size tap target with copied feedback (2 changes in 1 file)
+- `src/components/portal/CustomerPortal.tsx`:
+  - Added `lockboxCopied` state (boolean) alongside the existing `lockbox` state.
+  - Imported `CheckCircle2` icon (was missing from the lucide-react bulk import).
+  - Wrapped the giant `<p>` rendering the code in a `<button type="button">` with a dashed border so the entire 5xl/6xl code block is a single tap target. The text inside uses `select-all` so users can also long-press to select.
+  - Clicking either the code itself OR the existing "Tap to Copy" button now triggers `navigator.clipboard.writeText(lockbox)` + `setLockboxCopied(true)` + a 1.8s timer.
+  - When copied, the small "Tap to Copy" button morphs into a green "Copied!" pill with `CheckCircle2` icon via `AnimatePresence mode="wait"`. The transition is 0.18s — fast enough to feel responsive, slow enough to register.
+  - Added `aria-label="Copy lockbox code {code}"` to the giant button for screen readers.
+  - Used the `.tap-target` utility (44×44 min from Sprint 1) on the "Tap to Copy" button.
+
+### Bundle delta
+
+| | Sprint 3b | Sprint 3c | Delta |
+|---|---|---|---|
+| Homepage gzip | ~170 kB | **~170 kB** | 0 (no home-loaded code changed) |
+| ConfirmBooking (lazy) | 17.75 kB gzip | 17.94 kB gzip | +0.19 kB (hook usage + condition) |
+| CustomerPortal (lazy) | 14.14 kB gzip | 14.35 kB gzip | +0.21 kB (state + button + copied pill) |
+
+### What this does NOT do (deferred)
+
+- **CustomerPortal full single-column rework** — the lockbox code is now the most mobile-polished piece of the portal, but the rest of the portal (deposit summary, invoice section, dispute submission, photo upload grid) still has its existing responsive layout. A future pass should audit all CustomerPortal sections for single-column flow at <768 px and make all the photo uploaders use `capture="environment"` for camera-first capture.
+- **QuickViewModal Vaul migration** — still on the deferred list; its image carousel + reviews + rate toggle structure deserves its own slice.
+- **Wizard input focus auto-scroll** — iOS auto-scrolls the focused input into view but is unreliable. A `scrollIntoView({ block: 'center' })` on focus is a follow-up if user testing shows it's needed.
+
+### API/Data Impact
+- None. No portal API calls changed. No clipboard side-effects beyond the `writeText`. The lockbox state machine is byte-identical.
+
+### Hard rules respected
+- `api/client.js`, `auth/*`, Supabase schema, notification templates — untouched
+- No CSS variables renamed; reused `var(--text-primary)`, `var(--text-tertiary)`
+- All new state is component-local; no context changes
+
+### Files That Need Verification
+- **iPhone Safari, booking wizard:** open `/confirm?ref=<valid-code>`, advance to the Address step, focus the city or zip input near the bottom of the form, confirm the Continue button is reachable via a short scroll (NOT hidden under the keyboard). Repeat on the License step.
+- **iPhone Safari, customer portal:** complete check-in to reveal the lockbox code, tap the giant code, confirm the haptic-style press feedback (`active:scale-[0.98]`), confirm "Copied!" pill appears for 1.8s, paste-test the code in Notes app to confirm it really copied. Also long-press the code to confirm text selection still works.
+- **Android Chrome** — same flow; visualViewport behavior is slightly different but the hook returns valid values on both.
+- **Desktop:** confirm no regression. `useKeyboardInset` returns 0 on desktop → `paddingBottom` stays at `80px`. The lockbox code button still works with mouse click → same flow.
+
+### Build Status
+- [x] Customer site `npm run build` — zero errors. Bundle deltas as documented above.
+
+### Committed
+- [ ] Pending — branch `claude/intelligent-khayyam-ea08f4` (worktree)
+
+### Known Issues / Follow-up
+- Full CustomerPortal mobile audit (photo uploaders, dispute form, deposit summary) is the next slice.
+- The `transition` on padding-bottom can cause one-frame layout judder on slow Androids; if anyone reports it, drop the transition behind `@media (prefers-reduced-motion: no-preference)` (we already honor reduced-motion globally).
+
+---
+
 ## 2026-05-16 — Mobile-first Sprint 3b: Vaul bottom sheet + Vehicle Detail sticky CTA
 
 **Why:** The customer site's modals were small centered overlays on every viewport. On a phone they clipped at the edges, the close-X required a stretch with the thumb, and the inquiry form keyboard pushed content off-screen. Vaul (~20 KB gzip, ~3 KB of API surface) is the modern bottom-sheet primitive — handles drag-to-dismiss, focus-trap, ESC, body-scroll-lock, and accessibility for free. Combined with a sticky "Book Now" CTA on Vehicle Detail (the conversion-critical page), this sprint closes the biggest mobile UX gaps on the customer site.
