@@ -1,13 +1,16 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, lazy, Suspense } from 'react';
 import { ArrowUpDown, ChevronDown, TrendingUp, ArrowRight, Phone, MessageSquare } from 'lucide-react';
 import RateToggle from './RateToggle';
 import { AnimatePresence, motion } from 'motion/react';
 import { useVehicles } from '../../hooks/useVehicles';
 import { Vehicle, SortOption, FilterCategory, RateMode } from '../../types';
 import VehicleCard from './VehicleCard';
-import MonthlyInquiryModal from './MonthlyInquiryModal';
 import { useTheme } from '../../context/ThemeContext';
 import { EASE } from '../../utils/motion';
+
+// Lazy-loaded so Vaul (~15 KB gzip) doesn't ship in the home chunk.
+// Only fetched when a user taps a monthly-rate inquiry on a vehicle card.
+const MonthlyInquiryModal = lazy(() => import('./MonthlyInquiryModal'));
 
 interface FleetGridProps {
   onSelectVehicle: (vehicle: Vehicle) => void;
@@ -300,15 +303,16 @@ export default function FleetGrid({ onSelectVehicle, rateMode = 'daily', onRateM
         </motion.div>
       )}
 
-      {/* Monthly Inquiry Modal */}
-      <AnimatePresence>
+      {/* Monthly Inquiry Modal — Vaul-powered Sheet (bottom sheet on mobile,
+          centered card on desktop). Lazy-loaded; Vaul only ships when opened. */}
+      <Suspense fallback={null}>
         {monthlyVehicle && (
           <MonthlyInquiryModal
             vehicle={monthlyVehicle}
             onClose={() => setMonthlyVehicle(null)}
           />
         )}
-      </AnimatePresence>
+      </Suspense>
     </section>
   );
 }

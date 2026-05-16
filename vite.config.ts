@@ -24,6 +24,7 @@ export default defineConfig(({ mode }) => {
             if (id.includes('node_modules')) {
               if (id.includes('@stripe')) return 'vendor-stripe';
               if (id.includes('signature_pad')) return 'vendor-signature';
+              if (id.includes('vaul')) return 'vendor-vaul';
               if (id.includes('motion')) return 'vendor-motion';
               if (id.includes('lucide-react')) return 'vendor-icons';
               if (id.includes('react-dom') || id.includes('/react/')) return 'vendor-react';

@@ -5,6 +5,86 @@
 
 ---
 
+## 2026-05-16 — Mobile-first Sprint 3b: Vaul bottom sheet + Vehicle Detail sticky CTA
+
+**Why:** The customer site's modals were small centered overlays on every viewport. On a phone they clipped at the edges, the close-X required a stretch with the thumb, and the inquiry form keyboard pushed content off-screen. Vaul (~20 KB gzip, ~3 KB of API surface) is the modern bottom-sheet primitive — handles drag-to-dismiss, focus-trap, ESC, body-scroll-lock, and accessibility for free. Combined with a sticky "Book Now" CTA on Vehicle Detail (the conversion-critical page), this sprint closes the biggest mobile UX gaps on the customer site.
+
+**Scope:** 5 files (1 new, 4 modified) + Vaul dependency added to root package.json. Build verified clean. Vaul moved into its own lazy-loaded vendor chunk so it does NOT regress homepage payload.
+
+**Skill grounding:** `mobile-design` (decision-tree on modals vs sheets), `ui-ux-pro-max` (sticky CTAs for conversion). Research: Vaul docs, Material Design 3 bottom sheets, iOS HIG sheets pattern.
+
+### Sheet primitive (1 new file)
+- `src/components/common/Sheet.tsx` (NEW, 65 lines):
+  - Thin wrapper around `Drawer.Root` from Vaul.
+  - Bottom-anchored on all breakpoints (matches mobile mental model). `max-width: 28rem` on desktop so it reads as a focused card, not a banner.
+  - Drag handle with `aria-hidden="true"` (dismiss exposed via overlay click + ESC for screen readers).
+  - Safe-area-bottom padding via `env(safe-area-inset-bottom)` so the iOS home indicator doesn't sit on action buttons.
+  - `Drawer.Title` rendered as `sr-only` because Vaul requires it for accessibility but the visual header is the modal's own.
+  - Max-height `96dvh` (Sprint 1's dvh hygiene applies here too).
+
+### Vaul vendor chunk (1 file)
+- `vite.config.ts` — added `vaul` to the `manualChunks` rule, producing a separate `vendor-vaul` chunk (~19.52 kB gzip). This chunk is only fetched when a Vaul-using component renders.
+
+### MonthlyInquiryModal migration (2 files)
+- `src/components/home/MonthlyInquiryModal.tsx` — replaced the hand-rolled centered-card modal (motion-based) with a `<Sheet>` wrapper. The form logic, validation, success state, and API call are byte-identical. Removed: the manual backdrop motion.div, the close button + X icon import, the unused `AnimatePresence` import. The Sheet's overlay click, drag-down, and ESC all dismiss; no close button is needed.
+- `src/components/home/FleetGrid.tsx` — converted `import MonthlyInquiryModal from './MonthlyInquiryModal'` to `lazy(() => import(...))` with a `<Suspense fallback={null}>` wrapper around the conditional render. Result: Vaul (19.52 kB gzip) does NOT load with the home page — only when a user taps a monthly-rate card and the inquiry sheet opens.
+
+### Vehicle Detail sticky CTA (1 file)
+- `src/components/vehicle/VehicleDetailPage.tsx`:
+  - Added a `fixed bottom-0 lg:hidden` bar showing the live price (respects `selectedRate`: `dailyRate` / `weeklyRate` / `monthlyDisplayPrice`) with unit suffix (/day, /wk, /mo).
+  - "Book Now" button on the right smooth-scrolls to `#booking-form` (reuses the existing scroll target wired earlier in this file at line 64). Uses the `.tap-target` utility (44×44 min) and `active:scale-95` for tactile feedback.
+  - Outer page wrapper picks up `pb-[88px] lg:pb-0` so the bottom of the page content isn't hidden behind the sticky bar.
+  - Safe-area-inset-bottom respected via `paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))'`.
+  - `lg:hidden` on the wrapper — desktop layout (which already has a sticky right-rail booking card on lg+) is unchanged.
+
+### Bundle delta
+
+| | After Sprint 2a | After Sprint 3b | Delta |
+|---|---|---|---|
+| Homepage gzip (HTML + CSS + eager JS) | ~170 kB | ~170 kB | **0 kB** ⊕ Vaul demand-loaded |
+| Homepage `index.js` chunk | 42.73 kB gzip | **41.30 kB gzip** | −1.43 kB (lazy MonthlyInquiryModal extracted) |
+| vendor-vaul (new chunk) | (none) | 19.52 kB gzip | demand: opens with the monthly inquiry sheet |
+| MonthlyInquiryModal (new chunk) | (in main bundle) | 2.40 kB gzip | demand: same trigger |
+| VehicleDetailPage | 13.02 kB gzip | 13.30 kB gzip | +0.28 kB (sticky CTA markup) |
+| TOTAL homepage first-paint | ~170 kB | **~170 kB** | even — Vaul deferred |
+
+Net: better UX (drag-to-dismiss sheet + always-visible Book Now CTA), zero homepage payload regression.
+
+### What this does NOT do (deferred)
+
+- **QuickViewModal migration** — currently a full-screen overlay (`inset-2` on mobile). Vaul conversion is possible but the modal has more complex content (image carousel, specs, reviews, rate toggle, dual CTAs). Worth its own slice once UX is decided. The 44px close button bump from Sprint 1 is sufficient hygiene for now.
+- **Keyboard-aware booking wizard** — `useKeyboardInset` hook + `visualViewport.resize` wiring on Address/License/Insurance/Signature step inputs is deferred to Phase 3c. The iOS keyboard still covers the bottom of the booking form on the deepest wizard steps.
+- **Customer portal single-column rework** — Phase 3c.
+- **`text-wrap: balance`, View Transitions, Speculation Rules** — Phase 4 polish.
+
+### API/Data Impact
+- None. The monthly inquiry POST is byte-identical (`/monthly-inquiries` payload unchanged). VehicleDetailPage's smooth-scroll target was already wired.
+
+### Hard rules respected
+- `api/client.js`, `auth/*`, Supabase schema, notification templates — all untouched
+- CSS variables — none renamed; new `Sheet` component uses existing `var(--bg-elevated)`, `var(--border-subtle)`, `var(--text-primary)`, `var(--accent)`, `var(--accent-fg)`
+- Customer site has no widget registry (N/A)
+
+### Files That Need Verification
+- **iPhone: monthly inquiry sheet** — tap a monthly rate card, confirm sheet slides up from bottom, drag handle is visible, dragging down dismisses, the form submits, the success state renders inside the sheet.
+- **iPhone: VehicleDetail sticky CTA** — open any vehicle detail page, confirm the price + Book Now bar is visible above the iOS home indicator, tap Book Now scrolls smoothly to the booking form, switching between Daily/Weekly/Monthly toggle updates the displayed price.
+- **Landscape orientation** — sticky CTA visible (no horizontal scroll), safe-area-inset-bottom still applies (typically 0 in landscape but the `max()` keeps minimum padding).
+- **Desktop regression** — `lg:hidden` is on both the BottomNav and the sticky CTA wrapper. Confirm nothing renders at ≥1024 px on Vehicle Detail; the right-rail booking card is the desktop experience.
+- **Network tab on cold home page load** — confirm `vendor-vaul` chunk is NOT requested until the user taps a monthly card.
+
+### Build Status
+- [x] Customer site `npm run build` — zero errors. 2,201 modules → 21 chunks. Homepage first-paint gzip ~170 kB (Sprint 2a parity).
+
+### Committed
+- [ ] Pending — branch `claude/intelligent-khayyam-ea08f4` (worktree)
+
+### Known Issues / Follow-up
+- Phase 3c: keyboard-aware booking wizard via `useKeyboardInset` + `visualViewport.resize` — biggest remaining mobile UX gap on the customer side.
+- Phase 3c: customer portal single-column mobile rework + huge tappable lockbox code with long-press copy.
+- QuickViewModal Vaul migration as its own slice once UX direction is set.
+
+---
+
 ## 2026-05-16 — Mobile-first Sprint 3a: dashboard mobile bottom navigation
 
 **Why:** The dashboard sidebar is a desktop pattern. On a phone it has to be opened as a drawer for every navigation, which is exactly the friction Annie hits when doing field check-ins from her phone. Per the approved plan, the dashboard's mobile anchor is a bottom-nav for the 4 most-used routes plus a "More" trigger that opens the existing sidebar drawer for everything else. Research backing: Material Design 3 bottom nav (4–5 items max), iOS HIG Tab Bar conventions, mobile-design skill (thumb reach, one-handed use).
