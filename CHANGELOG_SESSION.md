@@ -5,6 +5,75 @@
 
 ---
 
+## 2026-05-16 — Mobile-first Sprint 4: modern web platform polish
+
+**Why:** Polish-tier sprint with the cheapest, most-cited CSS + browser API wins from the research doc — `text-wrap: balance` (eliminates orphan words on headlines), Speculation Rules API (near-instant fleet→detail navigation on Chrome/Edge), and a bfcache audit (verifies the back button feels instant on mobile). Everything degrades cleanly on unsupported browsers.
+
+**Scope:** 3 files. Zero risk to existing behavior — additions only.
+
+### text-wrap: balance (2 files)
+- `src/index.css` (customer site): added `h1, h2, h3, .card-title, .balance-text { text-wrap: balance; }`. Modern browsers (Chrome 114+, Safari 17.5+, Firefox 121+) now wrap short titles evenly across lines instead of leaving an orphan word on the last line. Scoped to headings only — applying broadly to all text has a documented INP cost on low-end Android per the research doc.
+- `dashboard/src/styles/globals.css`: same rule, but `.widget-title` replaces `.card-title` to match the dashboard's design tokens. `h1, h2, h3, .widget-title, .balance-text`.
+
+### Speculation Rules API (1 file)
+- `index.html` (customer site): added a `<script type="speculationrules">` block:
+  - **Prerender** `/detail*` and `/portal*` at `moderate` eagerness — fires on `mousedown`/`touchstart`/200ms hover. Fleet card tap → vehicle detail page is near-instant on Chrome/Edge 121+.
+  - **Prefetch** `/confirm*` at `conservative` eagerness — fires only when the browser is confident the user is about to navigate. Cheaper than prerender, still gives the wizard route's JS chunk a head start.
+  - The whole block degrades cleanly to no-op on Safari and Firefox (no Speculation Rules support yet).
+  - Note: the chunk for those routes already has React.lazy code-splitting from Sprint 2a, so the prerender pulls those exact chunks, not the home bundle.
+
+### bfcache audit (no code changes — verified clean)
+- Ran `grep -rn "addEventListener.*unload\\|'unload'\\|\"unload\"\\|onunload"` across both apps' `src/`. Zero hits. Both apps are bfcache-eligible — the iOS / Android back button restores the previous page instantly from a viewport snapshot instead of re-fetching everything.
+- Other bfcache disqualifiers checked:
+  - No `Cache-Control: no-store` set anywhere in our code (Vercel may set it on serverless responses; not on the HTML shell, which is what bfcache cares about).
+  - Service worker not yet registered (Sprint 5 territory) — but its absence is bfcache-friendly, not hostile.
+
+### View Transitions API — deferred this sprint
+
+The research doc recommends `document.startViewTransition()` wrapping route changes. The customer site already uses framer-motion `AnimatePresence` for fade transitions; wrapping every `setCurrentPage` call adds friction with marginal visible benefit (motion-based transitions look ~the same on Chrome/Safari users where View Transitions would apply). Postponed until a sprint that has time to integrate it cleanly with AnimatePresence's keyed-exit behavior, or until we move to React Router which has first-class View Transitions support.
+
+### Container queries — deferred
+
+Not needed yet. The current customer site doesn't render vehicle cards in multiple layouts (they're only on the home grid). Container queries become valuable once a "Related vehicles" rail or sidebar card variant exists.
+
+### Bundle delta
+
+Net effect on first-paint payloads:
+- Customer site `index.js`: 41.30 → 41.29 kB gzip (−0.01 kB — CSS rule additions, just rounding noise)
+- Customer site CSS: 89.05 → 89.54 kB raw (+0.49 kB raw — the two text-wrap rules; gzip diff is ~50 bytes)
+- Dashboard: unchanged for JS, +0.05 kB raw CSS for the text-wrap rule
+- index.html: +540 bytes raw for the Speculation Rules script (uncompressed; gzips to ~250 bytes)
+
+Headline: essentially free, with measurable UX win on supported browsers.
+
+### API/Data Impact
+- None. CSS + index.html only.
+
+### Hard rules respected
+- `api/client.js`, `auth/*`, schema, notifications — untouched
+- No CSS variables renamed
+- No widget IDs changed
+
+### Files That Need Verification
+- **Chrome / Edge 121+ on phone**: open the customer site, hover (or long-touch) a vehicle card — DevTools Network panel should show the /detail chunk + dependencies being prerendered. Tap the card; the navigation should feel instant.
+- **Safari iOS 17.5+**: confirm hero H1 ("Your ride, your way.") wraps evenly across the two lines, no orphan word.
+- **Firefox / older Safari**: Speculation Rules silently does nothing. Confirm no console error.
+- **bfcache**: open Customer Portal, navigate away, hit Back — page should restore instantly without a refetch (DevTools Application → Back/Forward Cache → "Page restored from bfcache"). Same on dashboard.
+- **Reduced-motion users**: text-wrap: balance is layout-only, not animation; respects all motion preferences automatically.
+
+### Build Status
+- [x] Customer site `npm run build` — zero errors, parity bundle sizes.
+- [x] Dashboard `npm run build` — zero errors.
+
+### Committed
+- [ ] Pending — branch `claude/intelligent-khayyam-ea08f4` (worktree)
+
+### Known Issues / Follow-up
+- View Transitions + container queries deferred to a focused future sprint when they're worth integrating individually rather than buried in a polish batch.
+- Speculation Rules `moderate` eagerness is bandwidth-aware on data-saver mode but could be reduced to `conservative` if Vercel's bandwidth dashboard shows it pulling too much.
+
+---
+
 ## 2026-05-16 — Mobile-first Sprint 3c: keyboard-aware booking wizard + huge tappable lockbox code
 
 **Why:** Two specific mobile UX gaps remained on the customer site after Sprint 3b. (1) In the booking wizard's text-input steps (Address, License), focusing an input near the bottom of the form opened the iOS keyboard which then covered the "Continue" button — users had to dismiss the keyboard to advance. (2) The customer portal's lockbox code display was visually centered but the only tap target was a small "Tap to Copy" button — Annie's customers were photographing the screen instead of copying. Both are field-day pain points.

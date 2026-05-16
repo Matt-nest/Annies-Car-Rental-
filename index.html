@@ -25,6 +25,21 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Speculation Rules — Chrome/Edge 121+. Prerender /detail* (vehicle pages)
+         and /portal* (returning customers) on hover/touchstart for ~moderate
+         eagerness, so first-tap nav from the fleet grid feels instant. Browsers
+         without this API just ignore the script. -->
+    <script type="speculationrules">
+    {
+      "prerender": [
+        { "where": { "href_matches": "/detail*" }, "eagerness": "moderate" },
+        { "where": { "href_matches": "/portal*" }, "eagerness": "moderate" }
+      ],
+      "prefetch": [
+        { "where": { "href_matches": "/confirm*" }, "eagerness": "conservative" }
+      ]
+    }
+    </script>
     <script type="module" src="/src/main.tsx"></script>
     <script
       src="https://widgets.leadconnectorhq.com/loader.js"

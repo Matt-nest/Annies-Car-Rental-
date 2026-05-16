@@ -210,6 +210,13 @@ html.dark {
   justify-content: center;
 }
 
+/* Modern typography niceties — Chrome 114+, Safari 17.5+, Firefox 121+.
+   `balance` makes short titles wrap evenly across lines. Scoped to headings
+   + widget titles so the property's known cost doesn't hit data rows. */
+h1, h2, h3, .widget-title, .balance-text {
+  text-wrap: balance;
+}
+
 /* ─── Components ────────────────────────────────────────────────────────────── */
 @layer components {
 

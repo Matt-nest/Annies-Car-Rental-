@@ -94,6 +94,13 @@
   justify-content: center;
 }
 
+/* Modern typography niceties — Chrome 114+, Safari 17.5+, Firefox 121+.
+   `balance` makes short titles wrap evenly across lines (no one-word last line).
+   Scoped to headings only — applying broadly hurts INP on low-end Android. */
+h1, h2, h3, .card-title, .balance-text {
+  text-wrap: balance;
+}
+
 /* === Easing System === */
 :root {
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
