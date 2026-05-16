@@ -5,6 +5,803 @@
 
 ---
 
+## 2026-05-16 — Mobile-first Sprint 6a: dashboard widget-level lazy + remove eager mapbox modulepreload
+
+**Why:** Sprint 2b put each dashboard route behind `React.lazy()` but the home page still eagerly imported all 12 widgets — and KPICardsWidget + RevenueTrendWidget both use Recharts. So `vendor-charts` (112 kB gzip) was always in the home critical path. Worse: while wiring this up I discovered Vite's `manualChunks` was injecting `modulepreload` hints for vendor-mapbox (498 kB gzip) on every dashboard page, even though only TelematicsPage uses mapbox-gl. Combined fix: lazy widgets for the two chart-using widgets + remove the single-consumer libs from manualChunks so Vite can co-locate them with their lazy routes.
+
+**Scope:** 2 files. Substantial first-paint impact: dashboard home eager bundle **322 kB → 211 kB gzip (−34%)** and mapbox-gl no longer downloads on the home page.
+
+### Dashboard widget engine (1 file)
+- `dashboard/src/components/dashboard/DashboardLayoutEngine.jsx`:
+  - Two specific widgets converted to `React.lazy()`: `KPICardsWidget` and `RevenueTrendWidget` (the only Recharts users in the widget registry).
+  - The other 10 widgets stay eager — they're small, tightly coupled to WidgetWrapper, and Suspense-wrapping every widget adds friction without a chunk win.
+  - New `FALLBACKS` map produces size-matched skeletons:
+    - `'kpi-cards'` → `<SkeletonKpi count={5} />` (5 cards × 120 px minHeight)
+    - `'revenue-trend'` → `<SkeletonChartCard height={350} />`
+    - Default for other lazy widgets if added later → `<SkeletonCard />`
+  - Render loop wraps each visible widget in `<Suspense fallback={...}>` so toggle-visibility from Settings still works.
+  - **CLS prevention**: skeleton heights match the real widgets' rendered heights → zero layout shift when the lazy chunk resolves.
+
+### vite.config.js manualChunks tightening (1 file)
+- `dashboard/vite.config.js`:
+  - **Removed** from manualChunks: `mapbox-gl`/`react-map-gl`, `recharts`/`d3-*`, `@stripe`, `signature_pad`, `@dnd-kit`. These libs are each used by exactly one or two lazy routes — manualChunking them created shared vendor chunks that Vite then injected as `modulepreload` hints on the entry HTML, effectively making them eager.
+  - **Kept** in manualChunks: `framer-motion`, `react-router`, `lucide-react`, `@supabase`, `react-dom`/`react`. These ARE eager (used across the dashboard chrome) so explicit named chunks give cache stability across deploys.
+  - Result: Vite now auto-co-locates mapbox-gl into TelematicsPage's chunk (or auto-splits to a peer chunk only reachable via the lazy route), Recharts into the lazy widget chunks (via a shared `generateCategoricalChart-*.js` peer chunk that loads with the widgets that need it), @dnd-kit into SettingsPage + MessagingPage, etc.
+
+### PWA precache globIgnores updated (same file)
+- The globIgnores list previously referenced the old chunk names (`vendor-mapbox-*`, `vendor-charts-*`, etc.) which no longer exist. Updated to the auto-split names: `mapbox-gl-*`, `generateCategoricalChart-*`, `AreaChart-*`, `sortable.esm-*`, `@stripe-*`, `signature_pad-*`. Also added the two new lazy widget chunks (`KPICardsWidget-*`, `RevenueTrendWidget-*`). Without this fix the precache ballooned to 3.1 MB; with it, **precache stays at 928 KiB / 29 entries** — shell only.
+
+### Bundle delta — dashboard home
+
+| | Sprint 5c | Sprint 6a | Delta |
+|---|---|---|---|
+| `index.js` (gzip) | 44.38 kB | 43.47 kB | −0.91 kB |
+| `vendor-charts` (gzip) | 112.58 kB **eager** | (auto-split into KPICardsWidget+RevenueTrendWidget peer chunk) — **lazy** | −112.58 kB from critical path |
+| `vendor-mapbox` (gzip) | 498.74 kB **modulepreloaded** | now `mapbox-gl-*.js` co-located with TelematicsPage chunk — **lazy** | −498.74 kB from background fetch |
+| Total eager (HTML preload graph) | ~322 kB gzip | **~211 kB gzip** | **−111 kB / −34%** |
+| Mapbox over-the-wire on first visit | 498 kB gzip (modulepreload) | **0 kB** (no preload, no fetch) | massive admin UX win |
+| Precache footprint | 899 KiB | 928 KiB | +29 KiB (lazy chunk entries added) |
+
+The eager dashboard home now loads only what's actually rendered on the dashboard landing page. Charts skeleton in for ~200ms then fill with real data; in human-perception terms it's seamless because the skeleton is exactly the same height/grid layout as the rendered widget.
+
+### What this does NOT do (deferred)
+
+- **VehicleRevenueWidget + RevenueHeatmapWidget lazy** — these don't use Recharts (plain bars / heatmap) so they don't pull vendor-charts. Lazy-loading them too would save ~3 kB gzip each, not worth the per-widget Suspense overhead.
+- **Dashboard widget engine settings** — Settings page's drag-to-reorder still uses dnd-kit; not refactored.
+- **Recharts tree-shaking inside KPICardsWidget** — KPICards uses sparkline area charts; if we ever drop the sparkline, the `AreaChart-*` chunk goes too. Not worth a separate sprint until the design changes.
+
+### API/Data Impact
+- None.
+
+### Hard rules respected
+- `api/client.js`, `auth/*` — untouched
+- `DashboardLayoutEngine.jsx` — modified but stays compatible with widgetConfig.js IDs (the WIDGET_COMPONENTS map keys are unchanged); blast radius is internal-only.
+- `widgetConfig.js`, `useWidgetLayout.js`, `DashboardLayoutSettings.jsx` — untouched. The widget toggle UX is unchanged.
+- `WidgetWrapper.jsx` — untouched. Each lazy widget renders its own WidgetWrapper internally as before.
+- `Modal.jsx`, `Sidebar.jsx`, `BottomNav.jsx`, all 12 widget files — untouched
+- CSS variables — none renamed
+- Supabase schema — untouched
+
+### Files That Need Verification
+- **Cold-load /** on dashboard preview deploy:
+  - Network tab: confirm `mapbox-gl-*.js` is NOT in the initial fetch list.
+  - Confirm `KPICardsWidget-*.js` + `RevenueTrendWidget-*.js` + the Recharts peer chunk DO fetch (with `defer` priority via `dynamic` import) right after first paint.
+  - Confirm SkeletonKpi (5 cards) and SkeletonChartCard render in the right places before the real widgets mount.
+- **Toggle widget visibility** in Settings: hide KPICardsWidget → reload `/` → confirm the lazy chunks for KPI + Recharts peer DO NOT load.
+- **Telematics navigation**: from `/`, navigate to `/telematics` → confirm the mapbox-gl chunk fetches at that point.
+- **Lighthouse mobile** on `/`: home page first contentful paint and time to interactive should improve measurably.
+
+### Build Status
+- [x] Dashboard `npm run build` (with env vars) — zero errors. 3,139 modules, 40 chunks. Precache 928 KiB / 29 entries. mapbox-gl chunk size warning persists (inherent to mapbox-gl itself, not new).
+
+### Committed
+- [ ] Pending — branch `claude/intelligent-khayyam-ea08f4` (worktree)
+
+### Known Issues / Follow-up
+- Sprint 6b: customer portal photo uploaders should use `capture="environment"` on `<input type="file">` so phones open the camera first instead of the photo picker. Real field-day improvement for check-in / inspection photos.
+- The `vendor-charts` chunk no longer exists; the equivalent code is now in `generateCategoricalChart-*.js` and `AreaChart-*.js`. If anything downstream relies on the named chunk (CDN cache strategies, etc.), they'd need a one-time invalidation.
+
+---
+
+## 2026-05-16 — Mobile-first Sprint 5c: dashboard PWA (service worker + manifest)
+
+**Why:** Same PWA upgrade as Sprint 5a, but for the admin dashboard. Annie + staff can now "Add to Home Screen" on their phones for field check-in work — the admin shell loads instantly from cache even on a flaky connection at a curbside pickup. Web push deferred to Sprint 5b (backend work).
+
+**Scope:** 4 files (1 new, 3 modified) + 2 new dev dependencies. Same risk-mitigation as Sprint 5a: SW does NOT auto-update mid-session.
+
+### Build (1 file)
+- `dashboard/vite.config.js` — added `VitePWA({...})` with admin-tuned config:
+  - Same `registerType: 'prompt'`, `manifest: false`, `injectRegister: false` pattern as the customer site.
+  - **Aggressive `globIgnores`** to keep the precache small — excludes `vendor-mapbox*` (498 kB gzip), `vendor-charts*` (Recharts, 112 kB gzip), `vendor-stripe*`, `vendor-signature*`, `vendor-dnd*`, plus the heavy page chunks (TelematicsPage, BookingDetailPage, MessagingPage, SettingsPage, RevenuePage, InsurancePage, PricingRulesPage). These all runtime-cache on demand as admins navigate.
+  - **Result: precache 899.57 KiB / 29 entries** — the admin shell + light routes only. Compare to 670 KiB on the customer side (dashboard has more eager state code).
+  - `navigateFallbackDenylist: [/^\/api\//, /^\/login/, /^\/oauth/]` — never intercept login/auth/OAuth callbacks (the dashboard talks to backend at /api and Bouncie OAuth lives at /oauth).
+  - Image cache rule extended to include `*.supabase.co` (rental-photos bucket) so vehicle thumbnails + check-in photos are stale-while-revalidate cached.
+
+### Service worker registration (1 new file)
+- `dashboard/src/pwa/registerSW.js` (NEW, 90 lines): JavaScript version of the customer site's `registerSW.ts`. Admin-flavored toast copy ("A new admin build is ready"). Toast positioned `bottom: 80px` (above the BottomNav from Sprint 3a, with safe-area-inset-bottom factored in via `calc()`). Uses dashboard CSS vars (`--bg-elevated: #1F2A37`, `--accent-color: #465FFF`).
+- `dashboard/src/main.jsx` — imports `registerSW` and calls it after the React tree mounts.
+
+### Enhanced manifest (1 file)
+- `dashboard/public/site.webmanifest` — expanded from 22 lines → 50:
+  - `name`: "Annie's Car Rental — Admin", `short_name`: "Annie's Admin"
+  - `description`, `id: "/"`, `start_url: "/?source=pwa"`, `scope`, `lang`, `dir`
+  - `display_override` + `orientation: "any"` (admin work happens in both portrait and landscape)
+  - `theme_color: "#111928"` (matches Sprint 1's dark mode theme-color meta — `--bg-primary` in dark)
+  - `background_color: "#111928"`
+  - `categories: ["business", "productivity"]`
+  - Each icon has `any` + `maskable` variants
+  - Two shortcuts: "Today's Bookings" → `/bookings?source=pwa` and "Fleet Status" → `/fleet?source=pwa`
+
+### Bundle delta
+
+| | Sprint 2b/3a | Sprint 5c | Delta |
+|---|---|---|---|
+| Dashboard home gzip | ~322 kB | **~325 kB** | +3 kB (workbox-window) |
+| Precache footprint | (none) | 899 KiB / 29 entries | shell only — heavy vendors excluded |
+| `sw.js` + `workbox-*.js` | (none) | ~25 kB raw | cached after first load |
+
+### What this does NOT do (deferred)
+
+- **Sprint 5b — Web push backend**: shared with customer site. Single VAPID keypair, two subscription endpoints (customer + admin), Supabase `push_subscriptions` table, `notifyService.js` integration. ~6 hours of backend work. Required for the iOS 16.4+ install-only push to fire.
+- **Background sync for offline check-in**: the admin field check-in tab could queue mutations offline (via Workbox Background Sync API on Chrome/Edge, IndexedDB queue + retry-on-online on iOS). Useful for poor reception at pickup locations. Separate slice.
+- **Offline /bookings list**: currently the bookings list is API-only and won't render offline. Could add a last-known-state IndexedDB cache. Defer.
+
+### API/Data Impact
+- None. All `/api/*` requests bypass the SW entirely. Login flow (`/login`, `/oauth/*`) is denied in `navigateFallbackDenylist`. Supabase Storage reads (`*.supabase.co`) are SWR-cached as images.
+
+### Hard rules respected
+- `api/client.js`, `auth/*` (AuthProvider, supabaseClient, ProtectedRoute, LoginPage), Modal, Sidebar, BottomNav, all 25 widgets, all CSS variables — untouched
+- `notifyService.js` and email templates — N/A (backend)
+- Supabase schema — untouched
+
+### Files That Need Verification
+- **Vercel preview** dashboard URL → DevTools → Application → Service Workers → confirm registered + activated.
+- **Add to Home Screen on Android Chrome** while logged into the admin — should install with dark-themed icon. After install, two long-press shortcuts visible (Today's Bookings / Fleet Status).
+- **Update prompt** — push a second deploy; confirm the bottom-center toast appears with dashboard-themed styling (indigo Refresh button). Position should sit above the BottomNav (bottom: 80px + safe-area) on mobile.
+- **Login bypass** — confirm hitting `/login` while offline does NOT serve the cached SPA shell. The denylist should route it directly.
+- **Telematics offline** — open Telematics tab while online, go offline, navigate away and back. The map tiles will fail (Mapbox requires network) but the page chrome and last-known vehicle state should render.
+
+### Build Status
+- [x] Dashboard `npm run build` (with env vars) — zero errors. PWA emitted: `dist/sw.js` + `dist/workbox-*.js`. Precache 899 KiB / 29 entries. Mapbox warning persists (pre-existing, not new).
+
+### Committed
+- [ ] Pending — branch `claude/intelligent-khayyam-ea08f4` (worktree)
+
+### Known Issues / Follow-up
+- Same Sprint 5b backlog as customer site: backend web push.
+- The dashboard has `index.html` updated by Sprint 1 with `viewport-fit=cover` + theme-color — those still apply.
+- After deploy, run Lighthouse PWA against the dashboard preview URL (must be signed in for some routes, but PWA category checks the manifest + SW regardless).
+
+---
+
+## 2026-05-16 — Mobile-first Sprint 5a: customer site PWA (service worker + enhanced manifest)
+
+**Why:** PWA was the user's explicitly-approved scope (web push deferred to Sprint 5b — requires backend VAPID/subscription infrastructure). Returning customers can now "Add to Home Screen" and get an app-like standalone experience: cached shell loads instantly, fonts and images are warm on second visit, the back/forward buttons feel native, and on iOS 16.4+ the install lays the groundwork for future web push.
+
+**Scope:** 5 files (2 new, 3 modified) + 2 new dev dependencies. Customer site only. Dashboard PWA is a separate slice. Risk-mitigated: SW does NOT auto-update — uses an in-app prompt before swapping caches mid-session, critical for a checkout flow.
+
+**Skill grounding:** `progressive-web-app`, `web-performance-optimization`. Research: WebKit web push for iOS Home Screen apps blog post (iOS 16.4+), Workbox docs on `registerType: 'prompt'` pattern, web.dev manifest spec.
+
+### Build (1 file)
+- `vite.config.ts` — added `VitePWA({...})` plugin. Configuration highlights:
+  - `registerType: 'prompt'` — the new SW installs in the background and stays "waiting" until the user accepts an in-app refresh prompt. **Never silently swaps caches mid-booking.**
+  - `manifest: false` + `injectRegister: false` — we hand-manage `public/site.webmanifest` so designers/SEO can review JSON changes in source control. The plugin only generates the SW + workbox runtime.
+  - `globPatterns` precaches the **shell only** (JS / CSS / HTML / SVG / favicons / woff2). Photos in `/public` (hero, fleet, driver shots) and lazy route chunks are NOT precached — they runtime-cache via StaleWhileRevalidate as the user navigates. Result: **precache size 670 KiB / 11 entries** instead of the 45 MB the default config produced.
+  - `globIgnores` explicitly excludes the lazy route chunks (ConfirmBooking, CustomerPortal, etc.) so they don't get precached either — keeps the install fast.
+  - `clientsClaim: true` + `skipWaiting: false` — the new SW takes control on activate, but only activates when the user accepts the prompt.
+  - `navigateFallback: '/index.html'` + `navigateFallbackDenylist: [/^\/api\//, /^\/admin/]` — SPA routes resolve offline; the backend API is never intercepted.
+  - 4 runtime caching rules:
+    - Google Fonts CSS → StaleWhileRevalidate
+    - Google Fonts woff2 → CacheFirst, 1-year TTL, 30 entries
+    - Same-origin `/assets/*` (hashed chunks) → CacheFirst, 30-day TTL, 100 entries
+    - Same-origin image requests → StaleWhileRevalidate, 30-day TTL, 60 entries
+  - `devOptions: { enabled: false }` — SW is never registered in `vite dev` (kills HMR).
+
+### Service worker registration (1 new file)
+- `src/pwa/registerSW.ts` (NEW, 100 lines):
+  - Uses `workbox-window`'s `Workbox` class directly (the same library `vite-plugin-pwa` uses under the hood; gives us first-class lifecycle event access).
+  - **Skips registration in three cases:** server-side, dev (HMR conflict), automated tests (`navigator.webdriver`).
+  - Listens for `'waiting'` event → renders a tiny vanilla-JS toast (no React import) at the bottom of the viewport with safe-area-inset-bottom padding. Toast uses CSS variables so it inherits the active theme without coupling to ThemeContext.
+  - Toast has two affordances: "Refresh" (calls `messageSkipWaiting()` + reloads when the new SW takes control) and "×" (dismiss).
+  - SW registration failures are caught and logged — non-fatal. The app keeps working as a regular website.
+- `src/main.tsx` — imports `registerSW` and calls it after the React tree is mounted. Production-only thanks to the dev guard inside the function.
+
+### Enhanced manifest (1 file)
+- `public/site.webmanifest` — expanded from the minimal 22-line manifest to the production-ready 60-line version per the PWA Builder spec:
+  - Added `description`, `id: "/"`, `start_url: "/?source=pwa"` (source-tagged for analytics), `scope: "/"`, `lang: "en-US"`, `dir: "ltr"`.
+  - Added `display_override: ["standalone", "minimal-ui"]` so older browsers without `display_override` support fall back to `standalone` cleanly.
+  - Added `orientation: "portrait"` (matches Annie's customers' use case — phone in portrait).
+  - Updated `theme_color` from `#E8A825` (gold-ish) to `#0A0A0A` (dark theme primary) to match the Sprint 1 `<meta name="theme-color">` choice. The gold was the brand accent, not the UI chrome.
+  - Updated `background_color` from `#000000` to `#0A0A0A` — exact match to `--bg-primary` in dark mode (light mode users see the splash briefly then transition to the actual theme).
+  - Added `categories: ["travel", "automotive", "business"]` (App Store / Play Store category hints for future packaging).
+  - Each icon entry duplicated with `purpose: "any"` AND `purpose: "maskable"` — the original only had maskable. Now Android dynamic-island masking + iOS full-icon both work correctly.
+  - Added two `shortcuts` entries: "Browse Fleet" → `/?source=pwa#fleet` and "Manage Rental" → `/portal?source=pwa`. Long-pressing the home-screen icon on Android now shows these as a context menu.
+
+### Bundle delta
+
+| | Sprint 4 | Sprint 5a | Delta |
+|---|---|---|---|
+| Homepage `index.js` (gzip) | 41.29 kB | **44.38 kB** | +3.09 kB — `workbox-window` Workbox class is eagerly imported into main.tsx |
+| New SW + workbox runtime | (none) | `sw.js` + `workbox-4516e109.js` | ~25 kB raw, cached by browser after first load |
+| Precache footprint | (none) | **670 KiB / 11 entries** | tight shell only |
+| Total homepage first-paint gzip | ~170 kB | ~173 kB | +3 kB acceptable trade |
+
+The +3 kB on homepage is the price of admission for the SW lifecycle code. Could be lazy-loaded (dynamic import inside `registerSW`) as a future micro-optimization but: SW only registers in production, after first paint, and after the React tree mounts — so the load happens after LCP. Not worth the complexity yet.
+
+### What this does NOT do (deferred)
+
+- **Web push notifications (Sprint 5b)** — Requires backend infrastructure: VAPID keypair generation, `/api/push/subscribe` + `/api/push/unsubscribe` endpoints on the Express backend, a `push_subscriptions` table in Supabase, integration with the existing `notifyService.js` so notifications can target opted-in browser subscribers. iOS 16.4+ supports web push from installed PWAs only. ~6 hours of backend work; flagged as its own slice.
+- **Dashboard PWA (Sprint 5c)** — Same plugin, different config (admin-only routes, longer offline horizon for field check-in work). Separate sprint.
+- **Offline page fallback** — Currently if a user visits a page that's not in cache and they're offline, they see the browser's default offline page. A custom branded `/offline.html` could be added; deferred until we know if users actually go offline.
+- **iOS install prompt** — iOS Safari does not expose `beforeinstallprompt`. The Share → Add to Home Screen flow is manual. Could add an iOS-specific instructional banner; deferred until we measure how many users install.
+
+### API/Data Impact
+- None. The SW deny-lists `/api/*` paths. The backend booking flow / Stripe payment intent / customer portal API are untouched and always go straight to the network.
+
+### Hard rules respected
+- `api/client.js` (N/A on customer site — uses `src/config.ts`), `auth/*` (customer site is unauthenticated), notification templates, Supabase schema — all untouched
+- CSS variables — none renamed; the toast UI references existing tokens (`--bg-elevated`, `--text-primary`, `--accent-color`, etc.)
+
+### Files That Need Verification
+- **Vercel preview deploy** — must be a production build (Vercel does this automatically for branch deploys). Open the preview in Chrome DevTools → Application → Service Workers → confirm sw.js is registered, status "activated".
+- **Add-to-Home-Screen flow on iPhone Safari** — open the preview, tap Share → Add to Home Screen. Open the installed app — should load standalone (no browser chrome), display the splash with the dark theme, and start at `?source=pwa`.
+- **Add-to-Home-Screen on Android Chrome** — should prompt automatically after 30s of engagement (or via the address bar menu). The two shortcuts (Browse Fleet / Manage Rental) should appear when long-pressing the home-screen icon.
+- **SW update flow** — push two deploys in succession. On the second deploy, the user should see the bottom-center "A new version is available — Refresh / ×" toast. Tapping Refresh should reload to the new version without breaking the current page state.
+- **Offline behavior** — load the home page online, go offline in DevTools, reload — should still render (shell + fonts + last-seen images from runtime cache). Booking flow (POST /api/...) should fail gracefully with a clear error.
+- **Dev environment** — `npm run dev` should NOT register an SW. Confirm `import.meta.env.DEV` guards the registration.
+
+### Build Status
+- [x] Customer site `npm run build` — zero errors. PWA emitted: `dist/sw.js` + `dist/workbox-*.js`. Precache 670 KiB / 11 entries. Bundle parity except for +3 kB on home for workbox-window.
+
+### Committed
+- [ ] Pending — branch `claude/intelligent-khayyam-ea08f4` (worktree)
+
+### Known Issues / Follow-up
+- **Sprint 5b — Web push:** backend VAPID + subscription endpoints + integration with `notifyService.js`. iOS 16.4+ only, requires home-screen install first (conversion typically <5% per the research doc — set expectations accordingly).
+- **Sprint 5c — Dashboard PWA:** admin-only PWA. Useful for field check-in work but lower priority than customer-side.
+- Lighthouse PWA category should be re-run on the preview deploy to confirm a green checkmark on every category.
+
+---
+
+## 2026-05-16 — Mobile-first Sprint 4: modern web platform polish
+
+**Why:** Polish-tier sprint with the cheapest, most-cited CSS + browser API wins from the research doc — `text-wrap: balance` (eliminates orphan words on headlines), Speculation Rules API (near-instant fleet→detail navigation on Chrome/Edge), and a bfcache audit (verifies the back button feels instant on mobile). Everything degrades cleanly on unsupported browsers.
+
+**Scope:** 3 files. Zero risk to existing behavior — additions only.
+
+### text-wrap: balance (2 files)
+- `src/index.css` (customer site): added `h1, h2, h3, .card-title, .balance-text { text-wrap: balance; }`. Modern browsers (Chrome 114+, Safari 17.5+, Firefox 121+) now wrap short titles evenly across lines instead of leaving an orphan word on the last line. Scoped to headings only — applying broadly to all text has a documented INP cost on low-end Android per the research doc.
+- `dashboard/src/styles/globals.css`: same rule, but `.widget-title` replaces `.card-title` to match the dashboard's design tokens. `h1, h2, h3, .widget-title, .balance-text`.
+
+### Speculation Rules API (1 file)
+- `index.html` (customer site): added a `<script type="speculationrules">` block:
+  - **Prerender** `/detail*` and `/portal*` at `moderate` eagerness — fires on `mousedown`/`touchstart`/200ms hover. Fleet card tap → vehicle detail page is near-instant on Chrome/Edge 121+.
+  - **Prefetch** `/confirm*` at `conservative` eagerness — fires only when the browser is confident the user is about to navigate. Cheaper than prerender, still gives the wizard route's JS chunk a head start.
+  - The whole block degrades cleanly to no-op on Safari and Firefox (no Speculation Rules support yet).
+  - Note: the chunk for those routes already has React.lazy code-splitting from Sprint 2a, so the prerender pulls those exact chunks, not the home bundle.
+
+### bfcache audit (no code changes — verified clean)
+- Ran `grep -rn "addEventListener.*unload\\|'unload'\\|\"unload\"\\|onunload"` across both apps' `src/`. Zero hits. Both apps are bfcache-eligible — the iOS / Android back button restores the previous page instantly from a viewport snapshot instead of re-fetching everything.
+- Other bfcache disqualifiers checked:
+  - No `Cache-Control: no-store` set anywhere in our code (Vercel may set it on serverless responses; not on the HTML shell, which is what bfcache cares about).
+  - Service worker not yet registered (Sprint 5 territory) — but its absence is bfcache-friendly, not hostile.
+
+### View Transitions API — deferred this sprint
+
+The research doc recommends `document.startViewTransition()` wrapping route changes. The customer site already uses framer-motion `AnimatePresence` for fade transitions; wrapping every `setCurrentPage` call adds friction with marginal visible benefit (motion-based transitions look ~the same on Chrome/Safari users where View Transitions would apply). Postponed until a sprint that has time to integrate it cleanly with AnimatePresence's keyed-exit behavior, or until we move to React Router which has first-class View Transitions support.
+
+### Container queries — deferred
+
+Not needed yet. The current customer site doesn't render vehicle cards in multiple layouts (they're only on the home grid). Container queries become valuable once a "Related vehicles" rail or sidebar card variant exists.
+
+### Bundle delta
+
+Net effect on first-paint payloads:
+- Customer site `index.js`: 41.30 → 41.29 kB gzip (−0.01 kB — CSS rule additions, just rounding noise)
+- Customer site CSS: 89.05 → 89.54 kB raw (+0.49 kB raw — the two text-wrap rules; gzip diff is ~50 bytes)
+- Dashboard: unchanged for JS, +0.05 kB raw CSS for the text-wrap rule
+- index.html: +540 bytes raw for the Speculation Rules script (uncompressed; gzips to ~250 bytes)
+
+Headline: essentially free, with measurable UX win on supported browsers.
+
+### API/Data Impact
+- None. CSS + index.html only.
+
+### Hard rules respected
+- `api/client.js`, `auth/*`, schema, notifications — untouched
+- No CSS variables renamed
+- No widget IDs changed
+
+### Files That Need Verification
+- **Chrome / Edge 121+ on phone**: open the customer site, hover (or long-touch) a vehicle card — DevTools Network panel should show the /detail chunk + dependencies being prerendered. Tap the card; the navigation should feel instant.
+- **Safari iOS 17.5+**: confirm hero H1 ("Your ride, your way.") wraps evenly across the two lines, no orphan word.
+- **Firefox / older Safari**: Speculation Rules silently does nothing. Confirm no console error.
+- **bfcache**: open Customer Portal, navigate away, hit Back — page should restore instantly without a refetch (DevTools Application → Back/Forward Cache → "Page restored from bfcache"). Same on dashboard.
+- **Reduced-motion users**: text-wrap: balance is layout-only, not animation; respects all motion preferences automatically.
+
+### Build Status
+- [x] Customer site `npm run build` — zero errors, parity bundle sizes.
+- [x] Dashboard `npm run build` — zero errors.
+
+### Committed
+- [ ] Pending — branch `claude/intelligent-khayyam-ea08f4` (worktree)
+
+### Known Issues / Follow-up
+- View Transitions + container queries deferred to a focused future sprint when they're worth integrating individually rather than buried in a polish batch.
+- Speculation Rules `moderate` eagerness is bandwidth-aware on data-saver mode but could be reduced to `conservative` if Vercel's bandwidth dashboard shows it pulling too much.
+
+---
+
+## 2026-05-16 — Mobile-first Sprint 3c: keyboard-aware booking wizard + huge tappable lockbox code
+
+**Why:** Two specific mobile UX gaps remained on the customer site after Sprint 3b. (1) In the booking wizard's text-input steps (Address, License), focusing an input near the bottom of the form opened the iOS keyboard which then covered the "Continue" button — users had to dismiss the keyboard to advance. (2) The customer portal's lockbox code display was visually centered but the only tap target was a small "Tap to Copy" button — Annie's customers were photographing the screen instead of copying. Both are field-day pain points.
+
+**Scope:** 3 files (1 new, 2 modified). All changes behind lazy routes — homepage payload unchanged.
+
+**Skill grounding:** `mobile-design` (touch psychology — visible tap targets, one-thumb reach), `react-patterns` (visualViewport hook pattern). Research: MDN VisualViewport API, web.dev "visualViewport in standalone PWAs."
+
+### New hook (1 file)
+- `src/hooks/useKeyboardInset.ts` (NEW, 49 lines):
+  - Reads `window.visualViewport.height` + `offsetTop` against `window.innerHeight` to compute the current keyboard occlusion in pixels.
+  - Subscribes to `visualViewport.resize` AND `visualViewport.scroll` (the latter catches keyboard-induced viewport scroll events on iOS).
+  - Returns 0 on server, on desktop, and when the keyboard is closed — components can safely call this on every render.
+  - Documented with a research link and explicit reasoning ("CSS `100dvh` does NOT shrink for the keyboard, only for browser chrome").
+
+### Booking wizard keyboard awareness (1 file)
+- `src/components/booking/ConfirmBooking.tsx`:
+  - Imported `useKeyboardInset` and called it at the top of the component (always on, even during loading/error states — cheap because the hook returns 0 when the keyboard is closed).
+  - The wizard container's `paddingBottom` now switches to `${keyboardInset + 16}px` when the keyboard is open. The user can now scroll the focused input + the Continue button into view; before the change, the Continue button was rendered ~80 px above the bottom and was hidden under the keyboard.
+  - Added `transition: 'padding-bottom 200ms ease-out'` so the layout change is smooth, not jarring.
+  - Loading/error/missing-ref states are unaffected (they don't have form inputs).
+
+### Lockbox code — full-size tap target with copied feedback (2 changes in 1 file)
+- `src/components/portal/CustomerPortal.tsx`:
+  - Added `lockboxCopied` state (boolean) alongside the existing `lockbox` state.
+  - Imported `CheckCircle2` icon (was missing from the lucide-react bulk import).
+  - Wrapped the giant `<p>` rendering the code in a `<button type="button">` with a dashed border so the entire 5xl/6xl code block is a single tap target. The text inside uses `select-all` so users can also long-press to select.
+  - Clicking either the code itself OR the existing "Tap to Copy" button now triggers `navigator.clipboard.writeText(lockbox)` + `setLockboxCopied(true)` + a 1.8s timer.
+  - When copied, the small "Tap to Copy" button morphs into a green "Copied!" pill with `CheckCircle2` icon via `AnimatePresence mode="wait"`. The transition is 0.18s — fast enough to feel responsive, slow enough to register.
+  - Added `aria-label="Copy lockbox code {code}"` to the giant button for screen readers.
+  - Used the `.tap-target` utility (44×44 min from Sprint 1) on the "Tap to Copy" button.
+
+### Bundle delta
+
+| | Sprint 3b | Sprint 3c | Delta |
+|---|---|---|---|
+| Homepage gzip | ~170 kB | **~170 kB** | 0 (no home-loaded code changed) |
+| ConfirmBooking (lazy) | 17.75 kB gzip | 17.94 kB gzip | +0.19 kB (hook usage + condition) |
+| CustomerPortal (lazy) | 14.14 kB gzip | 14.35 kB gzip | +0.21 kB (state + button + copied pill) |
+
+### What this does NOT do (deferred)
+
+- **CustomerPortal full single-column rework** — the lockbox code is now the most mobile-polished piece of the portal, but the rest of the portal (deposit summary, invoice section, dispute submission, photo upload grid) still has its existing responsive layout. A future pass should audit all CustomerPortal sections for single-column flow at <768 px and make all the photo uploaders use `capture="environment"` for camera-first capture.
+- **QuickViewModal Vaul migration** — still on the deferred list; its image carousel + reviews + rate toggle structure deserves its own slice.
+- **Wizard input focus auto-scroll** — iOS auto-scrolls the focused input into view but is unreliable. A `scrollIntoView({ block: 'center' })` on focus is a follow-up if user testing shows it's needed.
+
+### API/Data Impact
+- None. No portal API calls changed. No clipboard side-effects beyond the `writeText`. The lockbox state machine is byte-identical.
+
+### Hard rules respected
+- `api/client.js`, `auth/*`, Supabase schema, notification templates — untouched
+- No CSS variables renamed; reused `var(--text-primary)`, `var(--text-tertiary)`
+- All new state is component-local; no context changes
+
+### Files That Need Verification
+- **iPhone Safari, booking wizard:** open `/confirm?ref=<valid-code>`, advance to the Address step, focus the city or zip input near the bottom of the form, confirm the Continue button is reachable via a short scroll (NOT hidden under the keyboard). Repeat on the License step.
+- **iPhone Safari, customer portal:** complete check-in to reveal the lockbox code, tap the giant code, confirm the haptic-style press feedback (`active:scale-[0.98]`), confirm "Copied!" pill appears for 1.8s, paste-test the code in Notes app to confirm it really copied. Also long-press the code to confirm text selection still works.
+- **Android Chrome** — same flow; visualViewport behavior is slightly different but the hook returns valid values on both.
+- **Desktop:** confirm no regression. `useKeyboardInset` returns 0 on desktop → `paddingBottom` stays at `80px`. The lockbox code button still works with mouse click → same flow.
+
+### Build Status
+- [x] Customer site `npm run build` — zero errors. Bundle deltas as documented above.
+
+### Committed
+- [ ] Pending — branch `claude/intelligent-khayyam-ea08f4` (worktree)
+
+### Known Issues / Follow-up
+- Full CustomerPortal mobile audit (photo uploaders, dispute form, deposit summary) is the next slice.
+- The `transition` on padding-bottom can cause one-frame layout judder on slow Androids; if anyone reports it, drop the transition behind `@media (prefers-reduced-motion: no-preference)` (we already honor reduced-motion globally).
+
+---
+
+## 2026-05-16 — Mobile-first Sprint 3b: Vaul bottom sheet + Vehicle Detail sticky CTA
+
+**Why:** The customer site's modals were small centered overlays on every viewport. On a phone they clipped at the edges, the close-X required a stretch with the thumb, and the inquiry form keyboard pushed content off-screen. Vaul (~20 KB gzip, ~3 KB of API surface) is the modern bottom-sheet primitive — handles drag-to-dismiss, focus-trap, ESC, body-scroll-lock, and accessibility for free. Combined with a sticky "Book Now" CTA on Vehicle Detail (the conversion-critical page), this sprint closes the biggest mobile UX gaps on the customer site.
+
+**Scope:** 5 files (1 new, 4 modified) + Vaul dependency added to root package.json. Build verified clean. Vaul moved into its own lazy-loaded vendor chunk so it does NOT regress homepage payload.
+
+**Skill grounding:** `mobile-design` (decision-tree on modals vs sheets), `ui-ux-pro-max` (sticky CTAs for conversion). Research: Vaul docs, Material Design 3 bottom sheets, iOS HIG sheets pattern.
+
+### Sheet primitive (1 new file)
+- `src/components/common/Sheet.tsx` (NEW, 65 lines):
+  - Thin wrapper around `Drawer.Root` from Vaul.
+  - Bottom-anchored on all breakpoints (matches mobile mental model). `max-width: 28rem` on desktop so it reads as a focused card, not a banner.
+  - Drag handle with `aria-hidden="true"` (dismiss exposed via overlay click + ESC for screen readers).
+  - Safe-area-bottom padding via `env(safe-area-inset-bottom)` so the iOS home indicator doesn't sit on action buttons.
+  - `Drawer.Title` rendered as `sr-only` because Vaul requires it for accessibility but the visual header is the modal's own.
+  - Max-height `96dvh` (Sprint 1's dvh hygiene applies here too).
+
+### Vaul vendor chunk (1 file)
+- `vite.config.ts` — added `vaul` to the `manualChunks` rule, producing a separate `vendor-vaul` chunk (~19.52 kB gzip). This chunk is only fetched when a Vaul-using component renders.
+
+### MonthlyInquiryModal migration (2 files)
+- `src/components/home/MonthlyInquiryModal.tsx` — replaced the hand-rolled centered-card modal (motion-based) with a `<Sheet>` wrapper. The form logic, validation, success state, and API call are byte-identical. Removed: the manual backdrop motion.div, the close button + X icon import, the unused `AnimatePresence` import. The Sheet's overlay click, drag-down, and ESC all dismiss; no close button is needed.
+- `src/components/home/FleetGrid.tsx` — converted `import MonthlyInquiryModal from './MonthlyInquiryModal'` to `lazy(() => import(...))` with a `<Suspense fallback={null}>` wrapper around the conditional render. Result: Vaul (19.52 kB gzip) does NOT load with the home page — only when a user taps a monthly-rate card and the inquiry sheet opens.
+
+### Vehicle Detail sticky CTA (1 file)
+- `src/components/vehicle/VehicleDetailPage.tsx`:
+  - Added a `fixed bottom-0 lg:hidden` bar showing the live price (respects `selectedRate`: `dailyRate` / `weeklyRate` / `monthlyDisplayPrice`) with unit suffix (/day, /wk, /mo).
+  - "Book Now" button on the right smooth-scrolls to `#booking-form` (reuses the existing scroll target wired earlier in this file at line 64). Uses the `.tap-target` utility (44×44 min) and `active:scale-95` for tactile feedback.
+  - Outer page wrapper picks up `pb-[88px] lg:pb-0` so the bottom of the page content isn't hidden behind the sticky bar.
+  - Safe-area-inset-bottom respected via `paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))'`.
+  - `lg:hidden` on the wrapper — desktop layout (which already has a sticky right-rail booking card on lg+) is unchanged.
+
+### Bundle delta
+
+| | After Sprint 2a | After Sprint 3b | Delta |
+|---|---|---|---|
+| Homepage gzip (HTML + CSS + eager JS) | ~170 kB | ~170 kB | **0 kB** ⊕ Vaul demand-loaded |
+| Homepage `index.js` chunk | 42.73 kB gzip | **41.30 kB gzip** | −1.43 kB (lazy MonthlyInquiryModal extracted) |
+| vendor-vaul (new chunk) | (none) | 19.52 kB gzip | demand: opens with the monthly inquiry sheet |
+| MonthlyInquiryModal (new chunk) | (in main bundle) | 2.40 kB gzip | demand: same trigger |
+| VehicleDetailPage | 13.02 kB gzip | 13.30 kB gzip | +0.28 kB (sticky CTA markup) |
+| TOTAL homepage first-paint | ~170 kB | **~170 kB** | even — Vaul deferred |
+
+Net: better UX (drag-to-dismiss sheet + always-visible Book Now CTA), zero homepage payload regression.
+
+### What this does NOT do (deferred)
+
+- **QuickViewModal migration** — currently a full-screen overlay (`inset-2` on mobile). Vaul conversion is possible but the modal has more complex content (image carousel, specs, reviews, rate toggle, dual CTAs). Worth its own slice once UX is decided. The 44px close button bump from Sprint 1 is sufficient hygiene for now.
+- **Keyboard-aware booking wizard** — `useKeyboardInset` hook + `visualViewport.resize` wiring on Address/License/Insurance/Signature step inputs is deferred to Phase 3c. The iOS keyboard still covers the bottom of the booking form on the deepest wizard steps.
+- **Customer portal single-column rework** — Phase 3c.
+- **`text-wrap: balance`, View Transitions, Speculation Rules** — Phase 4 polish.
+
+### API/Data Impact
+- None. The monthly inquiry POST is byte-identical (`/monthly-inquiries` payload unchanged). VehicleDetailPage's smooth-scroll target was already wired.
+
+### Hard rules respected
+- `api/client.js`, `auth/*`, Supabase schema, notification templates — all untouched
+- CSS variables — none renamed; new `Sheet` component uses existing `var(--bg-elevated)`, `var(--border-subtle)`, `var(--text-primary)`, `var(--accent)`, `var(--accent-fg)`
+- Customer site has no widget registry (N/A)
+
+### Files That Need Verification
+- **iPhone: monthly inquiry sheet** — tap a monthly rate card, confirm sheet slides up from bottom, drag handle is visible, dragging down dismisses, the form submits, the success state renders inside the sheet.
+- **iPhone: VehicleDetail sticky CTA** — open any vehicle detail page, confirm the price + Book Now bar is visible above the iOS home indicator, tap Book Now scrolls smoothly to the booking form, switching between Daily/Weekly/Monthly toggle updates the displayed price.
+- **Landscape orientation** — sticky CTA visible (no horizontal scroll), safe-area-inset-bottom still applies (typically 0 in landscape but the `max()` keeps minimum padding).
+- **Desktop regression** — `lg:hidden` is on both the BottomNav and the sticky CTA wrapper. Confirm nothing renders at ≥1024 px on Vehicle Detail; the right-rail booking card is the desktop experience.
+- **Network tab on cold home page load** — confirm `vendor-vaul` chunk is NOT requested until the user taps a monthly card.
+
+### Build Status
+- [x] Customer site `npm run build` — zero errors. 2,201 modules → 21 chunks. Homepage first-paint gzip ~170 kB (Sprint 2a parity).
+
+### Committed
+- [ ] Pending — branch `claude/intelligent-khayyam-ea08f4` (worktree)
+
+### Known Issues / Follow-up
+- Phase 3c: keyboard-aware booking wizard via `useKeyboardInset` + `visualViewport.resize` — biggest remaining mobile UX gap on the customer side.
+- Phase 3c: customer portal single-column mobile rework + huge tappable lockbox code with long-press copy.
+- QuickViewModal Vaul migration as its own slice once UX direction is set.
+
+---
+
+## 2026-05-16 — Mobile-first Sprint 3a: dashboard mobile bottom navigation
+
+**Why:** The dashboard sidebar is a desktop pattern. On a phone it has to be opened as a drawer for every navigation, which is exactly the friction Annie hits when doing field check-ins from her phone. Per the approved plan, the dashboard's mobile anchor is a bottom-nav for the 4 most-used routes plus a "More" trigger that opens the existing sidebar drawer for everything else. Research backing: Material Design 3 bottom nav (4–5 items max), iOS HIG Tab Bar conventions, mobile-design skill (thumb reach, one-handed use).
+
+**Scope:** 3 files (1 new component, 2 modified). Sidebar untouched (drawer behavior preserved). `h-screen` → `h-dvh` fix in DashboardLayout caught a leftover from Sprint 1.
+
+### Components (1 new file)
+- `dashboard/src/components/layout/BottomNav.jsx` (NEW, 88 lines):
+  - 4 destinations + 1 "More" button = 5 slots (research max).
+  - Items: Home (`/`), Bookings (`/bookings`, with `pending_approvals` alert badge), Fleet (`/fleet`), Clients (`/customers`). "More" trigger opens the existing Sidebar drawer via the `onOpenMore` callback prop.
+  - `lg:hidden` so the bar only renders below 1024 px; desktop is unchanged.
+  - Tap targets use the `.tap-target` utility (44×44 min) on every slot.
+  - Safe-area-bottom padding via `.safe-bottom` so the bar sits above the iOS home indicator.
+  - Active state pulled from react-router's `NavLink` so `/bookings/:id` correctly lights the Bookings tab.
+  - Alert badge is positioned absolutely (`-top-1 -right-2`) on the icon, matching Sidebar's alert badge style.
+  - Icons match Sidebar so admins recognize the same affordance on phone and desktop.
+
+### Layout integration (2 modified files)
+- `dashboard/src/components/layout/DashboardLayout.jsx`:
+  - Imported `BottomNav`.
+  - Replaced `h-screen` → `h-dvh` (leftover from Sprint 1; was using the URL-bar-leaky `100vh`).
+  - Added `pb-[calc(64px+env(safe-area-inset-bottom))] lg:pb-0` to `<main>` so page content doesn't sit behind the bottom bar on mobile; padding collapses at `lg+`.
+  - Rendered `<BottomNav onOpenMore={() => setSidebarOpen(true)} />` after the main column. The existing `sidebarOpen` state already powered the mobile drawer triggered by the header hamburger — `onOpenMore` reuses it so the "More" button works identically.
+- `dashboard/src/components/layout/Sidebar.jsx` — NOT modified. The existing mobile drawer behavior (open via `sidebarOpen` prop, dismiss via `onClose`) is reused as-is. Zero risk to its consumers.
+
+### What this does NOT do (deferred)
+
+- **Hide the header hamburger on mobile** — it still exists. Two ways to open the drawer on mobile (hamburger AND More) is fine for one release; we can hide the hamburger in a follow-up if it feels redundant after Annie tries it.
+- **Customer site bottom-nav** — not needed; the customer site's mobile nav is the hamburger + sticky-CTA pattern, which is correct for marketing/conversion. The customer Navbar already got safe-area-top in Sprint 1.
+- **Custom "More" sheet** — currently "More" opens the existing Sidebar drawer (full-screen on mobile). A future enhancement could give "More" a shorter bottom-sheet of the remaining routes instead of the full Sidebar, but reusing the existing drawer is the lower-risk move.
+- **Dashboard Phase 3b** — BookingDetailPage tabs, photo uploads with camera capture, single-column portal mobile layout — all next sprint.
+
+### API/Data Impact
+- None. Reuses `useAlerts()` context which already exists.
+
+### Hard rules respected
+- `api/client.js` — untouched
+- `auth/*` — untouched
+- `Sidebar.jsx` — untouched (props compatible; new caller is BottomNav using an existing setter)
+- `Modal.jsx`, `StatusBadge.jsx`, `Skeleton.jsx`, `WidgetWrapper.jsx`, `EmptyState.jsx` — untouched
+- CSS variables — none renamed; `.tap-target` and `.safe-bottom` utilities used (added in Sprint 1)
+- `globals.css` — untouched
+- Widget IDs — untouched
+- Supabase schema — untouched
+
+### Files That Need Verification
+- **Real iPhone walkthrough** of the BottomNav:
+  - Bottom bar sits above the home indicator (safe-area visible as breathing room)
+  - Tapping each of the 5 items navigates without zooming
+  - Alert badge appears on Bookings when there are pending approvals
+  - "More" opens the full Sidebar drawer
+  - Active tab highlights correctly on deep-linked pages (e.g. `/bookings/abc123` highlights Bookings)
+- **Landscape orientation** — bottom-nav still visible, safe-area-left/right is respected (already in `.safe-bottom` utility).
+- **Desktop regression** — `lg:hidden` is on BottomNav root → confirm nothing renders at ≥1024 px. Sidebar still works as before; hamburger still toggles pinned/unpinned on desktop.
+- **All 20 lazy-loaded routes** — navigating to each from BottomNav should fetch the corresponding chunk on first visit, then be instant on repeat visits.
+
+### Build Status
+- [x] Dashboard `npm run build` — zero errors. Eager bundle 42.10 → 42.48 kB gzip (+0.38 kB for BottomNav). Total chunk count unchanged.
+
+### Committed
+- [ ] Pending — branch `claude/intelligent-khayyam-ea08f4` (worktree)
+
+### Known Issues / Follow-up
+- Phase 3 customer site (Vaul bottom sheets + keyboard-aware booking wizard + Vehicle Detail sticky CTA + single-column portal) is the next slice.
+- Once Annie tries the bottom-nav on a phone, consider hiding the header hamburger button on mobile (it's currently redundant with "More").
+
+---
+
+## 2026-05-16 — Mobile-first Sprint 2b: dashboard code splitting + lazy mapbox + lazy routes
+
+**Why:** Sprint 2a fixed the customer site. The dashboard had the same shape of problem but worse: 1,608 kB single JS bundle (425 kB gzip) plus a 1,781 kB mapbox-gl chunk (498 kB gzip) that loaded eagerly the moment a user opened TelematicsPage — and was forced into the dashboard bundle even for admins who never visit Telematics. Most admin work happens on Dashboard / Bookings / Fleet; mapbox shouldn't be on the critical path. Same fix as Sprint 2a: route-level `React.lazy()` + hand-tuned vendor manualChunks.
+
+**Scope:** 2 files (vite.config.js + App.jsx). Zero hard-rule files touched. Build verified clean. Dashboard home gzip drops ~103 kB; mapbox (498 kB gzip) demoted from eager to demand-loaded.
+
+### Build (1 file)
+- `dashboard/vite.config.js` — added explicit `manualChunks` function:
+  - `vendor-mapbox` (`mapbox-gl`, `react-map-gl`) — 1,801 kB / **498.74 kB gzip** — only loads on /telematics
+  - `vendor-charts` (`recharts`, `d3-*`) — 422 kB / 112.58 kB gzip — eager (Dashboard widgets use it)
+  - `vendor-stripe` (`@stripe/*`) — only loads on /stripe + booking payment
+  - `vendor-signature` (`signature_pad`) — only loads when AgreementSection mounts
+  - `vendor-dnd` (`@dnd-kit/*`) — 45.88 kB / 15.28 kB gzip — Settings + Messaging Timeline
+  - `vendor-motion` (`framer-motion`, `motion-dom`, `motion-utils`) — 42.01 kB gzip — eager
+  - `vendor-router` (`react-router-dom`) — 23.33 kB / 8.60 kB gzip — eager
+  - `vendor-icons` (`lucide-react`) — 39.98 kB / 7.49 kB gzip — eager
+  - `vendor-supabase` (`@supabase/*`) — 193.82 kB / 50.95 kB gzip — eager (auth)
+  - `vendor-react` — 144.68 kB / 46.61 kB gzip — eager
+
+### Route-level lazy loading (1 file)
+- `dashboard/src/App.jsx` — converted 20 page imports to `React.lazy()`. Eager pages: `LoginPage` (auth flow), `DashboardPage` (home), `DashboardLayout` (shell). Everything else lazy.
+- Added a `RouteFallback` component (8 lines) styled with `min-h-dvh` + dashboard CSS vars.
+- Added an `L = (el) => <Suspense fallback={...}>{el}</Suspense>` helper to keep the routes table compact instead of 20 individual Suspense wrappers.
+
+### Bundle delta
+
+| Page first-paint | Sprint 1 baseline | Sprint 2b result | Delta |
+|---|---|---|---|
+| Dashboard home (gzip JS+CSS) | **~425 kB** (single bundle + mapbox forced in) | **~322 kB** (chunked, parallel; mapbox excluded) | **−103 kB** |
+| /telematics extra payload | (already loaded) | +mapbox **498.74 kB** + TelematicsPage 8.08 kB ≈ 507 kB | only on first visit |
+| /bookings/:id extra | (already loaded) | +BookingDetailPage **22.06 kB** | only when opened |
+| /messaging extra | (already loaded) | +dnd 15.28 + MessagingPage 17.75 ≈ 33 kB | only when opened |
+| /settings extra | (already loaded) | +dnd 15.28 + SettingsPage 12.41 ≈ 28 kB | only when opened |
+| /revenue extra | (already loaded) | +RevenuePage 4.94 kB (charts already eager) | only when opened |
+
+Headline: admin who works the Dashboard + Bookings flow now downloads **~24% less JS** on first paint. An admin who never opens Telematics (or maybe opens it once a week) no longer pays a 500 kB gzip tax on every cold load.
+
+### What this does NOT do (deferred to later sprints)
+
+- **Widget-level Recharts lazy** — `vendor-charts` (112.58 kB gzip) is still eager because the DashboardPage widget engine statically imports all widgets. Splitting widget chunks (lazy-load individual widgets via the WidgetWrapper) is a follow-up; cheapest path is `React.lazy` inside `DashboardLayoutEngine.WIDGET_COMPONENTS` map, with a Skeleton fallback.
+- **Bouncie chart libs / Telematics tabs** — the 6 internal tabs of TelematicsPage could be lazy-loaded too, but the mapbox-gl chunk dominates that page's payload by 10× so optimizing tab chunks is low ROI until mapbox itself shrinks.
+- **AgreementSection signature_pad** — already moved to vendor-signature; verify that BookingDetailPage's AgreementSection actually triggers the demand load by clicking through (network tab).
+
+### API/Data Impact
+- None. No `api/client.js` calls changed. No backend changes. No Supabase queries changed.
+
+### Hard rules respected
+- `api/client.js` — untouched
+- `auth/*` (AuthProvider, ProtectedRoute, LoginPage, supabaseClient) — untouched; LoginPage stays eager so login isn't gated behind a chunk fetch
+- `DashboardLayout` — untouched and stays eager (the shell)
+- `DashboardPage` — untouched and stays eager (the home)
+- Supabase schema — untouched
+- Notification system — untouched
+- Widget IDs — N/A (widget engine not changed)
+- CSS variables — none renamed
+
+### Files That Need Verification
+- **Cold-load every nav target** on a Vercel preview deploy with network throttled to Fast 3G. Confirm each lazy route fetches a single chunk and renders without console errors. Specifically check:
+  - /bookings/:id (BookingDetailPage is the biggest non-mapbox lazy chunk at 22 kB gzip + booking-tabs)
+  - /telematics (mapbox-gl fetches; vendor-mapbox.css + .js should both appear in Network)
+  - /messaging (dnd fetches for Timeline)
+  - /settings (dnd fetches for DashboardLayoutSettings)
+- **AnimatePresence-like transitions** — dashboard uses framer-motion in some places; verify nothing visibly flashes on lazy fetch over local dev.
+- **Login flow** — LoginPage stays eager, so login → / redirect should be instant. After login, DashboardPage shouldn't suspend (it's eager). First navigation away (e.g. to /bookings) will trigger a chunk fetch — confirm the Loading fallback shows briefly and resolves.
+
+### Build Status
+- [x] Dashboard `npm run build` (with VITE_API_URL set) — zero errors. 3,139 modules → 40 chunks.
+- [x] Chunk-size warning persists ONLY for `vendor-mapbox` (498 kB gzip — inherent to mapbox-gl). Now it's lazy, so home page no longer pays it.
+
+### Committed
+- [ ] Pending — branch `claude/intelligent-khayyam-ea08f4` (worktree)
+
+### Known Issues / Follow-up
+- The dashboard's preview Vercel deploy uses an existing `prj_9mMO7xEw4oyPwAp0Pu69OTaROdhw` project — env vars (`VITE_API_URL`, `VITE_SUPABASE_*`) are already set there. No env action needed.
+- Local `npm run build` without env vars still fails per the existing env guard. Use `VITE_API_URL=... VITE_SUPABASE_URL=... VITE_SUPABASE_ANON_KEY=... npm run build` or rely on Vercel.
+- Next obvious follow-up: lazy-load individual dashboard widgets so Recharts (112.58 kB gzip) is only fetched when a chart widget is actually visible. Today the DashboardLayoutEngine statically imports all widgets.
+
+---
+
+## 2026-05-16 — Mobile-first Sprint 2: customer-site code splitting + lazy Stripe + lazy signature_pad
+
+**Why:** Sprint 1 fixed iOS hygiene but left the biggest mobile performance problem alone: `vite-plugin-singlefile` was bundling the entire customer app — Stripe SDK, signature_pad, every route, every wizard step — into one inlined 926 kB HTML (238 kB gzip). Every visitor downloaded everything on first paint, even users who never reach `/confirm` or `/portal`. This sprint restores proper Rollup code-splitting, lazy-loads heavy routes via `React.lazy()`, and breaks the Stripe SDK out of the constants module so it stops side-effect-loading on every page.
+
+**Scope:** 7 files (1 new, 6 modified). Customer site only. Build verified clean — homepage initial JS gzip drops **~28% (238 → 170 kB)**. Within the research's <170 kB mobile budget.
+
+**Skill grounding:** `web-performance-optimization` (Core Web Vitals, JS budgets). Research backing: web.dev LCP optimization, web.dev "your first performance budget", web.dev INP guidance.
+
+### Build (1 file)
+- `vite.config.ts` — removed `vite-plugin-singlefile` + `viteSingleFile()` plugin + `inlineDynamicImports: true` + `manualChunks: undefined`. Added explicit `manualChunks` function to extract long-lived vendor libs:
+  - `vendor-stripe` (`@stripe/*`) — 5.11 kB gzip — only fetched on /confirm
+  - `vendor-signature` (`signature_pad`) — 4.71 kB gzip — only fetched at wizard step 6
+  - `vendor-motion` (`motion`) — 45.42 kB gzip — eager (home uses it)
+  - `vendor-icons` (`lucide-react`) — 4.52 kB gzip — eager
+  - `vendor-react` (`react`, `react-dom`) — 61.53 kB gzip — eager
+  - Route chunks are auto-split by Vite per `React.lazy()` boundary.
+
+### Stripe extraction (1 new file, 2 modified)
+- `src/components/booking/confirm-booking/stripeClient.ts` (NEW) — exports a `getStripe()` function with a lazy singleton. The `loadStripe()` call happens on first call, not on module import. Detailed comment explains why this split exists.
+- `src/components/booking/confirm-booking/constants.ts` — removed `import { loadStripe }` + `export const stripePromise`. Replaced with a 9-line comment pointing to `stripeClient.ts`. Every wizard step that imported `formatCurrency`, `WizardDraft`, `STAGES` etc. from constants used to side-effect-load the Stripe SDK because `loadStripe()` ran at module top-level. That's gone now.
+- `src/components/booking/ConfirmBooking.tsx` — imports `getStripe` from `stripeClient` instead of `stripePromise` from `constants`. Calls `getStripe()` once at module top to preserve the existing `<Elements stripe={stripePromise}>` pattern; the call only runs when ConfirmBooking is first imported (which is now lazy via React.lazy in App.tsx).
+
+### Route-level lazy loading (1 file)
+- `src/App.tsx` — 7 heavy routes converted to `React.lazy()` + per-route `<Suspense fallback={<RouteFallback />}>`. Home stays eager (LCP path).
+  - `VehicleDetailPage` (13.02 kB gzip chunk)
+  - `ConfirmBooking` (17.75 kB gzip chunk; +Stripe 5.11 kB + signature 4.71 kB on demand)
+  - `RentalAgreementPage` (0.89 kB)
+  - `BookingStatusPage` (2.23 kB)
+  - `CustomerPortal` (14.14 kB)
+  - `PrivacyPolicy` (3.65 kB)
+  - `TermsOfService` (3.39 kB)
+- New `RouteFallback` component (8 lines, inside App.tsx) — uses `min-h-dvh` + CSS-var styling so it matches the rest of the design system.
+- Suspense is per-route (inside each motion.div) rather than a single top-level Suspense, so AnimatePresence's keyed exit animations on the previous page aren't interrupted by the new page's suspending fetch.
+
+### Signature pad lazy import (1 file)
+- `src/components/booking/confirm-booking/wizard-steps/SignatureStep.tsx` — `import SignaturePad from 'signature_pad'` → `import type SignaturePad from 'signature_pad'` (type-only, erased at build). The constructor is dynamic-imported inside the `useEffect` that initializes the canvas. The 4.71 kB gzip library only ships when the user actually reaches wizard step 6 (signature). Added a `cancelled` flag so a quick mode-switch or unmount during the dynamic import doesn't double-initialize the pad.
+
+### Preconnect hints (1 file)
+- `index.html` — added `<link rel="preconnect" href="https://js.stripe.com" crossorigin />` + `<link rel="dns-prefetch" href="https://api.stripe.com" />`. Cuts TLS handshake time on first paint of the wizard (Stripe iframe is rendered server-side by Stripe.js after SDK fetch). Also added `fetchpriority="high"` to the hero image preload that was already present.
+
+### Bundle delta
+
+| Page first-paint | Sprint 1 baseline | Sprint 2 result | Delta |
+|---|---|---|---|
+| Homepage (gzip JS+CSS) | **238.20 kB** (single inlined bundle) | **~170 kB** (chunked, parallel) | **−68 kB (−29%)** |
+| /confirm extra payload | (already in baseline) | +Stripe 5.11 + ConfirmBooking 17.75 + AddStepts ~5 ≈ **28 kB** | only when user reaches /confirm |
+| Wizard step 6 extra | (already in baseline) | +signature_pad **4.71 kB** | only when user reaches signature step |
+| /portal | (already in baseline) | +CustomerPortal **14.14 kB** | only when user visits |
+| /privacy + /terms | (already in baseline) | ~7 kB combined | only when visited |
+
+Headline: a user who visits the homepage and never books anything now downloads **30% less JavaScript** than before. A user who completes a full booking downloads ~the same total — just spread across the journey instead of front-loaded.
+
+### What this does NOT do (deferred to later sprints)
+
+- **AVIF/WebP image pipeline** — `vite-imagetools` setup deferred to its own focused sprint (it touches many img tags across FleetGrid, VehicleDetailPage, Hero variants, reviews, etc.).
+- **Font self-hosting + size-adjust overrides** — Google Fonts with `&display=swap` is fine for Sprint 2; the CLS fix from `size-adjust` requires self-hosting Inter/Playfair Display which is a bigger refactor. Phase 4 polish work.
+- **Service worker / Workbox** — Phase 5 (PWA + push) scope. Manifests exist but no SW yet.
+- **Dashboard Phase 2** — same techniques applicable to dashboard (Recharts lazy, mapbox lazy, route-level lazy) but each requires Phase 2 dashboard-side audit before changing. Skipped this sprint to keep the change set focused.
+
+### API/Data Impact
+- None. Stripe key, all API URLs, all backend endpoints, all wizard logic, all sessionStorage keys — unchanged. The only behavioral difference is _when_ the Stripe SDK loads (on /confirm visit) vs. _when_ it used to load (on every visit).
+
+### Hard rules respected
+- `api/client.js` — untouched
+- `auth/*` — untouched
+- Supabase schema — untouched
+- Notification system — untouched
+- CSS variables — none renamed
+- Widget IDs — N/A (customer site)
+
+### Files That Need Verification
+- **Manual booking-flow smoke test on a Vercel preview deploy:** load /, click Reserve a Vehicle, pick a car, fill the wizard through step 6 (signature), reach payment, confirm Stripe Elements renders. The Stripe and signature loads now happen mid-journey, not on first paint — make sure they actually load when their UI mounts.
+- **Network tab inspection** on a fresh load of /:
+  - Initial page load should NOT include Stripe SDK or signature_pad
+  - Navigating to /confirm triggers the Stripe + ConfirmBooking chunks
+  - Wizard reaching step 6 triggers signature_pad fetch
+- **AnimatePresence transitions** between routes — visually verify the per-route Suspense fallback isn't visibly flashing on fast networks. If a lazy chunk takes >100 ms over 4G it'll briefly show the "Loading…" fallback, which is acceptable.
+- **Desktop regression sweep** — none expected; just a delivery mechanism change.
+
+### Build Status
+- [x] Customer site `npm run build` — zero errors. 2,144 modules → 18 chunks. Homepage gzip ~170 kB (target: ≤170 kB per the research's mobile JS budget).
+- [x] No new chunk-size warnings.
+
+### Committed
+- [ ] Pending — branch `claude/intelligent-khayyam-ea08f4` (worktree)
+
+### Known Issues / Follow-up
+- The `RentalAgreement.tsx` (top-level, no -Page suffix) component still imports `signature_pad` eagerly but it's dead code — only re-exported through `src/components/index.ts` which nothing imports. Rollup tree-shakes it. Not worth touching but flagged so a future cleanup PR can delete it.
+- `vendor-react` chunk is 61.53 kB gzip and is loaded on every page. That's a hard floor — React itself plus react-dom. Could trim further via Preact compat but that's high-risk for low return; not worth doing.
+- Dashboard Phase 2 (Recharts lazy, mapbox-gl already in its own chunk but loaded eagerly when TelematicsPage renders, dashboard route-level lazy loading) is the next obvious target.
+
+---
+
+## 2026-05-16 — Mobile-first Sprint 1: iOS hygiene + Speed Insights (customer site + dashboard)
+
+**Why:** First shippable slice of the mobile-first overhaul. Both apps already did several things right (hover gating, prefers-reduced-motion, `-webkit-tap-highlight-color: transparent`, content-visibility on images). Real gaps were iOS Safari–specific: no `viewport-fit=cover`, `100vh`/`h-screen` everywhere (URL-bar overflow bug), inputs at 14px (triggers iOS auto-zoom), no safe-area padding for notch/Dynamic Island/home indicator, sub-44px tap targets on close buttons. This sprint closes those gaps without redesigning anything visual.
+
+**Scope:** 22 source files + 2 lockfiles. Customer site + dashboard. Zero visual regressions intended on desktop. Builds verified clean on both.
+
+**Skill grounding:** `mobile-design` (touch psychology, mobile navigation, decision trees). Research backing: web.dev Core Web Vitals, WCAG 2.5.5 AAA, Apple HIG, MDN dvh/svh/lvh spec, WebKit safe-area-inset docs.
+
+### Customer Site (16 files)
+
+**Foundation**
+- `package.json` + `package-lock.json` — added `@vercel/speed-insights ^2.0.0` for production-only RUM (LCP/INP/CLS field metrics, no-op in dev).
+- `index.html` — added `viewport-fit=cover` (unlocks `env(safe-area-inset-*)`), `theme-color` (dark + light media queries), `mobile-web-app-capable`, `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style: black-translucent`.
+- `src/index.css` — appended a Mobile Foundation block (no existing rules removed):
+  - **16px font-size** on every `input`/`select`/`textarea` — eliminates iOS auto-zoom on focus (the spec's <16px trigger applies on iOS 17/18 in 2026).
+  - **`touch-action: manipulation`** on buttons/anchors/labels/summary/submit — removes the 300ms double-tap-zoom delay without breaking pinch-zoom on content.
+  - **`.h-dvh-fallback`** utility (uses `100vh` then `@supports` upgrades to `100dvh`) — for non-Tailwind inline-style cases.
+  - **`.safe-top` / `.safe-bottom` / `.safe-left` / `.safe-right` / `.safe-x`** utilities using `max(env(safe-area-inset-*), 0px)`.
+  - **`.tap-target`** utility (44×44 min) — WCAG 2.5.5 AAA + Apple HIG.
+- `src/main.tsx` — mounted `<SpeedInsights />` inside `<StrictMode>` after `<App />`.
+
+**Dynamic viewport migration (`100vh`/`h-screen`/`min-h-screen` → `dvh` equivalents)** — Tailwind 4 has `min-h-dvh` and `h-dvh` natively; all modern browsers (iOS 15.4+, Chrome 108+, Firefox 101+) support `dvh`. Fixes the long-standing Safari URL-bar overflow where the hero/wizard would crop below the visible viewport when the URL bar collapsed.
+- `src/context/ThemeContext.tsx` — root theme wrapper.
+- `src/components/ErrorBoundary.tsx` — inline `minHeight: '100vh'` → `className="h-dvh-fallback"` (uses the new `@supports` utility because inline style can't do CSS feature queries).
+- `src/components/home/Hero.tsx` — `h-screen` → `h-dvh`. Also added explicit `width={1920} height={1080}` to the hero `<img>` for CLS prevention.
+- `src/components/vehicle/VehicleDetailPage.tsx`
+- `src/components/portal/CustomerPortal.tsx` (3 occurrences: login, loading, dashboard)
+- `src/components/booking/BookingStatusPage.tsx`
+- `src/components/booking/ConfirmBooking.tsx` (3 occurrences: loading, error, wizard)
+- `src/components/booking/RentalAgreementPage.tsx`
+- `src/components/booking/confirm-booking/MissingRefScreen.tsx`
+- `src/components/booking/confirm-booking/ConfirmedScreen.tsx`
+- `src/components/legal/PrivacyPolicy.tsx`
+- `src/components/legal/TermsOfService.tsx`
+
+**Mobile chrome polish**
+- `src/components/layout/Navbar.tsx` — top padding now `pt-[max(0.75rem,env(safe-area-inset-top))]` (scrolled) / `pt-[max(1.25rem,env(safe-area-inset-top))] md:pt-[max(1.5rem,env(safe-area-inset-top))]` (unscrolled) so the navbar lands below the notch/Dynamic Island in portrait and below the camera bar in landscape. `max()` ensures we never lose the original design padding on non-notched devices.
+- `src/components/vehicle/QuickViewModal.tsx` — close button `w-9 h-9 sm:w-10 sm:h-10` (36/40px) → `w-11 h-11` (44px) at all sizes; bumped icon from `18` → `20`; added `aria-label="Close vehicle preview"` (was missing).
+
+### Dashboard (6 files)
+
+**Foundation**
+- `dashboard/package.json` + `dashboard/package-lock.json` — added `@vercel/speed-insights ^2.0.0`.
+- `dashboard/index.html` — same viewport/theme-color/PWA meta package as customer site (theme-color uses dashboard's `#111928`/`#F8FAFC` instead of customer's `#0A0A0A`/`#FAFAF8`).
+- `dashboard/src/styles/globals.css` — appended Mobile Foundation block:
+  - **16px on inputs/selects/textareas only below 768px** — preserves the dashboard's existing 14px (`text-sm`) desktop typography while preventing iOS auto-zoom on phone-width admin work.
+  - `touch-action: manipulation` on buttons/anchors/labels/summary/submit.
+  - `-webkit-text-size-adjust: 100%` + `text-size-adjust: 100%` on `html`.
+  - `.h-dvh-fallback`, `.safe-*`, `.tap-target` utilities (same names as customer site for consistency).
+  - **`.btn` / `.input` `min-height: 40px → 44px` below 768px only** — keeps the desktop design exactly as-is, hits AAA/HIG on touch. Applied via the existing `@media (max-width: 767px)` block at the bottom.
+- `dashboard/src/main.jsx` — mounted `<SpeedInsights />` inside `<StrictMode>` after `<App />`.
+
+### What this does NOT do (deferred to later sprints)
+
+- **Phase 2 Performance** — customer site is still single-bundle via `vite-plugin-singlefile` (926 KB / 238 KB gzip). Stripe + signature_pad still ship to the homepage. Dashboard chunks are still 1.6 MB main + 1.78 MB mapbox-gl. Code-splitting, lazy Stripe/signature_pad/mapbox, AVIF/WebP images, font-display swap, preconnect tuning — all next sprint.
+- **Phase 3 Mobile UX patterns** — modals are still centered overlays (not bottom sheets), the booking wizard isn't keyboard-aware yet (no `visualViewport` hook), no sticky bottom CTA on vehicle detail, dashboard still has the desktop sidebar (no bottom nav).
+- **Phase 4 Modern APIs** — no `text-wrap: balance`, no View Transitions, no Speculation Rules, no container queries yet.
+- **Phase 5 PWA + push** — manifests exist (both apps) but no service worker, no `expo-push`/APNs/FCM wiring.
+
+### API/Data Impact
+- None. No API functions touched, no response shapes changed, no Supabase calls modified.
+- `api/client.js`, `auth/*`, `notifyService.js`, `emailService.js`, all email templates, all Supabase tables — **untouched** (per CLAUDE.md hard rules).
+
+### Hard rules respected
+- `api/client.js` — untouched
+- `auth/` (Supabase client, AuthProvider, ProtectedRoute, LoginPage) — untouched
+- Supabase schema — untouched
+- Notification system (`notifyService.js`, `emailService.js`, templates) — untouched
+- CSS variables — none renamed; only new utility classes added
+- Widget IDs in `widgetConfig.js` — untouched
+
+### Files That Need Verification
+- **iOS device test (real iPhone)** — required to confirm the dvh / safe-area / 44px / 16px fixes actually feel different. Specifically:
+  - Hero section fills exactly the visible viewport (no clipped CTA when URL bar collapses)
+  - Navbar contents sit below Dynamic Island in portrait and below camera bar in landscape
+  - Tapping an input doesn't trigger zoom on the booking wizard (Address, License steps)
+  - QuickViewModal close button is comfortable to tap with a thumb
+- **Desktop regression sweep** — both apps. None expected (all changes either add new utilities, bump minimums on mobile-only media queries, or replace `vh` with `dvh` which collapses to `vh` on desktop).
+- **Vercel Speed Insights dashboard** — data starts flowing once deployed to a Vercel project with the integration enabled (one toggle in Vercel project settings).
+
+### Build Status
+- [x] Customer site `npm run build` — zero errors. 926.27 kB / 238.20 kB gzip (parity with previous build).
+- [x] Dashboard `npm run build` — zero errors with VITE_API_URL set. 1,608 kB JS / 425 kB gzip + 1,781 kB mapbox chunk. Pre-existing chunk-size warning (called out in the 2026-04-04 entry); not a regression — Phase 2 perf work targets this.
+
+### Committed
+- [ ] Pending — branch `claude/intelligent-khayyam-ea08f4` (worktree)
+- [ ] Vercel env vars — none new required; Speed Insights auto-injects in production via Vercel's runtime
+- [ ] Supabase migration — none
+
+### Known Issues / Follow-up
+- Phase 2 performance pass is the next biggest single mobile win available (code-split, lazy Stripe, AVIF/WebP, font swap). Customer site bundle is currently a single inline 926 KB chunk because of `vite-plugin-singlefile` — that will be reverted next sprint with proper route-level lazy loading.
+- The dashboard env-guard in `vite.config.js` (throws when `VITE_API_URL` is missing) is working as designed — builds in CI/Vercel pass because env vars are set; local manual builds need them set inline. Already documented in the 2026-04-04 entry; not new.
+- `MobileStickyCTA.tsx` already uses `env(safe-area-inset-bottom)` correctly. Footer already gets 5rem bottom padding in mobile CSS. No changes needed.
+- Tap-target audit still has follow-ups: icon buttons inside cards (fleet grid, vehicle detail nav arrows), filter pills, and dashboard table action icons should be reviewed in a later sprint with the `.tap-target` utility now available.
+- `useKeyboardInset.ts` (`visualViewport.resize` hook for keyboard-aware booking wizard inputs) — designed but not created this sprint. Belongs to Phase 3 mobile UX.
+
+---
+
 ## 2026-05-12 — Phase 2: notification timeline redesign + cron timing externalization
 
 **Why:** The legacy Templates + Sequences tabs treated each notification as a row in a list, divorced from when it actually fires. Admin couldn't see the rental lifecycle at a glance or preview what a customer would receive. Phase 2 introduces a horizontal lifecycle timeline (Request → Approval → Payment → Ready → Pickup → During → Return → Post-trip), with each notification stage as a draggable card that opens a full editor with byte-identical live email + SMS previews.

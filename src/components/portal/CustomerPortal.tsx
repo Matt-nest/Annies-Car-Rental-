@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Car, Calendar, MapPin, Key, Camera, Check, AlertCircle,
+  Car, Calendar, MapPin, Key, Camera, Check, CheckCircle2, AlertCircle,
   Loader2, Shield, DollarSign, MessageSquare, ArrowRight,
   Fuel, Gauge, ChevronRight, ChevronDown, ExternalLink, X, Star, Phone, Receipt, CreditCard, Clock,
 } from 'lucide-react';
@@ -201,6 +201,7 @@ export default function CustomerPortal() {
   const [actionLoading, setActionLoading] = useState(false);
   const [actionSuccess, setActionSuccess] = useState('');
   const [lockbox, setLockbox] = useState<string | null>(null);
+  const [lockboxCopied, setLockboxCopied] = useState(false);
 
   // Photo uploads
   const [checkinPhotos, setCheckinPhotos] = useState<string[]>([]);
@@ -431,7 +432,7 @@ export default function CustomerPortal() {
     return (
       <>
         <Navbar onNavigate={scrollToSection} />
-        <main className="min-h-screen px-4 sm:px-6" style={{ paddingTop: '120px', paddingBottom: '80px' }}>
+        <main className="min-h-dvh px-4 sm:px-6" style={{ paddingTop: '120px', paddingBottom: '80px' }}>
           <div className="max-w-md mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 24 }}
@@ -563,7 +564,7 @@ export default function CustomerPortal() {
     return (
       <>
         <Navbar onNavigate={scrollToSection} />
-        <main className="min-h-screen flex items-center justify-center">
+        <main className="min-h-dvh flex items-center justify-center">
           <Loader2 size={32} className="animate-spin" style={{ color: 'var(--accent-color)' }} />
         </main>
       </>
@@ -587,7 +588,7 @@ export default function CustomerPortal() {
   return (
     <>
       <Navbar onNavigate={scrollToSection} />
-      <main className="min-h-screen px-4 sm:px-6" style={{ paddingTop: '100px', paddingBottom: '80px' }}>
+      <main className="min-h-dvh px-4 sm:px-6" style={{ paddingTop: '100px', paddingBottom: '80px' }}>
         <div className="max-w-lg mx-auto space-y-5">
 
           {/* Compact identity header — name + booking code */}
@@ -1085,7 +1086,9 @@ export default function CustomerPortal() {
             </motion.div>
           )}
 
-          {/* Lockbox Code — only revealed AFTER successful check-in */}
+          {/* Lockbox Code — only revealed AFTER successful check-in.
+              The entire code block is a single tap target on mobile so the
+              user can reveal the key without precision-tapping a small button. */}
           <AnimatePresence>
             {lockbox && (
               <motion.div
@@ -1100,16 +1103,60 @@ export default function CustomerPortal() {
                 <p className="text-xs font-bold uppercase tracking-[0.2em] mb-3" style={{ color: '#f59e0b' }}>
                   Your Lockbox Code
                 </p>
-                <p className="text-5xl sm:text-6xl font-black tracking-[0.4em] font-mono mb-4" style={{ color: 'var(--text-primary)' }}>
-                  {lockbox}
-                </p>
                 <button
-                  onClick={() => { navigator.clipboard.writeText(lockbox); }}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-all hover:scale-105 active:scale-95"
-                  style={{ backgroundColor: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(lockbox);
+                    setLockboxCopied(true);
+                    window.setTimeout(() => setLockboxCopied(false), 1800);
+                  }}
+                  aria-label={`Copy lockbox code ${lockbox}`}
+                  className="block w-full rounded-2xl px-4 py-3 mb-3 active:scale-[0.98] transition-transform cursor-pointer"
+                  style={{
+                    backgroundColor: 'rgba(245,158,11,0.04)',
+                    border: '1px dashed rgba(245,158,11,0.35)',
+                  }}
                 >
-                  Tap to Copy
+                  <p
+                    className="text-5xl sm:text-6xl font-black tracking-[0.4em] font-mono select-all"
+                    style={{ color: 'var(--text-primary)' }}
+                  >
+                    {lockbox}
+                  </p>
                 </button>
+                <AnimatePresence mode="wait">
+                  {lockboxCopied ? (
+                    <motion.div
+                      key="copied"
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 4 }}
+                      transition={{ duration: 0.18 }}
+                      className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-semibold"
+                      style={{ backgroundColor: 'rgba(34,197,94,0.15)', color: '#15803d' }}
+                    >
+                      <CheckCircle2 size={16} /> Copied!
+                    </motion.div>
+                  ) : (
+                    <motion.button
+                      key="copy"
+                      type="button"
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      transition={{ duration: 0.18 }}
+                      onClick={() => {
+                        navigator.clipboard?.writeText(lockbox);
+                        setLockboxCopied(true);
+                        window.setTimeout(() => setLockboxCopied(false), 1800);
+                      }}
+                      className="tap-target inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full text-sm font-semibold transition-transform hover:scale-105 active:scale-95"
+                      style={{ backgroundColor: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}
+                    >
+                      Tap to Copy
+                    </motion.button>
+                  )}
+                </AnimatePresence>
                 <p className="text-xs mt-3" style={{ color: 'var(--text-tertiary)' }}>
                   Use this code to retrieve the key from the lockbox at the pickup location.
                 </p>

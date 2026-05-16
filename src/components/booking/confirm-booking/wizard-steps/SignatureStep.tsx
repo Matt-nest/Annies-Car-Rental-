@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { PenTool, Eraser } from 'lucide-react';
-import SignaturePad from 'signature_pad';
+// Type-only import — the actual SignaturePad constructor is dynamic-imported
+// below so the ~17 KB library is only fetched when the user reaches step 6.
+import type SignaturePad from 'signature_pad';
 import type { WizardDraft } from '../constants';
 
 interface Props {
@@ -23,9 +25,11 @@ export default function SignatureStep({ draft, onUpdate, onContinue, onBack, the
     color: 'var(--text-primary)',
   };
 
-  // Init signature pad
+  // Init signature pad — library is dynamic-imported so it ships in its own chunk
+  // and is only fetched when the user actually reaches step 6.
   useEffect(() => {
     if (!canvasRef.current || sigMode !== 'draw') return;
+    let cancelled = false;
 
     const canvas = canvasRef.current;
     const ratio = Math.max(window.devicePixelRatio || 1, 1);
@@ -33,26 +37,33 @@ export default function SignatureStep({ draft, onUpdate, onContinue, onBack, the
     canvas.height = canvas.offsetHeight * ratio;
     canvas.getContext('2d')?.scale(ratio, ratio);
 
-    sigPadRef.current = new SignaturePad(canvas, {
-      backgroundColor: 'rgba(255,255,255,0)',
-      penColor: theme === 'dark' ? '#e8e1d5' : '#1a1a1a',
-      minWidth: 1.5,
-      maxWidth: 3,
+    void import('signature_pad').then(({ default: SignaturePadCtor }) => {
+      if (cancelled) return;
+
+      sigPadRef.current = new SignaturePadCtor(canvas, {
+        backgroundColor: 'rgba(255,255,255,0)',
+        penColor: theme === 'dark' ? '#e8e1d5' : '#1a1a1a',
+        minWidth: 1.5,
+        maxWidth: 3,
+      });
+
+      // Restore if we have saved data
+      if (draft.signature.mode === 'draw' && draft.signature.data) {
+        try {
+          const img = new Image();
+          img.onload = () => {
+            const ctx = canvas.getContext('2d');
+            if (ctx) ctx.drawImage(img, 0, 0, canvas.offsetWidth, canvas.offsetHeight);
+          };
+          img.src = draft.signature.data;
+        } catch {}
+      }
     });
 
-    // Restore if we have saved data
-    if (draft.signature.mode === 'draw' && draft.signature.data) {
-      try {
-        const img = new Image();
-        img.onload = () => {
-          const ctx = canvas.getContext('2d');
-          if (ctx) ctx.drawImage(img, 0, 0, canvas.offsetWidth, canvas.offsetHeight);
-        };
-        img.src = draft.signature.data;
-      } catch {}
-    }
-
-    return () => { sigPadRef.current?.off(); };
+    return () => {
+      cancelled = true;
+      sigPadRef.current?.off();
+    };
   }, [sigMode, theme]);
 
   const clearSignature = () => {

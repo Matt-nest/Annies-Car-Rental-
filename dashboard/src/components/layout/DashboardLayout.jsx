@@ -3,6 +3,7 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import { Sun, Moon, User, Settings, LogOut, ChevronDown, ThumbsUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from './Sidebar';
+import BottomNav from './BottomNav';
 import GlobalSearch from './GlobalSearch';
 import NotificationDropdown from './NotificationDropdown';
 import CashRainOverlay from '../shared/CashRainOverlay';
@@ -95,7 +96,7 @@ function DashboardLayoutInner() {
 
   return (
     <ThemeContext.Provider value={{ dark, toggle: () => setDark(d => !d) }}>
-      <div className="flex h-screen overflow-hidden theme-transition" style={{ backgroundColor: 'var(--bg-primary)' }}>
+      <div className="flex h-dvh overflow-hidden theme-transition" style={{ backgroundColor: 'var(--bg-primary)' }}>
         <Sidebar
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
@@ -261,11 +262,16 @@ function DashboardLayoutInner() {
             </div>
           </header>
 
-          {/* Page content */}
-          <main className="flex-1 overflow-y-auto glass-scroll">
+          {/* Page content — bottom padding reserves space for the mobile bottom nav
+              (lg:hidden, ~64 px + safe-area). Padding collapses at lg+. */}
+          <main className="flex-1 overflow-y-auto glass-scroll pb-[calc(64px+env(safe-area-inset-bottom))] lg:pb-0">
             <Outlet />
           </main>
         </div>
+
+        {/* Mobile bottom navigation — reuses the existing sidebar drawer
+            via setSidebarOpen for the "More" overflow. lg:hidden internally. */}
+        <BottomNav onOpenMore={() => setSidebarOpen(true)} />
 
         {/* Active-rental acknowledgement modal — fires when a booking flips to
             active. Pure awareness signal — no required action. Dismiss → cash rain. */}

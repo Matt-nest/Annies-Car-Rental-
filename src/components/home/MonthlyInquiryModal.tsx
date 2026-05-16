@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { X, Phone, CheckCircle2 } from 'lucide-react';
+import { motion } from 'motion/react';
+import { Phone, CheckCircle2 } from 'lucide-react';
 import { Vehicle } from '../../types';
 import { getVehicleDisplayName } from '../../data/vehicles';
 import { useTheme } from '../../context/ThemeContext';
 import { API_URL, API_KEY } from '../../config';
+import Sheet from '../common/Sheet';
 
 interface MonthlyInquiryModalProps {
   vehicle: Vehicle;
@@ -70,33 +71,13 @@ export default function MonthlyInquiryModal({ vehicle, onClose }: MonthlyInquiry
   };
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 sm:p-6"
-        style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
-        onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-      >
-        <motion.div
-          initial={{ y: 60, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 60, opacity: 0 }}
-          transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-          className="w-full max-w-md rounded-3xl p-6 sm:p-8 relative"
-          style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
-        >
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 w-9 h-9 rounded-full flex items-center justify-center transition-colors cursor-pointer"
-            style={{ backgroundColor: 'var(--bg-card-hover)', color: 'var(--text-secondary)' }}
-            aria-label="Close"
-          >
-            <X size={16} />
-          </button>
-
-          {success ? (
+    <Sheet
+      open
+      onOpenChange={(o) => { if (!o) onClose(); }}
+      title="Monthly rental inquiry"
+    >
+      <div className="pt-2 pb-2">
+        {success ? (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -240,8 +221,7 @@ export default function MonthlyInquiryModal({ vehicle, onClose }: MonthlyInquiry
               </form>
             </>
           )}
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
+      </div>
+    </Sheet>
   );
 }

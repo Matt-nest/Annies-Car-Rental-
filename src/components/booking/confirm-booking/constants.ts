@@ -1,5 +1,3 @@
-import { loadStripe } from '@stripe/stripe-js';
-
 // Re-export from shared config — single source of truth
 export { API_URL } from '../../../config';
 
@@ -17,10 +15,18 @@ export const STAGES = [
 // Legacy alias for backward compatibility
 export const STEPS = STAGES;
 
-export const stripePromise = loadStripe(
-  import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ||
-  'pk_test_51THqNVBDLBS4aYcfqHPZnNGlwL6E8lGdzFOxYoSmd37DjxD3ofbWe6AsrEkL90LqnHfp8fEFDfAmrqfkDgcNYYqE009CXY3fGT'
-);
+/*
+ * Stripe SDK is no longer eagerly initialized here.
+ * Importing this file (constants.ts) used to trigger loadStripe() at module
+ * top-level, which fetched the Stripe SDK on every page that transitively
+ * imported anything from constants — even the home page.
+ *
+ * The Stripe loader now lives in `./stripeClient.ts` and is imported only by
+ * `ConfirmBooking.tsx`, which itself is lazy-loaded via `React.lazy()` in
+ * `src/App.tsx`. The SDK is fetched only when a user visits /confirm.
+ *
+ * See `./stripeClient.ts` for the lazy getter.
+ */
 
 /* ────────────────────────────────────────────────────────
    Bonzah insurance — runtime config + tier metadata

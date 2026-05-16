@@ -46,8 +46,8 @@ export default function Navbar({ onNavigate, isHomePage = false }: NavbarProps) 
         transition={{ duration: 0.8, ease: EASE.dramatic, delay: 0.3 }}
         className={`fixed top-0 inset-x-0 z-[100] transition-[padding,background-color,border-color] duration-500 ${
           isScrolled
-            ? 'py-3 md:backdrop-blur-2xl shadow-lg'
-            : 'py-5 md:py-6'
+            ? 'pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:backdrop-blur-2xl shadow-lg'
+            : 'pb-5 md:pb-6 pt-[max(1.25rem,env(safe-area-inset-top))] md:pt-[max(1.5rem,env(safe-area-inset-top))]'
         }`}
         style={{
           backgroundColor: isScrolled

@@ -22,11 +22,17 @@ import SubmitLoader from './confirm-booking/wizard-steps/SubmitLoader';
 
 import {
   API_URL, PHONE_NUMBER,
-  stripePromise, getRefCode,
+  getRefCode,
   formatCurrency,
   loadDraft, saveDraft, clearDraft,
   type WizardDraft,
 } from './confirm-booking/constants';
+import { getStripe } from './confirm-booking/stripeClient';
+import { useKeyboardInset } from '../../hooks/useKeyboardInset';
+
+// Stripe SDK is loaded here (not in constants.ts) so importing wizard helpers
+// elsewhere doesn't pull in @stripe/stripe-js.
+const stripePromise = getStripe();
 
 /* ────────────────────────────────────────────────────────
    Inner form (needs Stripe context)
@@ -301,6 +307,10 @@ export default function ConfirmBooking() {
     window.location.href = '/#' + section;
   }, []);
 
+  // Mobile keyboard tracking — when iOS keyboard opens, expand bottom padding
+  // of the wizard so the focused input + Continue button can scroll into view.
+  const keyboardInset = useKeyboardInset();
+
   const refCode = getRefCode();
   const [theme, setTheme] = useState(() =>
     document.documentElement.getAttribute('data-theme') || 'dark'
@@ -443,7 +453,7 @@ export default function ConfirmBooking() {
 
   // ── Missing ref code ──────────────────────────────────
   if (!refCode) {
-    return <MissingRefScreen scrollToSection={scrollToSection} />;
+    return <MissingRefScreen scrollToSection={scrollToSection} theme={theme} />;
   }
 
   // ── Confirmed ──────────────────────────────────────────
@@ -456,7 +466,7 @@ export default function ConfirmBooking() {
     return (
       <>
         <Navbar onNavigate={scrollToSection} />
-        <div className="min-h-screen flex items-center justify-center" style={{ paddingTop: '120px' }}>
+        <div className="min-h-dvh flex items-center justify-center" style={{ paddingTop: '120px' }}>
           <div className="flex items-center gap-3">
             <Loader2 className="animate-spin" size={22} style={{ color: 'var(--accent-color)' }} />
             <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Loading your booking…</span>
@@ -472,7 +482,7 @@ export default function ConfirmBooking() {
     return (
       <>
         <Navbar onNavigate={scrollToSection} />
-        <div className="min-h-screen flex items-center justify-center px-4" style={{ paddingTop: '120px' }}>
+        <div className="min-h-dvh flex items-center justify-center px-4" style={{ paddingTop: '120px' }}>
           <div className="max-w-md w-full rounded-2xl border p-6 text-center space-y-4"
             style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
             <AlertCircle size={40} style={{ color: '#ef4444' }} className="mx-auto" />
@@ -495,7 +505,18 @@ export default function ConfirmBooking() {
   return (
     <>
       <Navbar onNavigate={scrollToSection} />
-      <div className="min-h-screen px-4" style={{ paddingTop: '100px', paddingBottom: '80px' }}>
+      <div
+        className="min-h-dvh px-4"
+        style={{
+          paddingTop: '100px',
+          // Bottom padding expands by the keyboard height so the Continue
+          // button can be scrolled into view on iOS. Adds 16px breathing room
+          // above the keyboard. Falls back to the original 80px on desktop /
+          // when keyboard is closed (keyboardInset === 0).
+          paddingBottom: keyboardInset > 0 ? `${keyboardInset + 16}px` : '80px',
+          transition: 'padding-bottom 200ms ease-out',
+        }}
+      >
         <div className="max-w-lg mx-auto">
           {/* Header */}
           <motion.div

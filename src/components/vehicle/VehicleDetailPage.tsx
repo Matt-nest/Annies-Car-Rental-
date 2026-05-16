@@ -83,7 +83,7 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
 
   return (
     <div
-      className={`min-h-screen ${theme} transition-colors duration-500`}
+      className={`min-h-dvh ${theme} transition-colors duration-500 pb-[88px] lg:pb-0`}
       style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
     >
       {/* Sticky Header */}
@@ -534,6 +534,52 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
             </div>
           </div>
         </main>
+      </div>
+
+      {/*
+        Mobile sticky bottom CTA — one-thumb-reach Book Now with live price.
+        Hidden at lg+ because the desktop layout already has the sticky right-rail
+        booking card. Reuses #booking-form smooth-scroll already wired in this file.
+        Safe-area-inset-bottom protects the iOS home indicator.
+      */}
+      <div
+        className="lg:hidden fixed bottom-0 inset-x-0 z-[90]"
+        style={{
+          backgroundColor: 'var(--bg-elevated)',
+          borderTop: '1px solid var(--border-subtle)',
+          paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
+        }}
+      >
+        <div className="px-4 pt-3 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>
+              {selectedRate === 'monthly'
+                ? 'Monthly'
+                : selectedRate === 'weekly'
+                  ? 'Weekly'
+                  : 'Daily'}
+            </p>
+            <p className="text-lg font-medium leading-tight truncate" style={{ color: 'var(--text-primary)' }}>
+              {selectedRate === 'monthly' && vehicle.monthlyDisplayPrice
+                ? `$${vehicle.monthlyDisplayPrice.toLocaleString()}`
+                : selectedRate === 'weekly' && vehicle.weeklyRate
+                  ? `$${Math.round(vehicle.weeklyRate).toLocaleString()}`
+                  : `$${Math.round(vehicle.dailyRate)}`}
+              <span className="text-xs ml-1 font-normal" style={{ color: 'var(--text-tertiary)' }}>
+                /{selectedRate === 'monthly' ? 'mo' : selectedRate === 'weekly' ? 'wk' : 'day'}
+              </span>
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => document.getElementById('booking-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            className="tap-target px-6 py-3 rounded-full font-medium text-sm whitespace-nowrap active:scale-95 transition-transform shadow-lg"
+            style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
+          >
+            Book Now
+            <ArrowRight size={16} className="inline ml-1.5 -mt-0.5" />
+          </button>
+        </div>
       </div>
     </div>
   );

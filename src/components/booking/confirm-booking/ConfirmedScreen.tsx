@@ -18,7 +18,7 @@ export default function ConfirmedScreen({ refCode, scrollToSection }: ConfirmedS
     <>
       <Navbar onNavigate={scrollToSection} />
       <div
-        className="min-h-screen flex items-center justify-center px-4"
+        className="min-h-dvh flex items-center justify-center px-4"
         style={{ paddingTop: '120px', paddingBottom: '80px' }}
       >
         <motion.div

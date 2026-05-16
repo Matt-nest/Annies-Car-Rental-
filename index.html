@@ -2,7 +2,12 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0A0A0A" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#FAFAF8" media="(prefers-color-scheme: light)" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
     <link rel="shortcut icon" href="/favicon.ico" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
@@ -11,12 +16,30 @@
     <title>Annie's Car Rental — Port St. Lucie, FL</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Stripe SDK is lazy-loaded only on /confirm; preconnect cuts TLS time on first paint of the wizard -->
+    <link rel="preconnect" href="https://js.stripe.com" crossorigin />
+    <link rel="dns-prefetch" href="https://api.stripe.com" />
     <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&display=swap" rel="stylesheet" />
-    <link rel="preload" as="image" href="/hero-sentra-front.png" />
+    <link rel="preload" as="image" href="/hero-sentra-front.png" fetchpriority="high" />
     <meta name="description" content="Premium, reliable, and family-friendly car rentals located directly in Port St. Lucie. Skip the long lines at the airport and enjoy top-tier vehicles right in your neighborhood." />
   </head>
   <body>
     <div id="root"></div>
+    <!-- Speculation Rules — Chrome/Edge 121+. Prerender /detail* (vehicle pages)
+         and /portal* (returning customers) on hover/touchstart for ~moderate
+         eagerness, so first-tap nav from the fleet grid feels instant. Browsers
+         without this API just ignore the script. -->
+    <script type="speculationrules">
+    {
+      "prerender": [
+        { "where": { "href_matches": "/detail*" }, "eagerness": "moderate" },
+        { "where": { "href_matches": "/portal*" }, "eagerness": "moderate" }
+      ],
+      "prefetch": [
+        { "where": { "href_matches": "/confirm*" }, "eagerness": "conservative" }
+      ]
+    }
+    </script>
     <script type="module" src="/src/main.tsx"></script>
     <script
       src="https://widgets.leadconnectorhq.com/loader.js"

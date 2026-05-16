@@ -83,7 +83,7 @@ export default function BookingStatusPage({ onBack }: Props) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: 'var(--bg-primary)' }}>
+    <div className="min-h-dvh flex flex-col" style={{ backgroundColor: 'var(--bg-primary)' }}>
       {/* Header */}
       <div className="px-6 py-5 flex items-center gap-3" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
         <button

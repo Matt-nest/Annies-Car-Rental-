@@ -24,7 +24,7 @@ export default function MissingRefScreen({ scrollToSection, theme }: MissingRefS
     <>
       <Navbar onNavigate={scrollToSection} />
       <div
-        className="min-h-screen flex items-center justify-center px-4"
+        className="min-h-dvh flex items-center justify-center px-4"
         style={{ paddingTop: '120px' }}
       >
         <motion.div

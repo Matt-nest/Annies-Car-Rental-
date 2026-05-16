@@ -54,6 +54,51 @@
   body {
     overscroll-behavior: contain;
   }
+
+  /* iOS Safari: prevent zoom-on-focus by guaranteeing >=16px on form controls.
+     Fixes auto-zoom on inputs/selects/textareas on iOS 17/18. */
+  input, select, textarea {
+    font-size: 16px;
+  }
+
+  /* Remove the 300ms double-tap-zoom delay on tappable elements.
+     `manipulation` keeps pinch-zoom on the document but skips double-tap delay. */
+  button, a, [role="button"], label, summary, input[type="submit"], input[type="button"] {
+    touch-action: manipulation;
+  }
+}
+
+/* === Mobile foundation utilities (iOS Safari hygiene) === */
+
+/* Dynamic viewport height — Safari URL bar aware. Use as a Tailwind class fallback. */
+.h-dvh-fallback { min-height: 100vh; }
+@supports (min-height: 100dvh) {
+  .h-dvh-fallback { min-height: 100dvh; }
+}
+
+/* Safe-area helpers for notch / Dynamic Island / home indicator.
+   Layered with max() so we always reserve a sensible minimum even on devices without insets. */
+.safe-top    { padding-top:    max(env(safe-area-inset-top), 0px); }
+.safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 0px); }
+.safe-left   { padding-left:   max(env(safe-area-inset-left), 0px); }
+.safe-right  { padding-right:  max(env(safe-area-inset-right), 0px); }
+.safe-x      { padding-left:   max(env(safe-area-inset-left), 0px); padding-right: max(env(safe-area-inset-right), 0px); }
+
+/* 44×44 minimum tap target (WCAG 2.5.5 AAA + Apple HIG).
+   Apply to icon buttons whose visible glyph is smaller. */
+.tap-target {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Modern typography niceties — Chrome 114+, Safari 17.5+, Firefox 121+.
+   `balance` makes short titles wrap evenly across lines (no one-word last line).
+   Scoped to headings only — applying broadly hurts INP on low-end Android. */
+h1, h2, h3, .card-title, .balance-text {
+  text-wrap: balance;
 }
 
 /* === Easing System === */

@@ -135,7 +135,11 @@ html.dark {
     background: rgba(70, 95, 255, 0.22);
   }
 
-  html { scroll-behavior: smooth; }
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
 
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -167,6 +171,50 @@ html.dark {
     background: var(--border-medium);
     border-radius: 9999px;
   }
+
+  /* iOS Safari: prevent zoom-on-focus by guaranteeing >=16px on form controls
+     at viewports where iOS will zoom. Desktop keeps the 14px design via .input. */
+  @media (max-width: 767px) {
+    input, select, textarea {
+      font-size: 16px;
+    }
+  }
+
+  /* Remove the 300ms double-tap-zoom delay on tappable elements. */
+  button, a, [role="button"], label, summary, input[type="submit"], input[type="button"] {
+    touch-action: manipulation;
+  }
+}
+
+/* ─── Mobile foundation utilities (iOS Safari hygiene) ─────────────────────── */
+
+/* Dynamic viewport height — Safari URL bar aware. */
+.h-dvh-fallback { min-height: 100vh; }
+@supports (min-height: 100dvh) {
+  .h-dvh-fallback { min-height: 100dvh; }
+}
+
+/* Safe-area helpers for notch / Dynamic Island / home indicator. */
+.safe-top    { padding-top:    max(env(safe-area-inset-top), 0px); }
+.safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 0px); }
+.safe-left   { padding-left:   max(env(safe-area-inset-left), 0px); }
+.safe-right  { padding-right:  max(env(safe-area-inset-right), 0px); }
+.safe-x      { padding-left:   max(env(safe-area-inset-left), 0px); padding-right: max(env(safe-area-inset-right), 0px); }
+
+/* 44×44 minimum tap target (WCAG 2.5.5 AAA + Apple HIG). */
+.tap-target {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Modern typography niceties — Chrome 114+, Safari 17.5+, Firefox 121+.
+   `balance` makes short titles wrap evenly across lines. Scoped to headings
+   + widget titles so the property's known cost doesn't hit data rows. */
+h1, h2, h3, .widget-title, .balance-text {
+  text-wrap: balance;
 }
 
 /* ─── Components ────────────────────────────────────────────────────────────── */
@@ -606,10 +654,24 @@ html.dark {
   }
 }
 
-/* ─── Mobile Performance ────────────────────────────────────────────────────── */
+/* ─── Mobile Performance + Tap Targets ─────────────────────────────────────── */
 @media (max-width: 767px) {
   .card, .glass-card {
     will-change: auto;
   }
   /* Keep liquid-glass effects on mobile — they're lightweight enough */
+
+  /* Bump primary controls to 44px on touch — WCAG 2.5.5 AAA + Apple HIG.
+     Desktop keeps the 40px design via the unmodified .btn/.input rule above. */
+  .btn,
+  .btn-primary,
+  .btn-accent,
+  .btn-secondary,
+  .btn-danger,
+  .btn-ghost {
+    min-height: 44px;
+  }
+  .input {
+    min-height: 44px;
+  }
 }

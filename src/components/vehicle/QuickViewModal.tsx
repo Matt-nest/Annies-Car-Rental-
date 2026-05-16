@@ -66,16 +66,17 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
             : '0 25px 100px -20px rgba(0,0,0,0.15)',
         }}
       >
-        {/* Close button */}
+        {/* Close button — 44×44 tap target (WCAG 2.5.5 AAA + Apple HIG) */}
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-[transform] duration-300 hover:scale-110"
+          aria-label="Close vehicle preview"
+          className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 w-11 h-11 rounded-full flex items-center justify-center transition-[transform] duration-300 hover:scale-110"
           style={{
             backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.95)',
             border: '1px solid var(--border-subtle)',
           }}
         >
-          <X size={18} />
+          <X size={20} />
         </button>
 
         {/* Image — compact landscape hero. Renders only if vehicle has images. */}
