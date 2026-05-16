@@ -15,7 +15,7 @@ export default function Hero({ onBrowseFleet }: HeroProps) {
   const opacity = useTransform(scrollY, [0, 600], [1, 0]);
 
   return (
-    <section className="relative h-screen flex flex-col justify-center sm:justify-end overflow-hidden pt-20 sm:pt-0 pb-16 sm:pb-32">
+    <section className="relative h-dvh flex flex-col justify-center sm:justify-end overflow-hidden pt-20 sm:pt-0 pb-16 sm:pb-32">
       {/* Background Image & Parallax Container */}
       <motion.div 
         className="absolute inset-0 z-0 origin-right"
@@ -27,6 +27,8 @@ export default function Hero({ onBrowseFleet }: HeroProps) {
           className="w-full h-full object-cover animate-slow-zoom object-[60%_center] sm:object-[90%_center]"
           fetchPriority="high"
           decoding="async"
+          width={1920}
+          height={1080}
         />
         
         {/* Deep Studio Fade: Anchors left for readability */}

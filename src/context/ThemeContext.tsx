@@ -28,7 +28,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
       <div
-        className={`min-h-screen font-sans transition-colors duration-500 ${theme} ${
+        className={`min-h-dvh font-sans transition-colors duration-500 ${theme} ${
           isTransitioning ? 'theme-transition' : ''
         }`}
         style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}

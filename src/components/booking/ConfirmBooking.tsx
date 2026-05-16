@@ -456,7 +456,7 @@ export default function ConfirmBooking() {
     return (
       <>
         <Navbar onNavigate={scrollToSection} />
-        <div className="min-h-screen flex items-center justify-center" style={{ paddingTop: '120px' }}>
+        <div className="min-h-dvh flex items-center justify-center" style={{ paddingTop: '120px' }}>
           <div className="flex items-center gap-3">
             <Loader2 className="animate-spin" size={22} style={{ color: 'var(--accent-color)' }} />
             <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Loading your booking…</span>
@@ -472,7 +472,7 @@ export default function ConfirmBooking() {
     return (
       <>
         <Navbar onNavigate={scrollToSection} />
-        <div className="min-h-screen flex items-center justify-center px-4" style={{ paddingTop: '120px' }}>
+        <div className="min-h-dvh flex items-center justify-center px-4" style={{ paddingTop: '120px' }}>
           <div className="max-w-md w-full rounded-2xl border p-6 text-center space-y-4"
             style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
             <AlertCircle size={40} style={{ color: '#ef4444' }} className="mx-auto" />
@@ -495,7 +495,7 @@ export default function ConfirmBooking() {
   return (
     <>
       <Navbar onNavigate={scrollToSection} />
-      <div className="min-h-screen px-4" style={{ paddingTop: '100px', paddingBottom: '80px' }}>
+      <div className="min-h-dvh px-4" style={{ paddingTop: '100px', paddingBottom: '80px' }}>
         <div className="max-w-lg mx-auto">
           {/* Header */}
           <motion.div

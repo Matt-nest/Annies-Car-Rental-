@@ -27,8 +27,8 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div
+          className="h-dvh-fallback"
           style={{
-            minHeight: '100vh',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',

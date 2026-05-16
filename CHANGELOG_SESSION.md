@@ -5,6 +5,104 @@
 
 ---
 
+## 2026-05-16 — Mobile-first Sprint 1: iOS hygiene + Speed Insights (customer site + dashboard)
+
+**Why:** First shippable slice of the mobile-first overhaul. Both apps already did several things right (hover gating, prefers-reduced-motion, `-webkit-tap-highlight-color: transparent`, content-visibility on images). Real gaps were iOS Safari–specific: no `viewport-fit=cover`, `100vh`/`h-screen` everywhere (URL-bar overflow bug), inputs at 14px (triggers iOS auto-zoom), no safe-area padding for notch/Dynamic Island/home indicator, sub-44px tap targets on close buttons. This sprint closes those gaps without redesigning anything visual.
+
+**Scope:** 22 source files + 2 lockfiles. Customer site + dashboard. Zero visual regressions intended on desktop. Builds verified clean on both.
+
+**Skill grounding:** `mobile-design` (touch psychology, mobile navigation, decision trees). Research backing: web.dev Core Web Vitals, WCAG 2.5.5 AAA, Apple HIG, MDN dvh/svh/lvh spec, WebKit safe-area-inset docs.
+
+### Customer Site (16 files)
+
+**Foundation**
+- `package.json` + `package-lock.json` — added `@vercel/speed-insights ^2.0.0` for production-only RUM (LCP/INP/CLS field metrics, no-op in dev).
+- `index.html` — added `viewport-fit=cover` (unlocks `env(safe-area-inset-*)`), `theme-color` (dark + light media queries), `mobile-web-app-capable`, `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style: black-translucent`.
+- `src/index.css` — appended a Mobile Foundation block (no existing rules removed):
+  - **16px font-size** on every `input`/`select`/`textarea` — eliminates iOS auto-zoom on focus (the spec's <16px trigger applies on iOS 17/18 in 2026).
+  - **`touch-action: manipulation`** on buttons/anchors/labels/summary/submit — removes the 300ms double-tap-zoom delay without breaking pinch-zoom on content.
+  - **`.h-dvh-fallback`** utility (uses `100vh` then `@supports` upgrades to `100dvh`) — for non-Tailwind inline-style cases.
+  - **`.safe-top` / `.safe-bottom` / `.safe-left` / `.safe-right` / `.safe-x`** utilities using `max(env(safe-area-inset-*), 0px)`.
+  - **`.tap-target`** utility (44×44 min) — WCAG 2.5.5 AAA + Apple HIG.
+- `src/main.tsx` — mounted `<SpeedInsights />` inside `<StrictMode>` after `<App />`.
+
+**Dynamic viewport migration (`100vh`/`h-screen`/`min-h-screen` → `dvh` equivalents)** — Tailwind 4 has `min-h-dvh` and `h-dvh` natively; all modern browsers (iOS 15.4+, Chrome 108+, Firefox 101+) support `dvh`. Fixes the long-standing Safari URL-bar overflow where the hero/wizard would crop below the visible viewport when the URL bar collapsed.
+- `src/context/ThemeContext.tsx` — root theme wrapper.
+- `src/components/ErrorBoundary.tsx` — inline `minHeight: '100vh'` → `className="h-dvh-fallback"` (uses the new `@supports` utility because inline style can't do CSS feature queries).
+- `src/components/home/Hero.tsx` — `h-screen` → `h-dvh`. Also added explicit `width={1920} height={1080}` to the hero `<img>` for CLS prevention.
+- `src/components/vehicle/VehicleDetailPage.tsx`
+- `src/components/portal/CustomerPortal.tsx` (3 occurrences: login, loading, dashboard)
+- `src/components/booking/BookingStatusPage.tsx`
+- `src/components/booking/ConfirmBooking.tsx` (3 occurrences: loading, error, wizard)
+- `src/components/booking/RentalAgreementPage.tsx`
+- `src/components/booking/confirm-booking/MissingRefScreen.tsx`
+- `src/components/booking/confirm-booking/ConfirmedScreen.tsx`
+- `src/components/legal/PrivacyPolicy.tsx`
+- `src/components/legal/TermsOfService.tsx`
+
+**Mobile chrome polish**
+- `src/components/layout/Navbar.tsx` — top padding now `pt-[max(0.75rem,env(safe-area-inset-top))]` (scrolled) / `pt-[max(1.25rem,env(safe-area-inset-top))] md:pt-[max(1.5rem,env(safe-area-inset-top))]` (unscrolled) so the navbar lands below the notch/Dynamic Island in portrait and below the camera bar in landscape. `max()` ensures we never lose the original design padding on non-notched devices.
+- `src/components/vehicle/QuickViewModal.tsx` — close button `w-9 h-9 sm:w-10 sm:h-10` (36/40px) → `w-11 h-11` (44px) at all sizes; bumped icon from `18` → `20`; added `aria-label="Close vehicle preview"` (was missing).
+
+### Dashboard (6 files)
+
+**Foundation**
+- `dashboard/package.json` + `dashboard/package-lock.json` — added `@vercel/speed-insights ^2.0.0`.
+- `dashboard/index.html` — same viewport/theme-color/PWA meta package as customer site (theme-color uses dashboard's `#111928`/`#F8FAFC` instead of customer's `#0A0A0A`/`#FAFAF8`).
+- `dashboard/src/styles/globals.css` — appended Mobile Foundation block:
+  - **16px on inputs/selects/textareas only below 768px** — preserves the dashboard's existing 14px (`text-sm`) desktop typography while preventing iOS auto-zoom on phone-width admin work.
+  - `touch-action: manipulation` on buttons/anchors/labels/summary/submit.
+  - `-webkit-text-size-adjust: 100%` + `text-size-adjust: 100%` on `html`.
+  - `.h-dvh-fallback`, `.safe-*`, `.tap-target` utilities (same names as customer site for consistency).
+  - **`.btn` / `.input` `min-height: 40px → 44px` below 768px only** — keeps the desktop design exactly as-is, hits AAA/HIG on touch. Applied via the existing `@media (max-width: 767px)` block at the bottom.
+- `dashboard/src/main.jsx` — mounted `<SpeedInsights />` inside `<StrictMode>` after `<App />`.
+
+### What this does NOT do (deferred to later sprints)
+
+- **Phase 2 Performance** — customer site is still single-bundle via `vite-plugin-singlefile` (926 KB / 238 KB gzip). Stripe + signature_pad still ship to the homepage. Dashboard chunks are still 1.6 MB main + 1.78 MB mapbox-gl. Code-splitting, lazy Stripe/signature_pad/mapbox, AVIF/WebP images, font-display swap, preconnect tuning — all next sprint.
+- **Phase 3 Mobile UX patterns** — modals are still centered overlays (not bottom sheets), the booking wizard isn't keyboard-aware yet (no `visualViewport` hook), no sticky bottom CTA on vehicle detail, dashboard still has the desktop sidebar (no bottom nav).
+- **Phase 4 Modern APIs** — no `text-wrap: balance`, no View Transitions, no Speculation Rules, no container queries yet.
+- **Phase 5 PWA + push** — manifests exist (both apps) but no service worker, no `expo-push`/APNs/FCM wiring.
+
+### API/Data Impact
+- None. No API functions touched, no response shapes changed, no Supabase calls modified.
+- `api/client.js`, `auth/*`, `notifyService.js`, `emailService.js`, all email templates, all Supabase tables — **untouched** (per CLAUDE.md hard rules).
+
+### Hard rules respected
+- `api/client.js` — untouched
+- `auth/` (Supabase client, AuthProvider, ProtectedRoute, LoginPage) — untouched
+- Supabase schema — untouched
+- Notification system (`notifyService.js`, `emailService.js`, templates) — untouched
+- CSS variables — none renamed; only new utility classes added
+- Widget IDs in `widgetConfig.js` — untouched
+
+### Files That Need Verification
+- **iOS device test (real iPhone)** — required to confirm the dvh / safe-area / 44px / 16px fixes actually feel different. Specifically:
+  - Hero section fills exactly the visible viewport (no clipped CTA when URL bar collapses)
+  - Navbar contents sit below Dynamic Island in portrait and below camera bar in landscape
+  - Tapping an input doesn't trigger zoom on the booking wizard (Address, License steps)
+  - QuickViewModal close button is comfortable to tap with a thumb
+- **Desktop regression sweep** — both apps. None expected (all changes either add new utilities, bump minimums on mobile-only media queries, or replace `vh` with `dvh` which collapses to `vh` on desktop).
+- **Vercel Speed Insights dashboard** — data starts flowing once deployed to a Vercel project with the integration enabled (one toggle in Vercel project settings).
+
+### Build Status
+- [x] Customer site `npm run build` — zero errors. 926.27 kB / 238.20 kB gzip (parity with previous build).
+- [x] Dashboard `npm run build` — zero errors with VITE_API_URL set. 1,608 kB JS / 425 kB gzip + 1,781 kB mapbox chunk. Pre-existing chunk-size warning (called out in the 2026-04-04 entry); not a regression — Phase 2 perf work targets this.
+
+### Committed
+- [ ] Pending — branch `claude/intelligent-khayyam-ea08f4` (worktree)
+- [ ] Vercel env vars — none new required; Speed Insights auto-injects in production via Vercel's runtime
+- [ ] Supabase migration — none
+
+### Known Issues / Follow-up
+- Phase 2 performance pass is the next biggest single mobile win available (code-split, lazy Stripe, AVIF/WebP, font swap). Customer site bundle is currently a single inline 926 KB chunk because of `vite-plugin-singlefile` — that will be reverted next sprint with proper route-level lazy loading.
+- The dashboard env-guard in `vite.config.js` (throws when `VITE_API_URL` is missing) is working as designed — builds in CI/Vercel pass because env vars are set; local manual builds need them set inline. Already documented in the 2026-04-04 entry; not new.
+- `MobileStickyCTA.tsx` already uses `env(safe-area-inset-bottom)` correctly. Footer already gets 5rem bottom padding in mobile CSS. No changes needed.
+- Tap-target audit still has follow-ups: icon buttons inside cards (fleet grid, vehicle detail nav arrows), filter pills, and dashboard table action icons should be reviewed in a later sprint with the `.tap-target` utility now available.
+- `useKeyboardInset.ts` (`visualViewport.resize` hook for keyboard-aware booking wizard inputs) — designed but not created this sprint. Belongs to Phase 3 mobile UX.
+
+---
+
 ## 2026-05-12 — Phase 2: notification timeline redesign + cron timing externalization
 
 **Why:** The legacy Templates + Sequences tabs treated each notification as a row in a list, divorced from when it actually fires. Admin couldn't see the rental lifecycle at a glance or preview what a customer would receive. Phase 2 introduces a horizontal lifecycle timeline (Request → Approval → Payment → Ready → Pickup → During → Return → Post-trip), with each notification stage as a draggable card that opens a full editor with byte-identical live email + SMS previews.

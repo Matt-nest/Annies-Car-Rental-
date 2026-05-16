@@ -12,7 +12,7 @@ export default function RentalAgreementPage() {
     <>
       <Navbar onNavigate={() => { window.location.href = '/'; }} />
       <div
-        className="min-h-screen px-4 sm:px-6 py-20 sm:py-28"
+        className="min-h-dvh px-4 sm:px-6 py-20 sm:py-28"
         style={{ backgroundColor: 'var(--bg-primary)' }}
       >
         <div className="max-w-3xl mx-auto">

@@ -83,7 +83,7 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
 
   return (
     <div
-      className={`min-h-screen ${theme} transition-colors duration-500`}
+      className={`min-h-dvh ${theme} transition-colors duration-500`}
       style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
     >
       {/* Sticky Header */}

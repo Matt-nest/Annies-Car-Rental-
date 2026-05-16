@@ -431,7 +431,7 @@ export default function CustomerPortal() {
     return (
       <>
         <Navbar onNavigate={scrollToSection} />
-        <main className="min-h-screen px-4 sm:px-6" style={{ paddingTop: '120px', paddingBottom: '80px' }}>
+        <main className="min-h-dvh px-4 sm:px-6" style={{ paddingTop: '120px', paddingBottom: '80px' }}>
           <div className="max-w-md mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 24 }}
@@ -563,7 +563,7 @@ export default function CustomerPortal() {
     return (
       <>
         <Navbar onNavigate={scrollToSection} />
-        <main className="min-h-screen flex items-center justify-center">
+        <main className="min-h-dvh flex items-center justify-center">
           <Loader2 size={32} className="animate-spin" style={{ color: 'var(--accent-color)' }} />
         </main>
       </>
@@ -587,7 +587,7 @@ export default function CustomerPortal() {
   return (
     <>
       <Navbar onNavigate={scrollToSection} />
-      <main className="min-h-screen px-4 sm:px-6" style={{ paddingTop: '100px', paddingBottom: '80px' }}>
+      <main className="min-h-dvh px-4 sm:px-6" style={{ paddingTop: '100px', paddingBottom: '80px' }}>
         <div className="max-w-lg mx-auto space-y-5">
 
           {/* Compact identity header — name + booking code */}

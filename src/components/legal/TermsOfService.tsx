@@ -19,7 +19,7 @@ export default function TermsOfService() {
   useTheme();
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-dvh">
       <header
         className="sticky top-0 z-10 backdrop-blur-md"
         style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border-subtle)' }}
