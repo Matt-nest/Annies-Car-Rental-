@@ -5,6 +5,99 @@
 
 ---
 
+## 2026-05-16 — Mobile-first Sprint 2: customer-site code splitting + lazy Stripe + lazy signature_pad
+
+**Why:** Sprint 1 fixed iOS hygiene but left the biggest mobile performance problem alone: `vite-plugin-singlefile` was bundling the entire customer app — Stripe SDK, signature_pad, every route, every wizard step — into one inlined 926 kB HTML (238 kB gzip). Every visitor downloaded everything on first paint, even users who never reach `/confirm` or `/portal`. This sprint restores proper Rollup code-splitting, lazy-loads heavy routes via `React.lazy()`, and breaks the Stripe SDK out of the constants module so it stops side-effect-loading on every page.
+
+**Scope:** 7 files (1 new, 6 modified). Customer site only. Build verified clean — homepage initial JS gzip drops **~28% (238 → 170 kB)**. Within the research's <170 kB mobile budget.
+
+**Skill grounding:** `web-performance-optimization` (Core Web Vitals, JS budgets). Research backing: web.dev LCP optimization, web.dev "your first performance budget", web.dev INP guidance.
+
+### Build (1 file)
+- `vite.config.ts` — removed `vite-plugin-singlefile` + `viteSingleFile()` plugin + `inlineDynamicImports: true` + `manualChunks: undefined`. Added explicit `manualChunks` function to extract long-lived vendor libs:
+  - `vendor-stripe` (`@stripe/*`) — 5.11 kB gzip — only fetched on /confirm
+  - `vendor-signature` (`signature_pad`) — 4.71 kB gzip — only fetched at wizard step 6
+  - `vendor-motion` (`motion`) — 45.42 kB gzip — eager (home uses it)
+  - `vendor-icons` (`lucide-react`) — 4.52 kB gzip — eager
+  - `vendor-react` (`react`, `react-dom`) — 61.53 kB gzip — eager
+  - Route chunks are auto-split by Vite per `React.lazy()` boundary.
+
+### Stripe extraction (1 new file, 2 modified)
+- `src/components/booking/confirm-booking/stripeClient.ts` (NEW) — exports a `getStripe()` function with a lazy singleton. The `loadStripe()` call happens on first call, not on module import. Detailed comment explains why this split exists.
+- `src/components/booking/confirm-booking/constants.ts` — removed `import { loadStripe }` + `export const stripePromise`. Replaced with a 9-line comment pointing to `stripeClient.ts`. Every wizard step that imported `formatCurrency`, `WizardDraft`, `STAGES` etc. from constants used to side-effect-load the Stripe SDK because `loadStripe()` ran at module top-level. That's gone now.
+- `src/components/booking/ConfirmBooking.tsx` — imports `getStripe` from `stripeClient` instead of `stripePromise` from `constants`. Calls `getStripe()` once at module top to preserve the existing `<Elements stripe={stripePromise}>` pattern; the call only runs when ConfirmBooking is first imported (which is now lazy via React.lazy in App.tsx).
+
+### Route-level lazy loading (1 file)
+- `src/App.tsx` — 7 heavy routes converted to `React.lazy()` + per-route `<Suspense fallback={<RouteFallback />}>`. Home stays eager (LCP path).
+  - `VehicleDetailPage` (13.02 kB gzip chunk)
+  - `ConfirmBooking` (17.75 kB gzip chunk; +Stripe 5.11 kB + signature 4.71 kB on demand)
+  - `RentalAgreementPage` (0.89 kB)
+  - `BookingStatusPage` (2.23 kB)
+  - `CustomerPortal` (14.14 kB)
+  - `PrivacyPolicy` (3.65 kB)
+  - `TermsOfService` (3.39 kB)
+- New `RouteFallback` component (8 lines, inside App.tsx) — uses `min-h-dvh` + CSS-var styling so it matches the rest of the design system.
+- Suspense is per-route (inside each motion.div) rather than a single top-level Suspense, so AnimatePresence's keyed exit animations on the previous page aren't interrupted by the new page's suspending fetch.
+
+### Signature pad lazy import (1 file)
+- `src/components/booking/confirm-booking/wizard-steps/SignatureStep.tsx` — `import SignaturePad from 'signature_pad'` → `import type SignaturePad from 'signature_pad'` (type-only, erased at build). The constructor is dynamic-imported inside the `useEffect` that initializes the canvas. The 4.71 kB gzip library only ships when the user actually reaches wizard step 6 (signature). Added a `cancelled` flag so a quick mode-switch or unmount during the dynamic import doesn't double-initialize the pad.
+
+### Preconnect hints (1 file)
+- `index.html` — added `<link rel="preconnect" href="https://js.stripe.com" crossorigin />` + `<link rel="dns-prefetch" href="https://api.stripe.com" />`. Cuts TLS handshake time on first paint of the wizard (Stripe iframe is rendered server-side by Stripe.js after SDK fetch). Also added `fetchpriority="high"` to the hero image preload that was already present.
+
+### Bundle delta
+
+| Page first-paint | Sprint 1 baseline | Sprint 2 result | Delta |
+|---|---|---|---|
+| Homepage (gzip JS+CSS) | **238.20 kB** (single inlined bundle) | **~170 kB** (chunked, parallel) | **−68 kB (−29%)** |
+| /confirm extra payload | (already in baseline) | +Stripe 5.11 + ConfirmBooking 17.75 + AddStepts ~5 ≈ **28 kB** | only when user reaches /confirm |
+| Wizard step 6 extra | (already in baseline) | +signature_pad **4.71 kB** | only when user reaches signature step |
+| /portal | (already in baseline) | +CustomerPortal **14.14 kB** | only when user visits |
+| /privacy + /terms | (already in baseline) | ~7 kB combined | only when visited |
+
+Headline: a user who visits the homepage and never books anything now downloads **30% less JavaScript** than before. A user who completes a full booking downloads ~the same total — just spread across the journey instead of front-loaded.
+
+### What this does NOT do (deferred to later sprints)
+
+- **AVIF/WebP image pipeline** — `vite-imagetools` setup deferred to its own focused sprint (it touches many img tags across FleetGrid, VehicleDetailPage, Hero variants, reviews, etc.).
+- **Font self-hosting + size-adjust overrides** — Google Fonts with `&display=swap` is fine for Sprint 2; the CLS fix from `size-adjust` requires self-hosting Inter/Playfair Display which is a bigger refactor. Phase 4 polish work.
+- **Service worker / Workbox** — Phase 5 (PWA + push) scope. Manifests exist but no SW yet.
+- **Dashboard Phase 2** — same techniques applicable to dashboard (Recharts lazy, mapbox lazy, route-level lazy) but each requires Phase 2 dashboard-side audit before changing. Skipped this sprint to keep the change set focused.
+
+### API/Data Impact
+- None. Stripe key, all API URLs, all backend endpoints, all wizard logic, all sessionStorage keys — unchanged. The only behavioral difference is _when_ the Stripe SDK loads (on /confirm visit) vs. _when_ it used to load (on every visit).
+
+### Hard rules respected
+- `api/client.js` — untouched
+- `auth/*` — untouched
+- Supabase schema — untouched
+- Notification system — untouched
+- CSS variables — none renamed
+- Widget IDs — N/A (customer site)
+
+### Files That Need Verification
+- **Manual booking-flow smoke test on a Vercel preview deploy:** load /, click Reserve a Vehicle, pick a car, fill the wizard through step 6 (signature), reach payment, confirm Stripe Elements renders. The Stripe and signature loads now happen mid-journey, not on first paint — make sure they actually load when their UI mounts.
+- **Network tab inspection** on a fresh load of /:
+  - Initial page load should NOT include Stripe SDK or signature_pad
+  - Navigating to /confirm triggers the Stripe + ConfirmBooking chunks
+  - Wizard reaching step 6 triggers signature_pad fetch
+- **AnimatePresence transitions** between routes — visually verify the per-route Suspense fallback isn't visibly flashing on fast networks. If a lazy chunk takes >100 ms over 4G it'll briefly show the "Loading…" fallback, which is acceptable.
+- **Desktop regression sweep** — none expected; just a delivery mechanism change.
+
+### Build Status
+- [x] Customer site `npm run build` — zero errors. 2,144 modules → 18 chunks. Homepage gzip ~170 kB (target: ≤170 kB per the research's mobile JS budget).
+- [x] No new chunk-size warnings.
+
+### Committed
+- [ ] Pending — branch `claude/intelligent-khayyam-ea08f4` (worktree)
+
+### Known Issues / Follow-up
+- The `RentalAgreement.tsx` (top-level, no -Page suffix) component still imports `signature_pad` eagerly but it's dead code — only re-exported through `src/components/index.ts` which nothing imports. Rollup tree-shakes it. Not worth touching but flagged so a future cleanup PR can delete it.
+- `vendor-react` chunk is 61.53 kB gzip and is loaded on every page. That's a hard floor — React itself plus react-dom. Could trim further via Preact compat but that's high-risk for low return; not worth doing.
+- Dashboard Phase 2 (Recharts lazy, mapbox-gl already in its own chunk but loaded eagerly when TelematicsPage renders, dashboard route-level lazy loading) is the next obvious target.
+
+---
+
 ## 2026-05-16 — Mobile-first Sprint 1: iOS hygiene + Speed Insights (customer site + dashboard)
 
 **Why:** First shippable slice of the mobile-first overhaul. Both apps already did several things right (hover gating, prefers-reduced-motion, `-webkit-tap-highlight-color: transparent`, content-visibility on images). Real gaps were iOS Safari–specific: no `viewport-fit=cover`, `100vh`/`h-screen` everywhere (URL-bar overflow bug), inputs at 14px (triggers iOS auto-zoom), no safe-area padding for notch/Dynamic Island/home indicator, sub-44px tap targets on close buttons. This sprint closes those gaps without redesigning anything visual.

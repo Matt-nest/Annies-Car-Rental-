@@ -22,11 +22,16 @@ import SubmitLoader from './confirm-booking/wizard-steps/SubmitLoader';
 
 import {
   API_URL, PHONE_NUMBER,
-  stripePromise, getRefCode,
+  getRefCode,
   formatCurrency,
   loadDraft, saveDraft, clearDraft,
   type WizardDraft,
 } from './confirm-booking/constants';
+import { getStripe } from './confirm-booking/stripeClient';
+
+// Stripe SDK is loaded here (not in constants.ts) so importing wizard helpers
+// elsewhere doesn't pull in @stripe/stripe-js.
+const stripePromise = getStripe();
 
 /* ────────────────────────────────────────────────────────
    Inner form (needs Stripe context)

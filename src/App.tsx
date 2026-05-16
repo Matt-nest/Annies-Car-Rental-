@@ -1,5 +1,5 @@
 // SPA routing: vercel.json rewrites all paths to index.html
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AnimatePresence, motion } from 'motion/react';
 import { Vehicle, RateMode } from './types';
@@ -18,14 +18,32 @@ import LongTermSection from './components/home/LongTermSection';
 import ContactSection from './components/home/ContactSection';
 import MobileStickyCTA from './components/home/MobileStickyCTA';
 import Footer from './components/layout/Footer';
-import VehicleDetailPage from './components/vehicle/VehicleDetailPage';
-import ConfirmBooking from './components/booking/ConfirmBooking';
-import RentalAgreementPage from './components/booking/RentalAgreementPage';
-import BookingStatusPage from './components/booking/BookingStatusPage';
-import CustomerPortal from './components/portal/CustomerPortal';
-import PrivacyPolicy from './components/legal/PrivacyPolicy';
-import TermsOfService from './components/legal/TermsOfService';
 import CustomCursor from './components/home/CustomCursor';
+
+/* Heavy / off-home routes are lazy-loaded so the homepage chunk stays small.
+   Each becomes its own Rollup chunk, fetched only on navigation:
+   - ConfirmBooking pulls in @stripe/stripe-js + signature_pad
+   - CustomerPortal pulls in its own subtree
+   - Legal/Status/Agreement are seldom-trafficked  */
+const VehicleDetailPage  = lazy(() => import('./components/vehicle/VehicleDetailPage'));
+const ConfirmBooking     = lazy(() => import('./components/booking/ConfirmBooking'));
+const RentalAgreementPage = lazy(() => import('./components/booking/RentalAgreementPage'));
+const BookingStatusPage  = lazy(() => import('./components/booking/BookingStatusPage'));
+const CustomerPortal     = lazy(() => import('./components/portal/CustomerPortal'));
+const PrivacyPolicy      = lazy(() => import('./components/legal/PrivacyPolicy'));
+const TermsOfService     = lazy(() => import('./components/legal/TermsOfService'));
+
+// Minimal fallback for lazy routes — matches the existing 100dvh hygiene pattern.
+function RouteFallback() {
+  return (
+    <div
+      className="min-h-dvh flex items-center justify-center"
+      style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)' }}
+    >
+      <div className="text-sm opacity-60">Loading…</div>
+    </div>
+  );
+}
 
 type Page = 'home' | 'detail' | 'confirm' | 'rental-agreement' | 'booking-status' | 'portal' | 'privacy' | 'terms';
 
@@ -120,7 +138,9 @@ export default function App() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.4, ease: EASE.dramatic }}
           >
-            <CustomerPortal />
+            <Suspense fallback={<RouteFallback />}>
+              <CustomerPortal />
+            </Suspense>
           </motion.div>
         ) : currentPage === 'booking-status' ? (
           <motion.div
@@ -130,7 +150,9 @@ export default function App() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.4, ease: EASE.dramatic }}
           >
-            <BookingStatusPage onBack={() => { setCurrentPage('home'); window.history.pushState({}, '', '/'); }} />
+            <Suspense fallback={<RouteFallback />}>
+              <BookingStatusPage onBack={() => { setCurrentPage('home'); window.history.pushState({}, '', '/'); }} />
+            </Suspense>
           </motion.div>
         ) : currentPage === 'privacy' ? (
           <motion.div
@@ -140,7 +162,9 @@ export default function App() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.4, ease: EASE.dramatic }}
           >
-            <PrivacyPolicy />
+            <Suspense fallback={<RouteFallback />}>
+              <PrivacyPolicy />
+            </Suspense>
           </motion.div>
         ) : currentPage === 'terms' ? (
           <motion.div
@@ -150,7 +174,9 @@ export default function App() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.4, ease: EASE.dramatic }}
           >
-            <TermsOfService />
+            <Suspense fallback={<RouteFallback />}>
+              <TermsOfService />
+            </Suspense>
           </motion.div>
         ) : currentPage === 'rental-agreement' ? (
           <motion.div
@@ -160,7 +186,9 @@ export default function App() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.4, ease: EASE.dramatic }}
           >
-            <RentalAgreementPage />
+            <Suspense fallback={<RouteFallback />}>
+              <RentalAgreementPage />
+            </Suspense>
           </motion.div>
         ) : currentPage === 'confirm' ? (
           <motion.div
@@ -170,7 +198,9 @@ export default function App() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.4, ease: EASE.dramatic }}
           >
-            <ConfirmBooking />
+            <Suspense fallback={<RouteFallback />}>
+              <ConfirmBooking />
+            </Suspense>
           </motion.div>
         ) : currentPage === 'detail' && selectedVehicle ? (
           <motion.div
@@ -180,7 +210,9 @@ export default function App() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.4, ease: EASE.dramatic }}
           >
-            <VehicleDetailPage vehicle={selectedVehicle} onBack={handleBackToHome} />
+            <Suspense fallback={<RouteFallback />}>
+              <VehicleDetailPage vehicle={selectedVehicle} onBack={handleBackToHome} />
+            </Suspense>
           </motion.div>
         ) : (
           <motion.div
