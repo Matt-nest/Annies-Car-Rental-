@@ -5,6 +5,74 @@
 
 ---
 
+## 2026-05-16 — Mobile-first Sprint 3a: dashboard mobile bottom navigation
+
+**Why:** The dashboard sidebar is a desktop pattern. On a phone it has to be opened as a drawer for every navigation, which is exactly the friction Annie hits when doing field check-ins from her phone. Per the approved plan, the dashboard's mobile anchor is a bottom-nav for the 4 most-used routes plus a "More" trigger that opens the existing sidebar drawer for everything else. Research backing: Material Design 3 bottom nav (4–5 items max), iOS HIG Tab Bar conventions, mobile-design skill (thumb reach, one-handed use).
+
+**Scope:** 3 files (1 new component, 2 modified). Sidebar untouched (drawer behavior preserved). `h-screen` → `h-dvh` fix in DashboardLayout caught a leftover from Sprint 1.
+
+### Components (1 new file)
+- `dashboard/src/components/layout/BottomNav.jsx` (NEW, 88 lines):
+  - 4 destinations + 1 "More" button = 5 slots (research max).
+  - Items: Home (`/`), Bookings (`/bookings`, with `pending_approvals` alert badge), Fleet (`/fleet`), Clients (`/customers`). "More" trigger opens the existing Sidebar drawer via the `onOpenMore` callback prop.
+  - `lg:hidden` so the bar only renders below 1024 px; desktop is unchanged.
+  - Tap targets use the `.tap-target` utility (44×44 min) on every slot.
+  - Safe-area-bottom padding via `.safe-bottom` so the bar sits above the iOS home indicator.
+  - Active state pulled from react-router's `NavLink` so `/bookings/:id` correctly lights the Bookings tab.
+  - Alert badge is positioned absolutely (`-top-1 -right-2`) on the icon, matching Sidebar's alert badge style.
+  - Icons match Sidebar so admins recognize the same affordance on phone and desktop.
+
+### Layout integration (2 modified files)
+- `dashboard/src/components/layout/DashboardLayout.jsx`:
+  - Imported `BottomNav`.
+  - Replaced `h-screen` → `h-dvh` (leftover from Sprint 1; was using the URL-bar-leaky `100vh`).
+  - Added `pb-[calc(64px+env(safe-area-inset-bottom))] lg:pb-0` to `<main>` so page content doesn't sit behind the bottom bar on mobile; padding collapses at `lg+`.
+  - Rendered `<BottomNav onOpenMore={() => setSidebarOpen(true)} />` after the main column. The existing `sidebarOpen` state already powered the mobile drawer triggered by the header hamburger — `onOpenMore` reuses it so the "More" button works identically.
+- `dashboard/src/components/layout/Sidebar.jsx` — NOT modified. The existing mobile drawer behavior (open via `sidebarOpen` prop, dismiss via `onClose`) is reused as-is. Zero risk to its consumers.
+
+### What this does NOT do (deferred)
+
+- **Hide the header hamburger on mobile** — it still exists. Two ways to open the drawer on mobile (hamburger AND More) is fine for one release; we can hide the hamburger in a follow-up if it feels redundant after Annie tries it.
+- **Customer site bottom-nav** — not needed; the customer site's mobile nav is the hamburger + sticky-CTA pattern, which is correct for marketing/conversion. The customer Navbar already got safe-area-top in Sprint 1.
+- **Custom "More" sheet** — currently "More" opens the existing Sidebar drawer (full-screen on mobile). A future enhancement could give "More" a shorter bottom-sheet of the remaining routes instead of the full Sidebar, but reusing the existing drawer is the lower-risk move.
+- **Dashboard Phase 3b** — BookingDetailPage tabs, photo uploads with camera capture, single-column portal mobile layout — all next sprint.
+
+### API/Data Impact
+- None. Reuses `useAlerts()` context which already exists.
+
+### Hard rules respected
+- `api/client.js` — untouched
+- `auth/*` — untouched
+- `Sidebar.jsx` — untouched (props compatible; new caller is BottomNav using an existing setter)
+- `Modal.jsx`, `StatusBadge.jsx`, `Skeleton.jsx`, `WidgetWrapper.jsx`, `EmptyState.jsx` — untouched
+- CSS variables — none renamed; `.tap-target` and `.safe-bottom` utilities used (added in Sprint 1)
+- `globals.css` — untouched
+- Widget IDs — untouched
+- Supabase schema — untouched
+
+### Files That Need Verification
+- **Real iPhone walkthrough** of the BottomNav:
+  - Bottom bar sits above the home indicator (safe-area visible as breathing room)
+  - Tapping each of the 5 items navigates without zooming
+  - Alert badge appears on Bookings when there are pending approvals
+  - "More" opens the full Sidebar drawer
+  - Active tab highlights correctly on deep-linked pages (e.g. `/bookings/abc123` highlights Bookings)
+- **Landscape orientation** — bottom-nav still visible, safe-area-left/right is respected (already in `.safe-bottom` utility).
+- **Desktop regression** — `lg:hidden` is on BottomNav root → confirm nothing renders at ≥1024 px. Sidebar still works as before; hamburger still toggles pinned/unpinned on desktop.
+- **All 20 lazy-loaded routes** — navigating to each from BottomNav should fetch the corresponding chunk on first visit, then be instant on repeat visits.
+
+### Build Status
+- [x] Dashboard `npm run build` — zero errors. Eager bundle 42.10 → 42.48 kB gzip (+0.38 kB for BottomNav). Total chunk count unchanged.
+
+### Committed
+- [ ] Pending — branch `claude/intelligent-khayyam-ea08f4` (worktree)
+
+### Known Issues / Follow-up
+- Phase 3 customer site (Vaul bottom sheets + keyboard-aware booking wizard + Vehicle Detail sticky CTA + single-column portal) is the next slice.
+- Once Annie tries the bottom-nav on a phone, consider hiding the header hamburger button on mobile (it's currently redundant with "More").
+
+---
+
 ## 2026-05-16 — Mobile-first Sprint 2b: dashboard code splitting + lazy mapbox + lazy routes
 
 **Why:** Sprint 2a fixed the customer site. The dashboard had the same shape of problem but worse: 1,608 kB single JS bundle (425 kB gzip) plus a 1,781 kB mapbox-gl chunk (498 kB gzip) that loaded eagerly the moment a user opened TelematicsPage — and was forced into the dashboard bundle even for admins who never visit Telematics. Most admin work happens on Dashboard / Bookings / Fleet; mapbox shouldn't be on the critical path. Same fix as Sprint 2a: route-level `React.lazy()` + hand-tuned vendor manualChunks.
