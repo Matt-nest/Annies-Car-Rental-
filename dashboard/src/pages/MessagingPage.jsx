@@ -68,81 +68,110 @@ export default function MessagingPage() {
   return (
     <div style={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
 
-      {/* Page header — hidden on mobile when viewing a chat */}
+      {/* Page header — hidden on mobile when viewing a chat (the ChatPanel
+          renders its own sticky chat header bar in that mode). */}
       {!(isMobile && selectedCustomer) && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: EASE }}
           style={{
-            padding: '14px 16px',
+            padding: isMobile ? '10px 12px' : '14px 16px',
             borderBottom: '1px solid var(--border-subtle)',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            flexWrap: 'wrap', gap: '8px',
+            display: 'flex',
+            alignItems: isMobile ? 'stretch' : 'center',
+            justifyContent: 'space-between',
+            flexDirection: isMobile ? 'column' : 'row',
+            flexWrap: isMobile ? 'nowrap' : 'wrap',
+            gap: isMobile ? '8px' : '8px',
             background: 'var(--bg-elevated)',
             backdropFilter: 'blur(12px)',
             flexShrink: 0,
           }}
         >
-          <div>
-            <h1 style={{
-              fontSize: '18px', fontWeight: 700, letterSpacing: '-0.02em',
-              color: 'var(--text-primary)',
-            }}>SMS Conversations</h1>
-            <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: 2 }}>
-              Two-way SMS & email messaging
-            </p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <div>
+              <h1 style={{
+                fontSize: isMobile ? '16px' : '18px',
+                fontWeight: 700, letterSpacing: '-0.02em',
+                color: 'var(--text-primary)',
+              }}>SMS Conversations</h1>
+              {!isMobile && (
+                <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: 2 }}>
+                  Two-way SMS & email messaging
+                </p>
+              )}
+            </div>
+            {/* Crisp dashboard link — desktop-only. Annie won't open Crisp's
+                full admin UI on her phone. */}
+            {!isMobile && (
+              <a
+                href="https://app.crisp.chat"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  fontSize: '12px', fontWeight: 500, padding: '6px 12px',
+                  borderRadius: 8, border: '1px solid var(--border-subtle)',
+                  backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)',
+                  textDecoration: 'none', transition: 'all 0.2s ease', cursor: 'pointer',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.borderColor = 'var(--accent)'; }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
+              >
+                <MessageSquare size={13} />
+                Open Crisp Dashboard
+              </a>
+            )}
           </div>
-          <a
-            href="https://app.crisp.chat"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              fontSize: '12px', fontWeight: 500, padding: '6px 12px',
-              borderRadius: 8, border: '1px solid var(--border-subtle)',
-              backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)',
-              textDecoration: 'none', transition: 'all 0.2s ease', cursor: 'pointer',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.borderColor = 'var(--accent)'; }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
-          >
-            <MessageSquare size={13} />
-            Open Crisp Dashboard
-          </a>
 
-          {/* Tab switcher */}
+          {/* Tab switcher — Sprint 9: on mobile becomes icon-only equal-grid
+              with the active tab showing its label. Desktop unchanged. */}
           <div style={{
-            display: 'flex', borderRadius: 12, padding: 3,
+            display: isMobile ? 'grid' : 'flex',
+            gridTemplateColumns: isMobile ? 'repeat(5, 1fr)' : undefined,
+            borderRadius: 12, padding: 3,
             background: 'var(--bg-card, rgba(0,0,0,0.03))',
             border: '1px solid var(--border-subtle)',
           }}>
             {[
-              { key: 'conversations', label: 'Conversations', Icon: MessageSquare },
-              { key: 'timeline',      label: 'Timeline',      Icon: GitBranch },
-              { key: 'templates',     label: 'Templates',     Icon: FileText },
-              { key: 'sequences',     label: 'Sequences',     Icon: Clock },
-              { key: 'optouts',       label: 'Opt-Outs',      Icon: ShieldOff },
-            ].map(({ key, label, Icon }) => (
-              <motion.button
-                key={key}
-                whileTap={{ scale: 0.97 }}
-                onClick={() => setTab(key)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 5,
-                  padding: '7px 14px', borderRadius: 9, border: 'none',
-                  cursor: 'pointer', fontSize: '12px', fontWeight: 600,
-                  letterSpacing: '-0.005em',
-                  background: tab === key ? 'var(--bg-elevated, #fff)' : 'transparent',
-                  color: tab === key ? '#007AFF' : 'var(--text-secondary)',
-                  boxShadow: tab === key ? '0 1px 4px rgba(0,0,0,0.06)' : 'none',
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                <Icon size={13} />
-                {label}
-              </motion.button>
-            ))}
+              { key: 'conversations', label: 'Chat',      fullLabel: 'Conversations', Icon: MessageSquare },
+              { key: 'timeline',      label: 'Timeline',  fullLabel: 'Timeline',      Icon: GitBranch },
+              { key: 'templates',     label: 'Templates', fullLabel: 'Templates',     Icon: FileText },
+              { key: 'sequences',     label: 'Cron',      fullLabel: 'Sequences',     Icon: Clock },
+              { key: 'optouts',       label: 'Opt-Outs',  fullLabel: 'Opt-Outs',      Icon: ShieldOff },
+            ].map(({ key, label, fullLabel, Icon }) => {
+              const isActive = tab === key;
+              return (
+                <motion.button
+                  key={key}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => setTab(key)}
+                  aria-label={fullLabel}
+                  style={{
+                    display: 'flex',
+                    flexDirection: isMobile ? 'column' : 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: isMobile ? 2 : 5,
+                    padding: isMobile ? '8px 4px' : '7px 14px',
+                    borderRadius: 9, border: 'none',
+                    cursor: 'pointer',
+                    fontSize: isMobile ? '10px' : '12px',
+                    fontWeight: 600,
+                    letterSpacing: '-0.005em',
+                    minHeight: isMobile ? 44 : undefined,
+                    background: isActive ? 'var(--bg-elevated, #fff)' : 'transparent',
+                    color: isActive ? '#007AFF' : 'var(--text-secondary)',
+                    boxShadow: isActive ? '0 1px 4px rgba(0,0,0,0.06)' : 'none',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <Icon size={isMobile ? 16 : 13} />
+                  <span>{isMobile ? label : fullLabel}</span>
+                </motion.button>
+              );
+            })}
           </div>
         </motion.div>
       )}
@@ -198,18 +227,83 @@ export default function MessagingPage() {
           )}
           {isMobile && selectedCustomer && (
             <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-              <button
-                onClick={() => setSelectedCustomer(null)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  padding: '12px 16px', fontSize: '14px', fontWeight: 600,
-                  color: 'var(--accent-color)', background: 'none', border: 'none',
-                  borderBottom: '1px solid var(--border-subtle)',
-                  cursor: 'pointer', flexShrink: 0,
-                }}
-              >
-                ← Back to conversations
-              </button>
+              {/* Sprint 9: iOS-style sticky chat header — back button + avatar
+                  + customer name. Replaces the plain "← Back" text link. */}
+              {(() => {
+                const conv = conversations.find(c => c.customer_id === selectedCustomer);
+                const name = conv
+                  ? `${conv.customer?.first_name || ''} ${conv.customer?.last_name || ''}`.trim() || 'Customer'
+                  : 'Customer';
+                const initials = (conv?.customer?.first_name?.[0] || '') + (conv?.customer?.last_name?.[0] || '');
+                const phone = conv?.customer?.phone;
+                return (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: 'max(10px, env(safe-area-inset-top)) 12px 10px',
+                    borderBottom: '1px solid var(--border-subtle)',
+                    background: 'var(--bg-elevated)',
+                    flexShrink: 0,
+                  }}>
+                    <button
+                      onClick={() => setSelectedCustomer(null)}
+                      aria-label="Back to conversation list"
+                      style={{
+                        minWidth: 44, minHeight: 44,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        color: 'var(--accent-color)',
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        marginLeft: -8,
+                      }}
+                    >
+                      <span style={{ fontSize: 24, lineHeight: 1, fontWeight: 300 }}>‹</span>
+                    </button>
+                    <div
+                      aria-hidden="true"
+                      style={{
+                        width: 36, height: 36, borderRadius: '50%',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: 'linear-gradient(135deg, var(--accent-color) 0%, #0066DD 100%)',
+                        color: '#fff', fontSize: 13, fontWeight: 700,
+                        boxShadow: '0 2px 8px rgba(0,122,255,0.25)',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {initials.toUpperCase() || '?'}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{
+                        fontSize: 14, fontWeight: 700, color: 'var(--text-primary)',
+                        margin: 0, lineHeight: 1.2,
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                      }}>{name}</p>
+                      {phone && (
+                        <p style={{
+                          fontSize: 11, color: 'var(--text-tertiary)',
+                          margin: 0, lineHeight: 1.2, marginTop: 1,
+                        }}>{phone}</p>
+                      )}
+                    </div>
+                    {phone && (
+                      <a
+                        href={`tel:${phone}`}
+                        aria-label={`Call ${name}`}
+                        style={{
+                          minWidth: 44, minHeight: 44,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          color: 'var(--accent-color)',
+                          textDecoration: 'none',
+                        }}
+                      >
+                        <MessageSquare size={20} style={{ display: 'none' }} />
+                        {/* Phone icon */}
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                        </svg>
+                      </a>
+                    )}
+                  </div>
+                );
+              })()}
               <ChatPanel customerId={selectedCustomer} conversations={conversations} />
             </div>
           )}
