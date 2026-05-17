@@ -13,6 +13,7 @@ import { storeLocalMessage } from './messagingService.js';
 import { sendViaResend } from '../utils/mailTransport.js';
 import { renderBrandedShell, escapeHtml } from '../utils/emailShell.js';
 import FALLBACK_TEMPLATES from './fallbackTemplates.js';
+import { sendToCustomer as sendPushToCustomer } from './pushService.js';
 
 const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN;
@@ -670,6 +671,54 @@ export async function sendBookingNotification(stage, bookingPayload) {
         });
       } catch (e) {
         console.error(`[Notify] SMS send error for "${stage}":`, e.message);
+      }
+    }
+
+    // Sprint 12c: Web Push fan-out — non-blocking, additive to email/SMS.
+    //
+    // Push complements (does NOT replace) the existing dispatch. Customers who
+    // opted in via the PushOptInCard (Sprint 12b) get an instant browser
+    // notification alongside their email/SMS. Customers without a subscription,
+    // or installations on browsers without push support, see zero impact —
+    // pushService.sendToCustomer returns { sent: 0, ... } as a no-op.
+    //
+    // Body strategy: reuse rendered.sms_body since it's already terse and
+    // customer-facing. Falls back to subject, then to a generic line so the
+    // notification never displays an empty body.
+    //
+    // Idempotency: covered upstream by the notification_log F-7 check at the
+    // top of this function (line ~601). If we got here, this is the only
+    // dispatch attempt for (booking, stage, day).
+    //
+    // Failure isolation: wrapped in its own try/catch so a push failure
+    // (network, bad VAPID config, etc.) never affects the email/SMS path
+    // already completed above OR the storeSystemMessage call below.
+    if (bookingPayload.customer_id) {
+      try {
+        const pushBody =
+          rendered.sms_body ||
+          rendered.subject ||
+          (EVENT_SUMMARIES[stage] || 'You have a new update.');
+        const bookingCodeForUrl = bookingPayload.booking_code
+          ? `?code=${encodeURIComponent(bookingPayload.booking_code)}`
+          : '';
+        await sendPushToCustomer(bookingPayload.customer_id, {
+          title: 'Annie\'s Car Rental',
+          body: pushBody,
+          url: `/portal${bookingCodeForUrl}`,
+          data: {
+            stage,
+            booking_code: bookingPayload.booking_code || null,
+            // SW uses tag for grouping — one per booking so a follow-up
+            // push for the same booking replaces the older one instead of
+            // stacking. Falls back to stage if no booking code.
+            tag: bookingPayload.booking_code
+              ? `booking-${bookingPayload.booking_code}`
+              : `stage-${stage}`,
+          },
+        });
+      } catch (e) {
+        console.error(`[Notify] Push send error for "${stage}":`, e.message);
       }
     }
 
