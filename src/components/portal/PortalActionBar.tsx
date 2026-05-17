@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowRight, MessageSquare, Star, Receipt, Key } from 'lucide-react';
+import { haptic } from '../../hooks/useHaptic';
 
 /**
  * PortalActionBar — sticky bottom-center primary CTA for the customer portal.
@@ -80,7 +81,7 @@ export default function PortalActionBar({
   const action = actionFor(status);
 
   function handleTap() {
-    if ('vibrate' in navigator) navigator.vibrate?.(10);
+    haptic('tap');
     // Sprint 7c: if a direct trigger is wired, prefer it over scroll-to-anchor.
     if (status === 'ready_for_pickup' && onCheckIn) return onCheckIn();
     if (status === 'active' && onCheckOut) return onCheckOut();

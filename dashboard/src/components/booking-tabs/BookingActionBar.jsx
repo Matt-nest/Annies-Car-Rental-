@@ -1,4 +1,5 @@
 import { Check, Key, Package, Flag, X } from 'lucide-react';
+import { haptic } from '../../lib/haptic';
 
 /**
  * BookingActionBar — sticky bottom primary-action CTA for the admin booking
@@ -51,11 +52,11 @@ export default function BookingActionBar({ status, onAction, disabled = false })
   if (!cfg) return null;
 
   function handlePrimary() {
-    if ('vibrate' in navigator) navigator.vibrate?.(10);
+    haptic('commit');
     onAction?.(cfg.primary.action);
   }
   function handleSecondary() {
-    if ('vibrate' in navigator) navigator.vibrate?.(10);
+    haptic('tap');
     if (cfg.secondary) onAction?.(cfg.secondary.action);
   }
 

@@ -101,6 +101,16 @@ h1, h2, h3, .card-title, .balance-text {
   text-wrap: balance;
 }
 
+/* `pretty` reduces orphans and ragged-edge wrap on body text. Cheaper than
+   `balance` but still has a per-paragraph cost — apply at desktop widths
+   only where the wins are biggest and the INP risk is smallest. Phones
+   skip this rule so low-end Androids don't pay the cost. */
+@media (min-width: 768px) {
+  p, .prose-pretty {
+    text-wrap: pretty;
+  }
+}
+
 /* === Easing System === */
 :root {
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
@@ -290,6 +300,19 @@ details[open] > div {
     scroll-behavior: auto !important;
   }
   .animate-slow-zoom { animation: none !important; }
+}
+
+/* === Reduced Data — users on data-saver / cellular metered networks ===
+   Disable the hero parallax zoom (which keeps the GPU compositor warm) and
+   any decorative images marked .decorative. Saves battery + bandwidth. */
+@media (prefers-reduced-data: reduce) {
+  .animate-slow-zoom {
+    animation: none !important;
+    transform: scale(1) !important;
+  }
+  .decorative {
+    display: none !important;
+  }
 }
 
 /* === Print === */
