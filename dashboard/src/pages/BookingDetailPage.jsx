@@ -384,7 +384,11 @@ export default function BookingDetailPage() {
       })()}
 
       {/* ── Tab Navigation ──────────────────────────────────────────── */}
-      <div className="flex gap-1 overflow-x-auto pb-1 border-b border-[var(--border-subtle)]">
+      {/* Sprint 8: mobile = 4 equal-width grid with icon stacked above label
+          (Material Design tab pattern). Desktop = original horizontal scroll
+          with icon-left-of-label. .tap-target ensures every tab is 44+ px
+          tall on touch. */}
+      <div className="grid grid-cols-4 md:flex md:gap-1 md:overflow-x-auto pb-0 md:pb-1 border-b border-[var(--border-subtle)]">
         {TABS.map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -392,14 +396,21 @@ export default function BookingDetailPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium rounded-t-lg transition-all whitespace-nowrap ${
+              className={`tap-target flex flex-col md:flex-row items-center justify-center gap-1 md:gap-1.5 px-2 md:px-4 py-3 md:py-2.5 text-[11px] md:text-sm font-medium md:rounded-t-lg transition-all whitespace-nowrap relative ${
                 isActive
-                  ? 'text-[var(--accent-color)] bg-[var(--bg-elevated)] border border-[var(--border-subtle)] border-b-transparent -mb-px'
+                  ? 'text-[var(--accent-color)] md:bg-[var(--bg-elevated)] md:border md:border-[var(--border-subtle)] md:border-b-transparent md:-mb-px'
                   : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-card)]'
               }`}
             >
-              <Icon size={14} />
-              {tab.label}
+              <Icon size={18} className="md:!w-[14px] md:!h-[14px]" />
+              <span>{tab.label}</span>
+              {/* Mobile-only active indicator bar (md+ uses the bordered tab look) */}
+              {isActive && (
+                <span
+                  className="md:hidden absolute bottom-0 inset-x-2 h-[2px] rounded-t"
+                  style={{ backgroundColor: 'var(--accent-color)' }}
+                />
+              )}
             </button>
           );
         })}
