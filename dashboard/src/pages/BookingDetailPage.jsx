@@ -14,6 +14,7 @@ import Field from '../components/shared/Field';
 import CheckInPrepTab from '../components/booking-tabs/CheckInPrepTab';
 import CheckOutTab from '../components/booking-tabs/CheckOutTab';
 import InvoiceTab from '../components/booking-tabs/InvoiceTab';
+import BookingActionBar from '../components/booking-tabs/BookingActionBar';
 import { useAlerts } from '../lib/alertsContext';
 import { format } from 'date-fns';
 
@@ -459,6 +460,16 @@ export default function BookingDetailPage() {
         damageForm={damageForm} setDamageForm={setDamageForm}
         paymentForm={paymentForm} setPaymentForm={setPaymentForm}
         actioning={actioning} doAction={doAction}
+      />
+
+      {/* Sprint 8b: phone-only sticky bottom CTA — single primary action per
+          booking state. Triggers the existing setModal flow so all existing
+          modals (decline reason, pickup mileage, return condition, etc.)
+          remain the source of truth. Hidden at md+. */}
+      <BookingActionBar
+        status={status}
+        onAction={(action) => setModal(action)}
+        disabled={actioning}
       />
 
       {/* Photo Lightbox */}
