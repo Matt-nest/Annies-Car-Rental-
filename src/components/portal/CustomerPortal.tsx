@@ -16,6 +16,7 @@ import CrispWidget, { openCrispChat } from './CrispWidget';
 import PortalActionBar from './PortalActionBar';
 import StatusHero from './StatusHero';
 import BookingTimelineStepper from './BookingTimelineStepper';
+import PushOptInCard from './PushOptInCard';
 import Sheet from '../common/Sheet';
 import { usePullToRefresh } from '../../hooks/usePullToRefresh';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
@@ -662,6 +663,12 @@ export default function CustomerPortal() {
               indicator (Confirmed → Pickup → Driving → Return → Complete).
               Hidden for cancelled/declined states. */}
           <BookingTimelineStepper status={status as any} />
+
+          {/* Push notifications opt-in — Sprint 12b. Renders only when the
+              browser supports Web Push AND the backend has VAPID configured
+              (GET /push/vapid-key returns enabled). Hides itself after the
+              booking is completed/cancelled/declined. */}
+          <PushOptInCard status={status as any} portalToken={token} />
 
           {/* Success Message */}
           <AnimatePresence>

@@ -11,81 +11,24 @@ export default defineConfig(({ mode }) => {
       react(),
       tailwindcss(),
       VitePWA({
-        // 'prompt' = the SW updates only when our in-app prompt accepts.
-        // We never silently swap caches mid-booking — critical for a payment flow.
+        // Sprint 12b: switched to `injectManifest` so we can add a push event
+        // handler in our own SW source. All runtime caching that used to live
+        // here now lives in src/sw.ts via workbox-routing.
+        strategies: 'injectManifest',
+        srcDir: 'src',
+        filename: 'sw.ts',
         registerType: 'prompt',
-        // Use the existing /public/site.webmanifest unchanged — we manage it
-        // by hand so designers / SEO can review changes in source control.
         manifest: false,
-        // Plugin generates `manifest.webmanifest`; we already serve `site.webmanifest`
-        // from /public so disable plugin-side manifest emission.
         injectRegister: false,
-        workbox: {
+        injectManifest: {
           // Precache ONLY the small static shell — JS / CSS / HTML / SVG / favicons.
-          // Photos in /public (hero, fleet, drivers) are runtime-cached below
-          // via StaleWhileRevalidate. Lazy route chunks are also runtime-cached
-          // (not precached) so first-paint download stays under the mobile budget.
+          // Photos in /public and lazy route chunks are runtime-cached in sw.ts.
           globPatterns: ['**/*.{js,css,html,svg,ico,woff2}'],
           globIgnores: [
             '**/{ConfirmBooking,CustomerPortal,VehicleDetailPage,RentalAgreementPage,BookingStatusPage,PrivacyPolicy,TermsOfService,MonthlyInquiryModal,vendor-vaul,vendor-stripe,vendor-signature}-*.js',
           ],
-          // Always claim the page on activate so reloads pick up the new SW.
-          clientsClaim: true,
-          // Don't skip waiting — wait for the in-app "Update?" prompt.
-          skipWaiting: false,
-          // 5 MB cap per file to avoid accidentally precaching huge bundles.
           maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
-          // SPA fallback — serve index.html for unknown navigation requests
-          // (Vercel rewrites do this server-side; this matches it offline).
-          navigateFallback: '/index.html',
-          // Don't intercept Stripe SDK loads or the backend API.
-          navigateFallbackDenylist: [/^\/api\//, /^\/admin/],
-          runtimeCaching: [
-            {
-              // Google Fonts CSS — Stale While Revalidate so fonts update in background.
-              urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-              handler: 'StaleWhileRevalidate',
-              options: {
-                cacheName: 'google-fonts-css',
-                cacheableResponse: { statuses: [0, 200] },
-              },
-            },
-            {
-              // Google Fonts woff2 — Cache First with 1-year TTL.
-              urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'google-fonts-files',
-                cacheableResponse: { statuses: [0, 200] },
-                expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 },
-              },
-            },
-            {
-              // Lazy route + vendor chunks — Cache First.
-              urlPattern: ({ url }) =>
-                url.origin === self.location.origin && url.pathname.startsWith('/assets/'),
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'static-assets',
-                expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 30 },
-              },
-            },
-            {
-              // /public images (hero, fleet, logos) — Stale While Revalidate.
-              urlPattern: ({ url, request }) =>
-                url.origin === self.location.origin &&
-                ['image'].includes(request.destination),
-              handler: 'StaleWhileRevalidate',
-              options: {
-                cacheName: 'images',
-                expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 30 },
-              },
-            },
-            // No rule for backend API: requests to VITE_API_URL go through
-            // network unchanged. We intentionally never cache booking state.
-          ],
         },
-        // Show "Ready to work offline" once after first SW activation.
         devOptions: { enabled: false }, // never run SW in dev — kills HMR
       }),
     ],
