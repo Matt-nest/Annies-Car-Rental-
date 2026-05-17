@@ -5,6 +5,7 @@ import { formatDistanceToNow, format } from 'date-fns';
 import { api } from '../../../api/client';
 import { cachedQuery, invalidateCache } from '../../../lib/queryCache';
 import { useAlerts } from '../../../lib/alertsContext';
+import { haptic } from '../../../lib/haptic';
 import Modal from '../../shared/Modal';
 import WidgetWrapper from '../WidgetWrapper';
 
@@ -111,10 +112,10 @@ function BookingCard({ booking, onApprove, onDeclineClick, approving }) {
 
   function onDragEnd(_e, info) {
     if (info.offset.x > SWIPE_THRESHOLD) {
-      if ('vibrate' in navigator) navigator.vibrate?.(12);
+      haptic('commit');
       onApprove(booking.id);
     } else if (info.offset.x < -SWIPE_THRESHOLD) {
-      if ('vibrate' in navigator) navigator.vibrate?.(12);
+      haptic('commit');
       onDeclineClick(booking);
     }
     // Always snap back; the card may also be removed by the parent on success.
@@ -126,7 +127,7 @@ function BookingCard({ booking, onApprove, onDeclineClick, approving }) {
     const ax = Math.abs(info.offset.x);
     const crossed = ax > SWIPE_THRESHOLD * 0.9;
     if (crossed && Date.now() - lastHaptic.current > 250) {
-      if ('vibrate' in navigator) navigator.vibrate?.(6);
+      haptic('edge');
       lastHaptic.current = Date.now();
     }
   }

@@ -217,6 +217,14 @@ h1, h2, h3, .widget-title, .balance-text {
   text-wrap: balance;
 }
 
+/* `pretty` reduces orphans on prose. Desktop-only — phones skip it to
+   protect INP on low-end Android. */
+@media (min-width: 768px) {
+  p, .prose-pretty {
+    text-wrap: pretty;
+  }
+}
+
 /* ─── Components ────────────────────────────────────────────────────────────── */
 @layer components {
 
