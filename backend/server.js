@@ -34,6 +34,7 @@ import loyaltyRoutes from './routes/loyalty.js';
 import bonzahRoutes from './routes/bonzah.js';
 import bouncieRoutes from './routes/bouncie.js';
 import bouncieWebhookRoutes from './routes/bouncieWebhooks.js';
+import pushRoutes from './routes/push.js';
 
 const app = express();
 const PORT = process.env.API_PORT || 3001;
@@ -120,6 +121,7 @@ app.use('/api/v1/loyalty', loyaltyRoutes);
 app.use('/api/v1/admin/bonzah', bonzahRoutes);
 app.use('/api/v1/admin/bouncie', bouncieRoutes);
 app.use('/api/v1/bouncie', bouncieWebhookRoutes);
+app.use('/api/v1/push', pushRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ error: `${req.method} ${req.path} not found` }));
