@@ -144,7 +144,7 @@ export default function InvoiceTab({ booking, onReload }) {
                 </p>
               </div>
               {deposit.status === 'held' && (
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <button onClick={handleReleaseDeposit} disabled={releasing} className="btn-secondary text-xs">
                     {releasing ? 'Releasing…' : 'Full Refund'}
                   </button>
@@ -186,7 +186,7 @@ export default function InvoiceTab({ booking, onReload }) {
                   </span>
                 )}
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setShowPreview(!showPreview)}
                   className="btn-ghost text-xs"
@@ -377,12 +377,12 @@ export default function InvoiceTab({ booking, onReload }) {
             <p className="text-xs text-[var(--text-tertiary)] mb-4">
               Generate a settlement invoice from incidentals, or download a rental invoice PDF.
             </p>
-            <div className="flex items-center justify-center gap-3">
-              <button onClick={handleGenerate} disabled={generating} className="btn-secondary">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
+              <button onClick={handleGenerate} disabled={generating} className="btn-secondary w-full sm:w-auto justify-center">
                 <FileText size={15} />
                 {generating ? 'Generating…' : 'Generate Settlement'}
               </button>
-              <button onClick={handleDownloadPdf} disabled={downloading} className="btn-primary">
+              <button onClick={handleDownloadPdf} disabled={downloading} className="btn-primary w-full sm:w-auto justify-center">
                 <Download size={15} />
                 {downloading ? 'Downloading…' : 'Download Invoice PDF'}
               </button>
