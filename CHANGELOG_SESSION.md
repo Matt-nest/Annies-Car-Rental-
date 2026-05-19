@@ -5,6 +5,100 @@
 
 ---
 
+## 2026-05-19 — Sprint 13: dashboard mobile chrome lockdown (safe-area + dvh + responsive button rows + portal touch targets)
+
+**Why:** Field testing on a real iPhone surfaced four mobile bugs that escaped the earlier sprints. The iOS status bar was overlapping the hamburger menu (no safe-area-inset-top on the dashboard topbar). Booking Detail panned horizontally because the Invoice tab's button rows used non-wrapping `flex` containers with long-text buttons. Most critically: the Messaging composer was physically rendered below the BottomNav and off-screen because `MessagingPage` sized itself with `calc(100vh - 64px)` — `100vh` is wrong on iOS Safari, and the `- 64px` only subtracted the dashboard header height, not the new mobile BottomNav that Sprint 3a added. Net effect: admin couldn't type messages at all on a phone. Plus the customer-portal PhotoUploader's delete button was 24×24 AND hidden behind `opacity-0 group-hover:opacity-100` — touch devices have no hover, so it was invisible and unreachable.
+
+**Scope:** 5 files across 4 slices. Pure mobile-correctness work — zero behavior change on desktop. No new dependencies. No API or schema changes. Customer portal audit confirmed the rest of that codebase is already best-in-class for mobile; only PhotoUploader needed work.
+
+**Skill grounding:** `mobile-design` (touch-first, platform-respectful), `hig-foundations` (iOS safe-area + Dynamic Island), `progressive-web-app` (standalone status bar handling), `accessibility-compliance-accessibility-audit` (WCAG 2.5.5 / Apple HIG 44pt minimum), `ui-review` (post-edit sweep of sibling button rows), `react-patterns`.
+
+### Sprint 13a — Safe-area tokens + DashboardLayout header (2 files)
+
+- `dashboard/src/styles/globals.css`:
+  - Added 4 CSS custom properties to `:root` for the rest of the app to reference instead of hardcoding chrome heights:
+    - `--app-safe-top: env(safe-area-inset-top, 0px)`
+    - `--app-safe-bottom: env(safe-area-inset-bottom, 0px)`
+    - `--app-header-h: 64px` (DashboardLayout topbar inner height)
+    - `--app-bottomnav-h: 64px` (BottomNav inner height, Sprint 3a)
+  - Added a `@media (min-width: 1024px)` rule that overrides `--app-bottomnav-h: 0px` so desktop pages don't reserve phantom space.
+- `dashboard/src/components/layout/DashboardLayout.jsx`:
+  - The sticky topbar at line 110 now uses `className="sticky top-0 flex w-full z-[99999] safe-top safe-x"`. The `.safe-top` utility (already defined at globals.css:198) adds `padding-top: max(env(safe-area-inset-top), 0px)`, which pushes the hamburger/search/notification controls below the iOS status bar while the translucent backdrop extends UNDER the bar (which is what `apple-mobile-web-app-status-bar-style: black-translucent` in index.html expects). `.safe-x` handles landscape orientation on notched phones (Dynamic Island sits on the side in landscape).
+- Net effect on the user's screenshot: the "10:21" iOS status bar no longer overlaps the hamburger menu. Background blur extends behind the status bar for a native-feeling status-bar look.
+
+### Sprint 13b — 100vh → 100dvh + reachable messaging composer (1 file)
+
+- `dashboard/src/pages/MessagingPage.jsx`:
+  - Root `<div>` height changed from `calc(100vh - 64px)` to `height: '100%'` + `minHeight: 0`.
+  - **Why this is the correct fix, not just a hack:** the parent `<main>` in DashboardLayout already does the math: `flex-1 overflow-y-auto pb-[calc(64px+env(safe-area-inset-bottom))] lg:pb-0`. With box-sizing: border-box (globally set), `height: 100%` on a child equals the parent's CONTENT box height = `dvh - dashboard_header - mobile_bottompadding`. That's exactly the visible viewport between the topbar and the BottomNav, on every iPhone screen size, in portrait and landscape. The old `calc(100vh - 64px)` ignored `100vh ≠ visible viewport on iOS Safari` AND ignored the BottomNav.
+  - The composer at `ChatPanel.jsx:427-510` was already correctly authored (no `hidden md:flex`, no media-query gating); it was just rendered below the visible area. With the height fix the composer now sits flush above the BottomNav and `<textarea>` is tap-reachable.
+- Sweep result: the only other `100vh` reference in `dashboard/src/` is the intentional fallback in `globals.css:205` (`.h-dvh-fallback { min-height: 100vh; }` followed by `@supports (min-height: 100dvh)` upgrade) — correct as-is.
+
+### Sprint 13c — BookingDetailPage InvoiceTab responsive button rows (1 file)
+
+- `dashboard/src/components/booking-tabs/InvoiceTab.jsx`:
+  - Three button rows were single-line flex with no wrapping. Two of them caused the horizontal-pan bug visible in the screenshots:
+    - **Empty-state row (line 380):** "Generate Settlement" + "Download Invoice PDF" — the longer of the two ("Download Invoice PDF") alone is ~190 px; two of them with gap exceed 375 px viewport width. Now `flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3` with `w-full sm:w-auto justify-center` on each button. On phones the buttons stack full-width; at sm (640 px+) they sit side-by-side at intrinsic width.
+    - **Header action row (line 189):** Preview / Regenerate / Download Invoice — three `text-xs` buttons. Tight at 375 px. Added `flex-wrap` so they reflow rather than overflow.
+    - **Deposit action row (line 147):** Full Refund / Settle Against Charges — added `flex-wrap` for the same reason.
+- Sibling tabs (`CheckInPrepTab`, `CheckOutTab`, `TollsTab`, `BookingActionBar`) were spot-checked — their primary CTAs use the `w-full` pattern already and don't have the same overflow risk. Left untouched to keep blast radius small per CLAUDE.md.
+
+### Sprint 13d — Customer portal PhotoUploader touch targets (1 file)
+
+- `src/components/portal/PhotoUploader.tsx`:
+  - **Per-photo delete button (line 104) had two compounding bugs:**
+    1. Size was `w-6 h-6` (24×24) — below WCAG 2.5.5 minimum.
+    2. Visibility was gated on `opacity-0 group-hover:opacity-100` — touch devices have no `:hover`, so the X was permanently invisible on phones. Users had no way to delete a photo.
+  - Replaced with `.tap-target` (already defined at `index.css:89` as `min-width: 44px; min-height: 44px`) plus persistent visibility (`motion-safe:opacity-90 hover:opacity-100` so the button always shows on touch and brightens on desktop hover). Added `aria-label={`Remove photo ${i + 1}`}`. Icon bumped from `size={12}` to `size={16} strokeWidth={2.5}` for visibility. Backdrop blur added for legibility over varied photo content.
+  - **Error-dismiss X (line 178):** was a bare button with a 12×12 icon and `ml-auto`. Now wrapped in `.tap-target` with `aria-label="Dismiss error"` and bumped icon to size 16. Layout adjusted so the message text uses `flex-1` instead of being inline.
+
+### Sprint 13e — Build verify + iPhone-viewport preview walkthrough
+
+- Pre-existing worktree env issue: no `node_modules` in either the dashboard or the customer portal directory of this worktree. The build harness expects `vite-plugin-pwa` which is declared in both `package.json`s but not installed in this worktree's tree. Ran `npm install` in both before validating. Builds pass once installed; the install step itself is not part of the diff.
+- Preview walkthrough captured at iPhone SE (375×667) and iPhone 14 Pro (393×852) viewports. Compared against the user's original screenshots — status bar no longer collides with hamburger, Booking Detail no longer pans horizontally, "Generate Settlement" and "Download Invoice PDF" sit stacked and full-width on phone, messaging composer is fully visible above the BottomNav.
+
+### Bundle delta — dashboard home
+
+| | Sprint 12c | Sprint 13 | Delta |
+|---|---|---|---|
+| `index.js` (gzip) | ~43 kB | ~43 kB | ±0 (CSS-only chrome changes) |
+| New CSS rules | — | 4 `:root` custom props + 1 `@media` rule | +~250 bytes pre-gzip |
+| New JS | — | none | 0 kB |
+
+### API / Data Impact
+None. No backend changes, no API contract changes, no schema migrations, no notification stage additions.
+
+### Hard rules respected
+- `api/client.js`, `auth/*` — untouched.
+- `notifyService.js`, `emailService.js`, all 19 notification stages — untouched.
+- CSS variables — only ADDED (`--app-safe-top`, `--app-safe-bottom`, `--app-header-h`, `--app-bottomnav-h`). No existing variable renamed.
+- Widget IDs / `widgetConfig.js` / `DashboardLayoutEngine` `WIDGET_COMPONENTS` map — untouched.
+- Supabase schema — untouched.
+- Per-slice blast radius: 13a = 2 files, 13b = 1 file, 13c = 1 file, 13d = 1 file. Every slice well within the "≤3 files" rule.
+
+### Files That Need Verification
+- **Cold-load on iPhone PWA install** (Add to Home Screen → standalone) — status bar is now translucent over the topbar; verify the backdrop blur extends correctly under the bar in both portrait and landscape.
+- **Booking detail with a pending booking** — visit `/bookings/:id` and confirm the "INVOICE" section's two buttons stack vertically below 640 px and side-by-side at 640+.
+- **Messaging — type a message on iPhone** — open `/messaging`, tap a conversation, confirm the textarea + Send button are above the BottomNav and not hidden by it.
+- **Customer portal — photo uploader** — open a booking that needs check-in photos on phone, upload one, confirm the delete X is now visible (no hover required) and tappable.
+- **Landscape orientation** — rotate to landscape and verify safe-area-inset-left/right is respected on Dynamic Island phones.
+
+### Build Status
+- [x] Dashboard `npm run build` — passes after `npm install` (pre-existing missing-deps in the worktree).
+- [x] Customer portal `npm run build` — passes after `npm install`.
+
+### Committed
+- [ ] Local commits per slice (per user instruction: "Just commit locally — no PRs yet"). Branch `claude/silly-wu-255144` (worktree).
+
+### Known Issues / Follow-up
+- **Sprint 14 candidates** the user explicitly deferred:
+  - Sidebar drawer body-scroll lock — when the mobile drawer is open, the page behind can still scroll vertically.
+  - MessagingPage two-pane → single-pane back-stack — currently the ConversationList and ChatPanel coexist; on mobile this could become a true full-screen back-stack like iMessage. Sprint 9 did the chat-header part of this but didn't do the navigation transition. With 13b's composer-reachability fix, the immediate pain is resolved; the back-stack is purely UX polish.
+  - Dashboard messaging keyboard-inset hook — the customer portal has `useKeyboardInset()` for the iOS soft keyboard. The dashboard messaging page doesn't. When the user taps the textarea on iPhone, iOS's auto-resize handles most cases, but for parity the dashboard could adopt the same hook.
+- **Backfill changelog gap** (Sprints 7a–12c) — this changelog skipped from Sprint 6a to Sprint 13. Git log is the source of truth for those 7 sprints; a one-shot backfill is an obvious follow-up but was not part of this session's approved scope.
+
+---
+
 ## 2026-05-16 — Mobile-first Sprint 6a: dashboard widget-level lazy + remove eager mapbox modulepreload
 
 **Why:** Sprint 2b put each dashboard route behind `React.lazy()` but the home page still eagerly imported all 12 widgets — and KPICardsWidget + RevenueTrendWidget both use Recharts. So `vendor-charts` (112 kB gzip) was always in the home critical path. Worse: while wiring this up I discovered Vite's `manualChunks` was injecting `modulepreload` hints for vendor-mapbox (498 kB gzip) on every dashboard page, even though only TelematicsPage uses mapbox-gl. Combined fix: lazy widgets for the two chart-using widgets + remove the single-consumer libs from manualChunks so Vite can co-locate them with their lazy routes.

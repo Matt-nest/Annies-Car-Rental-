@@ -106,9 +106,12 @@ function DashboardLayoutInner() {
 
 
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-          {/* Header */}
+          {/* Header — safe-top pushes content below the iOS notch / Dynamic Island
+              while the background extends under the translucent status bar (set
+              via apple-mobile-web-app-status-bar-style="black-translucent" in
+              index.html). safe-x handles landscape orientation on notched phones. */}
           <header
-            className="sticky top-0 flex w-full z-[99999]"
+            className="sticky top-0 flex w-full z-[99999] safe-top safe-x"
             style={{
               backgroundColor: 'var(--header-bg)',
               borderBottom: '1px solid var(--border-subtle)',

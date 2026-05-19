@@ -66,7 +66,7 @@ export default function MessagingPage() {
   };
 
   return (
-    <div style={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+    <div style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
 
       {/* Page header — hidden on mobile when viewing a chat (the ChatPanel
           renders its own sticky chat header bar in that mode). */}

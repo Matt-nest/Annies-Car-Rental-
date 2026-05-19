@@ -102,14 +102,18 @@ export default function PhotoUploader({
                   className="w-full h-full object-cover"
                 />
                 <button
+                  type="button"
                   onClick={() => removePhoto(i)}
-                  className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  aria-label={`Remove photo ${i + 1}`}
+                  className="absolute top-1 right-1 tap-target rounded-full transition-transform active:scale-90 motion-safe:opacity-90 hover:opacity-100"
                   style={{
-                    backgroundColor: 'rgba(0,0,0,0.7)',
+                    backgroundColor: 'rgba(0,0,0,0.6)',
                     color: '#fff',
+                    backdropFilter: 'blur(4px)',
+                    WebkitBackdropFilter: 'blur(4px)',
                   }}
                 >
-                  <X size={12} />
+                  <X size={16} strokeWidth={2.5} />
                 </button>
                 <div
                   className="absolute bottom-0 left-0 right-0 px-2 py-1 text-[10px] font-medium"
@@ -173,9 +177,17 @@ export default function PhotoUploader({
             className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg"
             style={{ backgroundColor: 'rgba(239,68,68,0.08)', color: '#ef4444' }}
           >
-            <AlertCircle size={13} />
-            {uploadError}
-            <button onClick={() => setUploadError('')} className="ml-auto"><X size={12} /></button>
+            <AlertCircle size={13} className="flex-shrink-0" />
+            <span className="flex-1">{uploadError}</span>
+            <button
+              type="button"
+              onClick={() => setUploadError('')}
+              aria-label="Dismiss error"
+              className="tap-target -mr-2 rounded-full active:scale-90 transition-transform"
+              style={{ color: '#ef4444' }}
+            >
+              <X size={16} strokeWidth={2.5} />
+            </button>
           </motion.div>
         )}
       </AnimatePresence>

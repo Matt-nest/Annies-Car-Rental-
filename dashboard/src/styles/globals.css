@@ -53,6 +53,19 @@
   --sidebar-active-bg:   rgba(70, 95, 255, 0.08);
   --sidebar-active-text: #465FFF;
   --sidebar-active-icon: #465FFF;
+
+  /* App chrome — iOS-aware. Reference these from any page that needs to size
+     itself relative to the visible viewport (e.g. full-height messaging panes,
+     sticky overlays, vh-based layouts). The safe-area envs resolve to 0px on
+     non-notched devices, so the math stays correct everywhere. */
+  --app-safe-top:      env(safe-area-inset-top, 0px);
+  --app-safe-bottom:   env(safe-area-inset-bottom, 0px);
+  --app-header-h:      64px;   /* DashboardLayout topbar inner height (py-4 + 32px controls). */
+  --app-bottomnav-h:   64px;   /* BottomNav inner height (Sprint 3a). lg+ collapses to 0 via .lg-no-bottomnav. */
+}
+
+@media (min-width: 1024px) {
+  :root { --app-bottomnav-h: 0px; }
 }
 
 /* ─── Light Mode ────────────────────────────────────────────────────────────── */
