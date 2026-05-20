@@ -9,6 +9,7 @@ import NotificationDropdown from './NotificationDropdown';
 import CashRainOverlay from '../shared/CashRainOverlay';
 import { useAuth } from '../../auth/AuthProvider';
 import { AlertsProvider, useAlerts } from '../../lib/alertsContext';
+import { useScrollRestoration } from '../../hooks/useScrollRestoration';
 
 export const ThemeContext = createContext({ dark: false, toggle: () => {} });
 export const useTheme = () => useContext(ThemeContext);
@@ -27,6 +28,8 @@ function DashboardLayoutInner() {
   const navigate = useNavigate();
   const location = useLocation();
   const { alerts, acknowledgeActive } = useAlerts();
+  const mainScrollRef = useRef(null);
+  useScrollRestoration(mainScrollRef);
   const [profileOpen, setProfileOpen] = useState(false);
   const dropdownRef = useRef(null);
   const [activeAlertModal, setActiveAlertModal] = useState(false);
@@ -271,7 +274,7 @@ function DashboardLayoutInner() {
               Routes are keyed on location.pathname so AnimatePresence runs the
               exit→enter on every navigation. Use route-key (split on /:id) so
               detail pages don't re-mount when the row id changes during back-nav. */}
-          <main className="flex-1 overflow-y-auto glass-scroll pb-[calc(64px+env(safe-area-inset-bottom))] lg:pb-0">
+          <main ref={mainScrollRef} className="flex-1 overflow-y-auto glass-scroll pb-[calc(64px+env(safe-area-inset-bottom))] lg:pb-0">
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={location.pathname.split('/').slice(0, 2).join('/') || '/'}
