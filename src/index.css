@@ -56,9 +56,13 @@
   }
 
   /* iOS Safari: prevent zoom-on-focus by guaranteeing >=16px on form controls.
-     Fixes auto-zoom on inputs/selects/textareas on iOS 17/18. */
+     Fixes auto-zoom on inputs/selects/textareas on iOS 17/18.
+     `!important` because Tailwind v4 utility classes (`text-xs`, `text-sm`)
+     win over @layer base styles in the cascade — without this, the dozen-plus
+     forms across the wizard / portal / monthly-inquiry modal would still
+     trigger zoom even though the base rule is declared. */
   input, select, textarea {
-    font-size: 16px;
+    font-size: 16px !important;
   }
 
   /* Remove the 300ms double-tap-zoom delay on tappable elements.
