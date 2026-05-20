@@ -1,11 +1,18 @@
 /**
  * Shared utilities + constants for the messaging UI.
  * Phase 2E decomposition — formerly inline at top of MessagingPage.jsx.
+ *
+ * EASE/SPRING are re-exported from lib/animation.js so the messaging UI uses
+ * the same motion vocabulary as the rest of the dashboard. Imports here are
+ * unchanged so callers keep working; new code should reach for lib/animation
+ * directly.
  */
 
-/* ── Design Tokens (leadflow-template aligned) ── */
-export const EASE = [0.25, 1, 0.5, 1];
-export const SPRING = { type: 'spring', stiffness: 500, damping: 30 };
+import { EASE_OUT_QUART, SPRING_SNAPPY } from '../../lib/animation';
+
+/* ── Design Tokens (re-exported from lib/animation.js) ── */
+export const EASE = EASE_OUT_QUART;
+export const SPRING = SPRING_SNAPPY;
 
 export const TEMPLATE_STAGES = [
   // Booking flow
@@ -27,7 +34,7 @@ export const TEMPLATE_STAGES = [
   { value: 'return_confirmed', label: 'Return Confirmed', color: '#14b8a6' },
   // Post-rental
   { value: 'rental_completed', label: 'Review Request', color: '#06b6d4' },
-  { value: 'repeat_customer', label: 'Loyalty / Repeat', color: '#007AFF' },
+  { value: 'repeat_customer', label: 'Loyalty / Repeat', color: '#465FFF' },
   // Alerts
   { value: 'late_return_warning', label: 'Late Warning (1h)', color: '#f97316' },
   { value: 'late_return_escalation', label: 'Late Escalation (4h)', color: '#dc2626' },

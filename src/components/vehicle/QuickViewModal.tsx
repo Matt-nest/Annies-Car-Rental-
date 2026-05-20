@@ -198,7 +198,7 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
                   <div className="flex gap-1.5 flex-wrap">
                     <span
                       className="text-xs font-semibold px-2.5 py-1 rounded-full"
-                      style={{ backgroundColor: 'rgba(212,175,55,0.15)', color: 'var(--accent-color)' }}
+                      style={{ backgroundColor: 'color-mix(in srgb, var(--accent-color) 15%, transparent)', color: 'var(--accent-color)' }}
                     >
                       Save ${Math.round(vehicle.dailyRate * 7 - vehicle.weeklyRate)}
                     </span>
@@ -233,7 +233,7 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
                   <div className="flex gap-1.5 flex-wrap">
                     <span
                       className="text-xs font-semibold px-2.5 py-1 rounded-full"
-                      style={{ backgroundColor: 'rgba(212,175,55,0.15)', color: 'var(--accent-color)' }}
+                      style={{ backgroundColor: 'color-mix(in srgb, var(--accent-color) 15%, transparent)', color: 'var(--accent-color)' }}
                     >
                       Best rate
                     </span>

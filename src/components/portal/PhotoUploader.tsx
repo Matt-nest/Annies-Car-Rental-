@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Camera, X, Loader2, ImagePlus, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { API_URL } from '../../config';
+import { haptic } from '../../hooks/useHaptic';
 
 interface PhotoUploaderProps {
   token: string;
@@ -66,6 +67,7 @@ export default function PhotoUploader({
   };
 
   const removePhoto = (index: number) => {
+    haptic('edge');
     const updated = photos.filter((_, i) => i !== index);
     setPhotos(updated);
     onPhotosChange(updated.map(p => p.url));
@@ -105,7 +107,7 @@ export default function PhotoUploader({
                   type="button"
                   onClick={() => removePhoto(i)}
                   aria-label={`Remove photo ${i + 1}`}
-                  className="absolute top-1 right-1 tap-target rounded-full transition-transform active:scale-90 motion-safe:opacity-90 hover:opacity-100"
+                  className="absolute top-1 right-1 tap-target rounded-full transition-transform active:scale-95 motion-safe:opacity-90 hover:opacity-100"
                   style={{
                     backgroundColor: 'rgba(0,0,0,0.6)',
                     color: '#fff',
@@ -130,9 +132,9 @@ export default function PhotoUploader({
       {/* Upload button */}
       {photos.length < maxPhotos && (
         <button
-          onClick={() => fileInputRef.current?.click()}
+          onClick={() => { haptic('tap'); fileInputRef.current?.click(); }}
           disabled={uploading}
-          className="w-full flex items-center justify-center gap-2 py-4 rounded-xl text-sm font-medium transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]"
+          className="w-full flex items-center justify-center gap-2 py-4 rounded-xl text-sm font-medium transition-all duration-200 hover:scale-[1.01] active:scale-95"
           style={{
             backgroundColor: 'var(--bg-card-hover)',
             border: '2px dashed var(--border-subtle)',
@@ -183,7 +185,7 @@ export default function PhotoUploader({
               type="button"
               onClick={() => setUploadError('')}
               aria-label="Dismiss error"
-              className="tap-target -mr-2 rounded-full active:scale-90 transition-transform"
+              className="tap-target -mr-2 rounded-full active:scale-95 transition-transform"
               style={{ color: '#ef4444' }}
             >
               <X size={16} strokeWidth={2.5} />

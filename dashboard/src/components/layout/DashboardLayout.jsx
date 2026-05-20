@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, createContext, useContext } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Sun, Moon, User, Settings, LogOut, ChevronDown, ThumbsUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from './Sidebar';
@@ -9,6 +9,7 @@ import NotificationDropdown from './NotificationDropdown';
 import CashRainOverlay from '../shared/CashRainOverlay';
 import { useAuth } from '../../auth/AuthProvider';
 import { AlertsProvider, useAlerts } from '../../lib/alertsContext';
+import { useScrollRestoration } from '../../hooks/useScrollRestoration';
 
 export const ThemeContext = createContext({ dark: false, toggle: () => {} });
 export const useTheme = () => useContext(ThemeContext);
@@ -25,7 +26,10 @@ function DashboardLayoutInner() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { alerts, acknowledgeActive } = useAlerts();
+  const mainScrollRef = useRef(null);
+  useScrollRestoration(mainScrollRef);
   const [profileOpen, setProfileOpen] = useState(false);
   const dropdownRef = useRef(null);
   const [activeAlertModal, setActiveAlertModal] = useState(false);
@@ -266,9 +270,23 @@ function DashboardLayoutInner() {
           </header>
 
           {/* Page content — bottom padding reserves space for the mobile bottom nav
-              (lg:hidden, ~64 px + safe-area). Padding collapses at lg+. */}
-          <main className="flex-1 overflow-y-auto glass-scroll pb-[calc(64px+env(safe-area-inset-bottom))] lg:pb-0">
-            <Outlet />
+              (lg:hidden, ~64 px + safe-area). Padding collapses at lg+.
+              Routes are keyed on location.pathname so AnimatePresence runs the
+              exit→enter on every navigation. Use route-key (split on /:id) so
+              detail pages don't re-mount when the row id changes during back-nav. */}
+          <main ref={mainScrollRef} className="flex-1 overflow-y-auto glass-scroll pb-[calc(64px+env(safe-area-inset-bottom))] lg:pb-0">
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={location.pathname.split('/').slice(0, 2).join('/') || '/'}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                style={{ minHeight: '100%' }}
+              >
+                <Outlet />
+              </motion.div>
+            </AnimatePresence>
           </main>
         </div>
 

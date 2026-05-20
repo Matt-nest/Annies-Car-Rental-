@@ -19,6 +19,7 @@ import ContactSection from './components/home/ContactSection';
 import MobileStickyCTA from './components/home/MobileStickyCTA';
 import Footer from './components/layout/Footer';
 import CustomCursor from './components/home/CustomCursor';
+import { useScrollRestoration } from './hooks/useScrollRestoration';
 
 /* Heavy / off-home routes are lazy-loaded so the homepage chunk stays small.
    Each becomes its own Rollup chunk, fetched only on navigation:
@@ -61,9 +62,14 @@ export default function App() {
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [quickViewVehicle, setQuickViewVehicle] = useState<Vehicle | null>(null);
   const [rateMode, setRateMode] = useState<RateMode>('daily');
+  const { markPop } = useScrollRestoration<Page>(currentPage);
 
   useEffect(() => {
     const handlePop = () => {
+      // Flag this as a POP so useScrollRestoration restores the saved
+      // scrollY for the page we're landing on instead of leaving the
+      // window at wherever the previous page left off.
+      markPop();
       const path = window.location.pathname;
       if (path === '/confirm') setCurrentPage('confirm');
       else if (path === '/rental-agreement') setCurrentPage('rental-agreement');
@@ -73,7 +79,7 @@ export default function App() {
     };
     window.addEventListener('popstate', handlePop);
     return () => window.removeEventListener('popstate', handlePop);
-  }, []);
+  }, [markPop]);
 
   // Quick-view: fleet card click opens modal (desktop only, bypasses to detail on mobile)
   const handleQuickView = (vehicle: Vehicle) => {

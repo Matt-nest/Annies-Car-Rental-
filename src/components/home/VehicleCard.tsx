@@ -71,7 +71,7 @@ const VehicleCard = memo(function VehicleCard({ vehicle, onClick, index = 0, rat
           <div className="absolute top-3 sm:top-4 right-3 sm:right-4">
             <span
               className="px-2.5 py-1 text-[10px] rounded-full font-semibold uppercase tracking-widest"
-              style={{ backgroundColor: 'rgba(212,175,55,0.9)', color: '#0a0a0a' }}
+              style={{ backgroundColor: 'color-mix(in srgb, var(--accent-color) 90%, transparent)', color: '#0a0a0a' }}
             >
               Save ${weeklySavings}
             </span>
@@ -82,7 +82,7 @@ const VehicleCard = memo(function VehicleCard({ vehicle, onClick, index = 0, rat
           <div className="absolute top-3 sm:top-4 right-3 sm:right-4">
             <span
               className="px-2.5 py-1 text-[10px] rounded-full font-semibold uppercase tracking-widest"
-              style={{ backgroundColor: 'rgba(212,175,55,0.9)', color: '#0a0a0a' }}
+              style={{ backgroundColor: 'color-mix(in srgb, var(--accent-color) 90%, transparent)', color: '#0a0a0a' }}
             >
               Ask Annie
             </span>
@@ -104,7 +104,7 @@ const VehicleCard = memo(function VehicleCard({ vehicle, onClick, index = 0, rat
             {rateMode === 'weekly' && vehicle.weeklyUnlimitedMileage && (
               <span
                 className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full border"
-                style={{ color: '#D4AF37', borderColor: 'rgba(212,175,55,0.4)', backgroundColor: 'rgba(212,175,55,0.08)' }}
+                style={{ color: 'var(--accent-color)', borderColor: 'color-mix(in srgb, var(--accent-color) 40%, transparent)', backgroundColor: 'color-mix(in srgb, var(--accent-color) 8%, transparent)' }}
               >
                 <Infinity size={10} /> Unlimited mileage
               </span>
@@ -115,7 +115,7 @@ const VehicleCard = memo(function VehicleCard({ vehicle, onClick, index = 0, rat
               </span>
             )}
             {rateMode === 'monthly' && (
-              <span className="text-[10px] sm:text-[11px] font-medium uppercase tracking-widest" style={{ color: '#D4AF37' }}>
+              <span className="text-[10px] sm:text-[11px] font-medium uppercase tracking-widest" style={{ color: 'var(--accent-color)' }}>
                 Inquire for pricing
               </span>
             )}

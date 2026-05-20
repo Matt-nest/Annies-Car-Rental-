@@ -178,7 +178,7 @@ export default function ChatPanel({ customerId, conversations }) {
             border: '1px solid var(--border-subtle)',
           }}>
             {[
-              { key: 'all', label: 'All', Icon: MessageSquare, color: '#007AFF' },
+              { key: 'all', label: 'All', Icon: MessageSquare, color: '#465FFF' },
               { key: 'email', label: 'Email', Icon: Mail, color: '#2563eb' },
               { key: 'sms', label: 'SMS', Icon: MessageSquare, color: '#16a34a' },
             ].map(({ key, label, Icon, color }) => (
@@ -210,8 +210,8 @@ export default function ChatPanel({ customerId, conversations }) {
             style={{
               display: 'flex', alignItems: 'center', gap: 4,
               padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border-subtle)',
-              background: showTemplates ? 'rgba(0,122,255,0.1)' : 'var(--bg-card)',
-              color: showTemplates ? '#007AFF' : 'var(--text-secondary)',
+              background: showTemplates ? 'rgba(70,95,255,0.1)' : 'var(--bg-card)',
+              color: showTemplates ? '#465FFF' : 'var(--text-secondary)',
               fontSize: '11px', fontWeight: 600, cursor: 'pointer',
               transition: 'all 0.2s ease',
             }}
@@ -285,7 +285,7 @@ export default function ChatPanel({ customerId, conversations }) {
           <div style={{ display: 'flex', justifyContent: 'center', padding: '40px 0' }}>
             <div style={{
               width: 32, height: 32, borderRadius: '50%',
-              border: '3px solid var(--border-subtle)', borderTopColor: '#007AFF',
+              border: '3px solid var(--border-subtle)', borderTopColor: '#465FFF',
               animation: 'spin 0.8s linear infinite',
             }} />
           </div>
@@ -356,12 +356,12 @@ export default function ChatPanel({ customerId, conversations }) {
                   backdropFilter: 'blur(7px) saturate(1.17) brightness(1.029)',
                   WebkitBackdropFilter: 'blur(7px) saturate(1.17) brightness(1.029)',
                   background: isOutbound
-                    ? 'rgba(0, 122, 255, 0.22)'
+                    ? 'rgba(70, 95, 255, 0.22)'
                     : 'rgba(255, 255, 255, 0.039)',
                   color: isOutbound ? '#fff' : 'var(--text-primary)',
-                  border: `1px solid ${isOutbound ? 'rgba(0,122,255,0.3)' : 'rgba(255,255,255,0.12)'}`,
+                  border: `1px solid ${isOutbound ? 'rgba(70,95,255,0.3)' : 'rgba(255,255,255,0.12)'}`,
                   boxShadow: isOutbound
-                    ? '0 4px 20px rgba(0,122,255,0.22), inset 0 0.5px 0 rgba(255,255,255,0.2)'
+                    ? '0 4px 20px rgba(70,95,255,0.22), inset 0 0.5px 0 rgba(255,255,255,0.2)'
                     : '0 2px 12px rgba(0,0,0,0.12), inset 0 0.5px 0 rgba(255,255,255,0.15)',
                 }}>
                   {msg.subject && (
@@ -391,7 +391,7 @@ export default function ChatPanel({ customerId, conversations }) {
                     {msg.channel}
                   </span>
                   {isOutbound && (
-                    <CheckCheck size={12} style={{ color: '#007AFF' }} />
+                    <CheckCheck size={12} style={{ color: '#465FFF' }} />
                   )}
                 </div>
               </div>
@@ -444,7 +444,7 @@ export default function ChatPanel({ customerId, conversations }) {
               background: 'var(--bg-primary)', color: 'var(--text-primary)',
               outline: 'none', transition: 'border-color 0.2s',
             }}
-            onFocus={(e) => e.target.style.borderColor = '#007AFF'}
+            onFocus={(e) => e.target.style.borderColor = '#465FFF'}
             onBlur={(e) => e.target.style.borderColor = 'var(--border-subtle)'}
           />
         )}
@@ -462,7 +462,7 @@ export default function ChatPanel({ customerId, conversations }) {
                 outline: 'none', resize: 'none', lineHeight: '1.5',
                 transition: 'border-color 0.2s, box-shadow 0.2s',
               }}
-              onFocus={(e) => { e.target.style.borderColor = '#007AFF'; e.target.style.boxShadow = '0 0 0 3px rgba(0,122,255,0.08)'; }}
+              onFocus={(e) => { e.target.style.borderColor = '#465FFF'; e.target.style.boxShadow = '0 0 0 3px rgba(70,95,255,0.08)'; }}
               onBlur={(e) => { e.target.style.borderColor = 'var(--border-subtle)'; e.target.style.boxShadow = 'none'; }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
@@ -482,10 +482,10 @@ export default function ChatPanel({ customerId, conversations }) {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               border: 'none', cursor: !body.trim() || sending ? 'not-allowed' : 'pointer',
               background: body.trim()
-                ? 'linear-gradient(135deg, #007AFF 0%, #0066DD 100%)'
+                ? 'linear-gradient(135deg, #465FFF 0%, #465FFF 100%)'
                 : 'var(--bg-card)',
               color: body.trim() ? '#fff' : 'var(--text-tertiary)',
-              boxShadow: body.trim() ? '0 4px 14px rgba(0,122,255,0.3)' : 'none',
+              boxShadow: body.trim() ? '0 4px 14px rgba(70,95,255,0.3)' : 'none',
               transition: 'all 0.3s ease',
               opacity: sending ? 0.7 : 1,
             }}

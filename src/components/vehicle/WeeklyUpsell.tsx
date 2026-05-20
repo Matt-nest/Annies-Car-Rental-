@@ -94,20 +94,20 @@ export default function WeeklyUpsell({
       transition={{ duration: 0.3 }}
       className="rounded-2xl p-4"
       style={{
-        backgroundColor: 'rgba(212,175,55,0.08)',
-        border: '1px solid rgba(212,175,55,0.25)',
+        backgroundColor: 'color-mix(in srgb, var(--accent-color) 8%, transparent)',
+        border: '1px solid color-mix(in srgb, var(--accent-color) 25%, transparent)',
       }}
     >
       <div className="flex items-start gap-3">
-        <TrendingUp size={16} className="mt-0.5 shrink-0" style={{ color: '#D4AF37' }} />
+        <TrendingUp size={16} className="mt-0.5 shrink-0" style={{ color: 'var(--accent-color)' }} />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium" style={{ color: '#D4AF37' }}>
+          <p className="text-sm font-medium" style={{ color: 'var(--accent-color)' }}>
             Add {daysNeeded} day{daysNeeded !== 1 ? 's' : ''} and unlock the weekly rate
           </p>
           <p className="text-xs mt-0.5 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
             A full week costs <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>${Math.round(weeklyRate).toLocaleString()}</span>
             {saving > 0 ? (
-              <> — you'd <span className="font-semibold" style={{ color: '#D4AF37' }}>save ${Math.round(saving).toLocaleString()}</span> vs. your current {days} days</>
+              <> — you'd <span className="font-semibold" style={{ color: 'var(--accent-color)' }}>save ${Math.round(saving).toLocaleString()}</span> vs. your current {days} days</>
             ) : (
               <> at {weeklyDiscountPercent}% off daily pricing</>
             )}

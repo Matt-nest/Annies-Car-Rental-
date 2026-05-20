@@ -11,7 +11,7 @@ import { useAlerts } from '../../lib/alertsContext';
  *
  * Colors mirror MorningBriefingWidget chips so the visual language is consistent:
  *  - Approve         → yellow  (#F59E0B, pulseYellow)
- *  - Counter-Sign    → blue    (#007AFF, pulseBlue)
+ *  - Counter-Sign    → blue    (#465FFF, pulseBlue)
  *  - Check-Ins       → light blue (#63b3ed, pulseLightBlue)
  *  - Active          → green   (#22c55e, pulseGreen)        — transient
  *  - Inspections     → purple  (#a78bfa, pulsePurple)       — return under inspection
@@ -38,9 +38,9 @@ export default function AlertPillBar({ onActiveAlertClick }) {
       count: alerts.pending_agreements || 0,
       label: 'Counter-Sign',
       icon: PenLine,
-      color: '#007AFF',
-      bg: 'rgba(0,122,255,0.12)',
-      border: 'rgba(0,122,255,0.25)',
+      color: '#465FFF',
+      bg: 'rgba(70,95,255,0.12)',
+      border: 'rgba(70,95,255,0.25)',
       pulse: 'pulseBlue 2s ease-in-out infinite',
       onClick: () => navigate('/bookings?status=confirmed'),
       title: 'Agreements awaiting your counter-signature',
