@@ -299,8 +299,13 @@ function DashboardLayoutInner() {
         </div>
 
         {/* Mobile bottom navigation — reuses the existing sidebar drawer
-            via setSidebarOpen for the "More" overflow. lg:hidden internally. */}
-        <BottomNav onOpenMore={() => setSidebarOpen(true)} />
+            via setSidebarOpen for the "More" overflow. lg:hidden internally.
+            Hidden when the sidebar drawer is open so it doesn't bleed through
+            the drawer overlay (BottomNav is fixed bottom; the drawer's
+            backdrop only covers up to the BottomNav's top edge). The drawer
+            IS the nav at that moment — no need for a second nav peeking
+            through underneath. */}
+        {!sidebarOpen && <BottomNav onOpenMore={() => setSidebarOpen(true)} />}
 
         {/* Active-rental acknowledgement modal — fires when a booking flips to
             active. Pure awareness signal — no required action. Dismiss → cash rain. */}
