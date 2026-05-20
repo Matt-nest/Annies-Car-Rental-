@@ -6,6 +6,7 @@ import {
   ArrowUpFromLine, CalendarClock, Star, Percent, Crown, Shield, Satellite,
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
+import { haptic } from '../../lib/haptic';
 
 const MAIN_NAV = [
   { to: '/',          label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -45,12 +46,12 @@ function NavItem({ to, label, icon: Icon, end, alertKey, alerts, onClose, showLa
       <NavLink
         to={to}
         end={end}
-        onClick={onClose}
+        onClick={() => { haptic('tap'); onClose?.(); }}
         title={!showLabels ? label : undefined}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         className={({ isActive }) =>
-          `group relative flex items-center w-full gap-3 font-medium rounded-lg text-sm transition-all duration-200 ${
+          `group relative flex items-center w-full gap-3 font-medium rounded-lg text-sm transition-all duration-200 active:scale-[0.97] ${
             showLabels ? 'px-4 py-2.5' : 'justify-center px-2 py-2.5'
           } ${
             isActive

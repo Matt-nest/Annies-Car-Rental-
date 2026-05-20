@@ -7,6 +7,7 @@ import {
   Menu,
 } from 'lucide-react';
 import { useAlerts } from '../../lib/alertsContext';
+import { haptic } from '../../lib/haptic';
 
 /**
  * Mobile bottom navigation — `lg:hidden` so it only shows below 1024px.
@@ -44,8 +45,9 @@ function BottomNavItem({ to, label, icon: Icon, end, alertKey, alerts }) {
     <NavLink
       to={to}
       end={end}
+      onClick={() => haptic('tap')}
       className={({ isActive }) =>
-        `tap-target flex-1 flex flex-col items-center justify-center gap-1 py-2 transition-colors ${
+        `tap-target flex-1 flex flex-col items-center justify-center gap-1 py-2 transition-[color,transform] duration-150 active:scale-[0.92] ${
           isActive
             ? 'text-[var(--sidebar-active-text)]'
             : 'text-[var(--text-tertiary)]'
@@ -101,9 +103,9 @@ export default function BottomNav({ onOpenMore }) {
         ))}
         <button
           type="button"
-          onClick={onOpenMore}
+          onClick={() => { haptic('tap'); onOpenMore(); }}
           aria-label="Open full navigation menu"
-          className="tap-target flex-1 flex flex-col items-center justify-center gap-1 py-2 transition-colors"
+          className="tap-target flex-1 flex flex-col items-center justify-center gap-1 py-2 transition-[color,transform] duration-150 active:scale-[0.92]"
           style={{ color: 'var(--text-tertiary)' }}
         >
           <Menu size={22} strokeWidth={1.8} style={{ color: 'var(--text-tertiary)' }} />
