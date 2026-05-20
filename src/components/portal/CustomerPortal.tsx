@@ -165,17 +165,24 @@ function CollapsibleSection({
           }}
         />
       </button>
+      {/* CSS-grid expand trick: animating grid-template-rows from 0fr → 1fr
+          lets the browser handle the layout math each frame on the compositor
+          rather than measuring the child's intrinsic height in JS on every
+          frame (which is what animate={{ height: 'auto' }} was doing). The
+          surrounding flow still reflows correctly because grid IS layout. */}
       <AnimatePresence initial={false}>
         {open && (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
+            initial={{ gridTemplateRows: '0fr', opacity: 0 }}
+            animate={{ gridTemplateRows: '1fr', opacity: 1 }}
+            exit={{ gridTemplateRows: '0fr', opacity: 0 }}
             transition={{ duration: 0.25, ease: EASE.smooth }}
-            style={{ overflow: 'hidden' }}
+            style={{ display: 'grid', overflow: 'hidden' }}
           >
-            <div className="px-5 pb-5 pt-0" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-              {children}
+            <div style={{ minHeight: 0 }}>
+              <div className="px-5 pb-5 pt-0" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                {children}
+              </div>
             </div>
           </motion.div>
         )}
