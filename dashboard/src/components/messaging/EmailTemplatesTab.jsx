@@ -268,10 +268,10 @@ export default function EmailTemplatesTab() {
               style={{
                 display: 'flex', alignItems: 'center', gap: 4,
                 padding: '8px 16px', borderRadius: 10, border: 'none',
-                background: 'linear-gradient(135deg, #007AFF 0%, #0066DD 100%)',
+                background: 'linear-gradient(135deg, #465FFF 0%, #465FFF 100%)',
                 color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
                 opacity: saving || !form.name || !form.subject || !form.body ? 0.5 : 1,
-                boxShadow: '0 4px 14px rgba(0,122,255,0.25)',
+                boxShadow: '0 4px 14px rgba(70,95,255,0.25)',
               }}
             >{saving ? 'Saving...' : editing.id ? 'Update Template' : 'Create Template'}</button>
           </div>
@@ -294,9 +294,9 @@ export default function EmailTemplatesTab() {
           style={{
             display: 'flex', alignItems: 'center', gap: 4,
             padding: '8px 14px', borderRadius: 10, border: 'none',
-            background: 'linear-gradient(135deg, #007AFF 0%, #0066DD 100%)',
+            background: 'linear-gradient(135deg, #465FFF 0%, #465FFF 100%)',
             color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
-            boxShadow: '0 4px 14px rgba(0,122,255,0.25)',
+            boxShadow: '0 4px 14px rgba(70,95,255,0.25)',
           }}
         ><Plus size={12} /> New Template</motion.button>
       </div>
@@ -327,7 +327,7 @@ export default function EmailTemplatesTab() {
 
       {loading ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '48px 0' }}>
-          <div style={{ width: 32, height: 32, borderRadius: '50%', border: '3px solid var(--border-subtle)', borderTopColor: '#007AFF', animation: 'spin 0.8s linear infinite' }} />
+          <div style={{ width: 32, height: 32, borderRadius: '50%', border: '3px solid var(--border-subtle)', borderTopColor: '#465FFF', animation: 'spin 0.8s linear infinite' }} />
         </div>
       ) : templates.length === 0 ? (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ textAlign: 'center', padding: '48px 0' }}>
@@ -337,7 +337,7 @@ export default function EmailTemplatesTab() {
           <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>No templates yet</p>
           <button
             onClick={() => setEditing({})}
-            style={{ padding: '8px 16px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #007AFF 0%, #0066DD 100%)', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer', boxShadow: '0 4px 14px rgba(0,122,255,0.25)' }}
+            style={{ padding: '8px 16px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #465FFF 0%, #465FFF 100%)', color: '#fff', fontSize: '12px', fontWeight: 600, cursor: 'pointer', boxShadow: '0 4px 14px rgba(70,95,255,0.25)' }}
           >Create your first template</button>
         </motion.div>
       ) : (
@@ -396,10 +396,10 @@ export default function EmailTemplatesTab() {
                         border: 'none', cursor: 'pointer', padding: 0,
                         background: t.is_active === false
                           ? 'var(--bg-card, rgba(255,255,255,0.06))'
-                          : 'linear-gradient(135deg, #007AFF, #0066DD)',
+                          : 'linear-gradient(135deg, #465FFF, #465FFF)',
                         boxShadow: t.is_active === false
                           ? 'inset 0 1px 3px rgba(0,0,0,0.15)'
-                          : '0 2px 8px rgba(0,122,255,0.3)',
+                          : '0 2px 8px rgba(70,95,255,0.3)',
                         transition: 'background 0.25s, box-shadow 0.25s',
                       }}
                     >

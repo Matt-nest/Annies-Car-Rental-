@@ -57,16 +57,16 @@ function MobileQuickActions({ pendingApprovals, pendingAgreements, navigate }) {
           }}
           className="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl transition-colors relative"
           style={{
-            backgroundColor: 'rgba(0,122,255,0.1)',
-            color: '#007AFF',
-            boxShadow: '0 0 12px rgba(0,122,255,0.2), inset 0 0 0 1px rgba(0,122,255,0.2)',
+            backgroundColor: 'rgba(70,95,255,0.1)',
+            color: '#465FFF',
+            boxShadow: '0 0 12px rgba(70,95,255,0.2), inset 0 0 0 1px rgba(70,95,255,0.2)',
             animation: 'pulseBlue 2s ease-in-out infinite',
             minHeight: 54,
           }}
         >
           <span
             className="absolute top-1.5 right-1.5 text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center"
-            style={{ backgroundColor: '#007AFF', color: '#fff' }}
+            style={{ backgroundColor: '#465FFF', color: '#fff' }}
           >
             {pendingAgreements}
           </span>

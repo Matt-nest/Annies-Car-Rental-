@@ -50,7 +50,7 @@ export default function ConversationList({ conversations, selected, onSelect, se
               background: 'var(--bg-elevated, #fff)', color: 'var(--text-primary)',
               outline: 'none', transition: 'border-color 0.2s, box-shadow 0.2s',
             }}
-            onFocus={(e) => { e.target.style.borderColor = '#007AFF'; e.target.style.boxShadow = '0 0 0 3px rgba(0,122,255,0.1)'; }}
+            onFocus={(e) => { e.target.style.borderColor = '#465FFF'; e.target.style.boxShadow = '0 0 0 3px rgba(70,95,255,0.1)'; }}
             onBlur={(e) => { e.target.style.borderColor = 'var(--border-subtle)'; e.target.style.boxShadow = 'none'; }}
           />
         </div>
@@ -100,7 +100,7 @@ export default function ConversationList({ conversations, selected, onSelect, se
                     padding: '14px 16px', textAlign: 'left', border: 'none',
                     cursor: 'pointer', position: 'relative',
                     background: isActive
-                      ? 'linear-gradient(135deg, rgba(0,122,255,0.08) 0%, rgba(0,122,255,0.04) 100%)'
+                      ? 'linear-gradient(135deg, rgba(70,95,255,0.08) 0%, rgba(70,95,255,0.04) 100%)'
                       : 'transparent',
                     borderBottom: '1px solid var(--border-subtle, rgba(0,0,0,0.04))',
                     transition: 'background 0.2s ease',
@@ -115,7 +115,7 @@ export default function ConversationList({ conversations, selected, onSelect, se
                       style={{
                         position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)',
                         width: 3, height: 32, borderRadius: '0 4px 4px 0',
-                        background: 'linear-gradient(180deg, #007AFF 0%, #0066DD 100%)',
+                        background: 'linear-gradient(180deg, #465FFF 0%, #465FFF 100%)',
                       }}
                       transition={SPRING}
                     />
@@ -126,7 +126,7 @@ export default function ConversationList({ conversations, selected, onSelect, se
                     width: 42, height: 42, borderRadius: 13, flexShrink: 0,
                     background: avatarBg, display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: '13px', fontWeight: 700, color: '#fff', letterSpacing: '0.02em',
-                    boxShadow: isActive ? '0 4px 12px rgba(0,122,255,0.2)' : '0 2px 8px rgba(0,0,0,0.08)',
+                    boxShadow: isActive ? '0 4px 12px rgba(70,95,255,0.2)' : '0 2px 8px rgba(0,0,0,0.08)',
                     transition: 'box-shadow 0.3s ease',
                   }}>
                     {initials}

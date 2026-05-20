@@ -39,7 +39,7 @@ const SEQUENCES = [
     stage: 'repeat_customer',
     label: 'Repeat Customer Loyalty',
     trigger: '30 days after return',
-    color: '#007AFF',
+    color: '#465FFF',
     desc: 'Loyalty message 30 days after completion. Links back to the fleet to encourage rebooking.',
   },
   {

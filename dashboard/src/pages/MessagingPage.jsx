@@ -162,7 +162,7 @@ export default function MessagingPage() {
                     letterSpacing: '-0.005em',
                     minHeight: isMobile ? 44 : undefined,
                     background: isActive ? 'var(--bg-elevated, #fff)' : 'transparent',
-                    color: isActive ? '#007AFF' : 'var(--text-secondary)',
+                    color: isActive ? '#465FFF' : 'var(--text-secondary)',
                     boxShadow: isActive ? '0 1px 4px rgba(0,0,0,0.06)' : 'none',
                     transition: 'all 0.2s ease',
                   }}
@@ -262,9 +262,9 @@ export default function MessagingPage() {
                       style={{
                         width: 36, height: 36, borderRadius: '50%',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        background: 'linear-gradient(135deg, var(--accent-color) 0%, #0066DD 100%)',
+                        background: 'linear-gradient(135deg, var(--accent-color) 0%, #465FFF 100%)',
                         color: '#fff', fontSize: 13, fontWeight: 700,
-                        boxShadow: '0 2px 8px rgba(0,122,255,0.25)',
+                        boxShadow: '0 2px 8px rgba(70,95,255,0.25)',
                         flexShrink: 0,
                       }}
                     >

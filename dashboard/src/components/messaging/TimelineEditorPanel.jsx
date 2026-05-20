@@ -259,7 +259,7 @@ export default function TimelineEditorPanel({ template, onClose, onSaved }) {
                     padding: '6px 12px', fontSize: 11, fontWeight: 600,
                     borderRadius: 8, border: 'none', cursor: 'pointer',
                     background: draft.channel === opt.value ? 'var(--bg-elevated)' : 'transparent',
-                    color: draft.channel === opt.value ? '#007AFF' : 'var(--text-secondary)',
+                    color: draft.channel === opt.value ? '#465FFF' : 'var(--text-secondary)',
                     boxShadow: draft.channel === opt.value ? '0 1px 4px rgba(0,0,0,0.06)' : 'none',
                     transition: 'all 0.15s',
                   }}
@@ -348,7 +348,7 @@ export default function TimelineEditorPanel({ template, onClose, onSaved }) {
             </div>
             {showEmailPreview && (
               <div style={{ padding: 12, borderBottom: showSmsPreview ? '1px solid var(--border-subtle)' : 'none' }}>
-                <p style={{ fontSize: 10, fontWeight: 700, color: '#007AFF', marginBottom: 6, letterSpacing: '0.04em' }}>EMAIL</p>
+                <p style={{ fontSize: 10, fontWeight: 700, color: '#465FFF', marginBottom: 6, letterSpacing: '0.04em' }}>EMAIL</p>
                 <EmailPreview subject={draft.subject} body={draft.body} stage={template.stage} />
               </div>
             )}
