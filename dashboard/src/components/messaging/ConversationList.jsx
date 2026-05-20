@@ -45,7 +45,9 @@ export default function ConversationList({ conversations, selected, onSelect, se
             value={search}
             onChange={(e) => onSearch(e.target.value)}
             style={{
-              width: '100%', padding: '8px 12px 8px 32px', fontSize: '13px',
+              /* 16px so focusing the search on iPhone doesn't trigger
+                 iOS Safari's zoom-on-focus auto-zoom. */
+              width: '100%', padding: '10px 12px 10px 32px', fontSize: '16px',
               borderRadius: 10, border: '1px solid var(--border-subtle, rgba(0,0,0,0.08))',
               background: 'var(--bg-elevated, #fff)', color: 'var(--text-primary)',
               outline: 'none', transition: 'border-color 0.2s, box-shadow 0.2s',

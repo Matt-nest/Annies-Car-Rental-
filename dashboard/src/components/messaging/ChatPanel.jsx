@@ -450,8 +450,8 @@ export default function ChatPanel({ customerId, conversations, hideIdentity = fa
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
             style={{
-              width: '100%', marginBottom: 8, padding: '8px 12px',
-              fontSize: '13px', borderRadius: 10,
+              width: '100%', marginBottom: 8, padding: '10px 14px',
+              fontSize: '16px', borderRadius: 12,
               border: '1px solid var(--border-subtle)',
               background: 'var(--bg-primary)', color: 'var(--text-primary)',
               outline: 'none', transition: 'border-color 0.2s',
@@ -468,10 +468,14 @@ export default function ChatPanel({ customerId, conversations, hideIdentity = fa
               onChange={(e) => setBody(e.target.value)}
               rows={2}
               style={{
-                width: '100%', padding: '10px 14px', fontSize: '13px',
-                borderRadius: 14, border: '1px solid var(--border-subtle)',
+                /* 16px is the iOS zoom-on-focus threshold — anything below
+                   triggers a 1.5x auto-zoom when the textarea gains focus.
+                   Inline styles override the global @media rule from Sprint 1
+                   via CSS specificity, so the 16px MUST live here, not in CSS. */
+                width: '100%', padding: '12px 18px', fontSize: '16px',
+                borderRadius: 22, border: '1px solid var(--border-subtle)',
                 background: 'var(--bg-primary)', color: 'var(--text-primary)',
-                outline: 'none', resize: 'none', lineHeight: '1.5',
+                outline: 'none', resize: 'none', lineHeight: '1.4',
                 transition: 'border-color 0.2s, box-shadow 0.2s',
               }}
               onFocus={(e) => { e.target.style.borderColor = '#465FFF'; e.target.style.boxShadow = '0 0 0 3px rgba(70,95,255,0.08)'; }}
