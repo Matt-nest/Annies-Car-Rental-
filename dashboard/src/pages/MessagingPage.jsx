@@ -304,7 +304,9 @@ export default function MessagingPage() {
                   </div>
                 );
               })()}
-              <ChatPanel customerId={selectedCustomer} conversations={conversations} />
+              {/* Pass hideIdentity so ChatPanel suppresses its own avatar/name
+                  block — we already showed an iOS-style chat header above. */}
+              <ChatPanel customerId={selectedCustomer} conversations={conversations} hideIdentity />
             </div>
           )}
         </div>
