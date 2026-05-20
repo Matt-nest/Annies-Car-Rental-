@@ -76,9 +76,9 @@ const CONFIGS: Record<BookingStatus, HeroConfig> = {
     label: 'Ready for Pickup',
     headline: 'Your ride is ready',
     icon: Key,
-    fg: '#D4AF37',
-    bg: 'rgba(212,175,55,0.08)',
-    borderRgba: 'rgba(212,175,55,0.28)',
+    fg: 'var(--accent-color)',
+    bg: 'color-mix(in srgb, var(--accent-color) 8%, transparent)',
+    borderRgba: 'color-mix(in srgb, var(--accent-color) 28%, transparent)',
   },
   active: {
     label: 'Active Rental',

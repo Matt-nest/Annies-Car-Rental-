@@ -138,8 +138,8 @@ export default function FleetGrid({ onSelectVehicle, rateMode = 'daily', onRateM
               onClick={() => onRateModeChange?.('weekly')}
               className="flex items-center gap-2 px-4 py-2 rounded-full border text-xs font-medium transition-all duration-300 hover:scale-[1.02] active:scale-95 cursor-pointer self-start sm:self-auto"
               style={{
-                backgroundColor: 'rgba(212,175,55,0.08)',
-                borderColor: 'rgba(212,175,55,0.35)',
+                backgroundColor: 'color-mix(in srgb, var(--accent-color) 8%, transparent)',
+                borderColor: 'color-mix(in srgb, var(--accent-color) 35%, transparent)',
                 color: 'var(--accent-color)',
               }}
             >
@@ -212,7 +212,7 @@ export default function FleetGrid({ onSelectVehicle, rateMode = 'daily', onRateM
               {/* Subtle gold glow top-right */}
               <div
                 className="absolute -top-16 -right-16 w-64 h-64 rounded-full pointer-events-none"
-                style={{ background: 'radial-gradient(circle, rgba(212,175,55,0.07) 0%, transparent 70%)' }}
+                style={{ background: 'radial-gradient(circle, color-mix(in srgb, var(--accent-color) 7%, transparent) 0%, transparent 70%)' }}
               />
 
               <div className="w-10 h-px mx-auto mb-8" style={{ backgroundColor: 'var(--accent-color)' }} />

@@ -67,7 +67,7 @@ export default function ContactSection({ onBrowseFleet }: ContactSectionProps) {
               <div className="flex items-start gap-3 sm:gap-4 pt-4 mt-1" style={{ borderTop: '1px solid var(--border-subtle)' }}>
                 <div
                   className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center shrink-0"
-                  style={{ backgroundColor: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.3)' }}
+                  style={{ backgroundColor: 'color-mix(in srgb, var(--accent-color) 12%, transparent)', border: '1px solid color-mix(in srgb, var(--accent-color) 30%, transparent)' }}
                 >
                   <Car size={18} style={{ color: 'var(--accent-color)' }} />
                 </div>

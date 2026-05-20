@@ -720,7 +720,7 @@ export default function CustomerPortal() {
               status === 'returned'
                 ? { bg: 'rgba(34,197,94,0.06)', border: 'rgba(34,197,94,0.2)', fg: '#15803d' }
                 : status === 'ready_for_pickup'
-                  ? { bg: 'rgba(212,175,55,0.08)', border: 'rgba(212,175,55,0.25)', fg: 'var(--accent-color)' }
+                  ? { bg: 'color-mix(in srgb, var(--accent-color) 8%, transparent)', border: 'color-mix(in srgb, var(--accent-color) 25%, transparent)', fg: 'var(--accent-color)' }
                   : status === 'active'
                     ? { bg: 'rgba(59,130,246,0.06)', border: 'rgba(59,130,246,0.2)', fg: '#3b82f6' }
                     : { bg: 'var(--bg-card)', border: 'var(--border-subtle)', fg: 'var(--text-secondary)' };
@@ -832,7 +832,7 @@ export default function CustomerPortal() {
                                   height: isCurrent ? 28 : 20,
                                   backgroundColor: done ? (isCurrent ? 'var(--accent-color)' : '#22c55e') : 'var(--bg-card-hover)',
                                   border: done ? 'none' : '2px solid var(--border-subtle)',
-                                  boxShadow: isCurrent ? '0 0 12px rgba(212,175,55,0.4)' : 'none',
+                                  boxShadow: isCurrent ? '0 0 12px color-mix(in srgb, var(--accent-color) 40%, transparent)' : 'none',
                                 }}
                               >
                                 {done && !isCurrent && <Check size={10} color="#fff" strokeWidth={3} />}
@@ -1602,7 +1602,7 @@ export default function CustomerPortal() {
             >
               <div className="p-5 space-y-4">
                 <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-                  <Star size={16} style={{ color: '#D4AF37' }} /> How was your rental?
+                  <Star size={16} style={{ color: 'var(--accent-color)' }} /> How was your rental?
                 </h3>
                 <div className="flex gap-2">
                   {[1, 2, 3, 4, 5].map(n => (
@@ -1614,8 +1614,8 @@ export default function CustomerPortal() {
                     >
                       <Star
                         size={28}
-                        fill={n <= reviewRating ? '#D4AF37' : 'none'}
-                        stroke={n <= reviewRating ? '#D4AF37' : 'var(--text-tertiary)'}
+                        fill={n <= reviewRating ? 'var(--accent-color)' : 'none'}
+                        stroke={n <= reviewRating ? 'var(--accent-color)' : 'var(--text-tertiary)'}
                         strokeWidth={1.5}
                       />
                     </button>
@@ -1650,7 +1650,7 @@ export default function CustomerPortal() {
                     setReviewSubmitting(false);
                   }}
                   className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 cursor-pointer"
-                  style={{ backgroundColor: '#D4AF37', color: '#0a0a0a' }}
+                  style={{ backgroundColor: 'var(--accent-color)', color: '#0a0a0a' }}
                 >
                   {reviewSubmitting ? 'Sending…' : 'Submit Review'}
                 </button>
@@ -1659,7 +1659,7 @@ export default function CustomerPortal() {
           )}
           {status === 'completed' && reviewDone && (
             <div className="rounded-2xl p-4 text-center text-sm" style={{
-              backgroundColor: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.2)', color: '#D4AF37',
+              backgroundColor: 'color-mix(in srgb, var(--accent-color) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--accent-color) 20%, transparent)', color: 'var(--accent-color)',
             }}>
               Thank you — Annie appreciates the feedback!
             </div>
@@ -1899,7 +1899,7 @@ export default function CustomerPortal() {
                 catch { window.location.href = 'tel:+17722071655'; }
               }}
               className="flex items-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm transition-all hover:scale-[1.03] active:scale-95 cursor-pointer"
-              style={{ backgroundColor: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.3)', color: '#D4AF37' }}
+              style={{ backgroundColor: 'color-mix(in srgb, var(--accent-color) 12%, transparent)', border: '1px solid color-mix(in srgb, var(--accent-color) 30%, transparent)', color: 'var(--accent-color)' }}
             >
               <MessageSquare size={14} />
               Message Annie

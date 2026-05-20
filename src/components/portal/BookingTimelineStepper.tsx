@@ -109,7 +109,7 @@ export default function BookingTimelineStepper({ status }: BookingTimelineSteppe
                     : isPast
                       ? '2px solid var(--accent-color)'
                       : '2px solid var(--border-subtle)',
-                  boxShadow: isCurrent ? '0 0 0 4px rgba(212,175,55,0.12)' : 'none',
+                  boxShadow: isCurrent ? '0 0 0 4px color-mix(in srgb, var(--accent-color) 12%, transparent)' : 'none',
                 }}
               >
                 <Icon

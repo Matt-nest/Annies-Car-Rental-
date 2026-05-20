@@ -163,7 +163,7 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
                 onClick={() => handleRateSelect('daily')}
                 className="rounded-2xl p-4 md:p-5 space-y-2 text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
                 style={{
-                  backgroundColor: selectedRate === 'daily' ? 'rgba(212,175,55,0.06)' : 'var(--bg-card)',
+                  backgroundColor: selectedRate === 'daily' ? 'color-mix(in srgb, var(--accent-color) 6%, transparent)' : 'var(--bg-card)',
                   border: selectedRate === 'daily' ? '2px solid var(--accent-color)' : '1px solid var(--border-subtle)',
                 }}
               >
@@ -181,7 +181,7 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
                 onClick={() => handleRateSelect('weekly')}
                 className="rounded-2xl p-4 md:p-5 space-y-2 relative text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
                 style={{
-                  backgroundColor: selectedRate === 'weekly' ? 'rgba(212,175,55,0.06)' : 'var(--bg-card)',
+                  backgroundColor: selectedRate === 'weekly' ? 'color-mix(in srgb, var(--accent-color) 6%, transparent)' : 'var(--bg-card)',
                   border: selectedRate === 'weekly' ? '2px solid var(--accent-color)' : '1px solid var(--border-subtle)',
                 }}
               >
@@ -208,7 +208,7 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
                 onClick={() => handleRateSelect('monthly')}
                 className="rounded-2xl p-4 md:p-5 space-y-2 text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
                 style={{
-                  backgroundColor: selectedRate === 'monthly' ? 'rgba(212,175,55,0.06)' : 'var(--bg-card)',
+                  backgroundColor: selectedRate === 'monthly' ? 'color-mix(in srgb, var(--accent-color) 6%, transparent)' : 'var(--bg-card)',
                   border: selectedRate === 'monthly' ? '2px solid var(--accent-color)' : '1px solid var(--border-subtle)',
                 }}
               >

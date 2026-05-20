@@ -418,8 +418,8 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
           <div
             className="flex items-start gap-2 mt-3 px-3 py-2 rounded-lg"
             style={{
-              backgroundColor: 'rgba(212,175,55,0.1)',
-              border: '1px solid rgba(212,175,55,0.3)',
+              backgroundColor: 'color-mix(in srgb, var(--accent-color) 10%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--accent-color) 30%, transparent)',
               color: '#a16207',
             }}
           >

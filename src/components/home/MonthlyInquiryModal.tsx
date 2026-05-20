@@ -84,8 +84,8 @@ export default function MonthlyInquiryModal({ vehicle, onClose }: MonthlyInquiry
               className="text-center py-6"
             >
               <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-5"
-                style={{ backgroundColor: 'rgba(212,175,55,0.12)' }}>
-                <CheckCircle2 size={28} style={{ color: '#D4AF37' }} />
+                style={{ backgroundColor: 'color-mix(in srgb, var(--accent-color) 12%, transparent)' }}>
+                <CheckCircle2 size={28} style={{ color: 'var(--accent-color)' }} />
               </div>
               <h3 className="text-xl font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
                 You're on Annie's list
@@ -97,7 +97,7 @@ export default function MonthlyInquiryModal({ vehicle, onClose }: MonthlyInquiry
               <a
                 href="tel:+17722071655"
                 className="inline-flex items-center gap-2 text-sm font-medium"
-                style={{ color: '#D4AF37' }}
+                style={{ color: 'var(--accent-color)' }}
               >
                 <Phone size={14} /> Or call now: (772) 207-1655
               </a>
@@ -105,7 +105,7 @@ export default function MonthlyInquiryModal({ vehicle, onClose }: MonthlyInquiry
           ) : (
             <>
               <div className="mb-6">
-                <p className="text-xs uppercase tracking-widest font-medium mb-1" style={{ color: '#D4AF37' }}>
+                <p className="text-xs uppercase tracking-widest font-medium mb-1" style={{ color: 'var(--accent-color)' }}>
                   Monthly Inquiry
                 </p>
                 <h3 className="text-xl font-medium" style={{ color: 'var(--text-primary)' }}>
@@ -122,13 +122,13 @@ export default function MonthlyInquiryModal({ vehicle, onClose }: MonthlyInquiry
                 href="tel:+17722071655"
                 className="flex items-center gap-3 rounded-xl px-4 py-3 mb-6 transition-colors cursor-pointer"
                 style={{
-                  backgroundColor: 'rgba(212,175,55,0.1)',
-                  border: '1px solid rgba(212,175,55,0.25)',
+                  backgroundColor: 'color-mix(in srgb, var(--accent-color) 10%, transparent)',
+                  border: '1px solid color-mix(in srgb, var(--accent-color) 25%, transparent)',
                 }}
               >
-                <Phone size={16} style={{ color: '#D4AF37', flexShrink: 0 }} />
+                <Phone size={16} style={{ color: 'var(--accent-color)', flexShrink: 0 }} />
                 <div>
-                  <p className="text-xs font-medium" style={{ color: '#D4AF37' }}>Prefer to talk?</p>
+                  <p className="text-xs font-medium" style={{ color: 'var(--accent-color)' }}>Prefer to talk?</p>
                   <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>(772) 207-1655</p>
                 </div>
               </a>
@@ -136,7 +136,7 @@ export default function MonthlyInquiryModal({ vehicle, onClose }: MonthlyInquiry
               <form onSubmit={handleSubmit} className="space-y-3" noValidate>
                 <div>
                   <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                    Your name <span style={{ color: '#D4AF37' }}>*</span>
+                    Your name <span style={{ color: 'var(--accent-color)' }}>*</span>
                   </label>
                   <input
                     name="name"
@@ -151,7 +151,7 @@ export default function MonthlyInquiryModal({ vehicle, onClose }: MonthlyInquiry
 
                 <div>
                   <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                    Phone <span style={{ color: '#D4AF37' }}>*</span>
+                    Phone <span style={{ color: 'var(--accent-color)' }}>*</span>
                   </label>
                   <input
                     name="phone"
@@ -167,7 +167,7 @@ export default function MonthlyInquiryModal({ vehicle, onClose }: MonthlyInquiry
 
                 <div>
                   <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                    Email <span style={{ color: '#D4AF37' }}>*</span>
+                    Email <span style={{ color: 'var(--accent-color)' }}>*</span>
                   </label>
                   <input
                     name="email"
@@ -214,7 +214,7 @@ export default function MonthlyInquiryModal({ vehicle, onClose }: MonthlyInquiry
                   type="submit"
                   disabled={submitting}
                   className="w-full py-3 rounded-full font-medium text-sm mt-2 transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-60 cursor-pointer"
-                  style={{ backgroundColor: '#D4AF37', color: '#0a0a0a' }}
+                  style={{ backgroundColor: 'var(--accent-color)', color: '#0a0a0a' }}
                 >
                   {submitting ? 'Sending…' : 'Send Inquiry'}
                 </button>
