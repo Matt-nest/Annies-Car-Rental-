@@ -282,7 +282,15 @@ function DashboardLayoutInner() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
                 transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                style={{ minHeight: '100%' }}
+                /* `height: 100%` (not minHeight) so child pages whose root uses
+                   `height: 100%` — notably MessagingPage, which sizes ChatPanel
+                   + its composer against the visible viewport — can resolve
+                   their percentage against a parent with an explicit height.
+                   `minHeight` doesn't count as "defined height" per CSS spec,
+                   which is what regressed Sprint 13b's composer-reachability
+                   fix. Pages with natural-height content still scroll correctly
+                   because <main> above is overflow-y-auto. */
+                style={{ height: '100%' }}
               >
                 <Outlet />
               </motion.div>
@@ -291,8 +299,13 @@ function DashboardLayoutInner() {
         </div>
 
         {/* Mobile bottom navigation — reuses the existing sidebar drawer
-            via setSidebarOpen for the "More" overflow. lg:hidden internally. */}
-        <BottomNav onOpenMore={() => setSidebarOpen(true)} />
+            via setSidebarOpen for the "More" overflow. lg:hidden internally.
+            Hidden when the sidebar drawer is open so it doesn't bleed through
+            the drawer overlay (BottomNav is fixed bottom; the drawer's
+            backdrop only covers up to the BottomNav's top edge). The drawer
+            IS the nav at that moment — no need for a second nav peeking
+            through underneath. */}
+        {!sidebarOpen && <BottomNav onOpenMore={() => setSidebarOpen(true)} />}
 
         {/* Active-rental acknowledgement modal — fires when a booking flips to
             active. Pure awareness signal — no required action. Dismiss → cash rain. */}

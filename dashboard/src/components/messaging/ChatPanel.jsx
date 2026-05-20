@@ -6,8 +6,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../../api/client';
 import { EASE, formatDate, getInitials, getAvatarColor } from './shared.js';
 
-/* ── Chat Panel ── */
-export default function ChatPanel({ customerId, conversations }) {
+/* ── Chat Panel ──
+ * `hideIdentity` suppresses the avatar/name/email block in the internal header
+ * (used on mobile, where MessagingPage already renders an iOS-style chat
+ * header with the back chevron + customer name + tap-to-call). Channel toggle
+ * + Templates button stay visible so admins still have those controls. */
+export default function ChatPanel({ customerId, conversations, hideIdentity = false }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -139,36 +143,44 @@ export default function ChatPanel({ customerId, conversations }) {
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg-primary)' }}>
-      {/* ── Chat header ── */}
+      {/* ── Chat header ──
+       * Identity (avatar + name + email) is suppressed when MessagingPage's
+       * mobile chat header is already rendering it. Channel toggle + Templates
+       * button always render so admins keep those controls regardless. */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, ease: EASE }}
         style={{
-          padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: hideIdentity ? '8px 12px' : '12px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: hideIdentity ? 'flex-end' : 'space-between',
           borderBottom: '1px solid var(--border-subtle)',
           background: 'var(--bg-elevated, #fff)',
           backdropFilter: 'blur(12px)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{
-            width: 38, height: 38, borderRadius: 12, flexShrink: 0,
-            background: getAvatarColor(customerName || 'U'),
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '12px', fontWeight: 700, color: '#fff',
-          }}>
-            {getInitials(customerName || 'U')}
+        {!hideIdentity && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{
+              width: 38, height: 38, borderRadius: 12, flexShrink: 0,
+              background: getAvatarColor(customerName || 'U'),
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '12px', fontWeight: 700, color: '#fff',
+            }}>
+              {getInitials(customerName || 'U')}
+            </div>
+            <div>
+              <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+                {customerName || 'Customer'}
+              </p>
+              <p style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                {customerEmail}{customerPhone ? ` · ${customerPhone}` : ''}
+              </p>
+            </div>
           </div>
-          <div>
-            <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
-              {customerName || 'Customer'}
-            </p>
-            <p style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
-              {customerEmail}{customerPhone ? ` · ${customerPhone}` : ''}
-            </p>
-          </div>
-        </div>
+        )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {/* Channel toggle */}
