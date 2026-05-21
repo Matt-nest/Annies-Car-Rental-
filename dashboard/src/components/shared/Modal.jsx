@@ -52,7 +52,11 @@ export default function Modal({ open, onClose, title, children, maxWidth = 'max-
       <Drawer.Root
         open={open}
         onOpenChange={(next) => { if (!next) onClose?.(); }}
-        shouldScaleBackground={false}
+        /* `shouldScaleBackground` shrinks the page behind the sheet to ~0.94×
+           with a subtle blur — iOS's signature affordance when a sheet rises.
+           Combined with Vaul's spring physics, the gesture feels native. */
+        shouldScaleBackground={true}
+        setBackgroundColorOnScale={false}
       >
         <Drawer.Portal>
           <Drawer.Overlay

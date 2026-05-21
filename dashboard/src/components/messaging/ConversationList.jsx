@@ -40,10 +40,14 @@ export default function ConversationList({ conversations, selected, onSelect, se
         <div style={{ position: 'relative' }}>
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', pointerEvents: 'none' }} />
           <input
-            type="text"
+            type="search"
             placeholder="Search by name, email, or phone..."
             value={search}
             onChange={(e) => onSearch(e.target.value)}
+            enterKeyHint="search"
+            inputMode="search"
+            autoCapitalize="off"
+            autoCorrect="off"
             style={{
               /* 16px so focusing the search on iPhone doesn't trigger
                  iOS Safari's zoom-on-focus auto-zoom. */

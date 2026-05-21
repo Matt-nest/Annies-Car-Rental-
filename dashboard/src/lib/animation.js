@@ -39,9 +39,25 @@ export const DURATION = {
   cinematic:  1.20,  // intentionally-slow hero reveals
 };
 
-/** Spring presets. Use for chrome, dropdowns, in-flight UI confirmations. */
-export const SPRING_SMOOTH = { type: 'spring', stiffness: 320, damping: 28 };
-export const SPRING_SNAPPY = { type: 'spring', stiffness: 500, damping: 30 };
+/** Spring presets. Spring motion is the single biggest "feels iOS" signal —
+ *  reach for these BEFORE cubic-bezier curves for anything user-initiated:
+ *  drawer open/close, modal entry, tab indicator slide, button press, sheet
+ *  rise, list-item drag-snap. Cubic-bezier is for autonomous animations
+ *  (skeletons, ambient pulses) where natural overshoot would feel wrong.
+ *
+ *  Pick by character:
+ *   • NATURAL — the default native iOS feel. Tight, predictable, faintly bouncy.
+ *   • BOUNCE  — slightly under-damped — overshoots a hair before settling.
+ *               Use for cheerful confirmations (success badges, send-message).
+ *   • SMOOTH  — over-damped — settles without overshoot. Use for chrome
+ *               that shouldn't draw attention to its own motion.
+ *   • SNAPPY  — stiffer + tight damping — very fast, no bounce. Use for
+ *               toasts, badge appears, in-flight micro-confirmations.
+ */
+export const SPRING_NATURAL = { type: 'spring', stiffness: 380, damping: 32, mass: 0.9 };
+export const SPRING_BOUNCE  = { type: 'spring', stiffness: 320, damping: 22, mass: 0.9 };
+export const SPRING_SMOOTH  = { type: 'spring', stiffness: 320, damping: 28 };
+export const SPRING_SNAPPY  = { type: 'spring', stiffness: 500, damping: 30 };
 
 /** Stagger delay multiplier for grid/list items. */
 export const STAGGER = {
