@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { haptic } from './useHaptic';
 
 /**
  * usePullToRefresh — native-feeling pull-down gesture on touch devices.
@@ -46,6 +47,11 @@ export function usePullToRefresh(onRefresh: () => Promise<unknown>) {
       }
       // Damping factor — heavier pull → smaller incremental movement, like iOS.
       const eased = Math.min(THRESHOLD * 1.5, dy * 0.5);
+      // Fire a single haptic the moment the pull crosses the release-to-refresh
+      // threshold — matches the iOS Mail pull-to-refresh "tick" feel.
+      if (eased >= THRESHOLD && pullDistance < THRESHOLD) {
+        haptic('edge');
+      }
       setPullDistance(eased);
       // Prevent the rubber-band over-scroll fight with the document.
       if (eased > 4) e.preventDefault();
@@ -56,6 +62,7 @@ export function usePullToRefresh(onRefresh: () => Promise<unknown>) {
       trackedRef.current = false;
       startY.current = null;
       if (pullDistance >= THRESHOLD) {
+        haptic('commit');  // refresh fired
         setIsRefreshing(true);
         setPullDistance(THRESHOLD);
         void Promise.resolve(onRefresh())

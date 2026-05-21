@@ -87,7 +87,9 @@ html, html.light {
   --accent-fg:      #FFFFFF;
   --brand-color:    #465FFF;
   --brand-glow:     rgba(70, 95, 255, 0.08);
-  --header-bg:      rgba(248, 250, 252, 0.92);
+  /* 0.72 — calibrated so the backdrop-filter blur+saturate is visibly
+     vibrant against scrolling content. Anything > 0.85 reads as solid. */
+  --header-bg:      rgba(248, 250, 252, 0.72);
   --glass-shadow:   0 8px 32px rgba(0,0,0,0.14);
   --glass-shadow-hover: 0 14px 44px rgba(0,0,0,0.18);
 }
@@ -111,7 +113,9 @@ html.dark {
   --accent-fg:      #FFFFFF;
   --brand-color:    #465FFF;
   --brand-glow:     rgba(70, 95, 255, 0.12);
-  --header-bg:      rgba(17, 25, 40, 0.96);
+  /* 0.72 in dark mode keeps the chrome legible against the #111928 page bg
+     while letting the saturated blur underneath show through. */
+  --header-bg:      rgba(17, 25, 40, 0.72);
   --glass-shadow:   11px 22px 54px rgba(0,0,0,0.39);
   --glass-shadow-hover: 14px 28px 64px rgba(0,0,0,0.45);
 
@@ -186,10 +190,17 @@ html.dark {
   }
 
   /* iOS Safari: prevent zoom-on-focus by guaranteeing >=16px on form controls
-     at viewports where iOS will zoom. Desktop keeps the 14px design via .input. */
+     at viewports where iOS will zoom. Desktop keeps the 14px design via .input.
+     `!important` is non-negotiable here — Tailwind utility classes like
+     `text-xs` (12 px) and `text-sm` (14 px) live in @layer utilities, which
+     outranks @layer base in cascade order. Inputs that legitimately need a
+     smaller appearance on desktop can still override via inline `style` or
+     by being at a breakpoint above the media query. The cost of letting the
+     zoom-on-focus through is so much worse than the cost of 16 px text on
+     phones that this is the right trade. */
   @media (max-width: 767px) {
     input, select, textarea {
-      font-size: 16px;
+      font-size: 16px !important;
     }
   }
 
@@ -222,6 +233,13 @@ html.dark {
   align-items: center;
   justify-content: center;
 }
+
+/* Sub-pixel hairline border — renders as a true 0.5 px on retina displays,
+   matching iOS UIKit's table-view separators. On non-retina screens it
+   gracefully degrades to ~1 px. Apply with `border-bottom hairline` etc. */
+.hairline-bottom { border-bottom: 0.5px solid var(--border-subtle); }
+.hairline-top    { border-top:    0.5px solid var(--border-subtle); }
+.hairline-y      { border-top:    0.5px solid var(--border-subtle); border-bottom: 0.5px solid var(--border-subtle); }
 
 /* Modern typography niceties — Chrome 114+, Safari 17.5+, Firefox 121+.
    `balance` makes short titles wrap evenly across lines. Scoped to headings
@@ -695,4 +713,33 @@ h1, h2, h3, .widget-title, .balance-text {
   .input {
     min-height: 44px;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TOUCH DEVICES — kill `:hover` stickiness
+   On iOS Safari, tapping a button triggers :hover and KEEPS it active until
+   the user taps somewhere else. That makes buttons look stuck in "hover"
+   state after every tap. Pre-empt by zeroing out the visual hover signals
+   on devices that don't have a pointer that can hover.
+
+   These rules cover every `:hover` declaration in this file that wasn't
+   already wrapped in `@media (hover: hover)`. New hover styles should be
+   wrapped at the source going forward; this block is the safety net for
+   legacy declarations.
+   ═══════════════════════════════════════════════════════════════════════ */
+@media (hover: none) {
+  .btn-primary:hover,
+  .btn-accent:hover,
+  .btn-secondary:hover,
+  .btn-danger:hover,
+  .btn-ghost:hover,
+  .nav-item:hover {
+    filter: none;
+    transform: none;
+    box-shadow: var(--shadow-xs);
+  }
+  /* Reset background/border tints that mid-tap can otherwise persist. */
+  .btn-secondary:hover { background-color: var(--bg-card); border-color: var(--border-subtle); }
+  .btn-ghost:hover { background-color: transparent; color: var(--text-secondary); }
+  .nav-item:hover { background-color: transparent; }
 }

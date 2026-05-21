@@ -56,9 +56,13 @@
   }
 
   /* iOS Safari: prevent zoom-on-focus by guaranteeing >=16px on form controls.
-     Fixes auto-zoom on inputs/selects/textareas on iOS 17/18. */
+     Fixes auto-zoom on inputs/selects/textareas on iOS 17/18.
+     `!important` because Tailwind v4 utility classes (`text-xs`, `text-sm`)
+     win over @layer base styles in the cascade — without this, the dozen-plus
+     forms across the wizard / portal / monthly-inquiry modal would still
+     trigger zoom even though the base rule is declared. */
   input, select, textarea {
-    font-size: 16px;
+    font-size: 16px !important;
   }
 
   /* Remove the 300ms double-tap-zoom delay on tappable elements.
@@ -93,6 +97,18 @@
   align-items: center;
   justify-content: center;
 }
+
+/* Sub-pixel hairline border — renders as a true 0.5 px on retina displays,
+   matching iOS UIKit's table-view separators. */
+.hairline-bottom { border-bottom: 0.5px solid var(--border-subtle); }
+.hairline-top    { border-top:    0.5px solid var(--border-subtle); }
+.hairline-y      { border-top:    0.5px solid var(--border-subtle); border-bottom: 0.5px solid var(--border-subtle); }
+
+/* Tabular figures — digits all the same width. Apply to anything where
+   numbers stack vertically and column alignment matters: prices, booking
+   codes, dates, line-item totals. iOS native uses SF Pro Text "tnum"
+   feature; this CSS rule maps to the same OpenType opt-in. */
+.tabular-nums { font-variant-numeric: tabular-nums; }
 
 /* Modern typography niceties — Chrome 114+, Safari 17.5+, Firefox 121+.
    `balance` makes short titles wrap evenly across lines (no one-word last line).
@@ -432,4 +448,20 @@ details[open] > div {
 .btn-secondary:active:not(:disabled),
 .btn-ghost:active:not(:disabled) {
   transform: scale(0.95);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TOUCH DEVICES — kill :hover stickiness
+   iOS Safari leaves buttons in their :hover state after a tap. Reset the
+   visual signals on devices that can't actually hover, so taps don't leave
+   "ghost hovered" buttons behind.
+   ═══════════════════════════════════════════════════════════════════════ */
+@media (hover: none) {
+  .btn-primary:hover, .btn-secondary:hover, .btn-ghost:hover, .nav-link:hover {
+    box-shadow: none;
+    background-color: revert-layer;
+    color: revert-layer;
+    border-color: revert-layer;
+    transform: none;
+  }
 }

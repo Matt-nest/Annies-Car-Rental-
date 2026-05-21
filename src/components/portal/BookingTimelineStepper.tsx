@@ -114,7 +114,7 @@ export default function BookingTimelineStepper({ status }: BookingTimelineSteppe
               >
                 <Icon
                   size={12}
-                  strokeWidth={isPast ? 3 : 2}
+                  strokeWidth={isPast ? 2.4 : 1.8}
                   style={{
                     color: isPast
                       ? '#fff'

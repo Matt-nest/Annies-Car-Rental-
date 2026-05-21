@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, createContext, useContext } from 'react';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation, useNavigationType } from 'react-router-dom';
 import { Sun, Moon, User, Settings, LogOut, ChevronDown, ThumbsUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from './Sidebar';
@@ -7,9 +7,11 @@ import BottomNav from './BottomNav';
 import GlobalSearch from './GlobalSearch';
 import NotificationDropdown from './NotificationDropdown';
 import CashRainOverlay from '../shared/CashRainOverlay';
+import OfflineBanner from '../shared/OfflineBanner';
 import { useAuth } from '../../auth/AuthProvider';
 import { AlertsProvider, useAlerts } from '../../lib/alertsContext';
 import { useScrollRestoration } from '../../hooks/useScrollRestoration';
+import { SPRING_NATURAL } from '../../lib/animation';
 
 export const ThemeContext = createContext({ dark: false, toggle: () => {} });
 export const useTheme = () => useContext(ThemeContext);
@@ -27,9 +29,22 @@ function DashboardLayoutInner() {
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const navType = useNavigationType();
   const { alerts, acknowledgeActive } = useAlerts();
   const mainScrollRef = useRef(null);
   useScrollRestoration(mainScrollRef);
+
+  /* Stack-style page transitions: PUSH slides in from right (+x), POP slides
+     in from left (-x). Spring physics so the motion has natural overshoot
+     and damping instead of a flat ease-out. Subtle distance (24 px) keeps
+     the layout from feeling like the screen actually moves a full width —
+     we get the directional CUE of an iOS push without breaking long-page
+     scroll position or causing overflow during the transition. */
+  const pageVariants = {
+    initial: (direction) => ({ opacity: 0, x: direction === 'POP' ? -24 : 24 }),
+    animate: { opacity: 1, x: 0 },
+    exit:    (direction) => ({ opacity: 0, x: direction === 'POP' ? 24 : -24 }),
+  };
   const [profileOpen, setProfileOpen] = useState(false);
   const dropdownRef = useRef(null);
   const [activeAlertModal, setActiveAlertModal] = useState(false);
@@ -101,6 +116,7 @@ function DashboardLayoutInner() {
   return (
     <ThemeContext.Provider value={{ dark, toggle: () => setDark(d => !d) }}>
       <div className="flex h-dvh overflow-hidden theme-transition" style={{ backgroundColor: 'var(--bg-primary)' }}>
+        <OfflineBanner />
         <Sidebar
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
@@ -119,8 +135,12 @@ function DashboardLayoutInner() {
             style={{
               backgroundColor: 'var(--header-bg)',
               borderBottom: '1px solid var(--border-subtle)',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
+              /* `saturate(180%)` boosts colour vibrancy of the content
+                 scrolling underneath the blur — matches iOS UINavigationBar
+                 UIBlurEffect material. 20 px blur is the sweet spot for
+                 readability + visible vibrancy. */
+              backdropFilter: 'blur(20px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(20px) saturate(180%)',
             }}
           >
             <div className="flex flex-grow items-center gap-3 px-4 py-4 sm:px-6">
@@ -275,13 +295,15 @@ function DashboardLayoutInner() {
               exit→enter on every navigation. Use route-key (split on /:id) so
               detail pages don't re-mount when the row id changes during back-nav. */}
           <main ref={mainScrollRef} className="flex-1 overflow-y-auto glass-scroll pb-[calc(64px+env(safe-area-inset-bottom))] lg:pb-0">
-            <AnimatePresence mode="wait" initial={false}>
+            <AnimatePresence mode="wait" initial={false} custom={navType}>
               <motion.div
                 key={location.pathname.split('/').slice(0, 2).join('/') || '/'}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                custom={navType}
+                variants={pageVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                transition={SPRING_NATURAL}
                 /* `height: 100%` (not minHeight) so child pages whose root uses
                    `height: 100%` — notably MessagingPage, which sizes ChatPanel
                    + its composer against the visible viewport — can resolve

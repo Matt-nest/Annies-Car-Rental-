@@ -5,6 +5,8 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../../api/client';
 import { EASE, formatDate, getInitials, getAvatarColor } from './shared.js';
+import { haptic } from '../../lib/haptic';
+import { useKeyboardInset } from '../../hooks/useKeyboardInset';
 
 /* ── Chat Panel ──
  * `hideIdentity` suppresses the avatar/name/email block in the internal header
@@ -23,6 +25,8 @@ export default function ChatPanel({ customerId, conversations, hideIdentity = fa
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const messagesEndRef = useRef(null);
   const scrollContainerRef = useRef(null);
+  // Push the compose area above the iOS keyboard when the textarea is focused.
+  const keyboardInset = useKeyboardInset();
 
   const conversation = conversations.find(c => c.customer_id === customerId);
   const customerName = conversation
@@ -60,6 +64,7 @@ export default function ChatPanel({ customerId, conversations, hideIdentity = fa
 
   const handleSend = async () => {
     if (!body.trim()) return;
+    haptic('tap');
     setSending(true);
     try {
       // Use 'email' as default when 'all' is selected for composing
@@ -69,11 +74,13 @@ export default function ChatPanel({ customerId, conversations, hideIdentity = fa
       const result = await api.sendMessage(customerId, payload);
       if (result?.message) {
         setMessages(prev => [...prev, result.message]);
+        haptic('commit');  // success — sharper pulse on message delivery
       }
       setBody('');
       setSubject('');
     } catch (err) {
       console.error('Send failed:', err);
+      haptic('edge');  // failure — distinct from success
     }
     setSending(false);
   };
@@ -435,11 +442,17 @@ export default function ChatPanel({ customerId, conversations, hideIdentity = fa
         )}
       </AnimatePresence>
 
-      {/* ── Compose area ── */}
+      {/* ── Compose area ──
+       * `paddingBottom` grows with the iOS soft-keyboard height so the
+       * textarea + send button rise above the keyboard instead of being
+       * obscured by it. On desktop / when keyboard is closed, inset is 0
+       * and the original 16 px padding wins. */}
       <div style={{
-        padding: '12px 20px 16px',
+        padding: '12px 20px',
+        paddingBottom: `calc(16px + ${keyboardInset}px)`,
         borderTop: '1px solid var(--border-subtle)',
         background: 'var(--bg-elevated)',
+        transition: 'padding-bottom 0.15s ease-out',
       }}>
         {(channel === 'email' || channel === 'all') && (
           <motion.input
@@ -449,9 +462,11 @@ export default function ChatPanel({ customerId, conversations, hideIdentity = fa
             placeholder="Email subject..."
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
+            enterKeyHint="next"
+            autoCapitalize="sentences"
             style={{
-              width: '100%', marginBottom: 8, padding: '8px 12px',
-              fontSize: '13px', borderRadius: 10,
+              width: '100%', marginBottom: 8, padding: '10px 14px',
+              fontSize: '16px', borderRadius: 12,
               border: '1px solid var(--border-subtle)',
               background: 'var(--bg-primary)', color: 'var(--text-primary)',
               outline: 'none', transition: 'border-color 0.2s',
@@ -467,11 +482,17 @@ export default function ChatPanel({ customerId, conversations, hideIdentity = fa
               value={body}
               onChange={(e) => setBody(e.target.value)}
               rows={2}
+              enterKeyHint="send"
+              autoCapitalize="sentences"
               style={{
-                width: '100%', padding: '10px 14px', fontSize: '13px',
-                borderRadius: 14, border: '1px solid var(--border-subtle)',
+                /* 16px is the iOS zoom-on-focus threshold — anything below
+                   triggers a 1.5x auto-zoom when the textarea gains focus.
+                   Inline styles override the global @media rule from Sprint 1
+                   via CSS specificity, so the 16px MUST live here, not in CSS. */
+                width: '100%', padding: '12px 18px', fontSize: '16px',
+                borderRadius: 22, border: '1px solid var(--border-subtle)',
                 background: 'var(--bg-primary)', color: 'var(--text-primary)',
-                outline: 'none', resize: 'none', lineHeight: '1.5',
+                outline: 'none', resize: 'none', lineHeight: '1.4',
                 transition: 'border-color 0.2s, box-shadow 0.2s',
               }}
               onFocus={(e) => { e.target.style.borderColor = '#465FFF'; e.target.style.boxShadow = '0 0 0 3px rgba(70,95,255,0.08)'; }}

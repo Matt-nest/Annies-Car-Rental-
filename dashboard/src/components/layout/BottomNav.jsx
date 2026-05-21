@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import {
   LayoutDashboard,
   BookOpen,
@@ -8,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useAlerts } from '../../lib/alertsContext';
 import { haptic } from '../../lib/haptic';
+import { SPRING_NATURAL } from '../../lib/animation';
 
 /**
  * Mobile bottom navigation — `lg:hidden` so it only shows below 1024px.
@@ -47,7 +49,7 @@ function BottomNavItem({ to, label, icon: Icon, end, alertKey, alerts }) {
       end={end}
       onClick={() => haptic('tap')}
       className={({ isActive }) =>
-        `tap-target flex-1 flex flex-col items-center justify-center gap-1 py-2 transition-[color,transform] duration-150 active:scale-[0.92] ${
+        `tap-target relative flex-1 flex flex-col items-center justify-center gap-1 py-2 transition-[color,transform] duration-150 active:scale-[0.92] ${
           isActive
             ? 'text-[var(--sidebar-active-text)]'
             : 'text-[var(--text-tertiary)]'
@@ -56,6 +58,18 @@ function BottomNavItem({ to, label, icon: Icon, end, alertKey, alerts }) {
     >
       {({ isActive }) => (
         <>
+          {/* Animated active-indicator pill — `layoutId` makes Framer Motion
+              slide the SAME element between BottomNav slots when the active
+              tab changes, with a spring physics curve. That's the native
+              iOS tab-bar active-state animation in 5 lines of code. */}
+          {isActive && (
+            <motion.div
+              layoutId="bottomnav-active-pill"
+              className="absolute inset-x-1 top-1 bottom-1 rounded-2xl -z-10"
+              style={{ backgroundColor: 'var(--sidebar-active-bg)' }}
+              transition={SPRING_NATURAL}
+            />
+          )}
           <span className="relative">
             <Icon
               size={22}
@@ -93,8 +107,17 @@ export default function BottomNav({ onOpenMore }) {
       style={{
         backgroundColor: 'var(--header-bg)',
         borderTop: '1px solid var(--border-subtle)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
+        backdropFilter: 'blur(20px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+        /* Force a dedicated GPU compositor layer. Fixes the intermittent
+           "BottomNav floats up on launch" bug on iPhone — iOS Safari's
+           URL-bar collapse/expand animation can momentarily desync a
+           fixed-bottom element from the visual viewport, especially when
+           the element also has `backdrop-filter` (which causes per-frame
+           composite work). `translateZ(0)` pins the nav to its own GPU
+           layer that doesn't lag during URL-bar transitions. */
+        transform: 'translateZ(0)',
+        willChange: 'transform',
       }}
     >
       <div className="flex items-stretch">

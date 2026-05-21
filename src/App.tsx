@@ -3,7 +3,7 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AnimatePresence, motion } from 'motion/react';
 import { Vehicle, RateMode } from './types';
-import { EASE } from './utils/motion';
+import { EASE, SPRING } from './utils/motion';
 import { ThemeProvider } from './context/ThemeContext';
 import Navbar from './components/layout/Navbar';
 import Hero from './components/home/Hero';
@@ -19,6 +19,7 @@ import ContactSection from './components/home/ContactSection';
 import MobileStickyCTA from './components/home/MobileStickyCTA';
 import Footer from './components/layout/Footer';
 import CustomCursor from './components/home/CustomCursor';
+import OfflineBanner from './components/common/OfflineBanner';
 import { useScrollRestoration } from './hooks/useScrollRestoration';
 
 /* Heavy / off-home routes are lazy-loaded so the homepage chunk stays small.
@@ -135,6 +136,7 @@ export default function App() {
   return (
     <ErrorBoundary>
     <ThemeProvider>
+      <OfflineBanner />
       <AnimatePresence mode="wait">
         {currentPage === 'portal' ? (
           <motion.div
@@ -142,7 +144,7 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.4, ease: EASE.dramatic }}
+            transition={SPRING.natural}
           >
             <Suspense fallback={<RouteFallback />}>
               <CustomerPortal />
@@ -154,7 +156,7 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.4, ease: EASE.dramatic }}
+            transition={SPRING.natural}
           >
             <Suspense fallback={<RouteFallback />}>
               <BookingStatusPage onBack={() => { setCurrentPage('home'); window.history.pushState({}, '', '/'); }} />
@@ -166,7 +168,7 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.4, ease: EASE.dramatic }}
+            transition={SPRING.natural}
           >
             <Suspense fallback={<RouteFallback />}>
               <PrivacyPolicy />
@@ -178,7 +180,7 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.4, ease: EASE.dramatic }}
+            transition={SPRING.natural}
           >
             <Suspense fallback={<RouteFallback />}>
               <TermsOfService />
@@ -190,7 +192,7 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.4, ease: EASE.dramatic }}
+            transition={SPRING.natural}
           >
             <Suspense fallback={<RouteFallback />}>
               <RentalAgreementPage />
@@ -202,7 +204,7 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.4, ease: EASE.dramatic }}
+            transition={SPRING.natural}
           >
             <Suspense fallback={<RouteFallback />}>
               <ConfirmBooking />
@@ -214,7 +216,7 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.4, ease: EASE.dramatic }}
+            transition={SPRING.natural}
           >
             <Suspense fallback={<RouteFallback />}>
               <VehicleDetailPage vehicle={selectedVehicle} onBack={handleBackToHome} />
