@@ -20,18 +20,24 @@ export default defineConfig(({ mode }) => {
         registerType: 'prompt',
         manifest: false,
         injectRegister: false,
-        workbox: {
-          // Precache the small admin shell — JS / CSS / HTML / SVG / favicons.
-          // Mapbox-gl (498 kB gzip), Recharts, Stripe, signature_pad — all
-          // runtime-cached on demand via the rules below.
+        /* Sprint 18: switched from `generateSW` to `injectManifest` so the
+           dashboard SW can include a custom push event handler. The full
+           workbox runtime-cache + precache logic now lives in src/sw.js;
+           this config only tells Vite where to find the SW source and what
+           to include in the precache manifest that gets inlined as
+           `self.__WB_MANIFEST` inside the SW. */
+        strategies: 'injectManifest',
+        srcDir: 'src',
+        filename: 'sw.js',
+        injectManifest: {
           globPatterns: ['**/*.{js,css,html,svg,ico,woff2}'],
           globIgnores: [
             // Heavy auto-split vendor chunks (Vite names them after the lib).
             '**/mapbox-gl-*.js',
             '**/mapbox-gl-*.css',
-            '**/generateCategoricalChart-*.js',  // Recharts main
-            '**/AreaChart-*.js',                  // Recharts AreaChart
-            '**/sortable.esm-*.js',               // @dnd-kit sortable
+            '**/generateCategoricalChart-*.js',
+            '**/AreaChart-*.js',
+            '**/sortable.esm-*.js',
             '**/@stripe-*.js',
             '**/signature_pad-*.js',
             // Heavy lazy pages.
@@ -40,50 +46,7 @@ export default defineConfig(({ mode }) => {
             '**/KPICardsWidget-*.js',
             '**/RevenueTrendWidget-*.js',
           ],
-          clientsClaim: true,
-          skipWaiting: false,
           maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
-          navigateFallback: '/index.html',
-          navigateFallbackDenylist: [/^\/api\//, /^\/login/, /^\/oauth/],
-          runtimeCaching: [
-            {
-              urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-              handler: 'StaleWhileRevalidate',
-              options: { cacheName: 'google-fonts-css', cacheableResponse: { statuses: [0, 200] } },
-            },
-            {
-              urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'google-fonts-files',
-                cacheableResponse: { statuses: [0, 200] },
-                expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 },
-              },
-            },
-            {
-              urlPattern: ({ url }) =>
-                url.origin === self.location.origin && url.pathname.startsWith('/assets/'),
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'admin-static-assets',
-                expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 30 },
-              },
-            },
-            {
-              // Vehicle thumbnails + Supabase Storage rental-photos.
-              urlPattern: ({ url, request }) =>
-                ['image'].includes(request.destination) &&
-                (url.origin === self.location.origin ||
-                  url.hostname.endsWith('.supabase.co')),
-              handler: 'StaleWhileRevalidate',
-              options: {
-                cacheName: 'admin-images',
-                expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
-              },
-            },
-            // No /api rule — admin API calls always go straight to the backend.
-            // Booking state, payments, telematics — never cached.
-          ],
         },
         devOptions: { enabled: false },
       }),
