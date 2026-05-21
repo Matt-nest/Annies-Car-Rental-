@@ -13,7 +13,34 @@ import { storeLocalMessage } from './messagingService.js';
 import { sendViaResend } from '../utils/mailTransport.js';
 import { renderBrandedShell, escapeHtml } from '../utils/emailShell.js';
 import FALLBACK_TEMPLATES from './fallbackTemplates.js';
-import { sendToCustomer as sendPushToCustomer } from './pushService.js';
+import { sendToCustomer as sendPushToCustomer, sendToAllAdmins as sendPushToAllAdmins } from './pushService.js';
+
+/**
+ * Stages where the admin team should also receive a push notification
+ * alongside the customer's email/SMS/push. Curated to high-priority,
+ * action-required events — NOT every customer-facing confirmation. These
+ * are the moments where the admin needs to know NOW.
+ *
+ * Keep this list short — a flood of admin pushes is worse than no pushes
+ * at all.
+ */
+const ADMIN_PUSH_STAGES = new Set([
+  'booking_submitted',           // new booking awaiting approval
+  'damage_notification',         // incident filed
+  'late_return_warning',         // customer is 1h late
+  'late_return_escalation',      // customer is 4h+ late — escalate
+  'inspection_charges_scheduled', // potential dispute incoming
+]);
+
+/** Concise human-readable summaries used as the admin push body. Keep
+ *  under 80 chars so the iOS push card doesn't truncate. */
+const ADMIN_PUSH_SUMMARIES = {
+  booking_submitted:            'New booking pending approval',
+  damage_notification:          'Damage report filed',
+  late_return_warning:          'Customer is 1 hour late returning',
+  late_return_escalation:       'Late return — 4+ hours overdue',
+  inspection_charges_scheduled: 'Inspection charges scheduled',
+};
 
 const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN;
@@ -719,6 +746,34 @@ export async function sendBookingNotification(stage, bookingPayload) {
         });
       } catch (e) {
         console.error(`[Notify] Push send error for "${stage}":`, e.message);
+      }
+    }
+
+    /* Sprint 18: Admin push fan-out — only for stages in ADMIN_PUSH_STAGES.
+     * Failure-isolated so admin push errors never affect the customer dispatch
+     * paths above or the storeSystemMessage call below. */
+    if (ADMIN_PUSH_STAGES.has(stage)) {
+      try {
+        const customerName = [bookingPayload.first_name, bookingPayload.last_name]
+          .filter(Boolean).join(' ') || 'a customer';
+        const bookingCode = bookingPayload.booking_code || '';
+        const adminBody = `${ADMIN_PUSH_SUMMARIES[stage]} — ${customerName}${bookingCode ? ` (${bookingCode})` : ''}`;
+        const url = bookingPayload.booking_id
+          ? `/bookings/${bookingPayload.booking_id}`
+          : '/bookings';
+        await sendPushToAllAdmins({
+          title: 'Annie\'s Dashboard',
+          body: adminBody,
+          url,
+          data: {
+            stage,
+            booking_id: bookingPayload.booking_id || null,
+            booking_code: bookingCode || null,
+            tag: bookingCode ? `admin-booking-${bookingCode}` : `admin-stage-${stage}`,
+          },
+        });
+      } catch (e) {
+        console.error(`[Notify] Admin push send error for "${stage}":`, e.message);
       }
     }
 
