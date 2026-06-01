@@ -1,0 +1,512 @@
+import { useEffect, useState, useCallback } from 'react';
+import { BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { Download, DollarSign, TrendingUp, CreditCard, Calendar, Car } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { api } from '../api/client';
+import { SkeletonKpi, SkeletonChartCard, SkeletonTable } from '../components/shared/Skeleton';
+import EmptyState from '../components/shared/EmptyState';
+import RevenueHeatmapWidget from '../components/dashboard/widgets/RevenueHeatmapWidget';
+
+const EASE = [0.25, 1, 0.5, 1];
+const PIE_COLORS = ['#465FFF', '#8B5CF6', '#818cf8', '#63b3ed', '#f87171', '#f59e0b', '#ec4899'];
+const CATEGORY_COLORS = { sedan: '#818cf8', suv: '#465FFF', truck: '#8B5CF6', luxury: '#f59e0b', electric: '#63b3ed', uncategorized: '#94a3b8' };
+const RATE_COLORS = { daily: '#465FFF', weekly: '#D4AF37', weekly_mixed: '#f59e0b' };
+const RATE_LABELS = { daily: 'Daily', weekly: 'Weekly (full)', weekly_mixed: 'Weekly + Days' };
+
+function GlassTooltip({ active, payload, label, prefix = '' }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="glass-tooltip">
+      <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>{label}</p>
+      {payload.map((p, i) => (
+        <p key={i} className="text-xs" style={{ color: p.color || 'var(--text-secondary)' }}>
+          {p.name}: {prefix}{Number(p.value).toLocaleString()}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function exportCSV(transactions) {
+  const headers = ['Date', 'Booking Code', 'Vehicle', 'Rate Type', 'Days', 'Subtotal', 'Tax', 'Total', 'Source'];
+  const rows = (transactions || []).map(t => [
+    t.pickup_date,
+    t.booking_code,
+    t.vehicles ? `${t.vehicles.year} ${t.vehicles.make} ${t.vehicles.model}` : '',
+    t.rate_type || 'daily',
+    t.rental_days || '',
+    Number(t.total_cost - (t.tax_amount || 0)).toFixed(2),
+    Number(t.tax_amount || 0).toFixed(2),
+    Number(t.total_cost).toFixed(2),
+    t.source || 'website',
+  ]);
+  const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `annies-revenue-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function StatCard({ label, value, sub, icon: Icon, accentColor }) {
+  return (
+    <div className="liquid-glass p-5">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-2xl font-bold tabular-nums" style={{ color: accentColor || 'var(--text-primary)' }}>{value}</p>
+          <p className="text-sm mt-1.5 font-medium" style={{ color: 'var(--text-secondary)' }}>{label}</p>
+          {sub && <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>{sub}</p>}
+        </div>
+        {Icon && (
+          <div className="p-2.5 rounded-xl" style={{
+            backgroundColor: accentColor ? `${accentColor}18` : 'var(--bg-card-hover)',
+            color: accentColor || 'var(--text-secondary)',
+          }}>
+            <Icon size={18} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const RANGE_PRESETS = [
+  { label: 'Last 30 days', days: 30 },
+  { label: 'Last 90 days', days: 90 },
+  { label: 'Last 6 months', days: 180 },
+  { label: 'Last year', days: 365 },
+  { label: 'All time', days: null },
+];
+
+export default function RevenuePage() {
+  const [revenue, setRevenue] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [activeRange, setActiveRange] = useState(4); // All time
+
+  const fetchRevenue = useCallback(async (rangeIndex) => {
+    setLoading(true);
+    try {
+      const preset = RANGE_PRESETS[rangeIndex];
+      const params = {};
+      if (preset.days) {
+        params.from = new Date(Date.now() - preset.days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        params.to = new Date().toISOString().slice(0, 10);
+      }
+      const data = await api.getRevenue(params);
+      setRevenue(data);
+    } catch (err) {
+      console.error(err);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchRevenue(activeRange);
+  }, [activeRange, fetchRevenue]);
+
+  if (loading) {
+    return (
+      <div className="p-6 lg:p-8 space-y-6">
+        <div className="space-y-2">
+          <div className="skeleton skeleton-text" style={{ width: 120, height: 28 }} />
+          <div className="skeleton skeleton-text" style={{ width: 200, height: 14 }} />
+        </div>
+        <SkeletonKpi count={4} />
+        <SkeletonChartCard height={300} />
+        <div className="grid lg:grid-cols-2 gap-4">
+          <SkeletonChartCard height={260} />
+          <SkeletonChartCard height={260} />
+        </div>
+        <SkeletonTable rows={5} cols={6} />
+      </div>
+    );
+  }
+
+  const monthData = Object.entries(revenue?.by_month || {})
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, total]) => ({ month, total: Number(Number(total).toFixed(0)) }));
+
+  const vehicleData = Object.entries(revenue?.by_vehicle || {})
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 8)
+    .map(([name, total]) => ({ name: name.length > 20 ? name.slice(0, 20) + '…' : name, total: Number(Number(total).toFixed(0)) }));
+
+  const sourceData = Object.entries(revenue?.by_source || {})
+    .map(([name, value]) => ({ name, value: Number(Number(value).toFixed(0)) }));
+
+  const categoryData = Object.entries(revenue?.by_category || {})
+    .map(([name, value]) => ({ name, value: Number(Number(value).toFixed(0)) }))
+    .sort((a, b) => b.value - a.value);
+
+  const fadeUp = (i = 0) => ({
+    initial: { opacity: 0, y: 20 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.5, delay: i * 0.12, ease: [0.25, 1, 0.5, 1] },
+  });
+
+  return (
+    <div className="p-6 lg:p-8 space-y-6">
+      <motion.div
+        {...fadeUp(0)}
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+      >
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Revenue</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>Financial overview and analytics</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={() => exportCSV(revenue?.transactions)} className="btn-secondary">
+            <Download size={14} /> Export CSV
+          </button>
+        </div>
+      </motion.div>
+
+      {/* Date range filter */}
+      <motion.div {...fadeUp(1)} className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+        <Calendar size={14} className="text-gray-400 mr-1 shrink-0" />
+        {RANGE_PRESETS.map((preset, i) => (
+          <button
+            key={i}
+            onClick={() => setActiveRange(i)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
+              i === activeRange
+                ? 'bg-brand-500 text-white shadow-sm'
+                : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5'
+            }`}
+          >
+            {preset.label}
+          </button>
+        ))}
+      </motion.div>
+
+      {/* Summary cards */}
+      <motion.div {...fadeUp(2)} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatCard label="Total Revenue" value={`$${Number(revenue?.total || 0).toLocaleString()}`} sub="Selected period" icon={DollarSign} accentColor="#22c55e" />
+        <StatCard label="This Month" value={`$${Number(revenue?.this_month_revenue || 0).toLocaleString()}`} sub={`${revenue?.this_month_bookings || 0} bookings`} icon={Calendar} accentColor="#818cf8" />
+        <StatCard label="Avg per Booking" icon={CreditCard} accentColor="#465FFF"
+          value={revenue?.transactions?.length
+            ? `$${(Number(revenue.total) / revenue.transactions.length).toFixed(0)}`
+            : '$0'}
+        />
+        <StatCard label="Avg Rental Length" icon={Calendar} accentColor="#D4AF37"
+          value={revenue?.avg_rental_days ? `${revenue.avg_rental_days} days` : '—'}
+          sub={revenue?.weekly_discount_total > 0 ? `$${Number(revenue.weekly_discount_total).toLocaleString()} weekly discounts` : 'No weekly discounts yet'}
+        />
+      </motion.div>
+
+      {/* Monthly inquiry funnel */}
+      {(() => {
+        const f = revenue?.inquiry_funnel;
+        if (!f) return null;
+        const total = Object.values(f).reduce((s, v) => s + v, 0);
+        if (total === 0) return null;
+        const steps = [
+          { key: 'new',       label: 'New',       color: '#D4AF37' },
+          { key: 'contacted', label: 'Contacted',  color: '#63b3ed' },
+          { key: 'converted', label: 'Converted',  color: '#22c55e' },
+          { key: 'closed',    label: 'Closed',     color: '#94a3b8' },
+        ];
+        return (
+          <motion.div {...fadeUp(3)} className="card p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Monthly Lead Funnel</h2>
+              <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{total} total inquiries</span>
+            </div>
+            <div className="grid grid-cols-4 gap-3">
+              {steps.map(s => (
+                <div key={s.key} className="text-center p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)' }}>
+                  <p className="text-2xl font-bold tabular-nums" style={{ color: s.color }}>{f[s.key] || 0}</p>
+                  <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>{s.label}</p>
+                  {total > 0 && <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>{((f[s.key] || 0) / total * 100).toFixed(0)}%</p>}
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        );
+      })()}
+
+      {/* Monthly revenue — glowing area chart */}
+      <motion.div {...fadeUp(3)} className="card overflow-hidden">
+        <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+          <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Monthly Revenue</h2>
+        </div>
+        <div className="p-5" style={{ height: 320 }}>
+          {monthData.length === 0 ? (
+            <EmptyState icon={TrendingUp} title="No revenue data yet" description="Revenue will appear once bookings are completed." />
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={monthData}>
+                <defs>
+                  <linearGradient id="revMonthGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#22c55e" stopOpacity={0.35} />
+                    <stop offset="50%" stopColor="#22c55e" stopOpacity={0.1} />
+                    <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
+                  </linearGradient>
+                  <filter id="glowMonth">
+                    <feGaussianBlur stdDeviation="3" result="blur" />
+                    <feMerge>
+                      <feMergeNode in="blur" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-subtle)" opacity={0.5} />
+                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-tertiary)', fontSize: 11 }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-tertiary)', fontSize: 11 }} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
+                <Tooltip content={<GlassTooltip prefix="$" />} />
+                <Area
+                  type="monotone"
+                  dataKey="total"
+                  stroke="#22c55e"
+                  strokeWidth={2.5}
+                  fill="url(#revMonthGrad)"
+                  filter="url(#glowMonth)"
+                  isAnimationActive={true}
+                  animationDuration={1800}
+                  animationBegin={200}
+                  animationEasing="ease-out"
+                  dot={(props) => {
+                    const { cx, cy, index } = props;
+                    if (index !== monthData.length - 1 || !cx || !cy) return null;
+                    return (
+                      <g key={`pulse-${index}`}>
+                        <circle cx={cx} cy={cy} r={6} fill="#22c55e" opacity={0.25}>
+                          <animate attributeName="r" values="6;14;6" dur="2s" repeatCount="indefinite" />
+                          <animate attributeName="opacity" values="0.35;0.08;0.35" dur="2s" repeatCount="indefinite" />
+                        </circle>
+                        <circle cx={cx} cy={cy} r={4} fill="#22c55e" stroke="var(--bg-primary)" strokeWidth={2} />
+                      </g>
+                    );
+                  }}
+                  activeDot={{ r: 5, fill: '#22c55e', stroke: 'var(--bg-primary)', strokeWidth: 2 }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </motion.div>
+
+      {/* Rate Type split + Booking Length distribution */}
+      <motion.div {...fadeUp(4)} className="grid lg:grid-cols-2 gap-4">
+        {/* Rate type donut */}
+        <div className="card overflow-hidden">
+          <div className="px-5 py-4" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+            <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Revenue by Rate Type</h2>
+          </div>
+          <div className="p-5" style={{ height: 260 }}>
+            {(() => {
+              const rt = revenue?.by_rate_type || {};
+              const rateData = Object.entries(rt)
+                .filter(([, v]) => v > 0)
+                .map(([k, v]) => ({ name: RATE_LABELS[k] || k, key: k, value: Number(Number(v).toFixed(0)) }));
+              if (rateData.length === 0) return <EmptyState icon={TrendingUp} title="No rate type data yet" description="Appears after weekly bookings are confirmed." />;
+              return (
+                <div className="flex items-center h-full">
+                  <ResponsiveContainer width="55%" height="100%">
+                    <PieChart>
+                      <Pie data={rateData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={4} isAnimationActive animationDuration={1000} animationBegin={200} animationEasing="ease-out">
+                        {rateData.map((entry, i) => (
+                          <Cell key={i} fill={RATE_COLORS[entry.key] || PIE_COLORS[i]} stroke="none" />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<GlassTooltip prefix="$" />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="flex-1 space-y-3 pl-2">
+                    {rateData.map((item, i) => (
+                      <div key={item.key} className="flex items-center gap-2.5">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: RATE_COLORS[item.key] || PIE_COLORS[i] }} />
+                        <span className="text-xs flex-1" style={{ color: 'var(--text-secondary)' }}>{item.name}</span>
+                        <span className="text-xs font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>${Number(item.value).toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+
+        {/* Booking length distribution */}
+        <div className="card overflow-hidden">
+          <div className="px-5 py-4" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+            <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Booking Length Distribution</h2>
+          </div>
+          <div className="p-5" style={{ height: 260 }}>
+            {(() => {
+              const dist = revenue?.days_distribution || {};
+              const barData = Object.entries(dist)
+                .sort(([a], [b]) => (a === '15+' ? 99 : Number(a)) - (b === '15+' ? 99 : Number(b)))
+                .map(([days, count]) => ({
+                  days: days === '1' ? '1 day' : `${days}${days === '15+' ? '' : 'd'}`,
+                  count,
+                  fill: Number(days) >= 7 ? '#D4AF37' : '#818cf8',
+                }));
+              if (barData.length === 0) return <EmptyState icon={Calendar} title="No booking length data yet" />;
+              return (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={barData} barSize={22}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-subtle)" opacity={0.5} />
+                    <XAxis dataKey="days" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-tertiary)', fontSize: 10 }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-tertiary)', fontSize: 10 }} allowDecimals={false} />
+                    <Tooltip content={<GlassTooltip />} />
+                    <Bar dataKey="count" name="Bookings" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={1000} animationBegin={200} animationEasing="ease-out">
+                      {barData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              );
+            })()}
+          </div>
+        </div>
+      </motion.div>
+
+      <motion.div {...fadeUp(5)} className="grid lg:grid-cols-2 gap-4">
+        {/* By vehicle */}
+        <div className="card overflow-hidden">
+          <div className="px-5 py-4" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+            <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Revenue by Vehicle</h2>
+          </div>
+          <div className="p-5" style={{ height: 260 }}>
+            {vehicleData.length === 0 ? (
+              <EmptyState icon={TrendingUp} title="No vehicle data" />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={vehicleData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border-subtle)" />
+                  <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-tertiary)', fontSize: 10 }} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
+                  <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} width={130} />
+                  <Tooltip content={<GlassTooltip prefix="$" />} />
+                  <Bar dataKey="total" fill="#818cf8" radius={[0, 6, 6, 0]} barSize={20} name="Revenue" isAnimationActive={true} animationDuration={1200} animationBegin={300} animationEasing="ease-out" />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+
+        {/* By category (NEW donut chart) */}
+        <div className="card overflow-hidden">
+          <div className="px-5 py-4" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+            <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Revenue by Category</h2>
+          </div>
+          <div className="p-5" style={{ height: 260 }}>
+            {categoryData.length === 0 ? (
+              <EmptyState icon={Car} title="No category data" />
+            ) : (
+              <div className="flex items-center h-full">
+                <ResponsiveContainer width="55%" height="100%">
+                  <PieChart>
+                    <Pie data={categoryData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={4} isAnimationActive={true} animationDuration={1000} animationBegin={200} animationEasing="ease-out">
+                      {categoryData.map((entry, i) => (
+                        <Cell key={i} fill={CATEGORY_COLORS[entry.name] || PIE_COLORS[i % PIE_COLORS.length]} stroke="none" />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<GlassTooltip prefix="$" />} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="flex-1 space-y-3 pl-2">
+                  {categoryData.map((item, i) => (
+                    <div key={item.name} className="flex items-center gap-2.5">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: CATEGORY_COLORS[item.name] || PIE_COLORS[i % PIE_COLORS.length] }} />
+                      <span className="text-xs capitalize flex-1" style={{ color: 'var(--text-secondary)' }}>{item.name}</span>
+                      <span className="text-xs font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>${Number(item.value).toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </motion.div>
+
+      {/* By source */}
+      <motion.div {...fadeUp(6)} className="card overflow-hidden">
+        <div className="px-5 py-4" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+          <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Bookings by Source</h2>
+        </div>
+        <div className="p-5" style={{ height: 260 }}>
+          {sourceData.length === 0 ? (
+            <EmptyState icon={TrendingUp} title="No source data" />
+          ) : (
+            <div className="flex items-center h-full">
+              <ResponsiveContainer width="55%" height="100%">
+                <PieChart>
+                  <Pie data={sourceData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={5} isAnimationActive={true} animationDuration={1000} animationBegin={200} animationEasing="ease-out">
+                    {sourceData.map((_, i) => (
+                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} stroke="none" />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<GlassTooltip prefix="$" />} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="flex-1 space-y-3 pl-2">
+                {sourceData.map((item, i) => (
+                  <div key={item.name} className="flex items-center gap-2.5">
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
+                    <span className="text-xs capitalize flex-1" style={{ color: 'var(--text-secondary)' }}>{item.name}</span>
+                    <span className="text-xs font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>${Number(item.value).toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </motion.div>
+
+      {/* Transactions */}
+      <motion.div {...fadeUp(7)} className="card overflow-hidden">
+        <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+          <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Transactions</h2>
+          <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{revenue?.transactions?.length || 0} total</span>
+        </div>
+        <div className="overflow-x-auto glass-scroll">
+          <table className="w-full text-sm">
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                {['Date', 'Booking', 'Vehicle', 'Rate', 'Subtotal', 'Tax', 'Total', 'Source'].map(h => (
+                  <th key={h} className="text-left px-5 py-4 font-bold uppercase" style={{ color: 'var(--text-tertiary)', fontSize: '10px', letterSpacing: '0.08em' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {(revenue?.transactions || []).length === 0 ? (
+                <tr><td colSpan="8"><EmptyState icon={DollarSign} title="No transactions yet" /></td></tr>
+              ) : (
+                (revenue?.transactions || []).map((t, i) => (
+                  <tr
+                    key={i}
+                    className="transition-colors"
+                    style={{ borderBottom: '1px solid var(--border-subtle)' }}
+                    onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-card-hover)'}
+                    onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <td className="px-5 py-4 mono-code text-xs" style={{ color: 'var(--text-tertiary)' }}>{t.pickup_date}</td>
+                    <td className="px-5 py-4 mono-code text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{t.booking_code}</td>
+                    <td className="px-5 py-4" style={{ color: 'var(--text-secondary)' }}>{t.vehicles ? `${t.vehicles.year} ${t.vehicles.make} ${t.vehicles.model}` : '—'}</td>
+                    <td className="px-5 py-4">
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize"
+                        style={{ backgroundColor: `${RATE_COLORS[t.rate_type] || '#818cf8'}18`, color: RATE_COLORS[t.rate_type] || '#818cf8' }}>
+                        {t.rate_type || 'daily'}{t.rental_days ? ` · ${t.rental_days}d` : ''}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 tabular-nums" style={{ color: 'var(--text-secondary)' }}>${Number(t.total_cost - (t.tax_amount || 0)).toFixed(2)}</td>
+                    <td className="px-5 py-4 tabular-nums" style={{ color: 'var(--text-tertiary)' }}>${Number(t.tax_amount || 0).toFixed(2)}</td>
+                    <td className="px-5 py-4 font-bold tabular-nums" style={{ color: '#22c55e' }}>${Number(t.total_cost).toLocaleString()}</td>
+                    <td className="px-5 py-4 capitalize" style={{ color: 'var(--text-secondary)' }}>{t.source}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </motion.div>
+
+      {/* Revenue Heatmap */}
+      <motion.div {...fadeUp(8)}>
+        <RevenueHeatmapWidget />
+      </motion.div>
+    </div>
+  );
+}

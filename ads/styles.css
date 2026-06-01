@@ -1,0 +1,401 @@
+/* ═══════════════════════════════════════════
+   Annie's Car Rental — Ad Mockups Stylesheet
+   ═══════════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0f0f13;
+  --surface: #1a1a22;
+  --card-bg: #ffffff;
+  --card-border: #e0e0e0;
+  --text-primary: #202124;
+  --text-secondary: #5f6368;
+  --text-muted: #70757a;
+  --link-blue: #1a0dab;
+  --link-green: #006621;
+  --sitelink-blue: #1a0dab;
+  --ad-label-bg: transparent;
+  --ad-label-color: #202124;
+  --gold: #eab308;
+  --gold-hover: #ca9a06;
+  --verified-color: #70757a;
+  --section-title-color: #ffffff;
+  --page-text: #d1d5db;
+  --font-sans: 'Inter', 'Roboto', Arial, sans-serif;
+  --font-google: 'Roboto', Arial, sans-serif;
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--page-text);
+  min-height: 100vh;
+  padding: 2rem 1rem;
+}
+
+/* Page Header */
+.page-header {
+  text-align: center;
+  padding: 3rem 1rem 2rem;
+}
+.page-header h1 {
+  font-size: 2.2rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--gold), #f59e0b, #fbbf24);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 0.5rem;
+}
+.subtitle {
+  color: var(--page-text);
+  font-size: 1rem;
+  opacity: 0.7;
+}
+
+/* Sections */
+.section {
+  max-width: 1300px;
+  margin: 0 auto 3rem;
+}
+.section-title {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--section-title-color);
+  margin-bottom: 1.2rem;
+  padding-left: 0.5rem;
+  border-left: 3px solid var(--gold);
+}
+
+/* Row / Grid */
+.row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+.row.single {
+  grid-template-columns: 1fr;
+  max-width: 600px;
+}
+
+/* Card base */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: box-shadow 0.25s ease, transform 0.2s ease;
+}
+.card:hover {
+  box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+  transform: translateY(-2px);
+}
+
+/* ════════════════════════════════════
+   GOOGLE SEARCH AD STYLES
+   ════════════════════════════════════ */
+.google-search-ad {
+  font-family: var(--font-google);
+  padding: 16px 20px;
+}
+.google-search-ad.compact {
+  padding: 14px 18px;
+}
+
+.ad-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ad-label-color);
+  margin-bottom: 6px;
+  letter-spacing: 0.02em;
+}
+
+.ad-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.ad-favicon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #eee;
+}
+.ad-favicon.small {
+  width: 22px;
+  height: 22px;
+}
+.ad-url-block {
+  display: flex;
+  flex-direction: column;
+}
+.ad-business-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+.ad-url {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.ad-headline {
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.3;
+  margin-bottom: 4px;
+}
+.ad-headline.small-headline {
+  font-size: 15px;
+}
+.blue-link {
+  color: var(--link-blue);
+  cursor: pointer;
+}
+.blue-link:hover {
+  text-decoration: underline;
+}
+
+.ad-description {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+.ad-description.small-desc {
+  font-size: 12px;
+}
+
+.ad-sitelinks, .ad-sitelinks-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.sitelink {
+  font-size: 12px;
+  color: var(--sitelink-blue);
+  text-decoration: none;
+}
+.sitelink:hover {
+  text-decoration: underline;
+}
+.sitelink-sep {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.ad-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid #f0f0f0;
+  margin-top: 8px;
+}
+.verified-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.verified-badge {
+  font-size: 11px;
+  color: var(--verified-color);
+}
+
+/* Top row with image (text + thumbnail) */
+.ad-top-row-with-image {
+  display: flex;
+  gap: 16px;
+}
+.ad-text-side {
+  flex: 1;
+  min-width: 0;
+}
+.ad-image-side {
+  flex-shrink: 0;
+  width: 100px;
+  height: 100px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.ad-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ════════════════════════════════════
+   SOCIAL / FACEBOOK AD STYLES
+   ════════════════════════════════════ */
+.social-ad {
+  font-family: var(--font-sans);
+}
+
+.social-ad-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+}
+.social-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #eee;
+}
+.social-page-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.social-ad-body {
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.social-ad-body.dark-bg {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  padding: 20px;
+}
+.social-ad-body.light-bg {
+  background: #f8f9fa;
+  padding: 24px 20px;
+}
+
+.social-ad-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+.social-text-block {
+  flex: 1;
+}
+.social-headline {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 8px;
+  line-height: 1.3;
+}
+.social-subtext {
+  font-size: 12px;
+  color: #a0aec0;
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+.social-img-block {
+  flex-shrink: 0;
+  width: 140px;
+}
+.social-car-img {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.social-text-only {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* CTA Button */
+.cta-button {
+  display: inline-block;
+  padding: 8px 20px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+.cta-button.gold {
+  background: var(--gold);
+  color: #1a1a2e;
+}
+.cta-button.gold:hover {
+  background: var(--gold-hover);
+  transform: scale(1.03);
+}
+
+.social-ad-footer-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-top: 1px solid #f0f0f0;
+}
+.ad-label-small {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ════════════════════════════════════
+   LARGE IMAGE AD
+   ════════════════════════════════════ */
+.large-image-ad {
+  max-width: 600px;
+}
+.large-ad-image-wrap {
+  width: 100%;
+  height: 300px;
+  overflow: hidden;
+}
+.large-ad-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.large-ad-text {
+  padding: 16px 20px;
+}
+.large-ad-text p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  line-height: 1.5;
+}
+
+/* Page Footer */
+.page-footer {
+  text-align: center;
+  padding: 3rem 1rem 2rem;
+  opacity: 0.5;
+  font-size: 0.85rem;
+}
+
+/* ════════════════════════════════════
+   RESPONSIVE
+   ════════════════════════════════════ */
+@media (max-width: 768px) {
+  .row {
+    grid-template-columns: 1fr;
+  }
+  .page-header h1 {
+    font-size: 1.6rem;
+  }
+  .ad-top-row-with-image {
+    flex-direction: column;
+  }
+  .ad-image-side {
+    width: 100%;
+    height: 160px;
+  }
+  .social-ad-content {
+    flex-direction: column;
+  }
+  .social-img-block {
+    width: 100%;
+  }
+}
