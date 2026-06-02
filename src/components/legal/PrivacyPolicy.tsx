@@ -152,7 +152,7 @@ export default function PrivacyPolicy() {
         </Section>
 
         <Section title="11. Contact">
-            {brand.name} ({brand.legalEntity})<br />
+          <p>            {brand.name} ({brand.legalEntity})<br />
             {brand.location.address}<br />
             {brand.location.city}, {brand.location.state}<br />
             <a href={`tel:${brand.phone.replace(/\D/g, '')}`} className="underline">{brand.phone}</a><br />
