@@ -4,6 +4,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 
 import { errorHandler } from './middleware/errorHandler.js';
+import { sentryRequestHandler, sentryErrorHandler, captureException } from './services/sentry.js';
 import vehicleRoutes from './routes/vehicles.js';
 import bookingRoutes from './routes/bookings.js';
 import customerRoutes from './routes/customers.js';
@@ -75,6 +76,9 @@ app.use((req, res, next) => {
   express.urlencoded({ extended: false, limit: '1mb' })(req, res, next);
 });
 
+// ── Sentry request handler (must be first middleware) ─────────────────────────
+app.use(sentryRequestHandler());
+
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
 
@@ -125,6 +129,9 @@ app.use('/api/v1/brands', brandRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ error: `${req.method} ${req.path} not found` }));
+
+// ── Sentry error handler (must be before custom errorHandler) ─────────────────
+app.use(sentryErrorHandler());
 
 // ── Error handler ─────────────────────────────────────────────────────────────
 app.use(errorHandler);

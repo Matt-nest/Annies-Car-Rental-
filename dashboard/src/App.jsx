@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
 import ErrorBoundary from './components/shared/ErrorBoundary';
 import { AuthProvider } from './auth/AuthProvider';
 import ProtectedRoute from './auth/ProtectedRoute';
@@ -24,7 +25,9 @@ import ReviewsPage from './pages/ReviewsPage';
 import PricingRulesPage from './pages/PricingRulesPage';
 import LoyaltyPage from './pages/LoyaltyPage';
 import InsurancePage from './pages/InsurancePage';
-import TelematicsPage from './pages/TelematicsPage';
+
+// Lazy-load TelematicsPage — mapbox-gl is 1.7MB and only used here
+const TelematicsPage = lazy(() => import('./pages/TelematicsPage'));
 
 export default function App() {
   return (
@@ -60,7 +63,15 @@ export default function App() {
             <Route path="/pricing-rules" element={<PricingRulesPage />} />
             <Route path="/loyalty" element={<LoyaltyPage />} />
             <Route path="/insurance" element={<InsurancePage />} />
-            <Route path="/telematics" element={<TelematicsPage />} />
+            <Route path="/telematics" element={
+              <Suspense fallback={
+                <div className="flex items-center justify-center h-[60vh]">
+                  <div className="w-8 h-8 border-2 border-gray-300 border-t-brand-500 rounded-full animate-spin" />
+                </div>
+              }>
+                <TelematicsPage />
+              </Suspense>
+            } />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
