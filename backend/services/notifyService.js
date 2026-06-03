@@ -51,6 +51,9 @@ const STAGE_CTA = {
   day_of_return:       { label: 'View Return Details',           fieldKey: 'portal_link' },
   insurance_policy_issued: { label: 'View My Booking',          fieldKey: 'portal_link', style: 'gold' },
   // insurance_bind_failed is admin-only — no customer CTA
+  // Insurance review flow (Bonzah disabled — admin reviews own-insurance submissions)
+  insurance_approved:      { label: 'View My Booking',           fieldKey: 'portal_link', style: 'gold' },
+  insurance_rejected:      { label: 'Contact Us',                fallbackPath: '/#contact' },
 };
 
 /**

@@ -7,6 +7,8 @@ import brand from '../config/brand.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { validateBookingPayload } from '../utils/validators.js';
 import { createBooking, transitionBooking, getBookingDetail, applyCheckoutOverride } from '../services/bookingService.js';
+import { createNotification } from '../services/notificationService.js';
+import { sendBookingNotification, buildBookingPayload } from '../services/notifyService.js';
 import { computeRentalPricing, DELIVERY_FEES } from '../services/pricingService.js';
 import { getQuote, getSetting, BonzahError } from '../services/bonzahService.js';
 
@@ -541,12 +543,17 @@ router.patch('/:code/insurance', asyncHandler(async (req, res) => {
   }
 
   if (source === 'own') {
-    // Customer has their own insurance — mark as own (details stored in rental_agreements)
+    // When Bonzah is disabled site-wide, own-insurance submissions require
+    // admin review ('pending_review'). When Bonzah is enabled, the customer
+    // actively chose their own insurance — no admin review needed ('external').
+    const bonzahEnabled = await getSetting('bonzah_enabled', false);
+    const insuranceStatus = bonzahEnabled ? 'external' : 'pending_review';
+
     const { error: updErr } = await supabase
       .from('bookings')
       .update({
         insurance_provider: 'own',
-        insurance_status: 'external',
+        insurance_status: insuranceStatus,
         // Clear any stale Bonzah quote so we don't accidentally bind/charge
         bonzah_tier_id: null,
         bonzah_quote_id: null,
@@ -557,7 +564,26 @@ router.patch('/:code/insurance', asyncHandler(async (req, res) => {
       .eq('id', booking.id);
     if (updErr) return res.status(500).json({ error: `Failed to record insurance choice: ${updErr.message}` });
 
-    console.log(`[Booking] Customer has own insurance for ${booking.booking_code}`);
+    // If insurance needs admin review, fire a dashboard notification so the admin knows.
+    if (insuranceStatus === 'pending_review') {
+      // Load full booking for notification payload
+      const { data: fullBooking } = await supabase
+        .from('bookings')
+        .select('*, customers(first_name, last_name, email, phone), vehicles(year, make, model, vehicle_code)')
+        .eq('id', booking.id)
+        .single();
+      if (fullBooking) {
+        createNotification(
+          'insurance_review_needed',
+          `Insurance review needed: ${booking.booking_code}`,
+          `${fullBooking.customers?.first_name} ${fullBooking.customers?.last_name} submitted their own insurance for review.`,
+          `/bookings/${booking.id}`,
+          { booking_id: booking.id, booking_code: booking.booking_code }
+        ).catch(() => {});
+      }
+    }
+
+    console.log(`[Booking] Customer has own insurance for ${booking.booking_code} (status: ${insuranceStatus})`);
     return res.json({ success: true, booking_code: booking.booking_code });
   }
 
@@ -577,6 +603,63 @@ router.patch('/:code/insurance', asyncHandler(async (req, res) => {
   }
 
   return res.status(400).json({ error: 'Insurance source is required (bonzah with tier_id, or own)' });
+}));
+
+/** POST /bookings/:id/approve-insurance — admin approves or rejects a customer's own insurance.
+ *  Body: { action: 'approve' | 'reject', reason?: string }
+ *  Only valid when insurance_status is 'pending_review'.
+ */
+router.post('/:id/approve-insurance', requireAuth, asyncHandler(async (req, res) => {
+  const { action, reason } = req.body;
+  if (!['approve', 'reject'].includes(action)) {
+    return res.status(400).json({ error: 'action must be "approve" or "reject"' });
+  }
+
+  const { data: booking, error } = await supabase
+    .from('bookings')
+    .select('*, customers(first_name, last_name, email, phone), vehicles(year, make, model, vehicle_code)')
+    .eq('id', req.params.id)
+    .single();
+
+  if (error || !booking) {
+    return res.status(404).json({ error: 'Booking not found' });
+  }
+
+  if (booking.insurance_status !== 'pending_review') {
+    return res.status(400).json({ error: `Insurance is not pending review (current status: ${booking.insurance_status})` });
+  }
+
+  const newStatus = action === 'approve' ? 'verified' : 'rejected';
+  const { error: updErr } = await supabase
+    .from('bookings')
+    .update({
+      insurance_status: newStatus,
+      insurance_reviewed_at: new Date().toISOString(),
+      insurance_reviewed_by: req.user?.email || 'admin',
+    })
+    .eq('id', req.params.id);
+
+  if (updErr) throw updErr;
+
+  // Send notification to customer about the insurance decision
+  const payload = buildBookingPayload(booking);
+  const stage = action === 'approve' ? 'insurance_approved' : 'insurance_rejected';
+  payload.insurance_review_reason = reason || null;
+  sendBookingNotification(stage, payload).catch(err =>
+    console.error(`[Insurance] ${stage} notification failed:`, err.message)
+  );
+
+  // Dashboard notification
+  createNotification(
+    `insurance_${action}d`,
+    `Insurance ${action}d: ${booking.booking_code}`,
+    `${booking.customers?.first_name} ${booking.customers?.last_name}'s insurance has been ${action}d.${reason ? ` Reason: ${reason}` : ''}`,
+    `/bookings/${booking.id}`,
+    { booking_id: booking.id }
+  ).catch(() => {});
+
+  console.log(`[Insurance] ${action}d insurance for ${booking.booking_code} by ${req.user?.email || 'admin'}`);
+  res.json({ success: true, insurance_status: newStatus });
 }));
 
 export default router;
