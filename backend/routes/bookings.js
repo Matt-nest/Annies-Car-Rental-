@@ -461,8 +461,6 @@ router.post('/:code/insurance/quote', asyncHandler(async (req, res) => {
   res.json({
     tier_id,
     quote_id: quoteId,
-    premium_cents: premiumCents,
-    markup_cents: markupCents,
     total_cents: totalCents,
     coverage_information: coverageInfo,
     expires_at: isFresh ? booking.bonzah_quote_expires_at : expiresAtIso,

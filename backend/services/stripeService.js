@@ -1,3 +1,4 @@
+import brand from '../config/brand.js';
 import { getStripe } from '../utils/stripe.js';
 import { supabase } from '../db/supabase.js';
 import { transitionBooking, getBookingDetail } from './bookingService.js';
@@ -175,7 +176,7 @@ export async function createPaymentIntent(bookingCode, { expected_total_cents } 
       deposit_cents: String(depositCents),
     },
     receipt_email: booking.customers?.email || undefined,
-    description: `Annie's Car Rental — ${booking.booking_code} — ${booking.vehicles?.year} ${booking.vehicles?.make} ${booking.vehicles?.model} (incl. $${(depositCents / 100).toFixed(0)} refundable deposit${insuranceCents > 0 ? ` + $${(insuranceCents / 100).toFixed(0)} insurance` : ''})`,
+    description: `${brand.stripeDescriptionPrefix} — ${booking.booking_code} — ${booking.vehicles?.year} ${booking.vehicles?.make} ${booking.vehicles?.model} (incl. $${(depositCents / 100).toFixed(0)} refundable deposit${insuranceCents > 0 ? ` + $${(insuranceCents / 100).toFixed(0)} insurance` : ''})`,
   });
 
   return {

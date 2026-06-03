@@ -9,8 +9,11 @@ export async function verifyRecaptcha(req, res, next) {
   const secretKey = process.env.RECAPTCHA_SECRET_KEY;
 
   if (!secretKey) {
-    // If not configured, warn and allow passthrough (for dev/local testing)
-    console.warn('[reCAPTCHA] RECAPTCHA_SECRET_KEY not set — skipping verification');
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[reCAPTCHA] RECAPTCHA_SECRET_KEY not set in production — blocking request');
+      return res.status(500).json({ error: 'CAPTCHA configuration error' });
+    }
+    console.warn('[reCAPTCHA] RECAPTCHA_SECRET_KEY not set — skipping verification (dev mode)');
     return next();
   }
 

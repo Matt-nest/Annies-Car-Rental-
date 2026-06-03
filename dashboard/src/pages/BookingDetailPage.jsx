@@ -224,6 +224,10 @@ export default function BookingDetailPage() {
   const [checkinRecords, setCheckinRecords] = useState([]);
   const { refresh: refreshAlerts } = useAlerts();
 
+  // Insurance review state
+  const [insuranceActioning, setInsuranceActioning] = useState(false);
+  const [insuranceRejectReason, setInsuranceRejectReason] = useState('');
+
   const load = async () => {
     setLoading(true);
     try {
@@ -275,6 +279,22 @@ export default function BookingDetailPage() {
     setConditionForm({ fuel: 'full', notes: '', photoUrl: '' });
     setDamageForm({ description: '', severity: 'minor', estimated_cost: '', photo_url: '' });
     setActioning(false);
+  }
+
+  async function handleInsuranceAction(action) {
+    setInsuranceActioning(true);
+    try {
+      if (action === 'approve') {
+        await api.approveInsurance(id);
+      } else {
+        await api.rejectInsurance(id, insuranceRejectReason);
+      }
+      setInsuranceRejectReason('');
+      await Promise.all([load(), refreshAlerts()]);
+    } catch (e) {
+      console.error(`Insurance ${action} failed:`, e);
+    }
+    setInsuranceActioning(false);
   }
 
   if (loading) return <SkeletonDashboard />;
@@ -381,6 +401,74 @@ export default function BookingDetailPage() {
         }
 
         return null;
+      })()}
+
+      {/* Insurance review banner — shown when a customer submits own insurance for admin review */}
+      {booking.insurance_status === 'pending_review' && (() => {
+        const ag = booking.rental_agreements?.[0];
+        return (
+          <div className="rounded-xl p-4 space-y-3" style={{ backgroundColor: 'rgba(251,191,36,0.07)', border: '1px solid rgba(251,191,36,0.2)' }}>
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: 'rgba(251,191,36,0.15)' }}>
+                <Shield size={18} className="text-amber-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-amber-600 dark:text-amber-400">Insurance Review Required</p>
+                <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                  The customer submitted their own insurance details for review. Please verify the information below and approve or reject.
+                </p>
+              </div>
+            </div>
+            {ag && (
+              <div className="grid sm:grid-cols-2 gap-2 pl-[52px]">
+                {ag.insurance_company && (
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>Company</p>
+                    <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{ag.insurance_company}</p>
+                  </div>
+                )}
+                {ag.insurance_policy_number && (
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>Policy Number</p>
+                    <p className="text-sm font-medium font-mono" style={{ color: 'var(--text-primary)' }}>{ag.insurance_policy_number}</p>
+                  </div>
+                )}
+                {ag.insurance_expiry && (
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>Expiry</p>
+                    <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{ag.insurance_expiry}</p>
+                  </div>
+                )}
+                {ag.insurance_agent_name && (
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>Agent</p>
+                    <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{ag.insurance_agent_name} {ag.insurance_agent_phone ? `· ${ag.insurance_agent_phone}` : ''}</p>
+                  </div>
+                )}
+                {!ag.insurance_company && !ag.insurance_policy_number && (
+                  <p className="text-xs italic" style={{ color: 'var(--text-tertiary)' }}>No insurance details provided yet — customer may still be completing the booking wizard.</p>
+                )}
+              </div>
+            )}
+            <div className="flex items-center gap-2 pl-[52px] pt-1">
+              <button
+                onClick={() => handleInsuranceAction('approve')}
+                disabled={insuranceActioning}
+                className="btn-primary text-xs"
+              >
+                {insuranceActioning ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle size={13} />}
+                Approve Insurance
+              </button>
+              <button
+                onClick={() => handleInsuranceAction('reject')}
+                disabled={insuranceActioning}
+                className="btn-danger text-xs"
+              >
+                <XCircle size={13} /> Reject
+              </button>
+            </div>
+          </div>
+        );
       })()}
 
       {/* ── Tab Navigation ──────────────────────────────────────────── */}

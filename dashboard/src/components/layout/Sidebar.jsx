@@ -6,6 +6,7 @@ import {
   ArrowUpFromLine, CalendarClock, Star, Percent, Crown, Shield, Satellite,
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
+import brand from '../../config/brand';
 
 const MAIN_NAV = [
   { to: '/',          label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -239,13 +240,13 @@ export default function Sidebar({ open, onClose, alerts = {}, pinned }) {
           >
             <img
               src="/logo-dark.png"
-              alt="Annie's & Co"
+              alt={brand.name}
               className="w-full h-auto object-contain dark:hidden"
               style={{ maxHeight: 140 }}
             />
             <img
               src="/logo-light.png"
-              alt="Annie's & Co"
+              alt={brand.name}
               className="w-full h-auto object-contain hidden dark:block"
               style={{ maxHeight: 140 }}
             />
@@ -266,7 +267,7 @@ export default function Sidebar({ open, onClose, alerts = {}, pinned }) {
           >
             <img
               src="/logo-icon.png"
-              alt="Annie's & Co"
+              alt={brand.name}
               className="w-9 h-9 object-contain"
             />
           </NavLink>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../api/client';
+import brand from '../../config/brand';
 import Section from '../shared/Section';
 import { FileText, Send, DollarSign, CheckCircle, AlertCircle, Eye, RefreshCw, Mail, ArrowRight, Printer, Download } from 'lucide-react';
 
@@ -269,7 +270,7 @@ export default function InvoiceTab({ booking, onReload }) {
                       <div style={{ height: 4, background: 'linear-gradient(90deg, #c8a97e 0%, #d4af37 50%, #c8a97e 100%)' }} />
                       {/* Dark header */}
                       <div style={{ background: '#1c1917', padding: '28px 32px' }}>
-                        <p style={{ margin: '0 0 16px', color: '#c8a97e', fontSize: 13, fontWeight: 600, letterSpacing: '0.05em' }}>ANNIE'S CAR RENTAL</p>
+                        <p style={{ margin: '0 0 16px', color: '#c8a97e', fontSize: 13, fontWeight: 600, letterSpacing: '0.05em' }}>{brand.name.toUpperCase()}</p>
                         <h2 style={{ margin: 0, color: '#fff', fontSize: 22, fontWeight: 600 }}>Deposit Settlement</h2>
                       </div>
                       {/* Body */}
@@ -338,8 +339,8 @@ export default function InvoiceTab({ booking, onReload }) {
                         {/* Footer */}
                         <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid #f5f5f4', textAlign: 'center' }}>
                           <p style={{ fontSize: 13, color: '#57534e', margin: '0 0 12px' }}>Questions about your settlement? We're here to help.</p>
-                          <p style={{ fontSize: 12, color: '#a8a29e', margin: 0 }}>Annie's Car Rental · 586 NW Mercantile Pl, Port St. Lucie, FL 34986</p>
-                          <p style={{ fontSize: 12, color: '#a8a29e', margin: '4px 0 0' }}>(772) 207-1655 · anniescarrental.com</p>
+                          <p style={{ fontSize: 12, color: '#a8a29e', margin: 0 }}>{brand.name} · {brand.fullAddress}</p>
+                          <p style={{ fontSize: 12, color: '#a8a29e', margin: '4px 0 0' }}>{brand.phone} · {brand.domain}</p>
                         </div>
                       </div>
                     </div>

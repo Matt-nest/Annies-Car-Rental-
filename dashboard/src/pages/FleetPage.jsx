@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Car, Plus, Search, ChevronDown, Upload, Link, X } from 'lucide-react';
+import { Car, Plus, Search, ChevronDown, Upload, Link, X, Send, Copy, Check, ExternalLink, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { api } from '../api/client';
 import StatusBadge from '../components/shared/StatusBadge';
@@ -8,8 +8,9 @@ import { SkeletonFleetGrid, SkeletonKpi } from '../components/shared/Skeleton';
 import EmptyState from '../components/shared/EmptyState';
 import Modal from '../components/shared/Modal';
 import DamageSummaryWidget from '../components/dashboard/widgets/DamageSummaryWidget';
+import brand from '../config/brand';
 
-const MAIN_SITE = 'https://www.anniescarrental.com';
+const MAIN_SITE = brand.siteUrl;
 function resolveThumb(url) {
   if (!url) return '';
   return url.startsWith('/fleet/') ? `${MAIN_SITE}${url}` : url;
@@ -39,6 +40,17 @@ export default function FleetPage() {
   const [imagePreview, setImagePreview] = useState('');
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
+
+  // ── Booking Link Modal ──────────────────────────────────────
+  const [linkModal, setLinkModal] = useState(null); // vehicle object when open
+  const [linkForm, setLinkForm] = useState({
+    first_name: '', last_name: '', email: '', phone: '',
+    pickup_date: '', return_date: '', pickup_time: '10:00', return_time: '10:00',
+  });
+  const [linkCreating, setLinkCreating] = useState(false);
+  const [linkResult, setLinkResult] = useState(null); // { continue_url, booking_code }
+  const [linkError, setLinkError] = useState('');
+  const [linkCopied, setLinkCopied] = useState(false);
 
   async function loadVehicles() {
     setLoading(true);
@@ -103,6 +115,49 @@ export default function FleetPage() {
     }
     return true;
   });
+
+  function openLinkModal(vehicle, e) {
+    e.stopPropagation();
+    setLinkModal(vehicle);
+    setLinkForm({
+      first_name: '', last_name: '', email: '', phone: '',
+      pickup_date: '', return_date: '', pickup_time: '10:00', return_time: '10:00',
+    });
+    setLinkResult(null);
+    setLinkError('');
+    setLinkCopied(false);
+  }
+
+  async function handleCreateLink() {
+    setLinkCreating(true);
+    setLinkError('');
+    try {
+      const result = await api.createAdminBooking({
+        vehicle_code: linkModal.vehicle_code,
+        first_name: linkForm.first_name,
+        last_name: linkForm.last_name,
+        email: linkForm.email,
+        phone: linkForm.phone,
+        pickup_date: linkForm.pickup_date,
+        return_date: linkForm.return_date,
+        pickup_time: linkForm.pickup_time,
+        return_time: linkForm.return_time,
+      });
+      setLinkResult(result);
+    } catch (e) {
+      setLinkError(e.message || 'Failed to create booking link');
+    } finally {
+      setLinkCreating(false);
+    }
+  }
+
+  function handleCopyLink() {
+    if (linkResult?.continue_url) {
+      navigator.clipboard.writeText(linkResult.continue_url);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    }
+  }
 
   return (
     <div className="p-6 lg:p-8 space-y-6">
@@ -248,7 +303,19 @@ export default function FleetPage() {
                   <p className="text-xs mono-code mt-0.5" style={{ color: 'var(--text-tertiary)' }}>{v.vehicle_code}</p>
                   <div className="flex items-center justify-between mt-4 pt-3" style={{ borderTop: '1px solid var(--border-subtle)' }}>
                     <p className="text-lg font-bold tabular-nums" style={{ color: 'var(--accent-color)' }}>${v.daily_rate}</p>
-                    <p className="text-[10px] uppercase font-semibold tracking-wider" style={{ color: 'var(--text-tertiary)' }}>per day</p>
+                    <div className="flex items-center gap-1.5">
+                      {v.status === 'available' && (
+                        <button
+                          onClick={e => openLinkModal(v, e)}
+                          className="p-1.5 rounded-lg transition-all duration-200 opacity-0 group-hover:opacity-100"
+                          style={{ color: 'var(--accent-color)', backgroundColor: 'var(--accent-glow)' }}
+                          title="Send booking link"
+                        >
+                          <Send size={13} />
+                        </button>
+                      )}
+                      <p className="text-[10px] uppercase font-semibold tracking-wider" style={{ color: 'var(--text-tertiary)' }}>per day</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -400,6 +467,125 @@ export default function FleetPage() {
 
       {/* ── Damage Reports ──────────────────────────────────────────── */}
       <DamageSummaryWidget />
+
+      {/* ── Send Booking Link Modal ──────────────────────────────── */}
+      <Modal open={!!linkModal} onClose={() => setLinkModal(null)} title="Send Booking Link" maxWidth="max-w-lg">
+        {linkModal && !linkResult && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)' }}>
+              {linkModal.thumbnail_url && (
+                <img src={resolveThumb(linkModal.thumbnail_url)} alt="" className="h-10 w-16 object-contain" />
+              )}
+              <div>
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{linkModal.year} {linkModal.make} {linkModal.model}</p>
+                <p className="text-xs mono-code" style={{ color: 'var(--text-tertiary)' }}>{linkModal.vehicle_code}</p>
+              </div>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <label className="label">First Name *</label>
+                <input className="input" value={linkForm.first_name} onChange={e => setLinkForm(f => ({...f, first_name: e.target.value}))} placeholder="Jane" />
+              </div>
+              <div>
+                <label className="label">Last Name *</label>
+                <input className="input" value={linkForm.last_name} onChange={e => setLinkForm(f => ({...f, last_name: e.target.value}))} placeholder="Doe" />
+              </div>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <label className="label">Email *</label>
+                <input className="input" type="email" value={linkForm.email} onChange={e => setLinkForm(f => ({...f, email: e.target.value}))} placeholder="jane@example.com" />
+              </div>
+              <div>
+                <label className="label">Phone *</label>
+                <input className="input" type="tel" value={linkForm.phone} onChange={e => setLinkForm(f => ({...f, phone: e.target.value}))} placeholder="(555) 123-4567" />
+              </div>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <label className="label">Pickup Date *</label>
+                <input className="input" type="date" value={linkForm.pickup_date} onChange={e => setLinkForm(f => ({...f, pickup_date: e.target.value}))} />
+              </div>
+              <div>
+                <label className="label">Return Date *</label>
+                <input className="input" type="date" value={linkForm.return_date} onChange={e => setLinkForm(f => ({...f, return_date: e.target.value}))} />
+              </div>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <label className="label">Pickup Time</label>
+                <input className="input" type="time" value={linkForm.pickup_time} onChange={e => setLinkForm(f => ({...f, pickup_time: e.target.value}))} />
+              </div>
+              <div>
+                <label className="label">Return Time</label>
+                <input className="input" type="time" value={linkForm.return_time} onChange={e => setLinkForm(f => ({...f, return_time: e.target.value}))} />
+              </div>
+            </div>
+
+            {linkError && (
+              <p className="text-xs p-3 rounded-xl" style={{ color: '#ef4444', backgroundColor: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                {linkError}
+              </p>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <button onClick={() => setLinkModal(null)} className="btn-secondary flex-1 justify-center">Cancel</button>
+              <button
+                onClick={handleCreateLink}
+                disabled={linkCreating || !linkForm.first_name || !linkForm.last_name || !linkForm.email || !linkForm.phone || !linkForm.pickup_date || !linkForm.return_date}
+                className="btn-primary flex-1 justify-center"
+              >
+                {linkCreating ? <><Loader2 size={14} className="animate-spin" /> Creating…</> : <><Send size={14} /> Generate Link</>}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {linkResult && (
+          <div className="space-y-4 text-center">
+            <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto" style={{ backgroundColor: 'rgba(34,197,94,0.1)' }}>
+              <Check size={28} style={{ color: '#22c55e' }} />
+            </div>
+            <div>
+              <p className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Booking Link Created!</p>
+              <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+                Code: <span className="font-mono font-bold">{linkResult.booking_code}</span> — A continue-booking email has been sent to the customer.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 p-3 rounded-xl text-left" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)' }}>
+              <input
+                readOnly
+                value={linkResult.continue_url}
+                className="bg-transparent text-xs flex-1 outline-none font-mono"
+                style={{ color: 'var(--text-primary)' }}
+                onFocus={e => e.target.select()}
+              />
+              <button
+                onClick={handleCopyLink}
+                className="p-2 rounded-lg transition-colors shrink-0"
+                style={{ backgroundColor: linkCopied ? 'rgba(34,197,94,0.1)' : 'var(--accent-glow)', color: linkCopied ? '#22c55e' : 'var(--accent-color)' }}
+                title="Copy link"
+              >
+                {linkCopied ? <Check size={14} /> : <Copy size={14} />}
+              </button>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button onClick={() => setLinkModal(null)} className="btn-secondary flex-1 justify-center">Done</button>
+              <a
+                href={linkResult.continue_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-primary flex-1 justify-center inline-flex items-center gap-1.5"
+              >
+                <ExternalLink size={14} /> Open Link
+              </a>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { DEFAULT_LAYOUT, WIDGET_REGISTRY } from '../lib/widgetConfig';
 
-const STORAGE_KEY = 'annie_dashboard_layout_v2';
+const STORAGE_KEY = 'dashboard_layout_v2';
 
 /**
  * Load from localStorage and merge with the canonical registry.

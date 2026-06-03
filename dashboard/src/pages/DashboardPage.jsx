@@ -4,6 +4,7 @@ import { Car, BookOpen, CheckCircle2, PenLine } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { api } from '../api/client';
+import brand from '../config/brand';
 import { cachedQuery } from '../lib/queryCache';
 import DashboardLayoutEngine from '../components/dashboard/DashboardLayoutEngine';
 import AlertPillBar from '../components/layout/AlertPillBar';
@@ -133,7 +134,7 @@ export default function DashboardPage() {
         >
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--accent-color)' }}>
-              Annie's Rentals
+              {brand.name}
             </p>
             <h1 className="text-2xl sm:text-3xl font-bold leading-tight tracking-tight"
               style={{ color: 'var(--text-primary)' }}>
