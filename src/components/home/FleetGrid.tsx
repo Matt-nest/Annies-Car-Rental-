@@ -7,6 +7,7 @@ import { Vehicle, SortOption, FilterCategory, RateMode } from '../../types';
 import VehicleCard from './VehicleCard';
 import { useTheme } from '../../context/ThemeContext';
 import { EASE } from '../../utils/motion';
+import { brand } from '../../config/brand';
 
 // Lazy-loaded so Vaul (~15 KB gzip) doesn't ship in the home chunk.
 // Only fetched when a user taps a monthly-rate inquiry on a vehicle card.
@@ -171,7 +172,7 @@ export default function FleetGrid({ onSelectVehicle, rateMode = 'daily', onRateM
               className="text-xs font-medium"
               style={{ color: 'var(--accent-color)' }}
             >
-              Every long-term rental is personal — call Annie for your rate
+              Every long-term rental is personal — call us for your rate
             </motion.p>
           )}
         </AnimatePresence>
@@ -228,22 +229,22 @@ export default function FleetGrid({ onSelectVehicle, rateMode = 'daily', onRateM
               <p className="text-base leading-relaxed mb-10 max-w-lg mx-auto" style={{ color: 'var(--text-secondary)' }}>
                 Monthly rates are personal — every situation is different.
                 Snowbird staying the season? Rideshare driver needing a weekly car?
-                Between vehicles? Call Annie, tell her what you need, and she'll
+                Between vehicles? Call us, tell us what you need, and we'll
                 put together a rate that makes sense. No platform fees. No fine print.
                 Just a fair deal, directly with the owner.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <a
-                  href="tel:+17722071655"
+                  href={`tel:${brand.phone.replace(/[^\d+]/g, '')}`}
                   className="px-8 py-4 rounded-full font-medium transition-all duration-500 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 text-sm"
                   style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
                 >
                   <Phone size={15} />
-                  Call (772) 207-1655
+                  Call {brand.phone}
                 </a>
                 <a
-                  href="sms:+17722071655"
+                  href={`sms:${brand.phone.replace(/[^\d+]/g, '')}`}
                   className="px-8 py-4 rounded-full font-medium border transition-all duration-500 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 text-sm"
                   style={{ borderColor: 'var(--border-medium)', color: 'var(--text-secondary)' }}
                 >
@@ -253,7 +254,7 @@ export default function FleetGrid({ onSelectVehicle, rateMode = 'daily', onRateM
               </div>
 
               <p className="text-xs mt-8" style={{ color: 'var(--text-tertiary)' }}>
-                We respond same day · Serving Port St. Lucie and the Treasure Coast
+                We respond same day · Serving {brand.location.city} and the surrounding area
               </p>
             </motion.div>
           ) : (

@@ -20,6 +20,7 @@ import PushOptInCard from './PushOptInCard';
 import Sheet from '../common/Sheet';
 import { usePullToRefresh } from '../../hooks/usePullToRefresh';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
+import { brand } from '../../config/brand';
 
 /* ── Helpers ────────────────────────────────────────────── */
 const fmt = (d: string) => {
@@ -95,12 +96,12 @@ const STATUS_LAYOUT_CONFIG: Record<StatusKey, StatusLayout> = {
   },
   returned: {
     welcome: () =>
-      "Checkout complete, thank you for renting with Annie's. We'll inspect the vehicle and process your deposit shortly.",
+      `Checkout complete, thank you for renting with ${brand.name}. We'll inspect the vehicle and process your deposit shortly.`,
     expandedSections: [],
   },
   completed: {
     welcome: () =>
-      "Rental complete — thank you for choosing Annie's. We hope to see you again soon.",
+      `Rental complete — thank you for choosing ${brand.name}. We hope to see you again soon.`,
     expandedSections: [],
   },
   cancelled: {
@@ -375,7 +376,7 @@ export default function CustomerPortal() {
         // Lockbox not configured in database — show the fallback message
         setActionSuccess(`Check-in complete! ${data.lockbox_error}`);
       } else {
-        setActionSuccess('Check-in complete! Contact Annie\'s at (772) 207-1655 for your key pickup instructions.');
+        setActionSuccess(`Check-in complete! Contact ${brand.name} at ${brand.phone} for your key pickup instructions.`);
       }
       await loadBooking();
     } catch (err: any) { setError(err.message); }
@@ -1423,7 +1424,7 @@ export default function CustomerPortal() {
           {/* ── Emergency tap-to-call (active, under Return Vehicle) ── */}
           {status === 'active' && (
             <motion.a
-              href="tel:+17722071655"
+              href={`tel:${brand.phone.replace(/[^\d+]/g, '')}`}
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ ease: EASE.standard }}
@@ -1438,7 +1439,7 @@ export default function CustomerPortal() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-[10px] uppercase tracking-wider font-bold" style={{ color: '#ef4444' }}>Emergency · Tap to call</p>
-                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>(772) 207-1655</p>
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{brand.phone}</p>
               </div>
               <ChevronRight size={14} style={{ color: 'var(--text-tertiary)' }} />
             </motion.a>
@@ -1456,7 +1457,7 @@ export default function CustomerPortal() {
                     <li>Ensure everyone is safe — call 911 if needed</li>
                     <li>Exchange info with the other driver</li>
                     <li>Take photos of all vehicles and the scene</li>
-                    <li>Call Annie at (772) 207-1655 immediately</li>
+                    <li>Call {brand.name} at {brand.phone} immediately</li>
                   </ol>
                 </div>
 
@@ -1625,7 +1626,7 @@ export default function CustomerPortal() {
                   rows={3}
                   value={reviewComment}
                   onChange={e => setReviewComment(e.target.value)}
-                  placeholder="Tell Annie how it went…"
+                  placeholder={`Tell ${brand.name} how it went…`}
                   className="w-full px-3 py-2.5 rounded-xl text-sm resize-none"
                   style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
                 />
@@ -1661,7 +1662,7 @@ export default function CustomerPortal() {
             <div className="rounded-2xl p-4 text-center text-sm" style={{
               backgroundColor: 'color-mix(in srgb, var(--accent-color) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--accent-color) 20%, transparent)', color: 'var(--accent-color)',
             }}>
-              Thank you — Annie appreciates the feedback!
+              Thank you — {brand.name} appreciates the feedback!
             </div>
           )}
 
@@ -1896,16 +1897,16 @@ export default function CustomerPortal() {
             <button
               onClick={() => {
                 try { openCrispChat(); }
-                catch { window.location.href = 'tel:+17722071655'; }
+                catch { window.location.href = `tel:${brand.phone.replace(/[^\d+]/g, '')}`; }
               }}
               className="flex items-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm transition-all hover:scale-[1.03] active:scale-95 cursor-pointer"
               style={{ backgroundColor: 'color-mix(in srgb, var(--accent-color) 12%, transparent)', border: '1px solid color-mix(in srgb, var(--accent-color) 30%, transparent)', color: 'var(--accent-color)' }}
             >
               <MessageSquare size={14} />
-              Message Annie
+              Message Us
             </button>
             <span>
-              Or call <a href="tel:+17722071655" style={{ color: 'var(--accent-color)' }}>(772) 207-1655</a>
+              Or call <a href={`tel:${brand.phone.replace(/[^\d+]/g, '')}`} style={{ color: 'var(--accent-color)' }}>{brand.phone}</a>
             </span>
           </div>
         </div>

@@ -11,6 +11,7 @@
  */
 
 import { ArrowLeft } from 'lucide-react';
+import { brand } from '../../config/brand';
 import { useTheme } from '../../context/ThemeContext';
 
 const LAST_UPDATED = 'May 13, 2026';
@@ -48,31 +49,31 @@ export default function TermsOfService() {
 
         <Section title="1. Acceptance">
           <p>
-            By accessing this website (anniescarrental.com), submitting a rental request, or receiving SMS messages from us, you agree to these Terms of Service. If you do not agree, do not use our services. These terms govern the website and SMS program only — the rental of a vehicle itself is governed by the separate <a href="/rental-agreement" className="underline">Rental Agreement</a>, which you will sign before pickup.
+            By accessing this website, submitting a rental request, or receiving SMS messages from us, you agree to these Terms of Service. If you do not agree, do not use our services. These terms govern the website and SMS program only — the rental of a vehicle itself is governed by the separate <a href="/rental-agreement" className="underline">Rental Agreement</a>, which you will sign before pickup.
           </p>
         </Section>
 
-        <Section title="2. About Annie's">
+        <Section title={`2. About ${brand.name}`}>
           <p>
-            Annie's Car Rental is operated by <strong>Aaron's Garage LLC</strong>, a Florida limited liability company (EIN 99-0908048), located at 586 NW Mercantile Pl, Port St. Lucie, FL 34986. Contact: <a href="tel:+17722071655" className="underline">(772) 207-1655</a> · <a href="mailto:aaron@anniescarrental.com" className="underline">aaron@anniescarrental.com</a>.
+            {brand.name} is operated by <strong>{brand.legalEntity}</strong>, a Florida limited liability company (EIN 99-0908048), located at {brand.location.address}, {brand.location.city}, {brand.location.state}. Contact: <a href={`tel:${brand.phone.replace(/\D/g, '')}`} className="underline">{brand.phone}</a> · <a href={`mailto:${brand.email}`} className="underline">{brand.email}</a>.
           </p>
         </Section>
 
         <Section title="3. SMS messaging program">
           <p>
-            <strong>Program name:</strong> Annie's Car Rental SMS Notifications.
+            <strong>Program name:</strong> {brand.name} SMS Notifications.
           </p>
           <p>
-            <strong>What you'll receive:</strong> By submitting a rental request through this website, you consent to receive recurring SMS messages from Annie's Car Rental about your rental, including booking confirmations, payment receipts, pickup reminders, lockbox codes, day-of-pickup logistics, mid-rental check-ins, return reminders, late-return warnings, post-trip review requests, and occasional loyalty messages.
+            <strong>What you'll receive:</strong> By submitting a rental request through this website, you consent to receive recurring SMS messages from {brand.name} about your rental, including booking confirmations, payment receipts, pickup reminders, lockbox codes, day-of-pickup logistics, mid-rental check-ins, return reminders, late-return warnings, post-trip review requests, and occasional loyalty messages.
           </p>
           <p>
-            <strong>Message frequency varies</strong> based on rental length and lifecycle stage — typically 5–10 messages per rental. <strong>Message and data rates may apply</strong> as charged by your wireless carrier; Annie's does not charge for SMS messages themselves.
+            <strong>Message frequency varies</strong> based on rental length and lifecycle stage — typically 5–10 messages per rental. <strong>Message and data rates may apply</strong> as charged by your wireless carrier; {brand.name} does not charge for SMS messages themselves.
           </p>
           <p>
-            <strong>To stop receiving messages, reply STOP, UNSUB, CANCEL, END, or QUIT.</strong> You will receive a single confirmation reply. After that, you will receive no further automated SMS from Annie's. The opt-out is honored both at the Twilio carrier layer and within Annie's own application database.
+            <strong>To stop receiving messages, reply STOP, UNSUB, CANCEL, END, or QUIT.</strong> You will receive a single confirmation reply. After that, you will receive no further automated SMS from {brand.name}. The opt-out is honored both at the Twilio carrier layer and within {brand.name}'s own application database.
           </p>
           <p>
-            <strong>For help, reply HELP</strong> or call <a href="tel:+17722071655" className="underline">(772) 207-1655</a> or email <a href="mailto:aaron@anniescarrental.com" className="underline">aaron@anniescarrental.com</a>.
+            <strong>For help, reply HELP</strong> or call <a href={`tel:${brand.phone.replace(/[^\d+]/g, '')}`} className="underline">{brand.phone}</a> or email <a href={`mailto:${brand.email}`} className="underline">{brand.email}</a>.
           </p>
           <p>
             We use Twilio Inc. as our SMS delivery provider. Phone numbers are not shared with third parties for marketing purposes and are never sold. Full SMS data handling is described in our <a href="/privacy" className="underline">Privacy Policy</a>.
@@ -90,7 +91,7 @@ export default function TermsOfService() {
             <li>Have the legal capacity to enter into a binding contract</li>
           </ul>
           <p>
-            We reserve the right to decline any rental request at our discretion. Submitting a request does not guarantee approval; bookings move from pending to approved only after Annie's confirms the vehicle and dates.
+            We reserve the right to decline any rental request at our discretion. Submitting a request does not guarantee approval; bookings move from pending to approved only after {brand.name} confirms the vehicle and dates.
           </p>
         </Section>
 
@@ -147,11 +148,11 @@ export default function TermsOfService() {
 
         <Section title="13. Contact">
           <p>
-            Aaron's Garage LLC, dba Annie's Car Rental<br />
-            586 NW Mercantile Pl<br />
-            Port St. Lucie, FL 34986<br />
-            <a href="tel:+17722071655" className="underline">(772) 207-1655</a><br />
-            <a href="mailto:aaron@anniescarrental.com" className="underline">aaron@anniescarrental.com</a>
+            {brand.legalEntity}, dba {brand.name}<br />
+            {brand.location.address}<br />
+            {brand.location.city}, {brand.location.state}<br />
+            <a href={`tel:${brand.phone.replace(/\D/g, '')}`} className="underline">{brand.phone}</a><br />
+            <a href={`mailto:${brand.email}`} className="underline">{brand.email}</a>
           </p>
         </Section>
 

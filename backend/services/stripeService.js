@@ -1,3 +1,4 @@
+import brand from '../config/brand.js';
 import { getStripe } from '../utils/stripe.js';
 import { supabase } from '../db/supabase.js';
 import { transitionBooking, getBookingDetail } from './bookingService.js';
@@ -37,16 +38,49 @@ export async function createPaymentIntent(bookingCode, { expected_total_cents } 
     throw Object.assign(new Error('This booking has been ' + booking.status), { status: 400 });
   }
 
-  // Check if there's already a PaymentIntent in Stripe for this booking.
-  // Use list() instead of search() — search requires special account activation
-  // and is unreliable on new/test accounts.
-  const allIntents = await stripe.paymentIntents.list({ limit: 100 });
-  const existingIntents = {
-    data: allIntents.data.filter(pi => pi.metadata?.booking_id === booking.id),
-  };
+  // Check if there's already a PaymentIntent for this booking.
+  // Step 1: Check our DB first (authoritative after webhook records payment).
+  const { data: existingPayment } = await supabase
+    .from('payments')
+    .select('reference_id, status')
+    .eq('booking_id', booking.id)
+    .eq('payment_type', 'rental')
+    .eq('method', 'stripe')
+    .maybeSingle();
 
-  const activeIntent = existingIntents.data.find(
-    pi => !['canceled', 'succeeded'].includes(pi.status)
+  if (existingPayment?.reference_id?.startsWith('pi_')) {
+    // Payment already recorded — check if the PI succeeded
+    try {
+      const pi = await stripe.paymentIntents.retrieve(existingPayment.reference_id);
+      if (pi.status === 'succeeded') {
+        return {
+          clientSecret: null,
+          alreadyPaid: true,
+          amount: pi.amount,
+          currency: pi.currency,
+          booking: await formatBookingSummary(booking),
+        };
+      }
+      // PI exists but not succeeded/canceled — reuse it
+      if (!['canceled', 'succeeded'].includes(pi.status)) {
+        return {
+          clientSecret: pi.client_secret,
+          amount: pi.amount,
+          currency: pi.currency,
+          booking: await formatBookingSummary(booking),
+        };
+      }
+    } catch (e) {
+      // PI retrieval failed (deleted, etc.) — fall through to create new
+      console.warn(`[Stripe] Could not retrieve existing PI ${existingPayment.reference_id}:`, e.message);
+    }
+  }
+
+  // Step 2: Check if there's a pending PI in Stripe we haven't recorded yet.
+  // Use list with metadata filter (limited to 10 — much cheaper than 100).
+  const recentIntents = await stripe.paymentIntents.list({ limit: 10 });
+  const activeIntent = recentIntents.data.find(
+    pi => pi.metadata?.booking_id === booking.id && !['canceled', 'succeeded'].includes(pi.status)
   );
 
   if (activeIntent) {
@@ -59,7 +93,9 @@ export async function createPaymentIntent(bookingCode, { expected_total_cents } 
   }
 
   // Check if payment already completed
-  const succeededIntent = existingIntents.data.find(pi => pi.status === 'succeeded');
+  const succeededIntent = recentIntents.data.find(
+    pi => pi.metadata?.booking_id === booking.id && pi.status === 'succeeded'
+  );
   if (succeededIntent) {
     return {
       clientSecret: null,
@@ -141,7 +177,7 @@ export async function createPaymentIntent(bookingCode, { expected_total_cents } 
       deposit_cents: String(depositCents),
     },
     receipt_email: booking.customers?.email || undefined,
-    description: `Annie's Car Rental — ${booking.booking_code} — ${booking.vehicles?.year} ${booking.vehicles?.make} ${booking.vehicles?.model} (incl. $${(depositCents / 100).toFixed(0)} refundable deposit${insuranceCents > 0 ? ` + $${(insuranceCents / 100).toFixed(0)} insurance` : ''})`,
+    description: `${brand.stripeDescriptionPrefix} — ${booking.booking_code} — ${booking.vehicles?.year} ${booking.vehicles?.make} ${booking.vehicles?.model} (incl. $${(depositCents / 100).toFixed(0)} refundable deposit${insuranceCents > 0 ? ` + $${(insuranceCents / 100).toFixed(0)} insurance` : ''})`,
   });
 
   return {
@@ -469,6 +505,13 @@ export async function confirmPayment(paymentIntentId) {
     throw Object.assign(new Error('No booking linked to this payment'), { status: 400 });
   }
 
+  // Split into rental + deposit using metadata (used by both idempotent-return
+  // path and fresh-record path — declared here so both branches have access).
+  const depositCents = Number(pi.metadata.deposit_cents) || 0;
+  const rentalCents = Number(pi.metadata.rental_cents) || pi.amount;
+  const rentalDollars = rentalCents / 100;
+  const depositDollars = depositCents / 100;
+
   // Check if we already recorded this payment (idempotent).
   const { data: existing } = await supabase
     .from('payments')
@@ -479,15 +522,9 @@ export async function confirmPayment(paymentIntentId) {
   if (existing) {
     // Payment already recorded (by webhook). Still ensure the receipt
     // was dispatched — sendPaymentReceipt is idempotent via PI metadata.
-    await sendPaymentReceipt(bookingId, pi, rentalCents / 100, depositCents / 100);
+    await sendPaymentReceipt(bookingId, pi, rentalDollars, depositDollars);
     return { success: true, alreadyRecorded: true };
   }
-
-  // Split into rental + deposit using metadata (same logic as webhook)
-  const depositCents = Number(pi.metadata.deposit_cents) || 0;
-  const rentalCents = Number(pi.metadata.rental_cents) || pi.amount;
-  const rentalDollars = rentalCents / 100;
-  const depositDollars = depositCents / 100;
 
   // Record the rental payment
   await supabase.from('payments').insert({

@@ -1,10 +1,12 @@
 // Re-export from shared config — single source of truth
 export { API_URL } from '../../../config';
 
+import { brand } from '../../../config/brand';
+
 /* ────────────────────────────────────────────────────────
    Constants
    ──────────────────────────────────────────────────────── */
-export const PHONE_NUMBER = '(772) 207-1655';
+export const PHONE_NUMBER = brand.phone;
 
 export const STAGES = [
   { number: 1, label: 'Agreement',  sublabel: 'Sign rental contract', subSteps: 6 },
@@ -55,7 +57,7 @@ export interface BonzahQuote {
   tier_id: string;
   quote_id: string;
   premium_cents: number;   // Bonzah's base premium
-  markup_cents: number;    // Annie's cut
+  markup_cents: number;    // Brand cut
   total_cents: number;     // Customer-facing price
   coverage_information: any[];
   expires_at: string;      // ISO — internal 24h re-quote window
@@ -144,7 +146,7 @@ export function getDefaultDraft(): WizardDraft {
 }
 
 export function getStorageKey(bookingCode: string): string {
-  return `annie_wizard_${bookingCode}`;
+  return `wizard_${bookingCode}`;
 }
 
 export function loadDraft(bookingCode: string): WizardDraft {

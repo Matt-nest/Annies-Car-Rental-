@@ -84,7 +84,7 @@ const VehicleCard = memo(function VehicleCard({ vehicle, onClick, index = 0, rat
               className="px-2.5 py-1 text-[10px] rounded-full font-semibold uppercase tracking-widest"
               style={{ backgroundColor: 'color-mix(in srgb, var(--accent-color) 90%, transparent)', color: '#0a0a0a' }}
             >
-              Ask Annie
+              Ask Us
             </span>
           </div>
         )}

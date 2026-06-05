@@ -85,7 +85,7 @@ export default function ConfirmedScreen({ refCode, scrollToSection }: ConfirmedS
             </p>
             {[
               { num: 1, text: 'You\'ll receive a confirmation email with your rental details and receipt.' },
-              { num: 2, text: 'On your pickup day, Annie will reach out with vehicle location and handoff instructions.' },
+              { num: 2, text: 'On your pickup day, we will reach out with vehicle location and handoff instructions.' },
               { num: 3, text: 'Complete a quick walk-around inspection and you\'re on your way!' },
             ].map(step => (
               <div key={step.num} className="flex gap-3 items-start">

@@ -4,6 +4,7 @@ import { ArrowLeft, Search, CheckCircle2, Clock, XCircle, Car, Calendar, MapPin,
 import { useTheme } from '../../context/ThemeContext';
 import { formatTime } from '../../utils/formatting';
 import { API_URL } from '../../config';
+import { brand } from '../../config/brand';
 
 interface BookingStatus {
   booking_code: string;
@@ -68,7 +69,7 @@ export default function BookingStatusPage({ onBack }: Props) {
         setResult(await res.json());
       }
     } catch {
-      setError('Could not connect. Please try again or call (772) 207-1655.');
+      setError(`Could not connect. Please try again or call ${brand.phone}.`);
     }
     setLoading(false);
   }
@@ -95,7 +96,7 @@ export default function BookingStatusPage({ onBack }: Props) {
           Back
         </button>
         <span style={{ color: 'var(--border-subtle)' }}>·</span>
-        <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Annie's Car Rental</span>
+        <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{brand.name}</span>
       </div>
 
       <div className="flex-1 flex items-start justify-center px-4 pt-12 pb-16">
@@ -217,7 +218,7 @@ export default function BookingStatusPage({ onBack }: Props) {
 
           <p className="text-center text-xs" style={{ color: 'var(--text-tertiary)' }}>
             Need help? Call us at{' '}
-            <a href="tel:+17722071655" className="underline">(772) 207-1655</a>
+            <a href={`tel:${brand.phone.replace(/\D/g, '')}`} className="underline">{brand.phone}</a>
           </p>
         </div>
       </div>

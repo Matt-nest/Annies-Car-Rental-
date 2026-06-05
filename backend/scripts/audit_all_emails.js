@@ -14,6 +14,7 @@ import { getRenderedTemplate, buildBookingPayload, buildMergeFields, interpolate
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import brand from '../config/brand.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const outDir = path.join(__dirname, 'preview_output', 'audit');
@@ -39,8 +40,8 @@ const FULL_BOOKING = {
     vin: '1N4BL4DV3SN363627',
     color: 'Pearl White',
     license_plate: 'ABC-1234',
-    thumbnail_url: 'https://anniescarrental.com/fleet/thumb.jpg',
-    photo_urls: ['https://anniescarrental.com/fleet/photo1.jpg'],
+    thumbnail_url: brand.siteUrl + '/fleet/thumb.jpg',
+    photo_urls: [brand.siteUrl + '/fleet/photo1.jpg'],
     vehicle_code: 'NIS-ALT-25',
   },
   pickup_date: '2026-04-27',
@@ -69,7 +70,7 @@ const FULL_BOOKING = {
   damage_fee: 150,
   // Invoice
   invoice_total: 569.44,
-  invoice_link: 'https://anniescarrental.com/invoice/test',
+  invoice_link: brand.siteUrl + '/invoice/test',
   // Decline
   decline_reason: 'Vehicle not available for selected dates.',
   // Refund
@@ -81,8 +82,8 @@ const HANDOFF_RECORD = {
   fuel_level: 'Full',
   odometer: 42350,
   photo_urls: [
-    'https://anniescarrental.com/uploads/front.jpg',
-    'https://anniescarrental.com/uploads/rear.jpg',
+    brand.siteUrl + '/uploads/front.jpg',
+    brand.siteUrl + '/uploads/rear.jpg',
   ],
   created_at: '2026-04-26T14:00:00Z',
 };
@@ -161,7 +162,7 @@ async function auditAllTemplates() {
 
     // ── Check 7: If template has vehicle block, verify img renders properly ──
     if (tpl.body.includes('vehicle_photo_url')) {
-      if (!body.includes('<img src="https://anniescarrental.com/fleet/')) {
+      if (!body.includes('<img src="' + brand.siteUrl + '/fleet/')) {
         issues.push('⚠️  Vehicle photo <img> not found in rendered output');
       }
     }

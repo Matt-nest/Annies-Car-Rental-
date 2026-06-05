@@ -4,6 +4,7 @@ import { motion, AnimatePresence, useMotionValueEvent, useScroll } from 'motion/
 import { useTheme } from '../../context/ThemeContext';
 import { EASE, DURATION } from '../../utils/motion';
 import ThemeToggle from '../common/ThemeToggle';
+import { brand } from '../../config/brand';
 
 interface NavbarProps {
   onNavigate: (section: string) => void;
@@ -63,7 +64,7 @@ export default function Navbar({ onNavigate, isHomePage = false }: NavbarProps) 
               {/* Dark mode: white logo with drop shadow */}
               <img
                 src="/logo.png"
-                alt="Annie's Car Rental"
+                alt={brand.name}
                 className="h-full w-auto object-contain group-hover:brightness-110"
                 style={{
                   filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.4))',
@@ -110,7 +111,7 @@ export default function Navbar({ onNavigate, isHomePage = false }: NavbarProps) 
             <ThemeToggle />
 
             <a
-              href="tel:+17722071655"
+              href={`tel:${brand.phone.replace(/\D/g, '')}`}
               className="cta-glow hidden sm:flex items-center gap-2 px-5 py-2.5 rounded-full text-[13px] font-medium transition-all duration-300 hover:scale-[1.03] active:scale-95"
               style={{
                 backgroundColor: 'var(--accent)',
@@ -165,7 +166,7 @@ export default function Navbar({ onNavigate, isHomePage = false }: NavbarProps) 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6, ease: EASE.standard }}
-                href="tel:+17722071655"
+                href={`tel:${brand.phone.replace(/\D/g, '')}`}
                 className="cta-glow mt-6 px-10 py-4 rounded-full font-medium text-lg"
                 style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
               >

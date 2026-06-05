@@ -10,6 +10,7 @@
 
 import { ArrowLeft } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
+import { brand } from '../../config/brand';
 
 const LAST_UPDATED = 'May 13, 2026';
 
@@ -46,7 +47,7 @@ export default function PrivacyPolicy() {
 
         <Section title="1. Who we are">
           <p>
-            Annie's Car Rental is operated by <strong>Aaron's Garage LLC</strong>, a Florida limited liability company located at 586 NW Mercantile Pl, Port St. Lucie, FL 34986. In this policy, "we," "us," and "Annie's" all refer to the same entity. Questions about this policy can be directed to <a href="mailto:aaron@anniescarrental.com" className="underline">aaron@anniescarrental.com</a> or <a href="tel:+17722071655" className="underline">(772) 207-1655</a>.
+            {brand.name} is operated by <strong>{brand.legalEntity}</strong>, a Florida limited liability company located at {brand.location.address}, {brand.location.city}, {brand.location.state}. In this policy, "we," "us," and "{brand.name}" all refer to the same entity. Questions about this policy can be directed to <a href={`mailto:${brand.email}`} className="underline">{brand.email}</a> or <a href={`tel:${brand.phone.replace(/\D/g, '')}`} className="underline">{brand.phone}</a>.
           </p>
         </Section>
 
@@ -64,7 +65,7 @@ export default function PrivacyPolicy() {
 
         <Section title="3. How we use your phone number for SMS">
           <p>
-            When you submit a rental request on this website, you explicitly consent to receive SMS messages from Annie's Car Rental related to your rental. We use your phone number to send:
+            When you submit a rental request on this website, you explicitly consent to receive SMS messages from {brand.name} related to your rental. We use your phone number to send:
           </p>
           <ul>
             <li>Booking confirmations and approval status updates</li>
@@ -77,7 +78,7 @@ export default function PrivacyPolicy() {
             <li>Occasional loyalty messages thirty days after a completed rental</li>
           </ul>
           <p>
-            <strong>Message and data rates may apply.</strong> Message frequency varies by rental length. You can reply <strong>STOP</strong>, <strong>UNSUB</strong>, <strong>CANCEL</strong>, <strong>END</strong>, or <strong>QUIT</strong> at any time to stop receiving messages. Reply <strong>HELP</strong> for support or call <a href="tel:+17722071655" className="underline">(772) 207-1655</a>.
+            <strong>Message and data rates may apply.</strong> Message frequency varies by rental length. You can reply <strong>STOP</strong>, <strong>UNSUB</strong>, <strong>CANCEL</strong>, <strong>END</strong>, or <strong>QUIT</strong> at any time to stop receiving messages. Reply <strong>HELP</strong> for support or call <a href={`tel:${brand.phone.replace(/\D/g, '')}`} className="underline">{brand.phone}</a>.
           </p>
           <p>
             <strong>We do not share your phone number with third parties for marketing purposes. We do not sell your phone number. We do not use your phone number for marketing by any other company.</strong> SMS opt-in data is not shared with anyone, ever — including affiliates.
@@ -116,7 +117,7 @@ export default function PrivacyPolicy() {
 
         <Section title="6. Data retention">
           <p>
-            We retain rental records for seven years for tax and insurance purposes. We retain SMS opt-out flags indefinitely so that customers who have opted out are never re-contacted. You may request earlier deletion by emailing <a href="mailto:aaron@anniescarrental.com" className="underline">aaron@anniescarrental.com</a> — we will delete data not subject to legal retention requirements within thirty days of the request.
+            We retain rental records for seven years for tax and insurance purposes. We retain SMS opt-out flags indefinitely so that customers who have opted out are never re-contacted. You may request earlier deletion by emailing <a href={`mailto:${brand.email}`} className="underline">{brand.email}</a> — we will delete data not subject to legal retention requirements within thirty days of the request.
           </p>
         </Section>
 
@@ -129,7 +130,7 @@ export default function PrivacyPolicy() {
             <li>Opt out of SMS at any time by replying STOP or by emailing us</li>
             <li>Opt out of email by replying to any email asking to be removed</li>
           </ul>
-          <p>To exercise any of these rights, email <a href="mailto:aaron@anniescarrental.com" className="underline">aaron@anniescarrental.com</a>. We respond within seven business days.</p>
+          <p>To exercise any of these rights, email <a href={`mailto:${brand.email}`} className="underline">{brand.email}</a>. We respond within seven business days.</p>
         </Section>
 
         <Section title="8. Security">
@@ -152,11 +153,11 @@ export default function PrivacyPolicy() {
 
         <Section title="11. Contact">
           <p>
-            Annie's Car Rental (Aaron's Garage LLC)<br />
-            586 NW Mercantile Pl<br />
-            Port St. Lucie, FL 34986<br />
-            <a href="tel:+17722071655" className="underline">(772) 207-1655</a><br />
-            <a href="mailto:aaron@anniescarrental.com" className="underline">aaron@anniescarrental.com</a>
+            {brand.name} ({brand.legalEntity})<br />
+            {brand.location.address}<br />
+            {brand.location.city}, {brand.location.state}<br />
+            <a href={`tel:${brand.phone.replace(/\D/g, '')}`} className="underline">{brand.phone}</a><br />
+            <a href={`mailto:${brand.email}`} className="underline">{brand.email}</a>
           </p>
         </Section>
 

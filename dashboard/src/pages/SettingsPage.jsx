@@ -9,6 +9,7 @@ import { api } from '../api/client';
 import { bonzahApi } from '../api/bonzah';
 import { useAuth } from '../auth/AuthProvider';
 import DashboardLayoutSettings from '../components/settings/DashboardLayoutSettings';
+import BrandsTab from './settings/BrandsTab';
 import DataError from '../components/shared/DataError';
 import { useAdminPushSubscription } from '../hooks/useAdminPushSubscription';
 import { haptic } from '../lib/haptic';
@@ -1650,6 +1651,7 @@ export default function SettingsPage() {
     ...(hasRole('owner', 'admin') ? [{ key: 'team', label: 'Team', icon: Users }] : []),
     ...(hasRole('owner', 'admin') ? [{ key: 'system', label: 'System', icon: Server }] : []),
     ...(hasRole('owner', 'admin') ? [{ key: 'integrations', label: 'Integrations', icon: Plug }] : []),
+    ...(hasRole('owner', 'admin') ? [{ key: 'brands', label: 'Brands', icon: Zap }] : []),
   ];
 
   return (
@@ -1674,6 +1676,7 @@ export default function SettingsPage() {
         {tab === 'team' && <TeamTab />}
         {tab === 'system' && <SystemTab />}
         {tab === 'integrations' && <IntegrationsTab />}
+        {tab === 'brands' && <BrandsTab />}
       </div>
     </div>
   );

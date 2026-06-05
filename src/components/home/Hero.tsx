@@ -2,6 +2,7 @@ import { Star, ArrowRight } from 'lucide-react';
 import { motion, useScroll, useTransform } from 'motion/react';
 import { useTheme } from '../../context/ThemeContext';
 import { EASE, DURATION } from '../../utils/motion';
+import { brand } from '../../config/brand';
 interface HeroProps {
   onBrowseFleet: () => void;
 }
@@ -23,7 +24,7 @@ export default function Hero({ onBrowseFleet }: HeroProps) {
       >
         <img
           src="/hero-sentra-front.png"
-          alt="Clean, reliable Nissan Sentra — Annie's Car Rental"
+          alt={`Clean, reliable Nissan Sentra — ${brand.name}`}
           className="w-full h-full object-cover animate-slow-zoom object-[60%_center] sm:object-[90%_center]"
           fetchPriority="high"
           decoding="async"
@@ -73,7 +74,7 @@ export default function Hero({ onBrowseFleet }: HeroProps) {
           >
             <img
               src="/logo.png"
-              alt="Annie's & Co — Your Trusted Vehicle Rental"
+              alt={`${brand.name} — Your Trusted Vehicle Rental`}
               className="h-[72px] sm:h-[84px] md:h-[100px] w-auto object-contain"
               style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.3))' }}
             />

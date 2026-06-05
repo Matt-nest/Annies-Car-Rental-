@@ -11,6 +11,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { EASE, DURATION, STAGGER } from '../../utils/motion';
 import ThemeToggle from '../common/ThemeToggle';
 import StarRating from '../common/StarRating';
+import { brand } from '../../config/brand';
 
 interface VehicleDetailPageProps {
   vehicle: Vehicle;
@@ -106,7 +107,7 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
         <div className="flex items-center gap-3">
           <ThemeToggle size={14} />
           <a
-            href="tel:+17722071655"
+            href={`tel:${brand.phone.replace(/[^\d+]/g, '')}`}
             className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all hover:scale-[1.03] active:scale-95"
             style={{ border: '1px solid var(--border-medium)', color: 'var(--text-secondary)' }}
           >
@@ -220,7 +221,7 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
                   </div>
                 ) : (
                   <span className="text-base font-medium block" style={{ color: 'var(--accent-color)' }}>
-                    Call Annie
+                    Call Us
                   </span>
                 )}
                 <p className="text-xs font-medium" style={{ color: 'var(--accent-color)' }}>Best rate</p>

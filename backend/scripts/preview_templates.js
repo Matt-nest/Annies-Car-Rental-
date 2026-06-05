@@ -10,6 +10,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import brand from '../config/brand.js';
 
 // ── Template engine (inlined to avoid Supabase dependency) ────────────────
 
@@ -54,8 +55,8 @@ function renderPhotoGallery(urls) {
 }
 
 function wrapInBrandedHTML(subject, bodyText) {
-  var siteUrl = 'https://anniescarrental.com';
-  var logoUrl = siteUrl + '/logo-white.png';
+  var siteUrl = brand.siteUrl;
+  var logoUrl = brand.logoUrl || siteUrl + '/logo-white.png';
   var bodyHtml = bodyText
     .split('\n\n')
     .map(function(p) {
@@ -76,10 +77,10 @@ function wrapInBrandedHTML(subject, bodyText) {
     '    </div>\n' +
     '    <div style="padding:32px;">' + bodyHtml + '</div>\n' +
     '    <div style="padding:24px 32px;border-top:1px solid #e7e5e4;background:#fafaf9;text-align:center;">\n' +
-    '      <p style="margin:0 0 6px;font-size:13px;font-weight:600;color:#78716c;">Annie\'s Car Rental</p>\n' +
-    '      <p style="margin:0 0 4px;font-size:12px;color:#a8a29e;">Port St. Lucie, FL · (772) 985-6667</p>\n' +
+    '      <p style="margin:0 0 6px;font-size:13px;font-weight:600;color:#78716c;">' + escapeHtml(brand.name) + '</p>\n' +
+    '      <p style="margin:0 0 4px;font-size:12px;color:#a8a29e;">' + escapeHtml(brand.location.city) + ', ' + escapeHtml(brand.location.state) + ' · ' + escapeHtml(brand.phone) + '</p>\n' +
     '      <p style="margin:0;font-size:11px;color:#d6d3d1;">\n' +
-    '        <a href="' + siteUrl + '" style="color:#c8a97e;text-decoration:none;">anniescarrental.com</a>\n' +
+    '        <a href="' + siteUrl + '" style="color:#c8a97e;text-decoration:none;">' + escapeHtml(brand.domain) + '</a>\n' +
     '      </p>\n' +
     '    </div>\n' +
     '  </div>\n' +
@@ -263,8 +264,8 @@ var FULL_DATA = {
   amount: '219.96',
   payment_method: 'Visa ending in 4242',
   payment_date: 'Sun, Apr 20, 2026',
-  status_link: 'https://anniescarrental.com/booking-status?code=ACR-2026-0421',
-  vehicle_photo_url: 'https://anniescarrental.com/fleet/1N4BL4DV7PN338432/hero.png',
+  status_link: brand.siteUrl + '/booking-status?code=ACR-2026-0421',
+  vehicle_photo_url: brand.siteUrl + '/fleet/1N4BL4DV7PN338432/hero.png',
   vehicle_year_make_model: '2024 Nissan Altima',
   vehicle_color: 'Pearl White',
   vehicle_plate: 'ABC 1234',

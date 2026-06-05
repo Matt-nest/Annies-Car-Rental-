@@ -2,6 +2,7 @@ import { Phone, MapPin, MessageSquare, Car } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useTheme } from '../../context/ThemeContext';
 import { EASE } from '../../utils/motion';
+import { brand } from '../../config/brand';
 
 interface ContactSectionProps {
   onBrowseFleet: () => void;
@@ -32,21 +33,21 @@ export default function ContactSection({ onBrowseFleet }: ContactSectionProps) {
               The kind of rental<br className="hidden sm:block" /> you come back for.
             </h2>
             <p className="text-base sm:text-lg mb-8 sm:mb-10 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-              Call Annie directly, or browse the fleet and submit a request online.
-              Whether it's a week, a month, or all winter — we serve Port St. Lucie and the Treasure Coast,
+              Call us directly, or browse the fleet and submit a request online.
+              Whether it's a week, a month, or all winter — we serve {brand.location.city} and the surrounding area,
               and we'll remember you next season.
             </p>
             <div className="space-y-4 sm:space-y-5">
-              <a href="tel:+17722071655" className="flex items-center gap-3 sm:gap-4 text-base sm:text-lg font-medium transition-opacity hover:opacity-70 group">
+              <a href={`tel:${brand.phone.replace(/[^\d+]/g, '')}`} className="flex items-center gap-3 sm:gap-4 text-base sm:text-lg font-medium transition-opacity hover:opacity-70 group">
                 <div
                   className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-transform duration-500 group-hover:scale-110"
                   style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
                 >
                   <Phone size={18} />
                 </div>
-                (772) 207-1655
+                {brand.phone}
               </a>
-              <a href="sms:+17722071655" className="flex items-center gap-3 sm:gap-4 text-base sm:text-lg font-medium transition-opacity hover:opacity-70 group">
+              <a href={`sms:${brand.phone.replace(/[^\d+]/g, '')}`} className="flex items-center gap-3 sm:gap-4 text-base sm:text-lg font-medium transition-opacity hover:opacity-70 group">
                 <div
                   className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center border transition-transform duration-500 group-hover:scale-110"
                   style={{ backgroundColor: 'var(--bg-card-hover)', borderColor: 'var(--border-subtle)' }}
@@ -62,7 +63,7 @@ export default function ContactSection({ onBrowseFleet }: ContactSectionProps) {
                 >
                   <MapPin size={18} />
                 </div>
-                586 NW Mercantile Pl, Port St. Lucie, FL 34986
+                {brand.location.address}, {brand.location.city}, {brand.location.state}
               </div>
               <div className="flex items-start gap-3 sm:gap-4 pt-4 mt-1" style={{ borderTop: '1px solid var(--border-subtle)' }}>
                 <div
@@ -74,7 +75,7 @@ export default function ContactSection({ onBrowseFleet }: ContactSectionProps) {
                 <div>
                   <p className="text-base sm:text-lg font-medium leading-snug">Rideshare drivers — we have weekly plans.</p>
                   <a
-                    href="tel:+17722071655"
+                    href={`tel:${brand.phone.replace(/[^\d+]/g, '')}`}
                     className="text-sm font-medium transition-opacity hover:opacity-70"
                     style={{ color: 'var(--accent-color)' }}
                   >

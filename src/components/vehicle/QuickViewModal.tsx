@@ -8,6 +8,7 @@ import { getReviewsForVehicle } from '../../data/reviews';
 import { useTheme } from '../../context/ThemeContext';
 import { EASE, DURATION } from '../../utils/motion';
 import RateToggle from '../home/RateToggle';
+import { brand } from '../../config/brand';
 
 interface QuickViewModalProps {
   vehicle: Vehicle;
@@ -223,11 +224,11 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
                     </div>
                   ) : (
                     <a
-                      href="tel:+17722071655"
+                      href={`tel:${brand.phone.replace(/[^\d+]/g, '')}`}
                       className="text-base font-medium hover:opacity-70 transition-opacity"
                       style={{ color: 'var(--accent-color)' }}
                     >
-                      Call Annie for pricing
+                      Call Us for pricing
                     </a>
                   )}
                   <div className="flex gap-1.5 flex-wrap">
@@ -301,7 +302,7 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
             <ArrowRight size={15} className="transition-transform duration-300 group-hover:translate-x-1" />
           </button>
           <a
-            href="tel:+17722071655"
+            href={`tel:${brand.phone.replace(/[^\d+]/g, '')}`}
             className="shrink-0 py-3.5 px-5 rounded-full font-medium border transition-all duration-300 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 text-[14px]"
             style={{ borderColor: 'var(--border-medium)', color: 'var(--text-secondary)' }}
           >
@@ -309,7 +310,7 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
           </a>
           <div className="hidden md:flex items-center gap-1.5 shrink-0 ml-1">
             <MapPin size={11} style={{ color: 'var(--text-tertiary)' }} />
-            <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>Port St. Lucie, FL</span>
+            <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{brand.location.city}, {brand.location.state}</span>
           </div>
         </div>
       </motion.div>

@@ -1,5 +1,6 @@
 import { Phone, MapPin, MessageSquare } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
+import { brand } from '../../config/brand';
 
 export default function Footer() {
   const { theme } = useTheme();
@@ -18,7 +19,7 @@ export default function Footer() {
               {/* Dark mode: white logo */}
               <img
                 src="/logo.png"
-                alt="Annie's Car Rental"
+                alt={brand.name}
                 className="h-full w-auto object-contain"
                 loading="lazy"
                 decoding="async"
@@ -45,7 +46,7 @@ export default function Footer() {
               />
             </div>
             <p className="text-sm leading-relaxed max-w-[260px]" style={{ color: 'var(--text-secondary)' }}>
-              Port St. Lucie's trusted private car rental. Quality vehicles, direct service, flexible terms.
+              {brand.location.city}'s trusted private car rental. Quality vehicles, direct service, flexible terms.
             </p>
           </div>
 
@@ -55,17 +56,17 @@ export default function Footer() {
               Contact
             </h4>
             <div className="space-y-3">
-              <a href="tel:+17722071655" className="flex items-center gap-3 text-sm transition-opacity hover:opacity-70 group">
+              <a href={`tel:${brand.phone.replace(/\D/g, '')}`} className="flex items-center gap-3 text-sm transition-opacity hover:opacity-70 group">
                 <Phone size={14} style={{ color: 'var(--text-tertiary)' }} />
-                <span style={{ color: 'var(--text-secondary)' }}>(772) 207-1655</span>
+                <span style={{ color: 'var(--text-secondary)' }}>{brand.phone}</span>
               </a>
-              <a href="sms:+17722071655" className="flex items-center gap-3 text-sm transition-opacity hover:opacity-70">
+              <a href={`sms:${brand.phone.replace(/\D/g, '')}`} className="flex items-center gap-3 text-sm transition-opacity hover:opacity-70">
                 <MessageSquare size={14} style={{ color: 'var(--text-tertiary)' }} />
                 <span style={{ color: 'var(--text-secondary)' }}>Text Us</span>
               </a>
               <div className="flex items-center gap-3 text-sm">
                 <MapPin size={14} style={{ color: 'var(--text-tertiary)' }} />
-                <span style={{ color: 'var(--text-secondary)' }}>586 NW Mercantile Pl, Port St. Lucie, FL 34986</span>
+                <span style={{ color: 'var(--text-secondary)' }}>{brand.location.address}, {brand.location.city}, {brand.location.state}</span>
               </div>
             </div>
           </div>
@@ -106,9 +107,9 @@ export default function Footer() {
           className="pt-6 sm:pt-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs sm:text-sm"
           style={{ borderTop: '1px solid var(--border-subtle)', color: 'var(--text-tertiary)' }}
         >
-          <p>© {new Date().getFullYear()} Annie's Car Rental. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} {brand.name}. All rights reserved.</p>
           <div className="flex items-center gap-4">
-            <p>Port St. Lucie, FL · Treasure Coast</p>
+            <p>{brand.location.city}, {brand.location.state}</p>
             <a
               href="https://admin.dashboard.anniescarrental.com"
               target="_blank"

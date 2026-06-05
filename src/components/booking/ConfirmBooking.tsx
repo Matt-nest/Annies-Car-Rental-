@@ -8,6 +8,7 @@ import Footer from '../layout/Footer';
 import ProgressStepper from './confirm-booking/ProgressStepper';
 import ConfirmedScreen from './confirm-booking/ConfirmedScreen';
 import MissingRefScreen from './confirm-booking/MissingRefScreen';
+import { brand } from '../../config/brand';
 
 // Wizard steps
 import RentalSummaryStep from './confirm-booking/wizard-steps/RentalSummaryStep';
@@ -291,7 +292,7 @@ function PaymentForm({
         </div>
 
         <p className="text-[10px] text-center leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-          By clicking "Pay", you authorize Annie's Car Rental to charge your card for the rental total, insurance, and refundable security deposit.
+          By clicking "Pay", you authorize {brand.name} to charge your card for the rental total, insurance, and refundable security deposit.
           Your deposit will be returned after vehicle inspection.
         </p>
       </div>

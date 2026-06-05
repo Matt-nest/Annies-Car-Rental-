@@ -6,31 +6,33 @@ import { readFileSync, existsSync } from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+import brand from '../config/brand.js';
+
 /* ────────────────────────────────────────────────────────
-   Brand Constants — Aaron's Garage LLC, DBA Annie's & Co
+   Brand Constants
    ──────────────────────────────────────────────────────── */
 const BRAND = {
-  accent: '#F5A623',
-  accentDark: '#D4941E',
-  dark: '#1C1917',
-  medium: '#57534E',
-  light: '#A8A29E',
+  accent: brand.colors.accent,
+  accentDark: brand.colors.accent, // fallback
+  dark: brand.colors.secondary,
+  medium: brand.colors.muted,
+  light: brand.colors.muted,
   border: '#E7E5E4',
   bgLight: '#FAFAF9',
   white: '#FFFFFF',
   green: '#16A34A',
   red: '#DC2626',
 
-  companyName: "Annie's & Co",
+  companyName: brand.name,
   tagline: 'Your Trusted Vehicle Rental',
-  legalName: "Aaron's Garage LLC",
-  dba: "DBA Annie's & Co",
-  address: '586 NW Mercantile Pl',
-  cityStateZip: 'Port Saint Lucie, FL 34986',
-  phone: '(772) 207-1655',
-  email: 'info@anniescarrental.com',
-  website: 'anniescarrental.com',
-  ein: '99-0908048',
+  legalName: brand.legalEntity,
+  dba: brand.dba,
+  address: brand.location.address,
+  cityStateZip: `${brand.location.city}, ${brand.location.state} ${brand.location.zip}`,
+  phone: brand.phone,
+  email: brand.email,
+  website: brand.domain,
+  ein: '99-0908048', // TODO: Make env var if needed
 };
 
 /* ────────────────────────────────────────────────────────

@@ -55,6 +55,9 @@ function ageFrom(dob?: string): number | null {
 type View = 'choice' | 'own' | 'bonzah';
 
 export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupState, onUpdate, onContinue, onBack, theme }: Props) {
+  // Whether Bonzah is disabled site-wide (admin toggle). Fetched once on mount.
+  const [bonzahDisabled, setBonzahDisabled] = useState<boolean | null>(null);
+
   // Sub-view inside the insurance step. Initialized once from the draft so a
   // refresh keeps the customer where they left off; never auto-changes after mount.
   const [view, setView] = useState<View>(
@@ -73,6 +76,36 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
   const [tierQuotes, setTierQuotes] = useState<Record<string, BonzahQuote>>({});
   const [tierLoading, setTierLoading] = useState<Record<string, boolean>>({});
   const [tierErrors, setTierErrors] = useState<Record<string, string>>({});
+
+  // ── Check Bonzah toggle on mount ────────────────────────────────────
+  // A lightweight GET to determine if Bonzah is enabled site-wide.
+  // When disabled, the customer only sees the own-insurance form.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/bookings/insurance/config`);
+        const json = await res.json();
+        if (cancelled) return;
+        const disabled = !json.enabled;
+        setBonzahDisabled(disabled);
+        // Auto-route to own-insurance if Bonzah is disabled and no choice made yet
+        if (disabled && !draft.insuranceChoice) {
+          onUpdate({
+            insuranceChoice: 'own',
+            bonzahTierId: null,
+            bonzahQuote: null,
+          });
+          setView('own');
+        }
+      } catch {
+        // If we can't check, default to showing the choice screen
+        if (!cancelled) setBonzahDisabled(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Own insurance form helpers ──────────────────────────────────────
   const own = draft.personalInsurance;
@@ -248,6 +281,27 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
      View 1 — Choice screen (two side-by-side rectangles)
      ════════════════════════════════════════════════════════ */
   if (view === 'choice') {
+    // When Bonzah is disabled, skip choice and go straight to own insurance
+    // (this shouldn't normally render because we auto-route on mount, but
+    // acts as a safety net if state gets out of sync).
+    if (bonzahDisabled) {
+      handleChooseOwn();
+      return null;
+    }
+
+    // Still loading the Bonzah config check — show a brief loader
+    if (bonzahDisabled === null) {
+      return (
+        <div className="space-y-5">
+          <div className="rounded-xl border p-6 flex items-center justify-center gap-2.5"
+            style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+            <Loader2 className="animate-spin" size={18} style={{ color: 'var(--accent-color)' }} />
+            <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Loading insurance options…</span>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-5">
         {/* Header */}
@@ -337,12 +391,14 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
   if (view === 'own') {
     return (
       <div className="space-y-5">
-        {/* Breadcrumb back to choice */}
-        <button type="button" onClick={handleBackToChoice}
-          className="inline-flex items-center gap-1.5 text-xs hover:underline cursor-pointer"
-          style={{ color: 'var(--text-tertiary)' }}>
-          <ArrowLeft size={12} /> Choose a different option
-        </button>
+        {/* Breadcrumb back to choice — only shown when Bonzah is available */}
+        {!bonzahDisabled && (
+          <button type="button" onClick={handleBackToChoice}
+            className="inline-flex items-center gap-1.5 text-xs hover:underline cursor-pointer"
+            style={{ color: 'var(--text-tertiary)' }}>
+            <ArrowLeft size={12} /> Choose a different option
+          </button>
+        )}
 
         {/* Header */}
         <div className="rounded-xl border p-4 sm:p-5"
@@ -399,6 +455,17 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
             </div>
           </div>
         </div>
+
+        {/* Admin review notice when Bonzah is disabled */}
+        {bonzahDisabled && (
+          <div className="rounded-xl border p-3 flex items-start gap-2.5"
+            style={{ backgroundColor: 'rgba(99,179,237,0.07)', borderColor: 'rgba(99,179,237,0.2)' }}>
+            <ShieldAlert size={16} className="shrink-0 mt-0.5" style={{ color: '#63b3ed' }} />
+            <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+              Your insurance information will be reviewed by our team after you complete the booking. We'll contact you if we need any additional details.
+            </p>
+          </div>
+        )}
 
         {error && (
           <div className="flex items-start gap-3 p-4 rounded-xl border text-sm"

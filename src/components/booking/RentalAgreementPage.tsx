@@ -2,6 +2,7 @@ import { motion } from 'motion/react';
 import { FileText, ArrowLeft } from 'lucide-react';
 import { RENTAL_TERMS } from '../../data/rentalTerms';
 import { useTheme } from '../../context/ThemeContext';
+import { brand } from '../../config/brand';
 import Navbar from '../layout/Navbar';
 import Footer from '../layout/Footer';
 
@@ -39,7 +40,7 @@ export default function RentalAgreementPage() {
               </span>
             </h1>
             <p className="text-sm sm:text-base" style={{ color: 'var(--text-secondary)' }}>
-              Annie's Car Rental — Port St. Lucie, FL
+              {brand.legalEntity} — {brand.location.city}, {brand.location.state}
             </p>
           </motion.div>
 
