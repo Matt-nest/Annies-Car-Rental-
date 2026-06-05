@@ -4,7 +4,8 @@ import { Phone, CheckCircle2 } from 'lucide-react';
 import { Vehicle } from '../../types';
 import { getVehicleDisplayName } from '../../data/vehicles';
 import { useTheme } from '../../context/ThemeContext';
-import { API_URL, API_KEY } from '../../config';
+import { API_URL, RECAPTCHA_SITE_KEY } from '../../config';
+import { brand } from '../../config/brand';
 import Sheet from '../common/Sheet';
 
 interface MonthlyInquiryModalProps {
@@ -41,6 +42,11 @@ export default function MonthlyInquiryModal({ vehicle, onClose }: MonthlyInquiry
     if (!validate()) return;
     setSubmitting(true);
     try {
+      let recaptchaToken = '';
+      if ((window as any).grecaptcha) {
+        recaptchaToken = await (window as any).grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'submit_inquiry' });
+      }
+
       const payload = {
         name: form.name.trim(),
         phone: form.phone.trim(),
@@ -53,7 +59,7 @@ export default function MonthlyInquiryModal({ vehicle, onClose }: MonthlyInquiry
       };
       await fetch(`${API_URL}/monthly-inquiries`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
+        headers: { 'Content-Type': 'application/json', 'x-recaptcha-token': recaptchaToken },
         body: JSON.stringify(payload),
       });
       setSuccess(true);
@@ -88,18 +94,18 @@ export default function MonthlyInquiryModal({ vehicle, onClose }: MonthlyInquiry
                 <CheckCircle2 size={28} style={{ color: 'var(--accent-color)' }} />
               </div>
               <h3 className="text-xl font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
-                You're on Annie's list
+                You're on our list
               </h3>
               <p className="text-sm leading-relaxed mb-6" style={{ color: 'var(--text-secondary)' }}>
-                Annie will personally reach out within 24 hours to discuss your monthly rental.
+                We will personally reach out within 24 hours to discuss your monthly rental.
                 No pressure — just a conversation.
               </p>
               <a
-                href="tel:+17722071655"
+                href={`tel:${brand.phone.replace(/[^\d+]/g, '')}`}
                 className="inline-flex items-center gap-2 text-sm font-medium"
                 style={{ color: 'var(--accent-color)' }}
               >
-                <Phone size={14} /> Or call now: (772) 207-1655
+                <Phone size={14} /> Or call now: {brand.phone}
               </a>
             </motion.div>
           ) : (
@@ -119,7 +125,7 @@ export default function MonthlyInquiryModal({ vehicle, onClose }: MonthlyInquiry
               </div>
 
               <a
-                href="tel:+17722071655"
+                href={`tel:${brand.phone.replace(/[^\d+]/g, '')}`}
                 className="flex items-center gap-3 rounded-xl px-4 py-3 mb-6 transition-colors cursor-pointer"
                 style={{
                   backgroundColor: 'color-mix(in srgb, var(--accent-color) 10%, transparent)',
@@ -129,7 +135,7 @@ export default function MonthlyInquiryModal({ vehicle, onClose }: MonthlyInquiry
                 <Phone size={16} style={{ color: 'var(--accent-color)', flexShrink: 0 }} />
                 <div>
                   <p className="text-xs font-medium" style={{ color: 'var(--accent-color)' }}>Prefer to talk?</p>
-                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>(772) 207-1655</p>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{brand.phone}</p>
                 </div>
               </a>
 

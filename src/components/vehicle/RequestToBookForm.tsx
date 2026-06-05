@@ -4,9 +4,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Vehicle, BookingRequest, DeliveryOption, RateMode } from '../../types';
 import { getVehicleDisplayName } from '../../data/vehicles';
 import { useTheme } from '../../context/ThemeContext';
-import { API_URL, API_KEY } from '../../config';
+import { API_URL, RECAPTCHA_SITE_KEY } from '../../config';
 import { calcRentalDays, calcPriceBreakdown, displayPrice } from '../../utils/pricing';
 import WeeklyUpsell from './WeeklyUpsell';
+import { brand } from '../../config/brand';
 
 
 interface RequestToBookFormProps {
@@ -172,7 +173,17 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
       }
     }
 
-    // 2. Map frontend fields to backend API format
+    // 2. Generate reCAPTCHA token
+    let recaptchaToken = '';
+    try {
+      if ((window as any).grecaptcha) {
+        recaptchaToken = await (window as any).grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'submit_booking' });
+      }
+    } catch (err) {
+      console.warn('reCAPTCHA generation failed:', err);
+    }
+
+    // 3. Map frontend fields to backend API format
     const bookingPayload = {
       first_name: formData.firstName.trim(),
       last_name: formData.lastName.trim(),
@@ -199,7 +210,7 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': API_KEY,
+          'x-recaptcha-token': recaptchaToken,
         },
         body: JSON.stringify(bookingPayload),
       });
@@ -299,26 +310,26 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
 
         <div className="p-5 sm:p-6 space-y-4">
           <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-            Monthly rentals are arranged directly with Annie. Reach out and we'll tailor a rate to your stay length, mileage, and pickup details.
+            Monthly rentals are arranged directly with us. Reach out and we'll tailor a rate to your stay length, mileage, and pickup details.
           </p>
 
           <a
-            href="tel:+17722071655"
+            href={`tel:${brand.phone.replace(/[^\d+]/g, '')}`}
             className="group w-full py-4 rounded-full font-medium transition-all duration-300 active:scale-95 hover:scale-[1.02] hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer"
             style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
           >
-            Call Annie <ArrowRight size={18} className="transition-transform duration-300 group-hover:translate-x-1" />
+            Call Us <ArrowRight size={18} className="transition-transform duration-300 group-hover:translate-x-1" />
           </a>
           <a
-            href="sms:+17722071655"
+            href={`sms:${brand.phone.replace(/[^\d+]/g, '')}`}
             className="w-full py-3.5 rounded-full font-medium border transition-all duration-300 active:scale-95 hover:scale-[1.02] flex items-center justify-center gap-2 cursor-pointer"
             style={{ borderColor: 'var(--border-medium)', color: 'var(--text-primary)' }}
           >
-            Text Annie
+            Text Us
           </a>
 
           <p className="text-center text-xs" style={{ color: 'var(--text-tertiary)' }}>
-            Available 7 days a week · (772) 207-1655
+            Available 7 days a week · {brand.phone}
           </p>
         </div>
       </div>
@@ -752,7 +763,7 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
           }}
         >
           By submitting this booking, you consent to receive SMS messages from
-          Annie's Car Rental about your rental, including confirmations, reminders,
+          {brand.name} about your rental, including confirmations, reminders,
           and updates. Message and data rates may apply. Message frequency varies.
           Reply STOP to opt out or HELP for help. See our{' '}
           <a href="/privacy" className="underline" style={{ color: 'var(--text-primary)' }}>Privacy Policy</a>

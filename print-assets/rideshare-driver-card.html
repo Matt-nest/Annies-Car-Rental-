@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Annie's & Co — Rideshare Driver Card · 4″ × 6″ · Print-Ready</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Inter+Tight:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ═══════════════════════════════════════════════════════
+     ANNIE'S & CO — RIDESHARE DRIVER CARD
+     Size: 4″ × 6″ (384pt × 576pt) with 0.125″ bleed
+     Final with bleed: 4.25″ × 6.25″
+     CMYK-safe colors · 300 DPI equivalent
+     ═══════════════════════════════════════════════════════ */
+
+  :root {
+    --ink: #0e0e0e;
+    --ink-soft: #161514;
+    --ink-deep: #08090a;
+    --gold: #e6b933;
+    --gold-bright: #f5cc4a;
+    --gold-soft: #b88e1f;
+    --gold-deep: #8a6912;
+    --cream: #f5efe2;
+    --cream-soft: #ece4d2;
+    --paper: #faf6ec;
+    --line: rgba(230,185,51,0.22);
+    --line-strong: rgba(230,185,51,0.45);
+    --serif: 'Fraunces', Georgia, serif;
+    --sans: 'Inter Tight', sans-serif;
+
+    /* Print dimensions: 4" × 6" at 96dpi screen = 384px × 576px */
+    /* With 0.125" bleed = 12px each side */
+    --card-w: 384px;
+    --card-h: 576px;
+    --bleed: 12px;
+    --safe: 12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #1f1d1a;
+    min-height: 100vh;
+    font-family: var(--sans);
+    color: #e8e4dc;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    gap: 40px;
+  }
+
+  .page-title {
+    text-align: center;
+    font-family: var(--serif);
+    font-size: 24px;
+    font-weight: 500;
+    color: var(--cream);
+    letter-spacing: -0.02em;
+  }
+  .page-title em { color: var(--gold); font-style: italic; }
+  .page-subtitle {
+    text-align: center;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(232,228,220,0.5);
+    font-weight: 500;
+    margin-top: 6px;
+  }
+
+  /* ─── Bleed container ─────────────────────────────── */
+  .print-sheet {
+    position: relative;
+    width: calc(var(--card-w) + var(--bleed) * 2);
+    height: calc(var(--card-h) + var(--bleed) * 2);
+  }
+  /* Trim marks */
+  .print-sheet::before,
+  .print-sheet::after {
+    content: '';
+    position: absolute;
+    border: 0;
+  }
+  .trim-tl, .trim-tr, .trim-bl, .trim-br {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    z-index: 10;
+  }
+  .trim-tl { top: var(--bleed); left: -8px; border-top: 0.5px solid rgba(255,255,255,0.35); }
+  .trim-tl::after { content: ''; position: absolute; top: -8px; left: 8px; width: 0; height: 20px; border-left: 0.5px solid rgba(255,255,255,0.35); }
+  .trim-tr { top: var(--bleed); right: -8px; border-top: 0.5px solid rgba(255,255,255,0.35); }
+  .trim-tr::after { content: ''; position: absolute; top: -8px; right: 8px; width: 0; height: 20px; border-left: 0.5px solid rgba(255,255,255,0.35); }
+  .trim-bl { bottom: var(--bleed); left: -8px; border-bottom: 0.5px solid rgba(255,255,255,0.35); }
+  .trim-bl::after { content: ''; position: absolute; bottom: -8px; left: 8px; width: 0; height: 20px; border-left: 0.5px solid rgba(255,255,255,0.35); }
+  .trim-br { bottom: var(--bleed); right: -8px; border-bottom: 0.5px solid rgba(255,255,255,0.35); }
+  .trim-br::after { content: ''; position: absolute; bottom: -8px; right: 8px; width: 0; height: 20px; border-left: 0.5px solid rgba(255,255,255,0.35); }
+
+  /* ─── Card surface ────────────────────────────────── */
+  .card {
+    position: absolute;
+    inset: 0;
+    background: var(--ink);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 50% at 50% 28%, rgba(230,185,51,0.10), transparent 70%),
+      linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.45) 100%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ─── Top bar ─────────────────────────────────────── */
+  .top-bar {
+    padding: 20px 26px 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--line);
+    position: relative;
+    z-index: 2;
+    gap: 12px;
+  }
+  .top-bar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 20px;
+    right: 20px;
+    height: 2.5px;
+    background: var(--gold);
+  }
+
+  /* Logo lockup */
+  .lockup {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+  }
+  .lockup .icon {
+    height: 38px;
+    width: auto;
+    flex-shrink: 0;
+  }
+  .lockup .text { display: flex; flex-direction: column; }
+  .lockup .wm {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 18px;
+    letter-spacing: -0.018em;
+    line-height: 0.95;
+    color: var(--cream);
+  }
+  .lockup .wm em { font-style: italic; color: var(--gold); }
+  .lockup .tag {
+    font-family: var(--sans);
+    font-size: 7.5px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    margin-top: 5px;
+    font-weight: 600;
+    color: var(--gold);
+  }
+  .top-badge {
+    font-family: var(--sans);
+    font-size: 8.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(245,239,226,0.6);
+    text-align: right;
+    line-height: 1.5;
+    font-weight: 500;
+  }
+
+  /* ─── Hero section ────────────────────────────────── */
+  .hero {
+    flex: 1 1 0;
+    min-height: 0;
+    padding: 28px 32px 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    z-index: 2;
+  }
+  .hero .eyebrow {
+    font-family: var(--sans);
+    font-size: 9.5px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 18px;
+    font-weight: 600;
+  }
+  .hero .headline {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: 38px;
+    line-height: 1.06;
+    color: var(--cream);
+    letter-spacing: -0.025em;
+  }
+  .hero .headline em {
+    font-style: italic;
+    color: var(--gold);
+    font-weight: 500;
+  }
+  .hero .subhead {
+    font-family: var(--sans);
+    font-weight: 400;
+    font-size: 12px;
+    color: rgba(245,239,226,0.72);
+    margin-top: 22px;
+    line-height: 1.55;
+    max-width: 280px;
+    text-wrap: pretty;
+  }
+  .hero .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(230,185,51,0.12);
+    border: 1px solid rgba(230,185,51,0.4);
+    border-radius: 100px;
+    padding: 7px 14px;
+    margin-top: 18px;
+    font-family: var(--sans);
+    font-size: 9px;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    color: var(--gold);
+    font-weight: 600;
+  }
+
+  /* ─── Perks list ──────────────────────────────────── */
+  .perks {
+    padding: 14px 28px 16px;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .perks .row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--sans);
+    font-size: 11.5px;
+    color: var(--cream);
+    white-space: nowrap;
+  }
+  .perks .row .check {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+    color: var(--gold);
+  }
+  .perks .row strong {
+    color: var(--gold);
+    font-weight: 600;
+  }
+
+  /* ─── Offer band ──────────────────────────────────── */
+  .offer-band {
+    padding: 16px 26px;
+    background: var(--gold);
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+    z-index: 2;
+    gap: 14px;
+  }
+  .offer-band .left .small {
+    font-family: var(--sans);
+    font-size: 8.5px;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 3px;
+    color: rgba(14,14,14,0.7);
+  }
+  .offer-band .left .big {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 28px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .offer-band .left .big em { font-style: italic; font-weight: 500; }
+  .offer-band .code {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.32em;
+    background: var(--ink);
+    color: var(--gold);
+    padding: 10px 16px 10px 20px;
+    border-radius: 2px;
+  }
+
+  /* ─── QR zone ─────────────────────────────────────── */
+  .qr-zone {
+    padding: 16px 26px;
+    background: var(--ink-deep);
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    position: relative;
+    z-index: 2;
+  }
+  .qr {
+    width: 88px;
+    height: 88px;
+    background: var(--cream);
+    border-radius: 3px;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .qr::before {
+    content: '';
+    position: absolute;
+    inset: 14%;
+    background-image:
+      linear-gradient(0deg, transparent 50%, var(--ink) 50%),
+      linear-gradient(90deg, transparent 50%, var(--ink) 50%);
+    background-size: 6.5% 6.5%, 6.5% 6.5%;
+    opacity: 0.85;
+    mask-image: radial-gradient(circle at 30% 70%, #000 30%, rgba(0,0,0,0.85) 60%, rgba(0,0,0,0.7));
+  }
+  .qr .corner {
+    position: absolute;
+    width: 22%;
+    aspect-ratio: 1;
+    background: var(--ink);
+    z-index: 2;
+    border-radius: 2px;
+    box-shadow: inset 0 0 0 3px var(--cream), inset 0 0 0 5px var(--ink);
+  }
+  .qr .corner.tl { top: 8%; left: 8%; }
+  .qr .corner.tr { top: 8%; right: 8%; }
+  .qr .corner.bl { bottom: 8%; left: 8%; }
+
+  .qr-zone .right {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .qr-zone .scan {
+    font-family: var(--sans);
+    font-size: 9px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--gold);
+    font-weight: 600;
+  }
+  .qr-zone .url {
+    font-family: var(--serif);
+    font-style: italic;
+    font-weight: 400;
+    font-size: 17px;
+    color: var(--cream);
+    line-height: 1.05;
+    letter-spacing: -0.015em;
+  }
+  .qr-zone .phone {
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: rgba(245,239,226,0.7);
+  }
+
+  /* ─── Print spec footer ───────────────────────────── */
+  .print-info {
+    text-align: center;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(232,228,220,0.35);
+    max-width: 500px;
+    line-height: 1.7;
+  }
+
+  @media print {
+    body { background: none; padding: 0; }
+    .page-title, .page-subtitle, .print-info { display: none; }
+    .trim-tl, .trim-tr, .trim-bl, .trim-br { display: none; }
+    .print-sheet {
+      width: 4.25in;
+      height: 6.25in;
+      margin: 0;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div>
+  <div class="page-title">Annie's <em>&amp;</em> Co · Rideshare Driver Card</div>
+  <div class="page-subtitle">4″ × 6″ · print-ready · CMYK-safe</div>
+</div>
+
+<div class="print-sheet">
+  <div class="trim-tl"></div>
+  <div class="trim-tr"></div>
+  <div class="trim-bl"></div>
+  <div class="trim-br"></div>
+
+  <div class="card">
+    <!-- Top bar -->
+    <div class="top-bar">
+      <div class="lockup">
+        <img class="icon" src="logo-icon.png" alt="">
+        <div class="text">
+          <div class="wm">Annie's <em>&amp;</em> Co</div>
+          <div class="tag">Vehicle Rental</div>
+        </div>
+      </div>
+      <div class="top-badge">For Uber<br>&amp; Lyft Drivers</div>
+    </div>
+
+    <!-- Hero -->
+    <div class="hero">
+      <div class="eyebrow">Weekly car rentals</div>
+      <h1 class="headline">Drive rideshare.<br><em>Keep your earnings.</em></h1>
+      <p class="subhead">Rent a reliable car by the week. Insurance, unlimited miles, and roadside support — all included in one flat rate.</p>
+      <span class="badge">✓ Insurance Included</span>
+    </div>
+
+    <!-- Perks -->
+    <div class="perks">
+      <div class="row">
+        <svg class="check" viewBox="0 0 14 14" fill="none"><path d="M3 7l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span><strong>Insurance</strong> covered in your weekly rate</span>
+      </div>
+      <div class="row">
+        <svg class="check" viewBox="0 0 14 14" fill="none"><path d="M3 7l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span><strong>Unlimited miles</strong> — no per-mile fees</span>
+      </div>
+      <div class="row">
+        <svg class="check" viewBox="0 0 14 14" fill="none"><path d="M3 7l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span><strong>Local owner</strong> — call Annie directly</span>
+      </div>
+    </div>
+
+    <!-- Offer band -->
+    <div class="offer-band">
+      <div class="left">
+        <div class="small">First week</div>
+        <div class="big"><em>$25</em> off</div>
+      </div>
+      <div class="code">DRIVE25</div>
+    </div>
+
+    <!-- QR zone -->
+    <div class="qr-zone">
+      <div class="qr">
+        <div class="corner tl"></div>
+        <div class="corner tr"></div>
+        <div class="corner bl"></div>
+      </div>
+      <div class="right">
+        <div class="scan">Scan or call</div>
+        <div class="url">anniescarrental.com</div>
+        <div class="phone">(772) 207-1655</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="print-info">
+  CMYK: Charcoal #0E0E0E (0,0,0,95) · Gold #E6B933 (8,28,86,0) · Cream #F5EFE2 (2,5,12,2)<br>
+  Bleed: 0.125″ all sides · Safe zone: 0.125″ inside trim · Stock: 14pt gloss or 100lb uncoated<br>
+  QR UTM: anniescarrental.com?utm_source=card_rideshare
+</div>
+
+</body>
+</html>

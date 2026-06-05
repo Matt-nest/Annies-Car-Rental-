@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Annie's & Co — Window Glass Decal · 4″ Round · Print-Ready</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Inter+Tight:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ═══════════════════════════════════════════════════════
+     ANNIE'S & CO — WINDOW GLASS DECAL
+     Size: 4″ round · vinyl · removable adhesive
+     "Need to rent a car? Scan."
+     CMYK-safe colors · 300 DPI equivalent
+     ═══════════════════════════════════════════════════════ */
+
+  :root {
+    --ink: #0e0e0e;
+    --ink-soft: #161514;
+    --ink-deep: #08090a;
+    --gold: #e6b933;
+    --gold-bright: #f5cc4a;
+    --gold-soft: #b88e1f;
+    --gold-deep: #8a6912;
+    --cream: #f5efe2;
+    --cream-soft: #ece4d2;
+    --paper: #faf6ec;
+    --line: rgba(230,185,51,0.22);
+    --line-strong: rgba(230,185,51,0.45);
+    --serif: 'Fraunces', Georgia, serif;
+    --sans: 'Inter Tight', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #1a1917;
+    background-image:
+      radial-gradient(ellipse at top left, rgba(230,185,51,0.04), transparent 55%),
+      radial-gradient(ellipse at bottom right, rgba(230,185,51,0.02), transparent 55%);
+    min-height: 100vh;
+    font-family: var(--sans);
+    color: #e8e4dc;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 28px 80px;
+    gap: 44px;
+  }
+
+  /* ─── Page header ─────────────────────────────────── */
+  .page-header {
+    text-align: center;
+    padding-bottom: 28px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    max-width: 600px;
+  }
+  .page-header h1 {
+    font-family: var(--serif);
+    font-size: 28px;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    color: #f1ede4;
+    margin-bottom: 10px;
+  }
+  .page-header h1 em { font-style: italic; color: var(--gold); font-weight: 500; }
+  .page-header p {
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(232,228,220,0.5);
+    font-weight: 500;
+  }
+
+  /* ─── Glass simulation wrapper ────────────────────── */
+  .decal-wrap {
+    background:
+      linear-gradient(135deg, rgba(150,170,200,0.18), rgba(80,100,130,0.06)),
+      repeating-linear-gradient(45deg, transparent 0, transparent 22px, rgba(255,255,255,0.025) 22px, rgba(255,255,255,0.025) 44px);
+    padding: 40px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+
+  /* ─── Decal — 4″ round ───────────────────────────── */
+  .decal {
+    width: 384px;  /* 4″ at 96dpi */
+    height: 384px;
+    position: relative;
+    border-radius: 50%;
+    background: var(--ink);
+    box-shadow:
+      0 0 0 1.5px var(--gold),
+      0 0 0 8px var(--ink),
+      0 0 0 9px rgba(230,185,51,0.25),
+      0 6px 28px rgba(0,0,0,0.45);
+    overflow: hidden;
+  }
+
+  /* ─── Arc text — SVG overlay ──────────────────────── */
+  .decal .arc-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 3;
+  }
+
+  /* ─── Center stack ────────────────────────────────── */
+  .decal .stack {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0 50px;
+    text-align: center;
+    gap: 6px;
+    z-index: 2;
+  }
+
+  .decal .stack .logo-icon {
+    width: 42px;
+    height: auto;
+    flex-shrink: 0;
+    filter: drop-shadow(0 1px 4px rgba(0,0,0,0.3));
+  }
+
+  .decal .stack .wm {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 20px;
+    color: var(--cream);
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .decal .stack .wm em {
+    font-style: italic;
+    color: var(--gold);
+    font-weight: 500;
+  }
+
+  .decal .stack .cta {
+    font-family: var(--serif);
+    font-style: italic;
+    font-weight: 500;
+    font-size: 13px;
+    color: var(--cream);
+    letter-spacing: -0.01em;
+    line-height: 1.15;
+    margin-top: 2px;
+    opacity: 0.85;
+  }
+
+  .decal .stack .qr-deco {
+    width: 130px;
+    height: 130px;
+    background: var(--cream);
+    border-radius: 4px;
+    margin-top: 2px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.4);
+  }
+  .decal .stack .qr-deco::before {
+    content: '';
+    position: absolute;
+    inset: 12%;
+    background-image:
+      linear-gradient(0deg, transparent 50%, var(--ink) 50%),
+      linear-gradient(90deg, transparent 50%, var(--ink) 50%);
+    background-size: 6% 6%, 6% 6%;
+    opacity: 0.85;
+  }
+  .decal .stack .qr-deco .c {
+    position: absolute;
+    width: 22%;
+    aspect-ratio: 1;
+    background: var(--ink);
+    z-index: 2;
+    border-radius: 2px;
+    box-shadow: inset 0 0 0 4px var(--cream), inset 0 0 0 6px var(--ink);
+  }
+  .decal .stack .qr-deco .c.tl { top: 7%; left: 7%; }
+  .decal .stack .qr-deco .c.tr { top: 7%; right: 7%; }
+  .decal .stack .qr-deco .c.bl { bottom: 7%; left: 7%; }
+
+  .decal .stack .scan-cap {
+    font-family: var(--sans);
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.36em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-top: 4px;
+    opacity: 0.9;
+  }
+
+  /* ─── Caption ─────────────────────────────────────── */
+  .caption {
+    text-align: center;
+    margin-top: 14px;
+    font-size: 10.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(232,228,220,0.42);
+  }
+
+  /* ─── Print spec ──────────────────────────────────── */
+  .print-spec {
+    max-width: 650px;
+    padding: 28px 32px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px;
+  }
+  .print-spec h3 {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 20px;
+    color: var(--gold);
+    margin-bottom: 18px;
+    letter-spacing: -0.015em;
+  }
+  .print-spec h3 em { font-style: italic; }
+  .print-spec .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px 32px;
+  }
+  .print-spec .item {
+    border-left: 1px solid var(--line);
+    padding: 4px 0 4px 14px;
+  }
+  .print-spec .item .name {
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 6px;
+  }
+  .print-spec .item .body {
+    font-family: var(--sans);
+    font-size: 12px;
+    line-height: 1.6;
+    color: rgba(232,228,220,0.72);
+  }
+  .print-spec .item .body strong {
+    color: #f1ede4;
+    font-weight: 600;
+  }
+
+  @media print {
+    body { background: white; padding: 0; }
+    .page-header, .print-spec, .caption { display: none; }
+    .decal-wrap { background: none; border: none; padding: 0; }
+    .decal {
+      width: 4in;
+      height: 4in;
+      box-shadow: none;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Annie's <em>&amp;</em> Co · Window Glass <em>Decal</em></h1>
+  <p>4″ round · vinyl · removable adhesive · print-ready</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- DECAL                                                -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="decal-wrap">
+  <div class="decal">
+    <!-- Arc text — SVG overlay -->
+    <svg class="arc-svg" viewBox="0 0 384 384" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <!-- Top arc — inside the outer gold ring -->
+        <path id="arc-top" d="M 44,192 A 148,148 0 0,1 340,192" fill="none"/>
+        <!-- Bottom arc — mirrored -->
+        <path id="arc-bot" d="M 46,198 A 146,146 0 0,0 338,198" fill="none"/>
+      </defs>
+
+      <!-- Outer thin gold ring -->
+      <circle cx="192" cy="192" r="174" fill="none" stroke="#e6b933" stroke-width="0.8" opacity="0.7"/>
+
+      <!-- Top arc text -->
+      <text font-family="Inter Tight, sans-serif" font-size="14" font-weight="700"
+            letter-spacing="3.4" fill="#e6b933" text-rendering="geometricPrecision">
+        <textPath href="#arc-top" startOffset="50%" text-anchor="middle">
+          ANNIE'S &amp; CO  ·  VEHICLE RENTAL
+        </textPath>
+      </text>
+
+      <!-- Bottom arc text -->
+      <text font-family="Inter Tight, sans-serif" font-size="11" font-weight="600"
+            letter-spacing="3.6" fill="#e6b933" opacity="0.92"
+            text-rendering="geometricPrecision">
+        <textPath href="#arc-bot" startOffset="50%" text-anchor="middle">
+          PORT ST. LUCIE  ·  FLORIDA
+        </textPath>
+      </text>
+
+      <!-- Top tick separator -->
+      <g transform="translate(192, 100)" opacity="0.55">
+        <line x1="-12" y1="0" x2="-3" y2="0" stroke="#e6b933" stroke-width="0.7"/>
+        <circle cx="0" cy="0" r="1.5" fill="#e6b933"/>
+        <line x1="3" y1="0" x2="12" y2="0" stroke="#e6b933" stroke-width="0.7"/>
+      </g>
+
+      <!-- Bottom tick separator -->
+      <g transform="translate(192, 300)" opacity="0.55">
+        <line x1="-12" y1="0" x2="-3" y2="0" stroke="#e6b933" stroke-width="0.7"/>
+        <circle cx="0" cy="0" r="1.5" fill="#e6b933"/>
+        <line x1="3" y1="0" x2="12" y2="0" stroke="#e6b933" stroke-width="0.7"/>
+      </g>
+    </svg>
+
+    <!-- Center stack -->
+    <div class="stack">
+      <img class="logo-icon" src="logo-icon.png" alt="Annie's & Co">
+      <div class="wm">Annie's <em>&amp;</em> Co</div>
+      <div class="cta">Need to rent a car?</div>
+      <div class="qr-deco">
+        <span class="c tl"></span>
+        <span class="c tr"></span>
+        <span class="c bl"></span>
+      </div>
+      <div class="scan-cap">Scan to book</div>
+    </div>
+  </div>
+</div>
+
+<div class="caption">
+  Glass background · stays opaque on dark window tint · removable adhesive
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- PRINT SPEC                                          -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="print-spec">
+  <h3>Print spec — <em>hand to your print shop</em></h3>
+  <div class="grid">
+    <div class="item">
+      <div class="name">Size &amp; shape</div>
+      <div class="body">
+        <strong>4″ round</strong> die-cut circle<br>
+        No bleed needed — edge is the cut
+      </div>
+    </div>
+    <div class="item">
+      <div class="name">Material</div>
+      <div class="body">
+        <strong>4mil white vinyl</strong><br>
+        Indoor-rated, removable adhesive<br>
+        Matte or satin finish
+      </div>
+    </div>
+    <div class="item">
+      <div class="name">Brand colors</div>
+      <div class="body">
+        <strong>Charcoal:</strong> #0E0E0E (CMYK 0,0,0,95)<br>
+        <strong>Brand gold:</strong> #E6B933 (CMYK 8,28,86,0)<br>
+        <strong>Cream QR bg:</strong> #F5EFE2 (CMYK 2,5,12,2)
+      </div>
+    </div>
+    <div class="item">
+      <div class="name">Typography</div>
+      <div class="body">
+        <strong>Display/CTA:</strong> Fraunces (italic 500)<br>
+        <strong>Arc text/labels:</strong> Inter Tight (600–700)<br>
+        Both free on Google Fonts
+      </div>
+    </div>
+    <div class="item">
+      <div class="name">QR code</div>
+      <div class="body">
+        <strong>URL:</strong> anniescarrental.com?utm_source=decal_window<br>
+        <strong>Error correction:</strong> Level H (30%)<br>
+        Generate at <strong>qrcode-monkey.com</strong>
+      </div>
+    </div>
+    <div class="item">
+      <div class="name">Vendors</div>
+      <div class="body">
+        <strong>Premium:</strong> StickerMule, Sticker You<br>
+        <strong>Local fast turn:</strong> FedEx Office<br>
+        Order in batches of 50–100
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
