@@ -9,6 +9,7 @@
 
 import { getStripe } from '../utils/stripe.js';
 import { supabase } from '../db/supabase.js';
+import brand from '../config/brand.js';
 
 const stripe = getStripe();
 
@@ -171,7 +172,7 @@ async function processSingleCharge(charge) {
       payment_method: booking.stripe_payment_method_id,
       off_session: true,
       confirm: true,
-      description: `Annie's — ${booking.booking_code} overage: ${charge.description}`,
+      description: `${brand.stripeDescriptionPrefix} — ${booking.booking_code} overage: ${charge.description}`,
       metadata: {
         booking_id: booking.id,
         booking_code: booking.booking_code,

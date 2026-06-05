@@ -2,6 +2,7 @@ import { Phone, MessageSquare } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useTheme } from '../../context/ThemeContext';
 import { EASE, STAGGER } from '../../utils/motion';
+import { brand } from '../../config/brand';
 
 const rideshareDriverImg = new URL('/rideshare-driver.jpeg', import.meta.url).href;
 const uberImg = new URL('/UBER.png', import.meta.url).href;
@@ -125,7 +126,7 @@ export default function LongTermSection() {
             style={{ color: 'var(--text-secondary)' }}
           >
             Monthly rates are personal — every situation is different.
-            Call Annie, tell her what you need, and she'll put together
+            Call us, tell us what you need, and we'll put together
             a rate that makes sense. No platform fees. No fine print.
             Just a fair deal, directly with the owner.
           </motion.p>
@@ -168,15 +169,15 @@ export default function LongTermSection() {
           >
             <div className="flex flex-col sm:flex-row gap-3 mb-4">
               <a
-                href="tel:+17722071655"
+                href={`tel:${brand.phone.replace(/[^\d+]/g, '')}`}
                 className="flex-1 py-3.5 rounded-full font-medium transition-all duration-500 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 text-sm"
                 style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
               >
                 <Phone size={14} />
-                Call Annie
+                Call Us
               </a>
               <a
-                href="sms:+17722071655"
+                href={`sms:${brand.phone.replace(/[^\d+]/g, '')}`}
                 className="flex-1 py-3.5 rounded-full font-medium border transition-all duration-500 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 text-sm"
                 style={{ borderColor: 'var(--border-medium)', color: 'var(--text-secondary)' }}
               >
@@ -185,7 +186,7 @@ export default function LongTermSection() {
               </a>
             </div>
             <p className="text-xs text-center" style={{ color: 'var(--text-tertiary)' }}>
-              We respond same day · Serving Port St. Lucie and the Treasure Coast
+              We respond same day · Serving {brand.location.city} and the surrounding area
             </p>
           </motion.div>
         </div>

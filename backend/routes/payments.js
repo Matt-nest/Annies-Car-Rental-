@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { supabase } from '../db/supabase.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { validatePaymentPayload } from '../utils/validators.js';
 import { getStripe } from '../utils/stripe.js';
@@ -78,7 +78,7 @@ router.patch('/:id', requireAuth, asyncHandler(async (req, res) => {
 }));
 
 /** POST /payments/:id/refund */
-router.post('/payments/:id/refund', requireAuth, asyncHandler(async (req, res) => {
+router.post('/payments/:id/refund', requireAuth, requireRole('owner', 'admin'), asyncHandler(async (req, res) => {
   const { amount, reason } = req.body; // absolute scalar amount to refund
 
   // 1. Fetch original payment

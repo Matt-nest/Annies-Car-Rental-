@@ -1,5 +1,6 @@
 import { motion } from 'motion/react';
 import { EASE, STAGGER } from '../../utils/motion';
+import { brand } from '../../config/brand';
 
 export default function InsuranceSection() {
   const cards = [
@@ -23,7 +24,7 @@ export default function InsuranceSection() {
         >
           <img
             src="/logo-icon.png"
-            alt="Annie's Car Rental"
+            alt={brand.name}
             className="w-[64px] h-[64px] sm:w-[80px] sm:h-[80px] object-contain"
             loading="lazy"
             decoding="async"

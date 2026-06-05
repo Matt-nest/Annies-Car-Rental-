@@ -1,8 +1,15 @@
+import { captureException } from '../services/sentry.js';
+
 export function errorHandler(err, req, res, next) {
   console.error(`[${new Date().toISOString()}] ${req.method} ${req.path}`, err);
 
   const status = err.status || err.statusCode || 500;
   const message = err.message || 'Internal server error';
+
+  // Report server errors (5xx) to Sentry
+  if (status >= 500) {
+    captureException(err, { method: req.method, path: req.path });
+  }
 
   res.status(status).json({
     error: message,

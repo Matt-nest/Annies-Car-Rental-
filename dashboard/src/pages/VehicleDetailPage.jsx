@@ -9,8 +9,9 @@ import Section from '../components/shared/Section';
 import Field from '../components/shared/Field';
 import WeeklyPricingSection from '../components/vehicles/WeeklyPricingSection';
 import { format } from 'date-fns';
+import brand from '../config/brand';
 
-const MAIN_SITE = 'https://www.anniescarrental.com';
+const MAIN_SITE = brand.siteUrl;
 function resolveThumb(url) {
   if (!url) return '';
   return url.startsWith('/fleet/') ? `${MAIN_SITE}${url}` : url;

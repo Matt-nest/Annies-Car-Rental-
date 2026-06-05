@@ -2,6 +2,7 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { supabase } from '../db/supabase.js';
 import { requireAuth } from '../middleware/auth.js';
+import { verifyRecaptcha } from '../middleware/recaptcha.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 
 const router = Router();
@@ -16,7 +17,7 @@ const inquiryRateLimit = rateLimit({
 });
 
 /** POST /monthly-inquiries — public, rate-limited */
-router.post('/', inquiryRateLimit, asyncHandler(async (req, res) => {
+router.post('/', inquiryRateLimit, verifyRecaptcha, asyncHandler(async (req, res) => {
   const {
     vehicle_id, name, phone,
     email,

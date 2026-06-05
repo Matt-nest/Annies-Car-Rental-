@@ -4,6 +4,7 @@ import { TOTAL_REVIEW_COUNT } from '../../data/reviews';
 import { useVehicles } from '../../hooks/useVehicles';
 import { useTheme } from '../../context/ThemeContext';
 import { EASE, STAGGER } from '../../utils/motion';
+import { brand } from '../../config/brand';
 const happyDriverImg = new URL('/happy-driver.png', import.meta.url).href;
 
 export default function TrustSection() {
@@ -27,7 +28,7 @@ export default function TrustSection() {
             className="text-[11px] uppercase tracking-[0.3em] font-medium mb-4 block"
             style={{ color: 'var(--accent-color)' }}
           >
-            Why Annie's
+            Why {brand.name}
           </motion.span>
           <motion.h2
             initial={{ opacity: 0, y: 20 }}

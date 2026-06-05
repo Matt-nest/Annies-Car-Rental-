@@ -1,3 +1,4 @@
+import brand from '../config/brand.js';
 import { supabase } from '../db/supabase.js';
 import { getStripe } from '../utils/stripe.js';
 import { sendBookingNotification, buildBookingPayload } from './notifyService.js';
@@ -76,7 +77,7 @@ export async function createDepositCharge(bookingId) {
       payment_type: 'deposit',
     },
     receipt_email: booking.customers?.email || undefined,
-    description: `Annie's Car Rental — Security Deposit — ${booking.booking_code}`,
+    description: `${brand.stripeDescriptionPrefix} — Security Deposit — ${booking.booking_code}`,
   });
 
   // Create or update the deposit record

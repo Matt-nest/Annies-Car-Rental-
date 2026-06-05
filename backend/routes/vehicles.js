@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { supabase } from '../db/supabase.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { checkAvailability, getAvailableVehicles } from '../services/availabilityService.js';
 import { enrichVehicle } from '../services/autoDevService.js';
@@ -143,7 +143,7 @@ router.get('/:id/blocked-dates', requireAuth, asyncHandler(async (req, res) => {
 }));
 
 /** POST /vehicles/:id/blocked-dates — admin */
-router.post('/:id/blocked-dates', requireAuth, asyncHandler(async (req, res) => {
+router.post('/:id/blocked-dates', requireAuth, requireRole('owner', 'admin', 'staff'), asyncHandler(async (req, res) => {
   const { start_date, end_date, reason, notes } = req.body;
   if (!start_date || !end_date) return res.status(400).json({ error: 'start_date and end_date required' });
 
@@ -158,7 +158,7 @@ router.post('/:id/blocked-dates', requireAuth, asyncHandler(async (req, res) => 
 }));
 
 /** POST /vehicles — admin */
-router.post('/', requireAuth, asyncHandler(async (req, res) => {
+router.post('/', requireAuth, requireRole('owner', 'admin'), asyncHandler(async (req, res) => {
   const { data, error } = await supabase
     .from('vehicles')
     .insert(req.body)
@@ -203,7 +203,7 @@ router.patch('/:id/status', requireAuth, asyncHandler(async (req, res) => {
 }));
 
 /** DELETE /vehicles/:id — remove vehicle (admin) */
-router.delete('/:id', requireAuth, asyncHandler(async (req, res) => {
+router.delete('/:id', requireAuth, requireRole('owner', 'admin'), asyncHandler(async (req, res) => {
   // Safety check: prevent deleting vehicles with active bookings
   const { data: activeBookings, error: bookingErr } = await supabase
     .from('bookings')

@@ -1,3 +1,5 @@
+import brand from '../config/brand.js';
+
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
 /**
@@ -14,8 +16,8 @@ export async function sendViaResend({ to, subject, html, fromAddress }) {
     return { skipped: true };
   }
 
-  // Use provided from address or default
-  const defaultFrom = process.env.EMAIL_FROM || "Annie's Car Rental <noreply@anniescarrental.com>";
+  // Use provided from address or default from brand config
+  const defaultFrom = brand.emailFrom;
   const from = fromAddress || defaultFrom;
 
   try {

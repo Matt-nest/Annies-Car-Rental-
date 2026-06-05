@@ -75,7 +75,7 @@ export default function GlobalSearch() {
   const [activeIndex, setActiveIndex] = useState(-1);
   const [recentSearches, setRecentSearches] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem('annies-recent-searches') || '[]');
+      return JSON.parse(localStorage.getItem('dashboard-recent-searches') || '[]');
     } catch { return []; }
   });
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -172,7 +172,7 @@ export default function GlobalSearch() {
     if (term) {
       const updated = [term, ...recentSearches.filter(s => s !== term)].slice(0, 5);
       setRecentSearches(updated);
-      try { localStorage.setItem('annies-recent-searches', JSON.stringify(updated)); } catch {}
+      try { localStorage.setItem('dashboard-recent-searches', JSON.stringify(updated)); } catch {}
     }
 
     setIsOpen(false);

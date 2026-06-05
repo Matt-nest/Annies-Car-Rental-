@@ -11,6 +11,7 @@ import {
   getLocalMessages,
   storeLocalMessage,
 } from '../services/messagingService.js';
+import brand from '../config/brand.js';
 
 const router = Router();
 
@@ -199,7 +200,7 @@ function extractEmail(s) {
 
 /**
  * POST /webhook/inbound-email — receive customer email replies routed via
- * Resend inbound (replies.anniescarrental.com → MX → Resend → POST here).
+ * Resend inbound (replies.{brand.domain} → MX → Resend → POST here).
  *
  * Auth: Svix HMAC-SHA256 signature. Bypass via X-Webhook-Secret matching
  * INBOUND_EMAIL_SECRET. Dev: skipped if RESEND_WEBHOOK_SECRET unset.
@@ -557,7 +558,7 @@ router.post('/email-templates/preview-html', requireAuth, asyncHandler(async (re
     };
     const cta = STAGE_CTA_PREVIEW[stage];
     if (cta) {
-      const siteUrl = process.env.SITE_URL || 'https://anniescarrental.com';
+      const siteUrl = brand.siteUrl;
       const href = cta.fieldKey ? (fields[cta.fieldKey] || `${siteUrl}/`) : `${siteUrl}${cta.path || '/'}`;
       const bg = cta.style === 'gold'
         ? 'background:linear-gradient(135deg,#D4AF37 0%,#B8941E 100%);color:#fff;'

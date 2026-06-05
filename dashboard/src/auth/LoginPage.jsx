@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
 import { Eye, EyeOff, AlertCircle, ChevronLeft, Shield } from 'lucide-react';
+import brand from '../config/brand';
 
 export default function LoginPage() {
   const { signIn, user } = useAuth();
@@ -33,7 +34,7 @@ export default function LoginPage() {
       >
         {/* Back link */}
         <a
-          href="https://www.anniescarrental.com"
+          href={brand.siteUrl}
           className="absolute top-8 left-8 sm:left-16 lg:left-20 flex items-center gap-1 text-sm font-medium transition-colors"
           style={{ color: '#465FFF' }}
           onMouseEnter={e => e.currentTarget.style.color = '#6B7FFF'}
@@ -86,7 +87,7 @@ export default function LoginPage() {
                 }}
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                placeholder="admin@anniescarrental.com"
+                placeholder={`admin@${brand.domain}`}
                 required
                 autoFocus
                 onFocus={e => {
@@ -260,7 +261,7 @@ export default function LoginPage() {
           >
             <img
               src="/logo-light.png"
-              alt="Annie's & Co"
+              alt={brand.name}
               className="w-full max-w-[220px] h-auto mx-auto mb-8"
             />
             <div

@@ -32,7 +32,11 @@ export function verifyCrispSignature(req, res, next) {
   }
 
   if (!secret) {
-    console.warn('[CrispSig] CRISP_WEBHOOK_SECRET not set — skipping signature verification');
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[CrispSig] CRISP_WEBHOOK_SECRET not set in production — rejecting webhook');
+      return res.status(500).json({ error: 'Webhook not configured' });
+    }
+    console.warn('[CrispSig] CRISP_WEBHOOK_SECRET not set — skipping signature verification (dev only)');
     return next();
   }
 

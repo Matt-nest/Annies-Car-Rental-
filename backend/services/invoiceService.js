@@ -1,8 +1,10 @@
 import { supabase } from '../db/supabase.js';
 import { sendViaResend } from '../utils/mailTransport.js';
 
-const SITE_URL = process.env.SITE_URL || 'https://anniescarrental.com';
-const LOGO_URL = `${SITE_URL}/logo.png`;
+import brand from '../config/brand.js';
+
+const SITE_URL = brand.siteUrl;
+const LOGO_URL = brand.logoUrl || `${SITE_URL}/logo.png`;
 
 function esc(s) { return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
@@ -206,7 +208,7 @@ export async function sendInvoiceEmail(invoiceId) {
   <div style="max-width:560px;margin:40px auto;background:#fff;border-radius:16px;border:1px solid #e7e5e4;overflow:hidden;">
     <div style="height:4px;background:linear-gradient(90deg,#c8a97e 0%,#d4af37 50%,#c8a97e 100%);"></div>
     <div style="background:#1c1917;padding:28px 32px;">
-      <img src="${LOGO_URL}" alt="Annie's Car Rental" width="140" style="display:block;max-width:140px;margin-bottom:16px;" />
+      <img src="${LOGO_URL}" alt="${esc(brand.name)}" width="140" style="display:block;max-width:140px;margin-bottom:16px;" />
       <h1 style="margin:0;color:#fff;font-size:22px;font-weight:600;">Deposit Settlement</h1>
     </div>
     <div style="padding:32px;">
@@ -254,8 +256,8 @@ export async function sendInvoiceEmail(invoiceId) {
 
       <div style="margin-top:28px;padding-top:20px;border-top:1px solid #f5f5f4;text-align:center;">
         <p style="font-size:13px;color:#57534e;margin:0 0 12px;">Questions about your settlement? We're here to help.</p>
-        <p style="font-size:12px;color:#a8a29e;margin:0;">Annie\u2019s Car Rental · 586 NW Mercantile Pl, Port St. Lucie, FL 34986</p>
-        <p style="font-size:12px;color:#a8a29e;margin:4px 0 0;">(772) 207-1655 · <a href="${SITE_URL}" style="color:#c8a97e;">anniescarrental.com</a></p>
+        <p style="font-size:12px;color:#a8a29e;margin:0;">${esc(brand.name)} · ${esc(brand.location.address)}, ${esc(brand.location.city)}, ${esc(brand.location.state)} ${esc(brand.location.zip)}</p>
+        <p style="font-size:12px;color:#a8a29e;margin:4px 0 0;">${esc(brand.phone)} · <a href="${SITE_URL}" style="color:#c8a97e;">${esc(brand.domain)}</a></p>
       </div>
     </div>
   </div>

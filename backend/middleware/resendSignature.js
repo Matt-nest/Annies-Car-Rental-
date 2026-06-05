@@ -30,7 +30,11 @@ export function verifyResendSignature(req, res, next) {
   }
 
   if (!secret) {
-    console.warn('[ResendSig] RESEND_WEBHOOK_SECRET not set — skipping signature verification');
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[ResendSig] RESEND_WEBHOOK_SECRET not set in production — rejecting webhook');
+      return res.status(500).json({ error: 'Webhook not configured' });
+    }
+    console.warn('[ResendSig] RESEND_WEBHOOK_SECRET not set — skipping signature verification (dev only)');
     return next();
   }
 
