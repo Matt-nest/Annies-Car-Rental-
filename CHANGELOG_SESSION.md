@@ -5,6 +5,28 @@
 
 ---
 
+## 2026-06-05 — Integration: unify Sprint line + white-label line into one template
+
+**Why:** The repo had drifted into **three unrelated git histories** with no common ancestor: (1) the Sprint line — all disciplined Sprint work through Sprint 18 (PWA, web push, native-iOS feel, messaging), most complete on `origin/claude/silly-wu-255144`; (2) the white-label line — a fresh history started 2026-06-01 (`origin/main`, the deployed site) adding brand config, brand-management dashboard, insurance-review workflow, reCAPTCHA, Sentry, security hardening; (3) a Web-Push branch. `main` (white-label) had **none** of the Sprint feature set, and the Sprint line had none of the white-label work. Goal: one branch containing **everything**, building clean — the master template that every new white-label client clones from.
+
+**Scope:** New branch `integration/unify-all-functionality` off Sprint 18. 90 files changed vs that base (+5169/−308), 6 commits. No common ancestor with `main`, so this was a content merge of two trees, not a git merge.
+
+**Method + decisions:**
+- Base = Sprint 18 (richer); ported white-label's genuine additions onto it, dropped white-label's regressions (it branched from an older base, so many of its "changes" reverted Sprint work).
+- **Kept Sprint:** PWA + code-split architecture (over white-label's single-file/eager build), `dvh`/`Sheet`/`color-mix`/safe-area/haptics native-iOS layer, web-push, dashboard accent **#465FFF indigo** (user pick), customer accent brand-driven gold.
+- **Took white-label:** brand config (build-time `VITE_BRAND_*`), brand routes + `022_create_brands` migration + BrandsTab, insurance-review (`pending_review` + approve/reject), reCAPTCHA (replaced `x-api-key`), Sentry, `requireRole` hardening.
+- `api/index.js` (prod Vercel entry) now registers brand routes AND keeps push routes.
+- Reconciled 40 page/component files via a fan-out workflow (merge + adversarial verify); the verify pass caught agents that edited the wrong repo clone and self-reported inaccurately — those 10 files were redone by hand.
+- Fixed a bug inherited from white-label: `rentalTerms.ts` used non-existent `brand.legal.entityName` → `brand.legalEntity`.
+
+**Verification:** customer site + dashboard both `npm run build` clean (code-split + PWA intact); 21 backend files parse; deterministic scan = 0 regressions, 0 lost-brand strings. **Not** run live; flows (booking/insurance/push) not yet exercised. `npm install` added `@sentry/react` to dashboard; customer/backend Sentry deps still need install on deploy.
+
+**Architecture note:** white-label is **clone-per-client** (build-time `.env`, not runtime multi-tenant). The `brands` table + `/brands/:id/env` endpoint is a config registry that mints each client's `.env`. New client = new deployment + new `.env` + new Supabase/Stripe/Twilio/Resend. See `NEW_CLIENT.md`.
+
+**Not landed:** branch is unmerged; `main`/live untouched pending user review + live verification.
+
+---
+
 ## 2026-05-19 — Sprint 13: dashboard mobile chrome lockdown (safe-area + dvh + responsive button rows + portal touch targets)
 
 **Why:** Field testing on a real iPhone surfaced four mobile bugs that escaped the earlier sprints. The iOS status bar was overlapping the hamburger menu (no safe-area-inset-top on the dashboard topbar). Booking Detail panned horizontally because the Invoice tab's button rows used non-wrapping `flex` containers with long-text buttons. Most critically: the Messaging composer was physically rendered below the BottomNav and off-screen because `MessagingPage` sized itself with `calc(100vh - 64px)` — `100vh` is wrong on iOS Safari, and the `- 64px` only subtracted the dashboard header height, not the new mobile BottomNav that Sprint 3a added. Net effect: admin couldn't type messages at all on a phone. Plus the customer-portal PhotoUploader's delete button was 24×24 AND hidden behind `opacity-0 group-hover:opacity-100` — touch devices have no hover, so it was invisible and unreachable.
