@@ -4,11 +4,19 @@
  * These fire ONLY when the `email_templates` DB table has no active row
  * for a given stage. DB templates always take priority.
  *
+ * All brand-specific values (name, phone, address, etc.) are injected
+ * from `brand.js` so the templates work for any white-label deployment.
+ *
  * Covers Tier 1 (business-critical) and Tier 2 (revenue/protection):
  *   booking_approved, booking_declined, booking_cancelled,
  *   payment_confirmed, pickup_reminder, return_reminder,
  *   late_return_warning, rental_completed
  */
+
+import brand from '../config/brand.js';
+
+const B = brand;
+const ADDR = `${B.location.address}, ${B.location.city}, ${B.location.state} ${B.location.zip}`;
 
 const FALLBACK_TEMPLATES = {
 
@@ -54,10 +62,10 @@ Don't want to come to us? We offer delivery and pickup:
 Reply to this email or text us to arrange delivery.
 
 Questions? We're here:
-  (772) 207-1655
+  ${B.phone}
 
-Annie's Car Rental
-Port Saint Lucie, FL`,
+${B.name}
+${B.location.city}, ${B.location.state}`,
     sms_body: `Great news, {{first_name}} — your booking is confirmed!
 
 {{vehicle}}
@@ -69,7 +77,7 @@ Complete your agreement & pay here:
 
 We'll send you pickup instructions and the lockbox code the day before your rental.
 
-— Annie's Car Rental`,
+— ${B.name}`,
   },
 
   booking_declined: {
@@ -91,19 +99,19 @@ REASON
 WHAT YOU CAN DO
 We may have other vehicles available for your dates. Please give us a call and we'll help find something that works:
 
-  (772) 207-1655
+  ${B.phone}
 
 We appreciate your interest and hope to serve you soon.
 
-Annie's Car Rental
-Port Saint Lucie, FL`,
+${B.name}
+${B.location.city}, ${B.location.state}`,
     sms_body: `Hi {{first_name}}, unfortunately we're unable to confirm your booking for the {{vehicle}} ({{pickup_date}} – {{return_date}}).
 
 {{decline_reason}}
 
-We'd love to help you find an alternative. Give us a call at (772) 207-1655.
+We'd love to help you find an alternative. Give us a call at ${B.phone}.
 
-— Annie's Car Rental`,
+— ${B.name}`,
   },
 
   payment_confirmed: {
@@ -182,10 +190,10 @@ Your \${{deposit_amount}} security deposit is fully refundable. After your retur
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Questions? We're always here:
-  (772) 207-1655
+  ${B.phone}
 
-Annie's Car Rental
-Port Saint Lucie, FL`,
+${B.name}
+${B.location.city}, ${B.location.state}`,
     sms_body: `Hi {{first_name}}, your payment of \${{total_charged}} for the {{vehicle}} is confirmed! ✅
 
 Ref: {{booking_code}}
@@ -193,9 +201,9 @@ Pickup: {{pickup_date}} at {{pickup_time}}
 
 Your Customer Portal: {{portal_link}}
 
-We'll text you pickup instructions the day before. Questions? Call (772) 207-1655.
+We'll text you pickup instructions the day before. Questions? Call ${B.phone}.
 
-— Annie's Car Rental`,
+— ${B.name}`,
   },
 
   pickup_reminder: {
@@ -228,8 +236,7 @@ Inspection Photos:
 {{handoff_photos}}{{/if}}
 {{/if}}
 PICKUP LOCATION
-586 NW Mercantile Pl
-Port Saint Lucie, FL 34986
+${ADDR}
 → Park and walk to the back of the building.
 
 HOW TO GET YOUR KEYS
@@ -250,14 +257,14 @@ IMPORTANT REMINDERS
 • Text us when you arrive so we know you're all set.
 
 CONTACT
-  (772) 207-1655
+  ${B.phone}
 
-Annie's Car Rental
-Port Saint Lucie, FL`,
+${B.name}
+${B.location.city}, ${B.location.state}`,
     sms_body: `Hi {{first_name}}, your {{vehicle}} is ready for pickup tomorrow.
 
 Mileage: {{mileage_policy}}.
-📍 586 NW Mercantile Pl, Port Saint Lucie, FL 34986
+📍 ${ADDR}
 🔑 Lockbox code: {{lockbox_code}}
 🅿️ The car will be parked in the back of the building.
 
@@ -269,9 +276,9 @@ When you arrive:
 
 Complete your check-in: {{portal_link}}
 
-Need help? Call us at (772) 207-1655.
+Need help? Call us at ${B.phone}.
 
-— Annie's Car Rental`,
+— ${B.name}`,
   },
 
   return_reminder: {
@@ -288,8 +295,7 @@ Vehicle:  {{vehicle}}
 Ref:      {{booking_code}}
 
 RETURN LOCATION
-586 NW Mercantile Pl
-Port Saint Lucie, FL 34986
+${ADDR}
 
 RETURN CHECKLIST
 ☐ Fill fuel to the same level you received the car with
@@ -301,15 +307,15 @@ WANT TO EXTEND?
 If your plans have changed, we can often extend your rental or swap you into another vehicle. Just reply to this email or text us.
 
 CONTACT
-  (772) 207-1655
+  ${B.phone}
 
-Annie's Car Rental
-Port Saint Lucie, FL`,
+${B.name}
+${B.location.city}, ${B.location.state}`,
     sms_body: `Hi {{first_name}}, a reminder that your {{vehicle}} is due back tomorrow.
 
 Return by: {{return_date}} at {{return_time}}
 
-📍 586 NW Mercantile Pl, Port Saint Lucie, FL 34986
+📍 ${ADDR}
 
 Please remember:
 • Return with the same fuel level
@@ -319,7 +325,7 @@ Please remember:
 
 Want to extend? Reply to this message and we'll check availability.
 
-— Annie's Car Rental`,
+— ${B.name}`,
   },
 
   // ── TIER 2: Revenue & protection ─────────────────────────────────────────
@@ -332,10 +338,10 @@ Want to extend? Reply to this message and we'll check availability.
 
 If you need to extend, reply to this message and we'll check availability.
 
-Return address: 586 NW Mercantile Pl, Port Saint Lucie, FL 34986
+Return address: ${ADDR}
 
-— Annie's Car Rental
-(772) 207-1655`,
+— ${B.name}
+${B.phone}`,
   },
 
   rental_completed: {
@@ -343,9 +349,9 @@ Return address: 586 NW Mercantile Pl, Port Saint Lucie, FL 34986
     subject: 'How was your rental, {{first_name}}?',
     body: `Hi {{first_name}},
 
-Thank you for renting with Annie's Car Rental. We hope the {{vehicle}} made your trip a little easier.
+Thank you for renting with ${B.name}. We hope the {{vehicle}} made your trip a little easier.
 
-We're a small, family-run business in Port Saint Lucie, and your feedback helps us grow. If you have a moment, we'd love to hear how it went.
+We're a small, family-run business in ${B.location.city}, and your feedback helps us grow. If you have a moment, we'd love to hear how it went.
 
 → Leave a review: {{review_link}}
 
@@ -354,16 +360,16 @@ Every guest who leaves a review receives 5% off their next rental. Just mention 
 
 We'd love to have you back.
 
-Annie's Car Rental
-Port Saint Lucie, FL
-(772) 207-1655`,
+${B.name}
+${B.location.city}, ${B.location.state}
+${B.phone}`,
     sms_body: `Hi {{first_name}}, we hope you enjoyed your {{vehicle}}.
 
 If you have a moment, a review would mean a lot to our small business. As a thank you, we'll give you 5% off your next rental.
 
 Leave a review: {{review_link}}
 
-— Annie's Car Rental`,
+— ${B.name}`,
   },
 
   booking_cancelled: {
@@ -382,19 +388,19 @@ Dates:      {{pickup_date}} – {{return_date}}
 If a deposit was collected, it will be refunded to your original payment method within 3–5 business days per our cancellation policy.
 
 If you'd like to rebook or have questions, we're here to help:
-  (772) 207-1655
+  ${B.phone}
 
-Annie's Car Rental
-Port Saint Lucie, FL`,
+${B.name}
+${B.location.city}, ${B.location.state}`,
     sms_body: `Hi {{first_name}}, your booking for the {{vehicle}} ({{pickup_date}} – {{return_date}}) has been cancelled.
 
 Ref: {{booking_code}}
 
 If a deposit was collected, it will be refunded within 3–5 business days.
 
-Questions? Call us at (772) 207-1655.
+Questions? Call us at ${B.phone}.
 
-— Annie's Car Rental`,
+— ${B.name}`,
   },
 
   // ── TIER 2 (continued): Deposit Notifications ────────────────────────────
@@ -419,17 +425,17 @@ Your refund of \${{refund_amount}} will be returned to your original payment met
 Thank you for taking great care of the vehicle — we hope to see you again soon.
 
 Questions? We're always here:
-  (772) 207-1655
+  ${B.phone}
 
-Annie's Car Rental
-Port Saint Lucie, FL`,
+${B.name}
+${B.location.city}, ${B.location.state}`,
     sms_body: `Hi {{first_name}}, your \${{deposit_amount}} security deposit for the {{vehicle}} has been fully refunded! ✅
 
 Ref: {{booking_code}}
 
 The refund will appear on your statement within 5–10 business days.
 
-— Annie's Car Rental`,
+— ${B.name}`,
   },
 
   deposit_settled: {
@@ -452,10 +458,10 @@ Refund Amount:   \${{refund_amount}}
 If you have any questions about the charges applied to your deposit, please don't hesitate to reach out. You can also view your booking details and submit a dispute through your Customer Portal.
 
 Contact us anytime:
-  (772) 207-1655
+  ${B.phone}
 
-Annie's Car Rental
-Port Saint Lucie, FL`,
+${B.name}
+${B.location.city}, ${B.location.state}`,
     sms_body: `Hi {{first_name}}, your deposit for the {{vehicle}} has been settled.
 
 Deposit: \${{deposit_amount}}
@@ -464,9 +470,9 @@ Refund:  \${{refund_amount}}
 
 Ref: {{booking_code}}
 
-The refund will appear on your statement within 5–10 business days. Questions? Call (772) 207-1655.
+The refund will appear on your statement within 5–10 business days. Questions? Call ${B.phone}.
 
-— Annie's Car Rental`,
+— ${B.name}`,
   },
 
   inspection_charges_scheduled: {
@@ -486,10 +492,10 @@ Amount Owed:     \${{amount_owed}}
 This charge will be processed automatically in 48 hours. If you'd like to dispute any portion before that window closes, log into your Customer Portal — disputed charges are paused for review.
 
 Contact us anytime:
-  (772) 207-1655
+  ${B.phone}
 
-Annie's Car Rental
-Port Saint Lucie, FL`,
+${B.name}
+${B.location.city}, ${B.location.state}`,
   },
 
   // ── Bonzah insurance lifecycle ───────────────────────────────────────────
@@ -513,10 +519,10 @@ Effective:    {{pickup_date}} – {{return_date}}
 The policy is held with Bonzah (Insillion) — keep this email for your records. If you have a claim during your rental, contact Bonzah directly using the policy number above.
 
 Need to reach us?
-  (772) 207-1655
+  ${B.phone}
 
-Annie's Car Rental
-Port Saint Lucie, FL`,
+${B.name}
+${B.location.city}, ${B.location.state}`,
   },
 
   insurance_bind_failed: {
@@ -542,7 +548,7 @@ WHAT TO DO
 
 The customer's Stripe charge HAS gone through. They are not aware of this failure.
 
-— Annie's Car Rental Internal Alert`,
+— ${B.name} Internal Alert`,
   },
 
   // ── Phase 1 audit F-4: orphan stages now wired ───────────────────────────
@@ -561,15 +567,15 @@ NEXT STEPS
 We'll review the details and contact you within 1 business day to walk through what we found, what (if anything) is owed beyond your security deposit, and answer any questions you may have.
 
 If you'd like to get ahead of this, you can reach us directly:
-  (772) 207-1655
+  ${B.phone}
 
 Your booking details are also available in your customer portal:
 {{portal_link}}
 
 Thank you for renting with us — we'll be in touch soon.
 
-Annie's Car Rental
-Port Saint Lucie, FL`,
+${B.name}
+${B.location.city}, ${B.location.state}`,
   },
 
   day_of_pickup: {
@@ -578,15 +584,15 @@ Port Saint Lucie, FL`,
     body: null,
     sms_body: `Good morning, {{first_name}}! Your {{vehicle}} is ready for pickup today at {{pickup_time}}.
 
-📍 586 NW Mercantile Pl, Port Saint Lucie, FL 34986 (back of building)
+📍 ${ADDR} (back of building)
 🔑 Lockbox code: {{lockbox_code}}
 
 Complete your check-in here: {{portal_link}}
 
 Drive safe — text us if anything comes up.
 
-— Annie's Car Rental
-(772) 207-1655`,
+— ${B.name}
+${B.phone}`,
   },
 
   day_of_return: {
@@ -595,7 +601,7 @@ Drive safe — text us if anything comes up.
     body: null,
     sms_body: `Good morning, {{first_name}}! Your {{vehicle}} is due back today by {{return_time}}.
 
-📍 586 NW Mercantile Pl, Port Saint Lucie (back of building, near the dumpster)
+📍 ${ADDR} (back of building, near the dumpster)
 🔑 Place key in lockbox (code {{lockbox_code}})
 
 Quick checklist:
@@ -605,8 +611,8 @@ Quick checklist:
 
 Thanks again for renting with us!
 
-— Annie's Car Rental
-(772) 207-1655`,
+— ${B.name}
+${B.phone}`,
   },
 };
 

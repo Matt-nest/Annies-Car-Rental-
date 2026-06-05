@@ -35,6 +35,8 @@ import bonzahRoutes from './routes/bonzah.js';
 import bouncieRoutes from './routes/bouncie.js';
 import bouncieWebhookRoutes from './routes/bouncieWebhooks.js';
 import pushRoutes from './routes/push.js';
+import brandRoutes from './routes/brands.js';
+import { sentryRequestHandler, sentryErrorHandler } from './services/sentry.js';
 
 const app = express();
 const PORT = process.env.API_PORT || 3001;
@@ -74,6 +76,9 @@ app.use((req, res, next) => {
   if (req.path === '/api/v1/stripe/webhook') return next();
   express.urlencoded({ extended: false, limit: '1mb' })(req, res, next);
 });
+
+// ── Sentry request handler (must be first middleware) ─────────────────────────
+app.use(sentryRequestHandler());
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
@@ -122,9 +127,13 @@ app.use('/api/v1/admin/bonzah', bonzahRoutes);
 app.use('/api/v1/admin/bouncie', bouncieRoutes);
 app.use('/api/v1/bouncie', bouncieWebhookRoutes);
 app.use('/api/v1/push', pushRoutes);
+app.use('/api/v1/brands', brandRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ error: `${req.method} ${req.path} not found` }));
+
+// ── Sentry error handler (must be before custom errorHandler) ─────────────────
+app.use(sentryErrorHandler());
 
 // ── Error handler ─────────────────────────────────────────────────────────────
 app.use(errorHandler);

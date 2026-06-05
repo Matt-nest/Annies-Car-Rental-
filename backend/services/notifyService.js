@@ -14,6 +14,7 @@ import { sendViaResend } from '../utils/mailTransport.js';
 import { renderBrandedShell, escapeHtml } from '../utils/emailShell.js';
 import FALLBACK_TEMPLATES from './fallbackTemplates.js';
 import { sendToCustomer as sendPushToCustomer, sendToAllAdmins as sendPushToAllAdmins } from './pushService.js';
+import brand from '../config/brand.js';
 
 /**
  * Stages where the admin team should also receive a push notification
@@ -77,6 +78,9 @@ const STAGE_CTA = {
   // F-4: day_of_return is the morning-of return SMS (parallels day_of_pickup).
   day_of_return:       { label: 'View Return Details',           fieldKey: 'portal_link' },
   insurance_policy_issued: { label: 'View My Booking',          fieldKey: 'portal_link', style: 'gold' },
+  // Insurance review flow (Bonzah disabled — admin reviews own-insurance submissions)
+  insurance_approved:      { label: 'View My Booking',           fieldKey: 'portal_link', style: 'gold' },
+  insurance_rejected:      { label: 'Contact Us',                fallbackPath: '/#contact' },
   // insurance_bind_failed is admin-only — no customer CTA
 };
 
@@ -88,7 +92,7 @@ function buildCtaHtml(stage, mergeFields) {
   const cta = STAGE_CTA[stage];
   if (!cta) return '';
 
-  const siteUrl = process.env.SITE_URL || 'https://anniescarrental.com';
+  const siteUrl = brand.siteUrl;
   let href = '';
   if (cta.fieldKey && mergeFields[cta.fieldKey]) {
     href = mergeFields[cta.fieldKey];
@@ -270,7 +274,7 @@ export function buildMergeFields(bookingPayload) {
   const v = bp.vehicle || {};
   const c = bp.customer || {};
   const h = bp.handoff || {};
-  const siteUrl = process.env.SITE_URL || 'https://anniescarrental.com';
+  const siteUrl = brand.siteUrl;
 
   // Vehicle photo: prefer VIN-based hero image, fallback to thumbnail_url
   const vehiclePhotoUrl = v.vin
@@ -333,7 +337,7 @@ export function buildMergeFields(bookingPayload) {
       bp.unlimited_tolls ? `Unlimited Tolls: $${Number(bp.toll_addon_fee || 20).toFixed(2)}` : '',
     ].filter(Boolean).join(', ') || 'None',
     // Review
-    review_link:    bp.review_link || 'https://g.page/annies-car-rental/review',
+    review_link:    bp.review_link || brand.reviewLink,
     // F-6: Bonzah insurance lifecycle merge fields. All populated by
     // buildBookingPayload but were never lifted into the merge map — so any
     // template referencing them (insurance_policy_issued, insurance_bind_failed)

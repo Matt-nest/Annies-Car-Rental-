@@ -11,8 +11,7 @@
  * separately and pass it to renderBrandedShell as `innerHtml`.
  */
 
-const SITE_URL = process.env.SITE_URL || 'https://anniescarrental.com';
-const LOGO_URL = `${SITE_URL}/logo.png`;
+import brand from '../config/brand.js';
 
 export function escapeHtml(str) {
   return (str || '')
@@ -22,7 +21,7 @@ export function escapeHtml(str) {
 }
 
 /**
- * Wrap inner HTML in the Annie's Car Rental branded shell.
+ * Wrap inner HTML in the ${brand.name} branded shell.
  * @param {string} subject — rendered as the H1 in the dark header.
  * @param {string} innerHtml — already-escaped, already-rendered body HTML.
  *                             Caller is responsible for escaping merge fields.
@@ -35,12 +34,12 @@ export function renderBrandedShell(subject, innerHtml) {
   <div style="max-width:560px;margin:40px auto;background:#fff;border-radius:16px;border:1px solid #e7e5e4;overflow:hidden;">
 
     <!-- Gold accent bar -->
-    <div style="height:4px;background:linear-gradient(90deg,#c8a97e 0%,#d4af37 50%,#c8a97e 100%);"></div>
+    <div style="height:4px;background:linear-gradient(90deg,${brand.colors.link} 0%,${brand.colors.primary} 50%,${brand.colors.link} 100%);"></div>
 
     <!-- Header -->
-    <div style="background:#1c1917;padding:28px 32px;">
+    <div style="background:${brand.colors.secondary};padding:28px 32px;">
       <div style="margin-bottom:16px;">
-        <img src="${LOGO_URL}" alt="Annie's Car Rental" width="140" height="auto" style="display:block;max-width:140px;" />
+        <img src="${brand.logoUrl}" alt="${escapeHtml(brand.name)}" width="140" height="auto" style="display:block;max-width:140px;" />
       </div>
       <h1 style="margin:0;color:#fff;font-size:22px;font-weight:600;letter-spacing:-0.01em;">${escapeHtml(subject)}</h1>
     </div>
@@ -52,10 +51,10 @@ export function renderBrandedShell(subject, innerHtml) {
 
     <!-- Footer -->
     <div style="padding:24px 32px;border-top:1px solid #e7e5e4;background:#fafaf9;text-align:center;">
-      <p style="margin:0 0 6px;font-size:13px;font-weight:600;color:#78716c;">Annie's Car Rental</p>
-      <p style="margin:0 0 4px;font-size:12px;color:#a8a29e;">Port St. Lucie, FL · (772) 207-1655</p>
+      <p style="margin:0 0 6px;font-size:13px;font-weight:600;color:#78716c;">${escapeHtml(brand.name)}</p>
+      <p style="margin:0 0 4px;font-size:12px;color:#a8a29e;">${escapeHtml(brand.location.city)}, ${escapeHtml(brand.location.state)} &middot; ${escapeHtml(brand.phone)}</p>
       <p style="margin:0;font-size:11px;color:#d6d3d1;">
-        <a href="${SITE_URL}" style="color:#c8a97e;text-decoration:none;">anniescarrental.com</a>
+        <a href="${brand.siteUrl}" style="color:${brand.colors.link};text-decoration:none;">${escapeHtml(brand.domain)}</a>
       </p>
     </div>
 

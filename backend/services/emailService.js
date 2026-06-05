@@ -9,7 +9,8 @@
  * then add RESEND_API_KEY to Vercel backend environment variables.
  */
 
-const SITE_URL = process.env.SITE_URL || 'https://anniescarrental.com';
+import brand from '../config/brand.js';
+const SITE_URL = brand.siteUrl;
 import { sendViaResend } from '../utils/mailTransport.js';
 import { renderBrandedShell, escapeHtml as esc } from '../utils/emailShell.js';
 
@@ -79,7 +80,7 @@ export async function sendPaymentDeclined({ customer, booking, amountCents, reas
     ${ctaButton(portalLink, 'Update Payment Method →', 'gold')}
 
     <p style="margin:0;text-align:center;font-size:12px;color:#a8a29e;">
-      Questions? Call or text us at <strong>(772) 207-1655</strong>
+      Questions? Call or text us at <strong>${esc(brand.phone)}</strong>
     </p>
   `;
 
@@ -100,7 +101,7 @@ export async function sendBookingConfirmation({ customer, booking, vehicle }) {
   const body = `
     <p style="margin:0 0 16px;color:#44403c;font-size:15px;line-height:1.7;">Hi ${esc(customer.first_name)},</p>
     <p style="margin:0 0 24px;color:#44403c;font-size:15px;line-height:1.7;">
-      Thanks for choosing Annie's Car Rental. We've received your request and will review it within a few hours during business hours.
+      Thanks for choosing ${esc(brand.name)}. We've received your request and will review it within a few hours during business hours.
     </p>
 
     <!-- Booking Details -->
@@ -119,7 +120,7 @@ export async function sendBookingConfirmation({ customer, booking, vehicle }) {
     ${ctaButton(statusUrl, 'Check Booking Status →')}
 
     <p style="margin:0;text-align:center;font-size:12px;color:#a8a29e;">
-      Questions? Call or text us at <strong>(772) 207-1655</strong>
+      Questions? Call or text us at <strong>${esc(brand.phone)}</strong>
     </p>
   `;
 
@@ -142,7 +143,7 @@ export async function sendContinueBookingEmail({ customer, booking, vehicle }) {
   const body = `
     <p style="margin:0 0 16px;color:#44403c;font-size:15px;line-height:1.7;">Hi ${esc(customer.first_name)},</p>
     <p style="margin:0 0 24px;color:#44403c;font-size:15px;line-height:1.7;">
-      Annie's Car Rental has set up a booking for you${vehicle ? ` for the <strong>${esc(vehicle)}</strong>` : ''}.
+      ${esc(brand.name)} has set up a booking for you${vehicle ? ` for the <strong>${esc(vehicle)}</strong>` : ''}.
       To finalize the rental, you'll need to add insurance, sign the rental agreement, and complete payment.
     </p>
 
@@ -161,7 +162,7 @@ export async function sendContinueBookingEmail({ customer, booking, vehicle }) {
     ${ctaButton(continueUrl, 'Continue Your Booking →', 'gold')}
 
     <p style="margin:0;text-align:center;font-size:12px;color:#a8a29e;">
-      Questions? Call or text us at <strong>(772) 207-1655</strong>
+      Questions? Call or text us at <strong>${esc(brand.phone)}</strong>
     </p>
   `;
 
@@ -177,19 +178,19 @@ export async function sendContinueBookingEmail({ customer, booking, vehicle }) {
  * Goal: Prompt immediate counter-signature.
  */
 export async function sendCounterSignNotification({ booking, customer, vehicle }) {
-  const ownerEmail = process.env.OWNER_EMAIL;
+  const ownerEmail = brand.ownerEmail;
   if (!ownerEmail) {
     console.log('[Email] OWNER_EMAIL not set — skipping counter-sign notification');
     return { skipped: true };
   }
 
-  const dashboardUrl = process.env.DASHBOARD_URL || 'https://admin.dashboard.anniescarrental.com';
+  const dashboardUrl = brand.dashboardUrl;
   const bookingLink = `${dashboardUrl}/bookings/${booking.id}`;
   const customerName = `${customer.first_name} ${customer.last_name}`.trim();
   const vehicleLabel = vehicle || 'Vehicle';
 
   const body = `
-    <p style="margin:0 0 16px;color:#44403c;font-size:15px;">Hi Annie,</p>
+    <p style="margin:0 0 16px;color:#44403c;font-size:15px;">Hello,</p>
     <p style="margin:0 0 24px;color:#44403c;font-size:15px;line-height:1.7;">
       <strong>${esc(customerName)}</strong> has signed the rental agreement for <strong>${esc(booking.booking_code)}</strong>. Your counter-signature is needed to confirm this rental.
     </p>
