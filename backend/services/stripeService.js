@@ -400,12 +400,13 @@ export async function handleWebhookEvent(event) {
 
       // Create booking_deposits record for settlement tracking
       if (depositCents > 0) {
-        await supabase.from('booking_deposits').upsert({
+        const { error: depErr } = await supabase.from('booking_deposits').upsert({
           booking_id: bookingId,
           amount: depositCents,
           stripe_charge_id: pi.id,
           status: 'held',
-        }, { onConflict: 'booking_id' }).catch(() => {});
+        }, { onConflict: 'booking_id' });
+        if (depErr) console.warn(`[Stripe] booking_deposits upsert failed for ${bookingId}:`, depErr.message);
       }
 
       console.log(`[Stripe] Payment succeeded for booking ${pi.metadata.booking_code}: $${rentalDollars} rental + $${depositDollars} deposit = $${pi.amount / 100} total`);
@@ -563,12 +564,13 @@ export async function confirmPayment(paymentIntentId) {
 
   // Create booking_deposits record for settlement tracking
   if (depositCents > 0) {
-    await supabase.from('booking_deposits').upsert({
+    const { error: depErr } = await supabase.from('booking_deposits').upsert({
       booking_id: bookingId,
       amount: depositCents,
       stripe_charge_id: pi.id,
       status: 'held',
-    }, { onConflict: 'booking_id' }).catch(() => {});
+    }, { onConflict: 'booking_id' });
+    if (depErr) console.warn(`[Stripe] booking_deposits upsert failed for ${bookingId}:`, depErr.message);
   }
 
   console.log(`[Stripe] Payment confirmed for booking ${pi.metadata.booking_code}: $${pi.amount / 100}`);

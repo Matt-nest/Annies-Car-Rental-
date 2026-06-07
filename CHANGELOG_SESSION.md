@@ -5,6 +5,41 @@
 
 ---
 
+## 2026-06-07 — Live end-to-end booking run: confirm-payment 500 fixed
+
+**Why:** Ran the full customer booking flow live against the local backend in Stripe **test mode** (test Supabase, `sk_test`, reCAPTCHA fails open in dev) to prove it works, not just trace it. Drove every step via API: upload ID → `POST /bookings` → `GET/POST /agreements/:code` (sign) → `PATCH /bookings/:code/insurance` → `POST /stripe/create-payment-intent` → real Stripe test-card confirm (`pm_card_visa`) → `POST /stripe/confirm-payment` → receipt → `GET /bookings/status/:code`.
+
+**Real bug found + fixed (`services/stripeService.js`):** `confirmPayment()` (and the identical webhook handler block) ended the best-effort `booking_deposits` upsert with `.catch(() => {})`. The Supabase query builder is a thenable with **no `.catch` method** (it signals DB errors via a returned `{ error }`, never a rejection), so the call threw `supabase.from(...).upsert(...).catch is not a function` → **`POST /stripe/confirm-payment` returned 500 after a successful charge.** The frontend swallows that 500 ("webhook will catch it"), so the customer still saw success while the server-side payment finalization silently failed — and on localhost there's no webhook to catch it. Fixed both occurrences (confirmPayment + `handleWebhookEvent`) to `await` the upsert and warn on the returned error. Swept the rest of the backend: no other supabase-builder `.catch` chains exist (the remaining `.catch` calls are on real Promises — Stripe SDK, `transitionBooking`, `sendEmail`).
+
+**Verified after fix (test DB rows confirmed):** fresh booking `BK-20260607-YRZA` — `confirm-payment` now 200; `payments` has rental $524.30 + deposit $150 (both completed, linked to the PI); `bookings.deposit_status='paid'`; `booking_deposits` row persists ($150 held) — the exact write that previously threw. Availability check also verified live (second booking on the same vehicle/dates correctly 409'd). Final status `pending_approval` is correct — customer-submitted bookings await admin approval; only `created_by_admin` bookings auto-confirm on payment. Two test bookings (`BK-20260607-KD44`, `BK-20260607-YRZA`) remain in the test DB — delete if undesired.
+
+**Files:** `backend/services/stripeService.js`.
+
+---
+
+## 2026-06-05 — Booking flow end-to-end verification + two integration fixes
+
+**Why:** Follow-up to the integration entry below, which landed the unified template but flagged booking/insurance/push flows as "not run live." Traced the customer booking flow end-to-end (submission → confirm/pay/sign → status/portal) against the backend and exercised it locally.
+
+**Two real breaks found + fixed:**
+1. **Backend couldn't boot at all (blocker).** `web-push@^3.6.7` (and 76 other packages) were declared in `backend/package.json` but never installed. `server.js`/`api/index.js` import `notifyService.js` → `pushService.js` → `web-push` at boot, so the entire API crashed with `ERR_MODULE_NOT_FOUND` on startup — every booking endpoint dead. Fix: `npm install` in `backend/`. Server now boots (push self-disables cleanly when VAPID env vars are absent).
+2. **Admin-created bookings linked to a dead route.** `sendContinueBookingEmail` (`emailService.js:141`) and the `continue_url` returned by `POST /bookings/admin-create` (`bookings.js:141`) both pointed to `${SITE_URL}/booking?code=`. The SPA only routes `/confirm`, `/rental-agreement`, `/booking-status`, `/portal`, `/privacy`, `/terms` — `/booking` falls through to the homepage (Vercel rewrites every path to index.html). Customers receiving the "Continue Your Booking" email landed on the home page instead of the wizard. Fixed both to `/confirm?code=`, matching the canonical path used by `notifyService` `confirm_link` and `BookingStatusPage`.
+
+**Verified working (contract-level + live boot):**
+- Submission: `RequestToBookForm` → `POST /uploads/id-photo` (field `file` → `{url,path}`) → `POST /bookings` (recaptcha middleware → `validateBookingPayload` → `createBooking`) → `{booking_code}`. All field names match.
+- reCAPTCHA middleware fails open in dev (no secret), fails closed in production — confirmed it won't block local testing.
+- Confirm/pay/sign: `GET /agreements/:code`, `POST /agreements/:code/sign`, `PATCH /bookings/:code/insurance`, `POST /stripe/create-payment-intent|confirm-payment|send-receipt` — all exist; `formatBookingSummary` returns the `totalCost`/`depositAmount`/`rentalDays` shape the wizard reads.
+- Status/portal: `GET /bookings/status/:code` + all 8 `/portal/*` endpoints exist and match the client.
+- Live smoke test: backend booted on :3001, `GET /bookings/insurance/config` → 200 with live data, `GET /bookings/status/ZZZZ` → clean 404 from Supabase (DB connectivity confirmed). Did **not** run a live `POST /bookings` (would create a real booking + fire real email/SMS/charges) — pending user go-ahead.
+
+**Build/tests:** customer site `vite build` clean. Backend `npm test` 56/56 pass (was 43 pass / 2 file-load failures before the install — same `web-push` missing-module crash).
+
+**Edge note (not fixed):** `validateBookingPayload` rejects `return_date <= pickup_date`, but `RequestToBookForm` only blocks `endDate < startDate` — a same-day (pickup==return) booking passes the client and 400s at the backend. Harmless for multi-day rentals; flag if single-day rentals are ever offered.
+
+**Files:** `backend/package-lock.json` (install), `backend/routes/bookings.js`, `backend/services/emailService.js`.
+
+---
+
 ## 2026-06-05 — Integration: unify Sprint line + white-label line into one template
 
 **Why:** The repo had drifted into **three unrelated git histories** with no common ancestor: (1) the Sprint line — all disciplined Sprint work through Sprint 18 (PWA, web push, native-iOS feel, messaging), most complete on `origin/claude/silly-wu-255144`; (2) the white-label line — a fresh history started 2026-06-01 (`origin/main`, the deployed site) adding brand config, brand-management dashboard, insurance-review workflow, reCAPTCHA, Sentry, security hardening; (3) a Web-Push branch. `main` (white-label) had **none** of the Sprint feature set, and the Sprint line had none of the white-label work. Goal: one branch containing **everything**, building clean — the master template that every new white-label client clones from.
