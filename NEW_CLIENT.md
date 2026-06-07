@@ -46,17 +46,21 @@ These env vars drive `src/config/brand.ts`, the `index.html` title/description/a
 all with no code edits.
 
 ### 2. New Supabase project
-- Create the project; in the SQL editor run, **in order**:
-  1. Every file in **`backend/db/migrations/`** `001…024` — this is the real schema.
-     ⚠️ NOT `backend/migrations/` (a stale partial set: only 001–005, 022). Running
-     that folder gives you a broken schema.
+- **Easiest:** open `backend/db/setup_new_client.sql` and paste the whole thing into
+  the Supabase **SQL editor** → Run. That's the full schema + config seeds (email/SMS
+  templates, `business_settings`) in the correct order, **no vehicles**. Regenerate it
+  any time migrations change with `node backend/scripts/build_setup_sql.mjs`.
+- **Or run the pieces by hand**, in order:
+  1. Every file in **`backend/db/migrations/`** `001…024` — the real schema.
+     ⚠️ NOT `backend/migrations/` (a stale partial set: only 001–005, 022).
   2. The config seeds in **`backend/db/seeds/`** — `seed_templates.sql` +
-     `seed_rental_ops_templates.sql`. These create the 19+ email/SMS templates =
-     your "same config". (`business_settings`'s default singleton is already
-     inserted by migration `018`.)
-  3. **Do NOT** run `backend/db/seed-vehicles.js` — a new brand starts with an
-     empty fleet. Add vehicles later in the dashboard.
-- Set backend env: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, etc.
+     `seed_rental_ops_templates.sql` (= "same config").
+  3. **Do NOT** run `backend/db/seed-vehicles.js` — empty fleet; add vehicles in the dashboard.
+- Project creation: skip the Supabase "GitHub (optional)" connect (we deploy schema via
+  the SQL editor, not Supabase's git workflow). Keep **Enable Data API** ON (the backend's
+  supabase-js calls need PostgREST). Mirror Annie: automatic RLS OFF.
+- Grab keys from **Project Settings → API**: `SUPABASE_URL`, `service_role` →
+  backend `SUPABASE_SERVICE_KEY`; `anon` → `VITE_SUPABASE_ANON_KEY`. Keys live in `.env` only.
 
 ### 3. New Stripe + Twilio + Resend
 - Stripe: client's account → `STRIPE_SECRET_KEY`, webhook secret, `VITE_*` publishable key.
