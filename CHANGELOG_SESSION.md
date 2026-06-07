@@ -5,6 +5,16 @@
 
 ---
 
+## 2026-06-07 — Launch-day clean slate + overdue-alert dismiss persistence
+
+**Data wipe (test/pre-launch Supabase):** Cleared all operational history to a launch-day baseline at the user's request. DELETED: bookings (30), customers (16), payments (31), booking_status_log (138), rental_agreements (16), checkin_records (51), invoices (11), incidentals (16), toll_charges (1), notifications/dashboard-alerts (132), messages (130) + empty addon/deposit/dispute/damage/review tables. KEPT: vehicles (26), vehicle_deposits (26), business_settings (1), email_templates (21), brand/pricing config. Revenue is derived from payments+bookings, so it zeroes out automatically. Verified post-wipe: fleet + config intact, all transactional tables at 0. Deletion ran child→parent FK order.
+
+**Bug fix (`dashboard/src/components/dashboard/widgets/OverdueAlertsWidget.jsx`):** The overdue-return alert had a dismiss button, but it only set in-memory `useState` — on reload the alert re-derived from the still-`active` overdue booking and reappeared, so it was effectively undismissable. Now persists dismissed booking IDs to `localStorage` (`annie_overdue_dismissed_v1`) via a `dismiss()` helper, initialized on mount. Dismissals survive reload; stale IDs are harmless once a booking transitions out of `active`. Tooltip updated from "Dismiss (this session)" to "Dismiss this alert". Dashboard `npm run build` clean.
+
+**Note:** The dashboard's alert *badge count* (DashboardLayout → `getOverview`) is computed server-side from active/overdue bookings and is unaffected by widget dismissals — the proper resolution there is still to mark the booking returned. Flagged for follow-up if a durable server-side acknowledge is wanted.
+
+---
+
 ## 2026-06-07 — Live end-to-end booking run: confirm-payment 500 fixed
 
 **Why:** Ran the full customer booking flow live against the local backend in Stripe **test mode** (test Supabase, `sk_test`, reCAPTCHA fails open in dev) to prove it works, not just trace it. Drove every step via API: upload ID → `POST /bookings` → `GET/POST /agreements/:code` (sign) → `PATCH /bookings/:code/insurance` → `POST /stripe/create-payment-intent` → real Stripe test-card confirm (`pm_card_visa`) → `POST /stripe/confirm-payment` → receipt → `GET /bookings/status/:code`.

@@ -34,10 +34,31 @@ function formatOverdue(hours) {
   return h > 0 ? `${h}h ${m}m overdue` : `${m}m overdue`;
 }
 
+const DISMISSED_KEY = 'annie_overdue_dismissed_v1';
+
+function loadDismissed() {
+  try {
+    const raw = localStorage.getItem(DISMISSED_KEY);
+    return new Set(raw ? JSON.parse(raw) : []);
+  } catch {
+    return new Set();
+  }
+}
+
 export default function OverdueAlertsWidget() {
   const [overdueBookings, setOverdueBookings] = useState([]);
-  const [dismissed, setDismissed] = useState(new Set());
+  // Dismissals persist across reloads — otherwise an acknowledged overdue
+  // booking (still 'active') re-derives and the alert reappears every refresh.
+  const [dismissed, setDismissed] = useState(loadDismissed);
   const [loading, setLoading] = useState(true);
+
+  const dismiss = useCallback((id) => {
+    setDismissed((prev) => {
+      const next = new Set(prev).add(id);
+      try { localStorage.setItem(DISMISSED_KEY, JSON.stringify([...next])); } catch { /* ignore quota/availability */ }
+      return next;
+    });
+  }, []);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -160,10 +181,10 @@ export default function OverdueAlertsWidget() {
 
               {/* Dismiss */}
               <button
-                onClick={() => setDismissed((prev) => new Set([...prev, booking.id]))}
+                onClick={() => dismiss(booking.id)}
                 className="p-1.5 rounded-lg transition-opacity hover:opacity-60 shrink-0"
                 style={{ color: 'var(--text-tertiary)' }}
-                title="Dismiss (this session)"
+                title="Dismiss this alert"
                 aria-label="Dismiss alert"
               >
                 <CheckCheck size={13} />
