@@ -91,6 +91,34 @@ function PaymentForm({
     }
   }
 
+  /**
+   * Idempotent backend payment confirmation with retries. confirmPayment dedupes
+   * via the PaymentIntent's reference_id, so re-firing is safe. fetch() does NOT
+   * reject on HTTP 5xx, so we must check res.ok explicitly — otherwise a
+   * server-side finalization failure is completely invisible here and we silently
+   * fall back to the Stripe webhook as the only data backstop.
+   */
+  async function confirmPaymentWithRetry(piId: string, attempt = 0): Promise<void> {
+    try {
+      const res = await fetch(`${API_URL}/stripe/confirm-payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payment_intent_id: piId }),
+      });
+      if (res.ok) return;
+      throw new Error(`confirm-payment returned ${res.status}`);
+    } catch (err) {
+      if (attempt >= 2) {
+        // Payment already succeeded at Stripe; the webhook reconciles the DB.
+        // Surface the failure instead of swallowing it silently.
+        console.error('[confirm-payment] failed after retries (webhook will reconcile):', err);
+        return;
+      }
+      await new Promise(r => setTimeout(r, 800 * (attempt + 1)));
+      return confirmPaymentWithRetry(piId, attempt + 1);
+    }
+  }
+
   const handlePayNow = async () => {
     if (!stripe || !elements) return;
     setSubmitting(true);
@@ -193,16 +221,7 @@ function PaymentForm({
       setSubmitStep('confirming');
       // The PaymentIntent ID is in the client secret
       const piId = piJson.clientSecret.split('_secret_')[0];
-      try {
-        await fetch(`${API_URL}/stripe/confirm-payment`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ payment_intent_id: piId }),
-        });
-      } catch {
-        // Non-critical: webhook will catch it
-        console.warn('Could not confirm payment with backend');
-      }
+      await confirmPaymentWithRetry(piId);
 
       // Fire the receipt dispatch on a separate, idempotent endpoint with
       // retries. The backend dedupes via PI metadata, so multiple triggers

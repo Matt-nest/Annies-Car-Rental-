@@ -13,7 +13,11 @@
 
 **Verified after fix (test DB rows confirmed):** fresh booking `BK-20260607-YRZA` — `confirm-payment` now 200; `payments` has rental $524.30 + deposit $150 (both completed, linked to the PI); `bookings.deposit_status='paid'`; `booking_deposits` row persists ($150 held) — the exact write that previously threw. Availability check also verified live (second booking on the same vehicle/dates correctly 409'd). Final status `pending_approval` is correct — customer-submitted bookings await admin approval; only `created_by_admin` bookings auto-confirm on payment. Two test bookings (`BK-20260607-KD44`, `BK-20260607-YRZA`) remain in the test DB — delete if undesired.
 
-**Files:** `backend/services/stripeService.js`.
+**Hardening (`src/components/booking/ConfirmBooking.tsx`):** the flagged masking issue — the frontend's Step-4 `confirm-payment` call was wrapped in `try/catch` that only catches network errors. `fetch()` does **not** reject on HTTP 5xx, so the 500 above was *completely invisible* client-side (the `console.warn` never fired); the flow relied entirely on the Stripe webhook backstop. Replaced with `confirmPaymentWithRetry()` (mirrors the existing `triggerReceiptWithRetry` pattern): checks `res.ok`, retries up to 2× (confirmPayment is idempotent via `reference_id`), and `console.error`s with context if it ultimately fails — without blocking the success UX, since the charge already succeeded. Customer-site `vite build` clean.
+
+**Production reminder:** the webhook is the real backstop for any `confirm-payment` failure — ensure `STRIPE_WEBHOOK_SECRET` is set on the backend Vercel project and the endpoint is registered in the Stripe dashboard.
+
+**Files:** `backend/services/stripeService.js`, `src/components/booking/ConfirmBooking.tsx`.
 
 ---
 
