@@ -110,16 +110,21 @@ interface PushPayload {
   data?: Record<string, unknown>;
 }
 
+// White-label: baked in at build time from the brand's .env (Vite statically
+// replaces import.meta.env.VITE_BRAND_NAME). Only used as a fallback title when
+// the push payload omits one — real pushes already carry a brand-aware title.
+const BRAND_NAME = import.meta.env.VITE_BRAND_NAME || "Annie's Car Rental";
+
 self.addEventListener('push', (event: PushEvent) => {
   let payload: PushPayload = {};
   try {
     payload = event.data ? (event.data.json() as PushPayload) : {};
   } catch {
     // Older Safari occasionally sends an empty payload — treat as a generic ping.
-    payload = { title: 'Annie\'s Car Rental', body: 'You have a new update.' };
+    payload = { title: BRAND_NAME, body: 'You have a new update.' };
   }
 
-  const title = payload.title || 'Annie\'s Car Rental';
+  const title = payload.title || BRAND_NAME;
   const options: NotificationOptions = {
     body: payload.body || '',
     icon: payload.icon || '/web-app-manifest-192x192.png',

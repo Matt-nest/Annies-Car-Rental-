@@ -5,6 +5,27 @@
 
 ---
 
+## 2026-06-07 — White-label brand seam: env-driven reskin + override convention
+
+**Why:** Clone-per-client only stays maintainable if brand differences live behind a clean seam — otherwise every clone becomes un-mergeable edits scattered across shared files. Established that seam and de-hardcoded the brand strings that weren't yet env-driven, so a reskin is env-only and Annie's build is unchanged.
+
+**Brand seam (`src/config/brand.ts`):** Added `adminUrl` (env `VITE_BRAND_ADMIN_URL`, Annie default) and a `features` block for per-brand feature flags (`VITE_FEATURE_*`, default off) — the documented place to gate optional behaviour so it stays in the shared template instead of forking.
+
+**De-hardcoded (all keep Annie values as build-time defaults — output byte-identical):**
+- `src/components/layout/Footer.tsx` — admin link `https://admin.dashboard.anniescarrental.com` → `brand.adminUrl`.
+- `index.html` — `<title>`, `<meta description>`, `apple-mobile-web-app-title` → `%BRAND_TITLE%`/`%BRAND_NAME%`/`%BRAND_DESCRIPTION%` placeholders, filled by a new `brand-html-inject` `transformIndexHtml` plugin in `vite.config.ts` (reads `VITE_BRAND_*` with Annie fallbacks).
+- `src/sw.ts` — push-notification title fallback → build-time `BRAND_NAME` const (Vite statically replaces `import.meta.env.VITE_BRAND_NAME`; verified 0 runtime `import.meta.env` in `dist/sw.js`).
+
+**Override convention (`src/brands/README.md`, NEW):** Documents the three tiers — env/assets (no code) → `brand.features` flag (shared, mergeable) → `src/brands/<slug>/` one-off folder (never conflicts on merge) — plus the `git remote add template … && git merge template/main` workflow for pulling shared fixes into a clone.
+
+**Runbook fixes (`NEW_CLIENT.md`):** Corrected the **wrong migrations path** (it said `backend/migrations/` — a stale 001–005/022 partial set; the real schema is `backend/db/migrations/` 001–024), added the `backend/db/seeds/` template-seed step (= "same config"), the explicit "no vehicle seed" step, a reskin asset/data-file checklist (incl. emptying `src/data/vehicles.ts` + `reviews.ts`), and the feature-flag/override-seam guidance.
+
+**Verified:** `npm run build` clean. Annie output unchanged (title/app-name/description/SW all Annie's). Throwaway override build (`VITE_BRAND_NAME="Acme Rentals" VITE_BRAND_CITY="Austin"…`) correctly produced `Acme Rentals — Austin, TX` in HTML + SW; dist restored to Annie's.
+
+**Files:** `src/config/brand.ts`, `src/components/layout/Footer.tsx`, `vite.config.ts`, `index.html`, `src/sw.ts`, `.env.example`, `src/brands/README.md` (new), `NEW_CLIENT.md`.
+
+---
+
 ## 2026-06-07 — Launch-day clean slate + overdue-alert dismiss persistence
 
 **Data wipe (test/pre-launch Supabase):** Cleared all operational history to a launch-day baseline at the user's request. DELETED: bookings (30), customers (16), payments (31), booking_status_log (138), rental_agreements (16), checkin_records (51), invoices (11), incidentals (16), toll_charges (1), notifications/dashboard-alerts (132), messages (130) + empty addon/deposit/dispute/damage/review tables. KEPT: vehicles (26), vehicle_deposits (26), business_settings (1), email_templates (21), brand/pricing config. Revenue is derived from payments+bookings, so it zeroes out automatically. Verified post-wipe: fleet + config intact, all transactional tables at 0. Deletion ran child→parent FK order.

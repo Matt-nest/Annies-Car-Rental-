@@ -111,7 +111,7 @@ export default function Footer() {
           <div className="flex items-center gap-4">
             <p>{brand.location.city}, {brand.location.state}</p>
             <a
-              href="https://admin.dashboard.anniescarrental.com"
+              href={brand.adminUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="transition-opacity hover:opacity-70"

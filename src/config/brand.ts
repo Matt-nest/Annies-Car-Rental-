@@ -43,9 +43,21 @@ export const brand = {
 
   // ── External Links ────────────────────────────────────────────────────────
   reviewLink:  import.meta.env.VITE_BRAND_REVIEW_LINK || "https://g.page/annies-car-rental/review",
+  /** Admin dashboard URL — the "Admin" link in the customer-site footer */
+  adminUrl:    import.meta.env.VITE_BRAND_ADMIN_URL || "https://admin.dashboard.anniescarrental.com",
 
   // ── Chat Widget (optional — leave empty to disable) ───────────────────────
   chatWidgetId: import.meta.env.VITE_CHAT_WIDGET_ID || "",
+
+  // ── Feature Flags ─────────────────────────────────────────────────────────
+  // Per-brand capability toggles. Gate OPTIONAL behaviour on these instead of
+  // forking shared code: a feature stays in the template (shared, mergeable)
+  // but only switches on for brands whose .env sets VITE_FEATURE_<X>=true.
+  // Default off → Annie's build is unchanged. Add new flags here as needed.
+  features: {
+    loyalty:    import.meta.env.VITE_FEATURE_LOYALTY === 'true',
+    telematics: import.meta.env.VITE_FEATURE_TELEMATICS === 'true',
+  },
 };
 
 /** Sanitized phone number for tel: and sms: links */

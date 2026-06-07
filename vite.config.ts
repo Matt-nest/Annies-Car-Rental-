@@ -6,10 +6,31 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
+
+  // White-label: inject brand identity into the static index.html at build time.
+  // Mirrors src/config/brand.ts fallbacks so Annie's build is unchanged when the
+  // VITE_BRAND_* vars are absent. Clones set the env and the title/description/
+  // app name rebrand with no HTML edits.
+  const brandName = env.VITE_BRAND_NAME || "Annie's Car Rental";
+  const brandCity = env.VITE_BRAND_CITY || 'Port St. Lucie';
+  const brandState = env.VITE_BRAND_STATE || 'FL';
+  const brandDescription = env.VITE_BRAND_META_DESCRIPTION ||
+    'Premium, reliable, and family-friendly car rentals located directly in Port St. Lucie. Skip the long lines at the airport and enjoy top-tier vehicles right in your neighborhood.';
+  const brandHtmlPlugin = {
+    name: 'brand-html-inject',
+    transformIndexHtml(html) {
+      return html
+        .replace(/%BRAND_TITLE%/g, `${brandName} — ${brandCity}, ${brandState}`)
+        .replace(/%BRAND_NAME%/g, brandName)
+        .replace(/%BRAND_DESCRIPTION%/g, brandDescription);
+    },
+  };
+
   return {
     plugins: [
       react(),
       tailwindcss(),
+      brandHtmlPlugin,
       VitePWA({
         // Sprint 12b: switched to `injectManifest` so we can add a push event
         // handler in our own SW source. All runtime caching that used to live
