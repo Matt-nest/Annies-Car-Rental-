@@ -3,57 +3,103 @@
  * build_setup_sql.mjs — generate a single paste-ready SQL bundle for standing up
  * a NEW client's Supabase project.
  *
- * Concatenates, in order:
- *   1. every backend/db/migrations/*.sql  (the real schema — NOT backend/migrations/)
- *   2. the config seeds in backend/db/seeds/  (email/SMS templates = "same config")
+ * The schema is split across TWO migration folders plus a couple of objects that
+ * were historically applied to Annie's DB outside any migration file:
+ *   - backend/db/migrations/   — core + later feature migrations (001…024)
+ *   - backend/migrations/      — rental-operations + brands tables
+ *   - 000_admin_profiles.sql / 000_pricing_rules.sql — orphan tables, authored here
+ *   - 00_email_templates_stage_unique.sql — constraint the rental-ops seed needs
  *
- * Deliberately EXCLUDES vehicle seeds — a new brand starts with an empty fleet.
+ * This builds the union in dependency order:
+ *   1. core schema  2. orphan tables  3. rental-ops/brands  4. remaining db/migrations
+ *   5. pre-seed constraint  6. template seeds  7. post-seed template enrichment (idempotent)
  *
- * Output: backend/db/setup_new_client.sql  → paste into the Supabase SQL editor.
- * Regenerate any time migrations change:  node scripts/build_setup_sql.mjs
+ * Excludes vehicle seeds (empty fleet by design) and Annie-only data migrations.
+ * Output: backend/db/setup_new_client.sql.  Regenerate: node scripts/build_setup_sql.mjs
  */
-import { readFileSync, writeFileSync, readdirSync } from 'fs';
+import { readFileSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const migDir = join(here, '..', 'db', 'migrations');
-const seedDir = join(here, '..', 'db', 'seeds');
+const dbMig = join(here, '..', 'db', 'migrations');
+const feMig = join(here, '..', 'migrations');
+const seeds = join(here, '..', 'db', 'seeds');
 const outFile = join(here, '..', 'db', 'setup_new_client.sql');
 
-// Numeric-prefix sort so 001 < 002 < … < 024 (handles the two 005_* files deterministically).
-const migrations = readdirSync(migDir)
-  .filter((f) => f.endsWith('.sql'))
-  .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+// Explicit, dependency-ordered build list. (dir, file, label)
+const STEPS = [
+  // ── 1. Core schema (tables + update_updated_at() function + views) ──────────
+  [dbMig, '001_initial_schema.sql', 'core schema'],
+  // ── 2. Orphan tables (created outside migrations on Annie; authored here) ────
+  [dbMig, '000_admin_profiles.sql', 'orphan table'],
+  [dbMig, '000_pricing_rules.sql', 'orphan table'],
+  [dbMig, '000_webhook_failures.sql', 'orphan table'],
+  // ── 3. Rental operations + brands (the second migration folder) ─────────────
+  [feMig, '002_rental_operations.sql', 'rental ops'],
+  [feMig, '003_checkin_photo_slots.sql', 'rental ops'],
+  [feMig, '005_card_on_file.sql', 'rental ops'],
+  [feMig, '022_create_brands.sql', 'brands'],
+  // ── 4. Remaining db/migrations in order ─────────────────────────────────────
+  [dbMig, '002_add_stripe.sql', 'migration'],
+  [dbMig, '003_add_id_photo.sql', 'migration'],
+  [dbMig, '004_rental_agreements.sql', 'migration'],
+  [dbMig, '005_006_new_tables.sql', 'migration'],
+  [dbMig, '005_notifications.sql', 'migration'],
+  [dbMig, '007_message_templates.sql', 'migration'],
+  [dbMig, '008_weekly_monthly_pricing.sql', 'migration'],
+  [dbMig, '009_bonzah_integration.sql', 'migration'],
+  [dbMig, '010_terminal_return_date_invariant.sql', 'migration'],
+  [dbMig, '011_checkout_override.sql', 'migration'],
+  [dbMig, '012_notification_log.sql', 'migration'],
+  [dbMig, '013_sms_opt_out.sql', 'migration'],
+  [dbMig, '014_orphan_stage_cleanup.sql', 'migration'],
+  [dbMig, '015_one_active_template_per_stage.sql', 'migration'],
+  [dbMig, '016_conversation_summaries_view.sql', 'migration'],
+  [dbMig, '017_bouncie_integration.sql', 'migration'],
+  [dbMig, '018_business_settings.sql', 'migration'],
+  [dbMig, '019_trusted_customers.sql', 'migration'],
+  [dbMig, '020_template_timing.sql', 'migration'],
+  [dbMig, '021_voice_hunt_group.sql', 'migration'],
+  [dbMig, '022_unify_business_phone.sql', 'migration'],
+  [dbMig, '023_push_subscriptions.sql', 'migration'],
+  [dbMig, '024_admin_push_subscriptions.sql', 'migration'],
+  // ── 5. Pre-seed constraint ──────────────────────────────────────────────────
+  [seeds, '00_email_templates_stage_unique.sql', 'pre-seed constraint'],
+  // ── 6. Config seeds (templates — NO vehicles) ───────────────────────────────
+  [seeds, 'seed_templates.sql', 'seed'],
+  [seeds, 'seed_rental_ops_templates.sql', 'seed'],
+  // ── 7. Post-seed template enrichment (idempotent — these UPDATE/DELETE the
+  //       just-seeded rows; they no-op pre-seed, so re-apply here to take effect) ─
+  [dbMig, '014_orphan_stage_cleanup.sql', 'post-seed'],
+  [dbMig, '015_one_active_template_per_stage.sql', 'post-seed'],
+  [dbMig, '020_template_timing.sql', 'post-seed'],
+  [feMig, '004_vehicle_transparency_templates.sql', 'post-seed'],
+];
+// Intentionally excluded: migrations/001_unique_booking_code.sql (redundant — booking_code
+// is already UNIQUE in 001_initial_schema), migrations/update_fleet_images.sql (Annie-only data).
 
-// Config seeds only — NO vehicles.
-const seeds = ['seed_templates.sql', 'seed_rental_ops_templates.sql'];
-
-const banner = (label) =>
+const banner = (label, file) =>
   `\n\n-- ═══════════════════════════════════════════════════════════════════════\n` +
-  `-- ${label}\n` +
+  `-- [${label}]  ${file}\n` +
   `-- ═══════════════════════════════════════════════════════════════════════\n`;
 
 let out =
   `-- ============================================================================\n` +
   `-- setup_new_client.sql — GENERATED by scripts/build_setup_sql.mjs. Do not edit.\n` +
-  `-- Paste into a fresh Supabase project's SQL editor to create the full schema\n` +
-  `-- + config (email/SMS templates, business_settings). Empty fleet by design —\n` +
-  `-- add vehicles in the dashboard after launch.\n` +
-  `-- ${migrations.length} migrations + ${seeds.length} seed files.\n` +
+  `-- Paste into a FRESH Supabase project's SQL editor (run the reset snippet first\n` +
+  `-- if a prior run partially applied: DROP SCHEMA public CASCADE; CREATE SCHEMA public;\n` +
+  `-- GRANT ALL ON SCHEMA public TO postgres, anon, authenticated, service_role;).\n` +
+  `-- Builds the full schema + config (email/SMS templates, business_settings).\n` +
+  `-- Empty fleet by design — add vehicles in the dashboard after launch.\n` +
+  `-- ${STEPS.length} steps across two migration folders + seeds.\n` +
   `-- ============================================================================\n`;
 
-for (const f of migrations) {
-  out += banner(`MIGRATION  ${f}`);
-  out += readFileSync(join(migDir, f), 'utf8').trimEnd() + '\n';
-}
-for (const f of seeds) {
-  out += banner(`SEED  ${f}`);
-  out += readFileSync(join(seedDir, f), 'utf8').trimEnd() + '\n';
+for (const [dir, file, label] of STEPS) {
+  out += banner(label, file);
+  out += readFileSync(join(dir, file), 'utf8').trimEnd() + '\n';
 }
 
 writeFileSync(outFile, out);
 console.log(`Wrote ${outFile}`);
-console.log(`  ${migrations.length} migrations:`, migrations.join(', '));
-console.log(`  ${seeds.length} seeds:`, seeds.join(', '));
-console.log(`  ${out.split('\n').length} lines total`);
+console.log(`  ${STEPS.length} steps, ${out.split('\n').length} lines`);

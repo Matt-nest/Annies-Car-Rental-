@@ -5,6 +5,23 @@
 
 ---
 
+## 2026-06-07 — setup_new_client.sql was structurally incomplete; rebuilt from both migration folders + orphan objects
+
+**Why:** A fresh-client run kept erroring one missing object at a time (`trip_end_date`, then `admin_profiles`). Root cause: the schema is **split across two migration folders** and several objects were applied to Annie's live DB **outside any migration file**. The original `setup_new_client.sql` only concatenated `backend/db/migrations/` (25 tables) and missed everything else.
+
+**Systematic audit** (diff of `CREATE TABLE` vs FK `REFERENCES` vs every `.from('…')` in the code) found the full gap set:
+- `backend/migrations/` (the second folder) creates **11 more tables** never in the bundle: `vehicle_deposits`, `booking_deposits`, `booking_addons`, `incidentals`, `invoices`, `toll_charges`, `customer_disputes`, `checkin_records`, `pending_overage_charges`, `pending_overage_charge_log`, `brands`.
+- **Orphan tables** in neither folder (authored now): `admin_profiles` (auth/RBAC — FK target of 024), `pricing_rules` (seasonal multipliers), `webhook_failures` (stats log). Schemas reconstructed from code usage.
+- **Orphan constraint**: `email_templates UNIQUE(stage)` — required by `seed_rental_ops_templates.sql`'s `ON CONFLICT (stage)`. Added as a pre-seed step.
+
+**Fix:** Rewrote `scripts/build_setup_sql.mjs` to build the **union in explicit dependency order**: core schema → orphan tables → rental-ops/brands → remaining `db/migrations` → pre-seed constraint → seeds → idempotent post-seed template enrichment (014/015/020 + transparency, which no-op pre-seed). Excludes the redundant `001_unique_booking_code` and Annie-only `update_fleet_images`. New bundle: **39 tables, 38 steps, 3155 lines.** Verified: every code-referenced table is created, and every FK target is present.
+
+**Honesty note:** the bundle is validated *statically* (table/FK/seed-constraint completeness) — it could not be run against a live Postgres here (no local pg/docker, no Annie DB password). The bulletproof alternative is dumping Annie's real schema via the Supabase CLI (`supabase db dump`), which is the source of truth.
+
+**Files:** `backend/db/migrations/000_admin_profiles.sql`, `000_pricing_rules.sql`, `000_webhook_failures.sql` (new), `backend/db/seeds/00_email_templates_stage_unique.sql` (new), `backend/scripts/build_setup_sql.mjs`, `backend/db/setup_new_client.sql`.
+
+---
+
 ## 2026-06-07 — Fix migration 009 bad index column (blocked new-client DB setup)
 
 **Why:** Running `setup_new_client.sql` on a fresh client Supabase aborted with `ERROR: 42703: column "trip_end_date" does not exist`. Migration `009_bonzah_integration.sql` created `idx_bookings_bonzah_policy_active ON bookings (insurance_status, trip_end_date)`, but `trip_end_date` is **never a bookings column** — it's only a Bonzah *API payload* field (mapped from `booking.return_date` in `bonzahService.js`). The polling job (`jobs/bonzahPolling.js`) actually filters `.gte('return_date', …)`. On Annie's prod DB the index simply never got created (it's a perf-only optimization, so nothing noticed); on a clean batch run in the SQL editor the error aborts the whole script.
