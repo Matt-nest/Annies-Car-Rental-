@@ -5,6 +5,19 @@
 
 ---
 
+## 2026-06-07 — Fix migration 009 bad index column (blocked new-client DB setup)
+
+**Why:** Running `setup_new_client.sql` on a fresh client Supabase aborted with `ERROR: 42703: column "trip_end_date" does not exist`. Migration `009_bonzah_integration.sql` created `idx_bookings_bonzah_policy_active ON bookings (insurance_status, trip_end_date)`, but `trip_end_date` is **never a bookings column** — it's only a Bonzah *API payload* field (mapped from `booking.return_date` in `bonzahService.js`). The polling job (`jobs/bonzahPolling.js`) actually filters `.gte('return_date', …)`. On Annie's prod DB the index simply never got created (it's a perf-only optimization, so nothing noticed); on a clean batch run in the SQL editor the error aborts the whole script.
+
+**Fix:** `009` index now references `return_date`. Regenerated `backend/db/setup_new_client.sql`. Audited the other "alter-existing-table-then-index" migrations (013, 016, 019) — all correctly add the column/table before indexing; 009 was the unique offender (it indexed a column created nowhere).
+
+**Recovery note for a partially-applied DB:** because the early migrations use plain `CREATE TABLE` (not `IF NOT EXISTS`), a half-run leaves the project mid-schema. Reset before re-running the corrected bundle:
+`DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO postgres, anon, authenticated, service_role;`
+
+**Files:** `backend/db/migrations/009_bonzah_integration.sql`, `backend/db/setup_new_client.sql`.
+
+---
+
 ## 2026-06-07 — White-label brand seam: env-driven reskin + override convention
 
 **Why:** Clone-per-client only stays maintainable if brand differences live behind a clean seam — otherwise every clone becomes un-mergeable edits scattered across shared files. Established that seam and de-hardcoded the brand strings that weren't yet env-driven, so a reskin is env-only and Annie's build is unchanged.
