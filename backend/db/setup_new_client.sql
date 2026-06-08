@@ -5,7 +5,7 @@
 -- GRANT ALL ON SCHEMA public TO postgres, anon, authenticated, service_role;).
 -- Builds the full schema + config (email/SMS templates, business_settings).
 -- Empty fleet by design — add vehicles in the dashboard after launch.
--- 38 steps across two migration folders + seeds.
+-- 39 steps across two migration folders + seeds.
 -- ============================================================================
 
 
@@ -3158,3 +3158,26 @@ WHERE stage = 'pickup_reminder';
 -- Verification
 SELECT stage, LENGTH(body) as body_length FROM email_templates
 WHERE stage IN ('booking_approved', 'payment_confirmed', 'ready_for_pickup', 'pickup_reminder');
+
+
+-- ═══════════════════════════════════════════════════════════════════════
+-- [grants]  99_grants.sql
+-- ═══════════════════════════════════════════════════════════════════════
+-- ============================================================================
+-- Final step — grant the Supabase API roles access to everything in public.
+-- ============================================================================
+-- REQUIRED after a `DROP SCHEMA public CASCADE` reset: dropping/recreating the
+-- public schema removes the default privileges that normally let service_role
+-- (and anon/authenticated) read these tables, so without this every API call
+-- fails with "permission denied for table …". Runs last, after all objects exist.
+-- Idempotent.
+
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+
+GRANT ALL ON ALL TABLES    IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL ROUTINES  IN SCHEMA public TO anon, authenticated, service_role;
+
+-- Future tables/sequences created in public inherit these grants.
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES    TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;

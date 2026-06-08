@@ -75,6 +75,8 @@ const STEPS = [
   [dbMig, '015_one_active_template_per_stage.sql', 'post-seed'],
   [dbMig, '020_template_timing.sql', 'post-seed'],
   [feMig, '004_vehicle_transparency_templates.sql', 'post-seed'],
+  // ── 8. Grants — must run last, after every table/sequence exists ─────────────
+  [seeds, '99_grants.sql', 'grants'],
 ];
 // Intentionally excluded: migrations/001_unique_booking_code.sql (redundant — booking_code
 // is already UNIQUE in 001_initial_schema), migrations/update_fleet_images.sql (Annie-only data).
