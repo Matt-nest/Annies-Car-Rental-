@@ -5,6 +5,46 @@
 
 ---
 
+## 2026-06-10 — Rolled the new contract generator out to JD Coastal + aspect-robust header logo
+
+**Why:** The new 3-page generator (below) was Annie's-only. JD Coastal (separate clone-per-client repo `Matt-nest/JDCoastal`, branch `main`, own Vercel project) still had the **old** generator with hardcoded `"ANNIE's CAR RENTAL"`. Needed the same contract on JD's site, branded for JD.
+
+**Generator changes (`backend/utils/pdfGenerator.js`, applied to BOTH repos):**
+- Header logo now placed with `fit:[150,54]` instead of a fixed width, so it sits cleanly for **any logo aspect** — Annie's landscape "Annie's & Co" *and* JD's near-square "JD Coastal Cars" mark. (Title nudged to x=200 to clear the wider fit box.) Verified Annie's header unchanged in appearance.
+- Added optional `process.env.BRAND_PDF_LOGO` override for the header asset (env → `assets/logo-pdf.png` → `assets/logo.png`), so a deployment/sample can point at its own logo without swapping the committed asset.
+
+**JD Coastal rollout:**
+- Copied the generator into `JDCoastal/backend/utils/pdfGenerator.js` (replacing the old hardcoded one). It reads `brand.name` from `config/brand.js` (env `BRAND_NAME`), so it self-brands.
+- Converted the supplied JD logo SVG (`~/Downloads/Untitled design (2).svg`) → trimmed transparent PNG (481×420) → installed at `JDCoastal/backend/assets/logo-pdf.png`.
+- **Fixed `JDCoastal/backend/.env`** (local, gitignored): `BRAND_NAME=JDCoastalCars` → `JD Coastal Cars` (and legal name) — without the spaces the contract printed "JDCoastalCars". **⚠ The Vercel `BRAND_NAME` / `BRAND_LEGAL_NAME` env vars on the JD backend project must be set to the spaced values too** (this .env is dev-only).
+
+**Samples on Desktop (verified all 3 pages via PyMuPDF):**
+- `Rental_Agreement_SAMPLE-0001.pdf` (Annie's, regenerated with new header).
+- `JD_Coastal_Cars_Rental_Agreement_SAMPLE.pdf` — JD logo, "JD Coastal Cars" footer + "Accepted By JD Coastal Cars", every field filled with plausible coastal-FL sample data (Marcus Rivera / Jupiter FL / 2023 Jeep Wrangler) + drawn sample signatures. Confirmed no "Annie's" / "Friendly Truck Rental" leakage.
+
+**Files:** `backend/utils/pdfGenerator.js` (Annie's + JD), `JDCoastal/backend/assets/logo-pdf.png` (new), `JDCoastal/backend/.env` (local fix).
+
+---
+
+## 2026-06-10 — Rewrote rental-agreement PDF generator to match the new 3-page Annie's form
+
+**Why:** Annie's supplied a new official "Car Rental Agreement" layout (3 pages: form + rate/vehicle/fuel + terms/signatures). The old `pdfGenerator.js` produced a 2-page labeled-box document with a hardcoded `"ANNIE's CAR RENTAL"` header and an abbreviated 9-section terms page — neither matched the new form, and the hardcoded header would print "Annie's" on every white-label clone.
+
+**Fix:** Full rewrite of `backend/utils/pdfGenerator.js` (export signature unchanged: `generateRentalAgreementPdf(agreement, booking, res)` — route untouched). Coordinate-based pdfkit layout reproducing the new 3-page form with peach fillable-field boxes:
+- **Page 1:** check-out/due-back date+time, odometer (`pickup_mileage`/`return_mileage`), renter identity (name, address, city/state/zip, DL#/state/exp, DOB — preferring `agreement.*`, falling back to `customers.*`), auto insurance co/policy, damage diagram + legend, deposit amount. Credit-card / billing fields left blank (not stored — PCI/Stripe).
+- **Page 2:** Car Rental Rate box (daily/weekly/monthly), Time & Mileage (rental_days, miles/day), subtotal/tax/delivery/total, vehicle year/type/make/model/VIN/tag, gas-tank checkbox (mapped from `pickup_fuel_level`), Renter-Accepts coverage row, fuel + keys initial clauses. Additional-driver block blank (not stored).
+- **Page 3:** the 3 liability/insurance/return paragraphs, General-Policies checkbox, and signature blocks — customer signature image + `customer_signed_at`, owner counter-signature + `owner_signed_at`, "Accepted By {brand.name}".
+
+**Two corrections baked in:** (1) header logo + footer + "Accepted By" now read from `config/brand.js` (`brand.name`) instead of hardcoded — fixes the white-label bug. (2) The supplied template's page-3 paragraph contained a copy-paste error — *"any vehicle that is not returned to **the Friendly Truck Rental**"* — replaced with `${brand.name}`. **Flagged to user.**
+
+**New asset:** `backend/assets/logo-pdf.png` — the existing square `logo.png` (223×223, lots of transparent padding) was alpha-trimmed to its landscape content box (223×84) so the header logo sits correctly; generator falls back to `logo.png` if absent.
+
+**Verification:** rendered with representative sample data via PyMuPDF at 130–200 DPI and visually confirmed every field lands in the correct box on all 3 pages; confirmed "Friendly Truck Rental" no longer present and `brand.name` substituted. Not yet run against a live signed agreement (would pull real customer PII).
+
+**Files:** `backend/utils/pdfGenerator.js` (rewrite), `backend/assets/logo-pdf.png` (new).
+
+---
+
 ## 2026-06-07 — setup_new_client.sql was structurally incomplete; rebuilt from both migration folders + orphan objects
 
 **Why:** A fresh-client run kept erroring one missing object at a time (`trip_end_date`, then `admin_profiles`). Root cause: the schema is **split across two migration folders** and several objects were applied to Annie's live DB **outside any migration file**. The original `setup_new_client.sql` only concatenated `backend/db/migrations/` (25 tables) and missed everything else.
