@@ -5,6 +5,21 @@
 
 ---
 
+## 2026-06-11 — Fixed booking request 403: reCAPTCHA script was never loaded
+
+**Why:** Customers submitting the "Request to Book" form got *"Something went wrong submitting your request…"*. The server WAS reached (not the network-error branch), so it returned a non-2xx status. Root cause: the booking form ([RequestToBookForm.tsx:179](src/components/vehicle/RequestToBookForm.tsx#L179)) and inquiry modal ([MonthlyInquiryModal.tsx:46](src/components/home/MonthlyInquiryModal.tsx#L46)) only generate a token `if (window.grecaptcha)`, but **nothing ever loaded the reCAPTCHA v3 script** — not in `index.html`, not injected at runtime (only the chat widget was). So `window.grecaptcha` was always undefined → empty `x-recaptcha-token` sent → backend [recaptcha.js](backend/middleware/recaptcha.js) returns **403 "Missing CAPTCHA token"** (secret set) or **500 "CAPTCHA configuration error"** (secret missing in prod) → frontend shows the generic error.
+
+**Fix:** Added a runtime loader in [main.tsx](src/main.tsx) (same pattern as the chat-widget injection), guarded on `RECAPTCHA_SITE_KEY` so it's a no-op when no key is configured (dev/onboarding). Loads `https://www.google.com/recaptcha/api.js?render=${SITE_KEY}`. Fixes BOTH the booking form and the inquiry modal (both read the same global). Blast radius: 1 file. `npm run build` clean.
+
+**Deployment follow-ups (white-label clones — NOT code):**
+- Each clone's Vercel **frontend** env must have `VITE_RECAPTCHA_SITE_KEY` set.
+- Each clone's **backend** env must have `RECAPTCHA_SECRET_KEY` set to the **matching secret for the same key pair** — a mismatch yields a low v3 score → still 403.
+- The reporting deployment (phone (908) = Annie's NJ) should be re-verified after deploy + env check.
+
+**Files:** `src/main.tsx`.
+
+---
+
 ## 2026-06-10 — Rolled the new contract generator out to JD Coastal + aspect-robust header logo
 
 **Why:** The new 3-page generator (below) was Annie's-only. JD Coastal (separate clone-per-client repo `Matt-nest/JDCoastal`, branch `main`, own Vercel project) still had the **old** generator with hardcoded `"ANNIE's CAR RENTAL"`. Needed the same contract on JD's site, branded for JD.
