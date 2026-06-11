@@ -1,4 +1,4 @@
-// Annie's Car Rental — Rental Agreement Terms & Conditions v1.0
+// Annie's Car Rental - Rental Agreement Terms & Conditions v1.0
 // Adapted from the paper rental agreement for digital use
 
 import { brand } from '../config/brand';

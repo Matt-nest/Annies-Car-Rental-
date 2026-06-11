@@ -75,10 +75,10 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
 
   const rules = useMemo(() => [
     { label: 'No smoking or pets', desc: 'Smoking or transporting animals incurs a cleaning fee up to $250', icon: XCircle },
-    { label: 'Fuel policy', desc: 'Return at the same fuel level — refueling charge is $20 per quarter tank', icon: Fuel },
+    { label: 'Fuel policy', desc: 'Return at the same fuel level. Refueling charge is $20 per quarter tank', icon: Fuel },
     { label: 'Tolls & violations', desc: 'You\'re responsible for tolls and traffic fines, plus a $50 admin fee per violation', icon: DollarSign },
-    { label: 'Late returns', desc: 'Late returns are charged $30/day — please contact us if you need an extension', icon: Clock },
-    { label: '200 miles/day included', desc: 'Every rental includes 200 miles per day — additional miles are just $0.34/mile', icon: Car },
+    { label: 'Late returns', desc: 'Late returns are charged $30/day. Please contact us if you need an extension', icon: Clock },
+    { label: '200 miles/day included', desc: 'Every rental includes 200 miles per day. Additional miles are just $0.34/mile', icon: Car },
     { label: 'Return condition', desc: 'Return the vehicle in the same condition received, aside from normal wear', icon: CheckCircle2 },
   ], []);
 
@@ -151,7 +151,7 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
               {vehicle.description}
             </motion.p>
 
-            {/* Pricing Tiers — selectable */}
+            {/* Pricing Tiers - selectable */}
             <motion.div
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
@@ -283,13 +283,13 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
               </div>
             </section>
 
-            {/* Mobile-only: Price, Form, Insurance — appears between Included and Reviews */}
+            {/* Mobile-only: Price, Form, Insurance - appears between Included and Reviews */}
             <div id="booking-form" className="lg:hidden space-y-6">
               <RequestToBookForm vehicle={vehicle} selectedRate={selectedRate} />
               <InsuranceExplainer />
             </div>
 
-            {/* Reviews — unified star visualization */}
+            {/* Reviews - unified star visualization */}
             <section className="space-y-8 pt-8" style={{ borderTop: '1px solid var(--border-subtle)' }}>
               {localReviews.length > 0 ? (
                 <>
@@ -527,7 +527,7 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
             </section>
           </div>
 
-          {/* Right Column: Sticky Request Card — desktop only */}
+          {/* Right Column: Sticky Request Card - desktop only */}
           <div className="hidden lg:block lg:col-span-1">
             <div className="sticky top-24 space-y-6">
               <RequestToBookForm vehicle={vehicle} selectedRate={selectedRate} />

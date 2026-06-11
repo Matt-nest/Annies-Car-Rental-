@@ -75,7 +75,7 @@ function ReadOnlyField({ label, value }: { label: string; value: string }) {
           color: 'var(--text-primary)',
         }}
       >
-        {value || <span style={{ color: 'var(--text-tertiary)' }}>—</span>}
+        {value || <span style={{ color: 'var(--text-tertiary)' }}>Not provided</span>}
       </div>
     </div>
   );
@@ -364,7 +364,7 @@ export default function RentalAgreement({ bookingCode, theme, onSigned }: Props)
               <label className="text-[10px] uppercase tracking-[0.15em] mb-1 block ml-0.5" style={{ color: 'var(--text-tertiary)' }}>State *</label>
               <select className={inputClass('state')} style={{ ...inputStyle, ...borderStyle('state') }}
                 value={form.state} onChange={e => updateField('state', e.target.value)}>
-                <option value="">—</option>
+                <option value="">Select</option>
                 {US_STATES.map(s => <option key={s.value} value={s.value}>{s.value}</option>)}
               </select>
             </div>
@@ -394,7 +394,7 @@ export default function RentalAgreement({ bookingCode, theme, onSigned }: Props)
                 <label className="text-[10px] uppercase tracking-[0.15em] mb-1 block ml-0.5" style={{ color: 'var(--text-tertiary)' }}>State *</label>
                 <select className={inputClass('driver_license_state')} style={{ ...inputStyle, ...borderStyle('driver_license_state') }}
                   value={form.driver_license_state} onChange={e => updateField('driver_license_state', e.target.value)}>
-                  <option value="">—</option>
+                  <option value="">Select</option>
                   {US_STATES.map(s => <option key={s.value} value={s.value}>{s.value}</option>)}
                 </select>
               </div>
@@ -413,7 +413,7 @@ export default function RentalAgreement({ bookingCode, theme, onSigned }: Props)
         style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
         <SectionHeader icon={Shield} title="Insurance Information" />
         <p className="text-xs mb-3 -mt-2" style={{ color: 'var(--text-tertiary)' }}>
-          Optional — fill in if you have your own auto insurance. You can also purchase coverage from Bonzah in the next step.
+          Optional. Fill in if you have your own auto insurance. You can also purchase coverage from Bonzah in the next step.
         </p>
 
         <div className="space-y-3">

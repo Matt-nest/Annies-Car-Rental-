@@ -286,7 +286,7 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
     borderColor: errors[field] ? 'rgba(239,68,68,0.5)' : 'var(--border-subtle)',
   });
 
-  // Monthly path — bypass booking flow entirely, show call/text card
+  // Monthly path - bypass booking flow entirely, show call/text card
   if (selectedRate === 'monthly') {
     return (
       <div
@@ -368,7 +368,7 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
           </div>
           <div className="flex justify-between">
             <span style={{ color: 'var(--text-tertiary)' }}>Dates</span>
-            <span className="font-medium">{formData.startDate} — {formData.endDate}</span>
+            <span className="font-medium">{formData.startDate} to {formData.endDate}</span>
           </div>
           <div className="flex justify-between">
             <span style={{ color: 'var(--text-tertiary)' }}>Status</span>
@@ -399,7 +399,7 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
       className="rounded-2xl border overflow-hidden"
       style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}
     >
-      {/* Price header — reflects selected rate from pricing tiers */}
+      {/* Price header - reflects selected rate from pricing tiers */}
       <div className="p-6" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
         <div className="flex items-baseline justify-between gap-3">
           {selectedRate === 'weekly' ? (
@@ -436,7 +436,7 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
           >
             <AlertCircle size={14} className="mt-0.5 shrink-0" />
             <p className="text-[12px] leading-snug">
-              <strong>Weekly rate needs 7+ days.</strong> Your dates are {rentalDays} day{rentalDays !== 1 ? 's' : ''} — daily rate ({`$${displayPrice(vehicle.dailyRate)}/day`}) will apply unless you extend.
+              <strong>Weekly rate needs 7+ days.</strong> Your dates are {rentalDays} day{rentalDays !== 1 ? 's' : ''}, so the daily rate ({`$${displayPrice(vehicle.dailyRate)}/day`}) will apply unless you extend.
             </p>
           </div>
         )}
@@ -522,7 +522,7 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
             style={{ backgroundColor: 'var(--bg-card-hover)', borderColor: 'var(--border-subtle)' }}
           >
             <p className="text-[10px] uppercase tracking-widest font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>
-              Estimated Total — {priceEstimate.days} day{priceEstimate.days !== 1 ? 's' : ''}
+              Estimated Total: {priceEstimate.days} day{priceEstimate.days !== 1 ? 's' : ''}
             </p>
             <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>
               <span>Rental ({priceEstimate.days} day{priceEstimate.days !== 1 ? 's' : ''})</span>
@@ -751,7 +751,7 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
           />
         </div>
 
-        {/* SMS consent disclosure — required for Twilio A2P 10DLC campaign approval.
+        {/* SMS consent disclosure - required for Twilio A2P 10DLC campaign approval.
             Twilio reviewers verify this disclosure exists directly above the submit
             button. Do not remove or hide without updating the A2P consent text. */}
         <div

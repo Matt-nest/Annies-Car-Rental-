@@ -206,10 +206,10 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Custom cursor — outside page transitions, desktop-only */}
+      {/* Custom cursor - outside page transitions, desktop-only */}
       <CustomCursor />
 
-      {/* Quick-view modal — outside page transitions so it works on both pages */}
+      {/* Quick-view modal - outside page transitions so it works on both pages */}
       <AnimatePresence>
         {quickViewVehicle && (
           <QuickViewModal

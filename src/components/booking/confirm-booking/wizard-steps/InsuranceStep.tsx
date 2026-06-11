@@ -69,7 +69,7 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  // Bonzah state — only fetched when the customer enters the Bonzah branch.
+  // Bonzah state - only fetched when the customer enters the Bonzah branch.
   const [config, setConfig] = useState<BonzahConfig | null>(null);
   const [configLoading, setConfigLoading] = useState(false);
   const [configError, setConfigError] = useState('');
@@ -220,7 +220,7 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, config, bonzahAvailable]);
 
-  // Selecting a tier just reads from the cache — no refetch.
+  // Selecting a tier just reads from the cache - no refetch.
   const handleSelectTier = (tierId: string) => {
     const quote = tierQuotes[tierId];
     if (!quote) return;
@@ -250,7 +250,7 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
     setView('choice');
   };
 
-  // ── Continue handler — branch on view ──────────────────────────────
+  // ── Continue handler - branch on view ──────────────────────────────
   const handleContinue = () => {
     if (view === 'own') {
       const errs: Record<string, string> = {};
@@ -269,7 +269,7 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
 
     if (view === 'bonzah') {
       if (draft.insuranceChoice !== 'bonzah' || !draft.bonzahTierId || !draft.bonzahQuote) {
-        setError('Please select a coverage tier — Essential is the minimum.');
+        setError('Please select a coverage tier. Essential is the minimum.');
         return;
       }
       onContinue();
@@ -278,7 +278,7 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
   };
 
   /* ════════════════════════════════════════════════════════
-     View 1 — Choice screen (two side-by-side rectangles)
+     View 1 - Choice screen (two side-by-side rectangles)
      ════════════════════════════════════════════════════════ */
   if (view === 'choice') {
     // When Bonzah is disabled, skip choice and go straight to own insurance
@@ -289,7 +289,7 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
       return null;
     }
 
-    // Still loading the Bonzah config check — show a brief loader
+    // Still loading the Bonzah config check - show a brief loader
     if (bonzahDisabled === null) {
       return (
         <div className="space-y-5">
@@ -340,7 +340,7 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
               I have my own insurance
             </p>
             <p className="text-xs leading-relaxed flex-1" style={{ color: 'var(--text-tertiary)' }}>
-              Use your existing auto policy for this rental. We'll collect your provider details for the rental agreement — no additional charge.
+              Use your existing auto policy for this rental. We'll collect your provider details for the rental agreement. No additional charge.
             </p>
             <p className="text-xs mt-3 font-medium flex items-center gap-1" style={{ color: 'var(--accent-color)' }}>
               Continue with my coverage <span aria-hidden>→</span>
@@ -386,12 +386,12 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
   }
 
   /* ════════════════════════════════════════════════════════
-     View 2 — Own insurance details form
+     View 2 - Own insurance details form
      ════════════════════════════════════════════════════════ */
   if (view === 'own') {
     return (
       <div className="space-y-5">
-        {/* Breadcrumb back to choice — only shown when Bonzah is available */}
+        {/* Breadcrumb back to choice - only shown when Bonzah is available */}
         {!bonzahDisabled && (
           <button type="button" onClick={handleBackToChoice}
             className="inline-flex items-center gap-1.5 text-xs hover:underline cursor-pointer"
@@ -493,7 +493,7 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
   }
 
   /* ════════════════════════════════════════════════════════
-     View 3 — Bonzah tier selection (CDW Essential mandatory within this path)
+     View 3 - Bonzah tier selection (CDW Essential mandatory within this path)
      ════════════════════════════════════════════════════════ */
 
   if (configLoading) {
@@ -542,7 +542,7 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
         style={{ backgroundColor: 'rgba(200,169,126,0.08)', borderColor: 'rgba(200,169,126,0.25)' }}>
         <ShieldAlert size={16} className="shrink-0 mt-0.5" style={{ color: 'var(--accent-color)' }} />
         <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-          <strong>CDW Essential is included in every Bonzah policy.</strong> It's the minimum collision damage waiver — Essential is pre-selected and you can upgrade to a higher tier below.
+          <strong>CDW Essential is included in every Bonzah policy.</strong> It's the minimum collision damage waiver. Essential is pre-selected and you can upgrade to a higher tier below.
         </p>
       </div>
 
@@ -550,19 +550,19 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
       {!configError && config && !ageOk && driverAge !== null && (
         <div className="rounded-xl border p-3 text-xs"
           style={{ backgroundColor: 'rgba(245,158,11,0.08)', borderColor: 'rgba(245,158,11,0.25)', color: 'var(--text-secondary)' }}>
-          Bonzah insurance requires drivers 21 or older. You may use your own insurance instead — click "Choose a different option" above.
+          Bonzah insurance requires drivers 21 or older. You may use your own insurance instead. Click "Choose a different option" above.
         </div>
       )}
       {!configError && config && stateBlocked && (
         <div className="rounded-xl border p-3 text-xs"
           style={{ backgroundColor: 'rgba(245,158,11,0.08)', borderColor: 'rgba(245,158,11,0.25)', color: 'var(--text-secondary)' }}>
-          Bonzah is not available for rentals picked up in {stateName}. You may use your own insurance instead — click "Choose a different option" above.
+          Bonzah is not available for rentals picked up in {stateName}. You may use your own insurance instead. Click "Choose a different option" above.
         </div>
       )}
       {configError && (
         <div className="rounded-xl border p-3 text-xs"
           style={{ backgroundColor: 'rgba(239,68,68,0.08)', borderColor: 'rgba(239,68,68,0.25)', color: '#ef4444' }}>
-          {configError} — Please contact us at (772) 207-1655 or use your own insurance.
+          {configError}. Please contact us at (772) 207-1655 or use your own insurance.
         </div>
       )}
 
@@ -686,7 +686,7 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
                         <li key={c} className="flex items-start gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
                           <Check size={12} className="mt-0.5 shrink-0" style={{ color: 'var(--accent-color)' }} />
                           <span>
-                            <strong>{BONZAH_COVERAGE_LABELS[c]?.label || c.toUpperCase()}</strong>{' — '}
+                            <strong>{BONZAH_COVERAGE_LABELS[c]?.label || c.toUpperCase()}</strong>{': '}
                             <span style={{ color: 'var(--text-tertiary)' }}>{BONZAH_COVERAGE_LABELS[c]?.summary}</span>
                           </span>
                         </li>

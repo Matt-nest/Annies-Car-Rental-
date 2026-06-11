@@ -1,5 +1,5 @@
 /**
- * Terms of Service — public page at /terms.
+ * Terms of Service - public page at /terms.
  *
  * Includes the specific SMS program disclosures Twilio reviewers require
  * for A2P 10DLC campaign approval: program name, description, frequency,
@@ -49,7 +49,7 @@ export default function TermsOfService() {
 
         <Section title="1. Acceptance">
           <p>
-            By accessing this website, submitting a rental request, or receiving SMS messages from us, you agree to these Terms of Service. If you do not agree, do not use our services. These terms govern the website and SMS program only — the rental of a vehicle itself is governed by the separate <a href="/rental-agreement" className="underline">Rental Agreement</a>, which you will sign before pickup.
+            By accessing this website, submitting a rental request, or receiving SMS messages from us, you agree to these Terms of Service. If you do not agree, do not use our services. These terms govern the website and SMS program only. The rental of a vehicle itself is governed by the separate <a href="/rental-agreement" className="underline">Rental Agreement</a>, which you will sign before pickup.
           </p>
         </Section>
 
@@ -67,7 +67,7 @@ export default function TermsOfService() {
             <strong>What you'll receive:</strong> By submitting a rental request through this website, you consent to receive recurring SMS messages from {brand.name} about your rental, including booking confirmations, payment receipts, pickup reminders, lockbox codes, day-of-pickup logistics, mid-rental check-ins, return reminders, late-return warnings, post-trip review requests, and occasional loyalty messages.
           </p>
           <p>
-            <strong>Message frequency varies</strong> based on rental length and lifecycle stage — typically 5–10 messages per rental. <strong>Message and data rates may apply</strong> as charged by your wireless carrier; {brand.name} does not charge for SMS messages themselves.
+            <strong>Message frequency varies</strong> based on rental length and lifecycle stage, typically 5 to 10 messages per rental. <strong>Message and data rates may apply</strong> as charged by your wireless carrier; {brand.name} does not charge for SMS messages themselves.
           </p>
           <p>
             <strong>To stop receiving messages, reply STOP, UNSUB, CANCEL, END, or QUIT.</strong> You will receive a single confirmation reply. After that, you will receive no further automated SMS from {brand.name}. The opt-out is honored both at the Twilio carrier layer and within {brand.name}'s own application database.
@@ -106,7 +106,7 @@ export default function TermsOfService() {
 
         <Section title="6. Payment terms">
           <p>
-            Payment is processed through Stripe at the time of booking confirmation. A refundable security deposit is authorized at pickup and released or settled within 3–5 business days after vehicle return and inspection. Incidentals (cleaning, smoking, pet, late-return, mileage overage, tolls, damage) are charged against the security deposit per the <a href="/rental-agreement" className="underline">Rental Agreement</a>.
+            Payment is processed through Stripe at the time of booking confirmation. A refundable security deposit is authorized at pickup and released or settled within 3 to 5 business days after vehicle return and inspection. Incidentals (cleaning, smoking, pet, late-return, mileage overage, tolls, damage) are charged against the security deposit per the <a href="/rental-agreement" className="underline">Rental Agreement</a>.
           </p>
         </Section>
 
@@ -118,7 +118,7 @@ export default function TermsOfService() {
 
         <Section title="8. Intellectual property">
           <p>
-            All content on this site — including text, photos, logos, vehicle images, and the booking interface — is owned by Aaron's Garage LLC or used with permission. You may not copy, reproduce, or redistribute the content without written permission.
+            All content on this site (including text, photos, logos, vehicle images, and the booking interface) is owned by Aaron's Garage LLC or used with permission. You may not copy, reproduce, or redistribute the content without written permission.
           </p>
         </Section>
 

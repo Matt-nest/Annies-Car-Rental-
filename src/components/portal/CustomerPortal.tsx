@@ -49,7 +49,7 @@ const card = (theme: string) => ({
    override visibility, only ordering hints (via expandedSections) and the
    welcome note voice.
 
-   Voice template: matches the existing returned-status note — concise, warm,
+   Voice template: matches the existing returned-status note - concise, warm,
    first-person plural ("we'll"), one short sentence with a clear next step. */
 type StatusKey =
   | 'pending_approval' | 'approved' | 'confirmed'
@@ -64,7 +64,7 @@ interface StatusLayout {
 
 const STATUS_LAYOUT_CONFIG: Record<StatusKey, StatusLayout> = {
   pending_approval: {
-    welcome: () => "Thanks for your request — we'll review and confirm shortly.",
+    welcome: () => "Thanks for your request. We'll review and confirm shortly.",
     expandedSections: [],
   },
   approved: {
@@ -84,7 +84,7 @@ const STATUS_LAYOUT_CONFIG: Record<StatusKey, StatusLayout> = {
   },
   active: {
     welcome: () =>
-      "You're on the road — drive safe. Return instructions are below when you're ready to bring it back.",
+      "You're on the road. Drive safe. Return instructions are below when you're ready to bring it back.",
     expandedSections: ['safety_guide'],
   },
   returned: {
@@ -94,7 +94,7 @@ const STATUS_LAYOUT_CONFIG: Record<StatusKey, StatusLayout> = {
   },
   completed: {
     welcome: () =>
-      `Rental complete — thank you for choosing ${brand.name}. We hope to see you again soon.`,
+      `Rental complete. Thank you for choosing ${brand.name}. We hope to see you again soon.`,
     expandedSections: [],
   },
   cancelled: {
@@ -211,7 +211,7 @@ export default function CustomerPortal() {
   const [photoSlots, setPhotoSlots] = useState<PhotoSlots>({});
   const [allSlotsReady, setAllSlotsReady] = useState(false);
 
-  // Return form mirrors check-in — slot photos + odometer + fuel are required
+  // Return form mirrors check-in - slot photos + odometer + fuel are required
   const [returnPhotoSlots, setReturnPhotoSlots] = useState<PhotoSlots>({});
   const [returnSlotsReady, setReturnSlotsReady] = useState(false);
   const [returnOdometer, setReturnOdometer] = useState('');
@@ -278,7 +278,7 @@ export default function CustomerPortal() {
       setBooking(data);
 
       // Load lockbox only when check-in is complete (active status)
-      // Lockbox is gated behind check-in — not available during ready_for_pickup
+      // Lockbox is gated behind check-in - not available during ready_for_pickup
       if (data.status === 'active') {
         const lb = await fetch(`${API_URL}/portal/lockbox`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -286,7 +286,7 @@ export default function CustomerPortal() {
         if (lb?.lockbox_code) setLockbox(lb.lockbox_code);
       }
 
-      // Load pending overage charges (returned/completed bookings only — these
+      // Load pending overage charges (returned/completed bookings only - these
       // are the charges scheduled to fire 48h after inspection). Returns []
       // when the FEATURE_AUTO_OVERAGE_CHARGES flag is off.
       if (['returned', 'completed'].includes(data.status)) {
@@ -332,12 +332,12 @@ export default function CustomerPortal() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
-      // The lockbox code is returned on successful check-in — reveal it
+      // The lockbox code is returned on successful check-in - reveal it
       if (data.lockbox_code) {
         setLockbox(data.lockbox_code);
-        setActionSuccess('Check-in complete! Your lockbox code is below — grab your keys and drive safe! 🚗');
+        setActionSuccess('Check-in complete! Your lockbox code is below. Grab your keys and drive safe! 🚗');
       } else if (data.lockbox_error) {
-        // Lockbox not configured in database — show the fallback message
+        // Lockbox not configured in database - show the fallback message
         setActionSuccess(`Check-in complete! ${data.lockbox_error}`);
       } else {
         setActionSuccess(`Check-in complete! Contact ${brand.name} at ${brand.phone} for your key pickup instructions.`);
@@ -347,7 +347,7 @@ export default function CustomerPortal() {
     setActionLoading(false);
   };
 
-  /* ── Self-Service Check-Out — mirrors check-in: required slot photos +
+  /* ── Self-Service Check-Out - mirrors check-in: required slot photos +
         odometer + fuel + key-returned acknowledgement. ── */
   const handleCheckOut = async () => {
     if (!keyReturned || !returnSlotsReady) return;
@@ -578,7 +578,7 @@ export default function CustomerPortal() {
     confirmed: { label: 'Confirmed', color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
     ready_for_pickup: { label: 'Ready for Pickup', color: '#06b6d4', bg: 'rgba(6,182,212,0.1)' },
     active: { label: 'Active Rental', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
-    returned: { label: 'Returned — Under Inspection', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
+    returned: { label: 'Returned: Under Inspection', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
     completed: { label: 'Completed', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
     cancelled: { label: 'Cancelled', color: '#ef4444', bg: 'rgba(239,68,68,0.1)' },
     declined: { label: 'Declined', color: '#ef4444', bg: 'rgba(239,68,68,0.1)' },
@@ -591,7 +591,7 @@ export default function CustomerPortal() {
       <main className="min-h-screen px-4 sm:px-6" style={{ paddingTop: '100px', paddingBottom: '80px' }}>
         <div className="max-w-lg mx-auto space-y-5">
 
-          {/* Compact identity header — name + booking code */}
+          {/* Compact identity header - name + booking code */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -641,7 +641,7 @@ export default function CustomerPortal() {
             </div>
           )}
 
-          {/* ── Status welcome note — sits below booking number, above the
+          {/* ── Status welcome note - sits below booking number, above the
               vehicle photo. Same visual treatment as the existing returned-status
               note. Drives every status's "what to do next" guidance. ── */}
           {(() => {
@@ -733,7 +733,7 @@ export default function CustomerPortal() {
                 <span>{booking.pickup_location}</span>
               </div>
 
-              {/* Trimmed 4-step progress bar — only the milestones the customer experiences */}
+              {/* Trimmed 4-step progress bar - only the milestones the customer experiences */}
               {(() => {
                 const steps = [
                   { key: 'confirmed', label: 'Confirmed' },
@@ -847,7 +847,7 @@ export default function CustomerPortal() {
                   <div className="space-y-3">
                     {[
                       { num: '1', text: 'Walk to the back of the building' },
-                      { num: '2', text: `Find your ${v?.year || ''} ${v?.make || ''} ${v?.model || ''} — it's parked and ready` },
+                      { num: '2', text: `Find your ${v?.year || ''} ${v?.make || ''} ${v?.model || ''}. It's parked and ready` },
                       { num: '3', text: 'Inspect the vehicle and complete the check-in form below' },
                       { num: '4', text: 'Once submitted, your lockbox code will be revealed' },
                       { num: '5', text: 'Open the lockbox, grab the key, and you\'re off!' },
@@ -878,7 +878,7 @@ export default function CustomerPortal() {
             </motion.div>
           )}
 
-          {/* ── Admin Vehicle Prep Report — always collapsed at this status,
+          {/* ── Admin Vehicle Prep Report - always collapsed at this status,
               hidden behind a "View vehicle prep report" toggle. ── */}
           {status === 'ready_for_pickup' && booking.checkinRecords && (() => {
             const prepRecord = booking.checkinRecords.find((r: any) => r.record_type === 'admin_prep');
@@ -929,7 +929,7 @@ export default function CustomerPortal() {
             );
           })()}
 
-          {/* ── Customer Check-In Record (returned / completed only — active version
+          {/* ── Customer Check-In Record (returned / completed only - active version
                 renders below the Return Your Vehicle card) ── */}
           {['returned', 'completed'].includes(status) && booking.checkinRecords && (() => {
             const customerCheckin = booking.checkinRecords.find((r: any) => r.record_type === 'customer_checkin');
@@ -950,7 +950,7 @@ export default function CustomerPortal() {
                         <Gauge size={10} className="inline mr-1" />Odometer
                       </p>
                       <p className="text-sm font-semibold font-mono" style={{ color: 'var(--text-primary)' }}>
-                        {customerCheckin.odometer ? Number(customerCheckin.odometer).toLocaleString() : '—'} mi
+                        {customerCheckin.odometer ? Number(customerCheckin.odometer).toLocaleString() : 'N/A'} mi
                       </p>
                     </div>
                     <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-card-hover)' }}>
@@ -958,7 +958,7 @@ export default function CustomerPortal() {
                         <Fuel size={10} className="inline mr-1" />Fuel Level
                       </p>
                       <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                        {fuelLabels[customerCheckin.fuel_level] || customerCheckin.fuel_level || '—'}
+                        {fuelLabels[customerCheckin.fuel_level] || customerCheckin.fuel_level || 'N/A'}
                       </p>
                     </div>
                   </div>
@@ -1086,7 +1086,7 @@ export default function CustomerPortal() {
             </motion.div>
           )}
 
-          {/* Lockbox Code — only revealed AFTER successful check-in */}
+          {/* Lockbox Code - only revealed AFTER successful check-in */}
           <AnimatePresence>
             {lockbox && (
               <motion.div
@@ -1118,7 +1118,7 @@ export default function CustomerPortal() {
             )}
           </AnimatePresence>
 
-          {/* Self-Service Check-Out (active) — mirrors check-in: required
+          {/* Self-Service Check-Out (active) - mirrors check-in: required
               slot photos, odometer, fuel, plus key-returned acknowledgement. */}
           {status === 'active' && (
             <motion.div
@@ -1135,7 +1135,7 @@ export default function CustomerPortal() {
                   Park at the pickup location, take photos from each angle, record the odometer and fuel level, place the key back in the lockbox, then confirm.
                 </p>
 
-                {/* Photo Slots — same 4 required angles as check-in */}
+                {/* Photo Slots - same 4 required angles as check-in */}
                 {token && (
                   <SlotPhotoUploader
                     token={token}
@@ -1242,7 +1242,7 @@ export default function CustomerPortal() {
                         <Gauge size={10} className="inline mr-1" />Odometer
                       </p>
                       <p className="text-sm font-semibold font-mono" style={{ color: 'var(--text-primary)' }}>
-                        {customerCheckin.odometer ? Number(customerCheckin.odometer).toLocaleString() : '—'} mi
+                        {customerCheckin.odometer ? Number(customerCheckin.odometer).toLocaleString() : 'N/A'} mi
                       </p>
                     </div>
                     <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-card-hover)' }}>
@@ -1250,7 +1250,7 @@ export default function CustomerPortal() {
                         <Fuel size={10} className="inline mr-1" />Fuel Level
                       </p>
                       <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                        {fuelLabels[customerCheckin.fuel_level] || customerCheckin.fuel_level || '—'}
+                        {fuelLabels[customerCheckin.fuel_level] || customerCheckin.fuel_level || 'N/A'}
                       </p>
                     </div>
                   </div>
@@ -1307,7 +1307,7 @@ export default function CustomerPortal() {
                     <AlertCircle size={11} className="inline mr-1 -mt-0.5" /> If You're in an Accident
                   </p>
                   <ol className="text-xs leading-relaxed space-y-0.5 pl-4" style={{ color: 'var(--text-secondary)', listStyleType: 'decimal' }}>
-                    <li>Ensure everyone is safe — call 911 if needed</li>
+                    <li>Ensure everyone is safe. Call 911 if needed</li>
                     <li>Exchange info with the other driver</li>
                     <li>Take photos of all vehicles and the scene</li>
                     <li>Call {brand.name} at {brand.phone} immediately</li>
@@ -1339,7 +1339,7 @@ export default function CustomerPortal() {
                   <DollarSign size={20} style={{ color: 'var(--accent-color)' }} /> Settlement
                 </h3>
 
-                {/* Pending-inspection banner — shown only while we're still
+                {/* Pending-inspection banner - shown only while we're still
                     inspecting. Mirrors the same visual rhythm as the welcome
                     note above the vehicle photo. */}
                 {status === 'returned' && (
@@ -1352,7 +1352,7 @@ export default function CustomerPortal() {
                     }}
                   >
                     <Clock size={13} className="shrink-0" />
-                    Pending inspection — final settlement posts once we've reviewed the vehicle.
+                    Pending inspection. Final settlement posts once we've reviewed the vehicle.
                   </div>
                 )}
 
@@ -1444,7 +1444,7 @@ export default function CustomerPortal() {
             </motion.div>
           )}
 
-          {/* Review prompt — completed rentals only */}
+          {/* Review prompt - completed rentals only */}
           {status === 'completed' && !reviewDone && (
             <motion.div
               initial={{ opacity: 0, y: 16 }}
@@ -1513,7 +1513,7 @@ export default function CustomerPortal() {
             <div className="rounded-2xl p-4 text-center text-sm" style={{
               backgroundColor: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.2)', color: '#D4AF37',
             }}>
-              Thank you — {brand.name} appreciates the feedback!
+              Thank you. {brand.name} appreciates the feedback!
             </div>
           )}
 
@@ -1673,7 +1673,7 @@ export default function CustomerPortal() {
                         <span>{fmtMoney(booking.deposit_amount)}</span>
                       </div>
                       <p className="text-[11px] mt-1" style={{ color: 'var(--text-tertiary)' }}>
-                        Returned 3–5 business days after vehicle inspection.
+                        Returned 3 to 5 business days after vehicle inspection.
                       </p>
                     </div>
                   )}
@@ -1719,7 +1719,7 @@ export default function CustomerPortal() {
                       </div>
                       <div>
                         <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Unlimited Miles</p>
-                        <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>No mileage restrictions — drive as far as you want</p>
+                        <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>No mileage restrictions. Drive as far as you want</p>
                       </div>
                     </div>
                   )}

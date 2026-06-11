@@ -13,7 +13,7 @@ export default function TrustSection() {
 
   const trustPoints = [
     { title: 'Professionally Maintained', desc: 'Every vehicle is inspected and detailed before each rental at our Port St. Lucie facility.' },
-    { title: 'Direct Communication', desc: 'You deal with us directly — personal, responsive, local service. No middleman, no corporate runaround.' },
+    { title: 'Direct Communication', desc: 'You deal with us directly: personal, responsive, local service. No middleman, no corporate runaround.' },
     { title: 'Flexible Terms', desc: 'Daily or weekly rentals with easy extensions and clear pricing for the Treasure Coast area.' },
   ];
 
@@ -124,7 +124,7 @@ export default function TrustSection() {
             }}
           >
             <div className="flex items-center gap-3">
-              {/* Avatar cluster — real photos */}
+              {/* Avatar cluster - real photos */}
               <div className="flex -space-x-2.5">
                 {[
                   'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=64&h=64&q=80',

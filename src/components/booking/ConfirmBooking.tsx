@@ -57,7 +57,7 @@ function PaymentForm({
   const [submitStep, setSubmitStep] = useState<'agreement' | 'insurance' | 'payment' | 'confirming' | 'done'>('agreement');
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Calculate grand total for display — Bonzah quote stored on the draft
+  // Calculate grand total for display - Bonzah quote stored on the draft
   let insuranceCost = 0;
   if (draft.insuranceChoice === 'bonzah' && draft.bonzahQuote) {
     insuranceCost = draft.bonzahQuote.total_cents / 100;
@@ -65,7 +65,7 @@ function PaymentForm({
   const rentalTotal = bookingSummary?.totalCost || 0;
   const grandTotal = rentalTotal + insuranceCost + depositAmount;
 
-  /** Idempotent receipt dispatch with retries — backend dedupes via PI metadata */
+  /** Idempotent receipt dispatch with retries - backend dedupes via PI metadata */
   async function triggerReceiptWithRetry(piId: string, attempt = 0): Promise<void> {
     try {
       const res = await fetch(`${API_URL}/stripe/send-receipt`, {

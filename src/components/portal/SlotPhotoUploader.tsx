@@ -1,10 +1,10 @@
 /**
- * SlotPhotoUploader — Structured photo upload for vehicle check-in.
+ * SlotPhotoUploader - Structured photo upload for vehicle check-in.
  * Each slot (front, driver_side, passenger_side, rear) is required.
  * Dashboard and damage are optional.
  *
  * Uses VehicleSlotIcons for illustrated placeholders with gold accent.
- * Separate from PhotoUploader.tsx — different UX pattern (slot-based vs list).
+ * Separate from PhotoUploader.tsx - different UX pattern (slot-based vs list).
  */
 import React, { useState, useRef } from 'react';
 import { Camera, X, Loader2, Check, AlertTriangle } from 'lucide-react';
@@ -94,11 +94,11 @@ export default function SlotPhotoUploader({ token, onSlotsChange }: SlotPhotoUpl
       const updated = { ...slots };
 
       if (slotDef?.multi) {
-        // Damage: append to array — store paths
+        // Damage: append to array - store paths
         const existing = Array.isArray(updated[slotKey]) ? (updated[slotKey] as string[]) : [];
         updated[slotKey] = [...existing, ...photosData.map(p => p.path)];
       } else {
-        // Single: replace — store path
+        // Single: replace - store path
         updated[slotKey] = photosData[0].path;
       }
 

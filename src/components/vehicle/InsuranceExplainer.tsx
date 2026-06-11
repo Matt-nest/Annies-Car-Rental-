@@ -14,7 +14,7 @@ const InsuranceExplainer = memo(function InsuranceExplainer() {
           href="https://bonzah.com/faq"
           target="_blank"
           rel="noopener noreferrer"
-          aria-label="Bonzah — Rental Car Insurance Partner (opens in new tab)"
+          aria-label="Bonzah, Rental Car Insurance Partner (opens in new tab)"
           className="shrink-0 transition-opacity duration-150 hover:opacity-80 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2"
           style={{ outline: 'none' }}
         >
@@ -32,7 +32,7 @@ const InsuranceExplainer = memo(function InsuranceExplainer() {
           >
             <img
               src={bonzahLogo}
-              alt="Bonzah — Rental Car Insurance Partner"
+              alt="Bonzah, Rental Car Insurance Partner"
               style={{
                 width: '36px',
                 height: '36px',
@@ -55,7 +55,7 @@ const InsuranceExplainer = memo(function InsuranceExplainer() {
           <Info size={14} className="mt-0.5 shrink-0" style={{ color: 'var(--text-tertiary)' }} />
           <p style={{ color: 'var(--text-secondary)' }} className="leading-relaxed">
             We've partnered with Bonzah to offer affordable rental insurance. Collision damage
-            coverage up to $35,000, liability protection, and personal accident insurance — all
+            coverage up to $35,000, liability protection, and personal accident insurance, all
             purchased before your trip at a fraction of the rental counter price.
           </p>
         </div>
@@ -63,7 +63,7 @@ const InsuranceExplainer = memo(function InsuranceExplainer() {
           <Info size={14} className="mt-0.5 shrink-0" style={{ color: 'var(--text-tertiary)' }} />
           <p style={{ color: 'var(--text-secondary)' }} className="leading-relaxed">
             You can bring your own coverage or choose a Bonzah plan starting from $7.99/day.
-            We'll walk you through your options after your booking is confirmed — no insurance
+            We'll walk you through your options after your booking is confirmed. No insurance
             purchase is required upfront.
           </p>
         </div>

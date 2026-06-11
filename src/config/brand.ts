@@ -1,5 +1,5 @@
 /**
- * Frontend Brand Configuration — Single source of truth for all brand-specific values.
+ * Frontend Brand Configuration - Single source of truth for all brand-specific values.
  *
  * ┌──────────────────────────────────────────────────────────────────────────┐
  * │ WHITE-LABEL GUIDE                                                       │
@@ -35,7 +35,7 @@ export const brand = {
 
   // ── Visual Identity ───────────────────────────────────────────────────────
   colors: {
-    /** Primary brand accent — used for highlights, links, selections */
+    /** Primary brand accent - used for highlights, links, selections */
     accent:     import.meta.env.VITE_BRAND_COLOR_ACCENT  || "#D4AF37",
     /** Darker variant for light-mode contexts */
     accentDark: import.meta.env.VITE_BRAND_COLOR_ACCENT_DARK || "#B8941E",
@@ -44,7 +44,7 @@ export const brand = {
   // ── External Links ────────────────────────────────────────────────────────
   reviewLink:  import.meta.env.VITE_BRAND_REVIEW_LINK || "https://g.page/annies-car-rental/review",
 
-  // ── Chat Widget (optional — leave empty to disable) ───────────────────────
+  // ── Chat Widget (optional - leave empty to disable) ───────────────────────
   chatWidgetId: import.meta.env.VITE_CHAT_WIDGET_ID || "",
 };
 

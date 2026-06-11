@@ -121,7 +121,7 @@ export default function TermsStep({ draft, onUpdate, onContinue, onBack, theme }
           </>
         )}
 
-        {/* Accept checkbox — disabled until expanded + scrolled to end */}
+        {/* Accept checkbox - disabled until expanded + scrolled to end */}
         <div className="mt-4 pt-3" style={{ borderTop: '1px solid var(--border-subtle)' }}>
           <label
             className={`flex items-start gap-3 ${checkboxEnabled ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
@@ -144,7 +144,7 @@ export default function TermsStep({ draft, onUpdate, onContinue, onBack, theme }
               I have read and agree to the Terms & Conditions of this Rental Agreement.
             </span>
           </label>
-          {/* a11y live region — announces when controls become enabled */}
+          {/* a11y live region - announces when controls become enabled */}
           <div className="sr-only" aria-live="polite" aria-atomic="true">
             {checkboxEnabled
               ? 'You may now accept the Terms & Conditions.'

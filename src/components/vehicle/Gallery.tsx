@@ -19,7 +19,7 @@ export default function Gallery({ images, alt }: GalleryProps) {
 
   return (
     <>
-      {/* Gallery Grid — adaptive: renders only existing images */}
+      {/* Gallery Grid - adaptive: renders only existing images */}
       {images.length > 0 && (
         <section className="relative w-full overflow-hidden">
           {images.length === 1 ? (
@@ -110,7 +110,7 @@ export default function Gallery({ images, alt }: GalleryProps) {
               ))}
             </div>
           )}
-          {/* Mobile view all button — only show if there's more than one image */}
+          {/* Mobile view all button - only show if there's more than one image */}
           {images.length > 1 && (
             <button
               onClick={() => { setCurrentIndex(0); setIsOpen(true); }}

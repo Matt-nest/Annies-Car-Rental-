@@ -24,7 +24,7 @@ export default function Hero({ onBrowseFleet }: HeroProps) {
       >
         <img
           src="/hero-sentra-front.png"
-          alt={`Clean, reliable Nissan Sentra — ${brand.name}`}
+          alt={`Clean, reliable Nissan Sentra from ${brand.name}`}
           className="w-full h-full object-cover animate-slow-zoom object-[60%_center] sm:object-[90%_center]"
           fetchPriority="high"
           decoding="async"
@@ -59,7 +59,7 @@ export default function Hero({ onBrowseFleet }: HeroProps) {
         />
       </motion.div>
 
-      {/* Content Container — Bottom-Left Anchored for Cinema Feel */}
+      {/* Content Container - Bottom-Left Anchored for Cinema Feel */}
       <div className="relative z-10 w-full max-w-7xl mx-auto px-6 sm:px-8">
         <div className="max-w-2xl">
           
@@ -72,7 +72,7 @@ export default function Hero({ onBrowseFleet }: HeroProps) {
           >
             <img
               src="/logo.png"
-              alt={`${brand.name} — Your Trusted Vehicle Rental`}
+              alt={`${brand.name}: Your Trusted Vehicle Rental`}
               className="h-[72px] sm:h-[84px] md:h-[100px] w-auto object-contain"
               style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.3))' }}
             />
@@ -97,7 +97,7 @@ export default function Hero({ onBrowseFleet }: HeroProps) {
             </span>
           </motion.div>
 
-          {/* Headline — Familiar, elegant, structured */}
+          {/* Headline - Familiar, elegant, structured */}
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -111,7 +111,7 @@ export default function Hero({ onBrowseFleet }: HeroProps) {
             <span className="italic font-serif font-normal" style={{ color: 'var(--accent-color)' }}>your way.</span>
           </motion.h1>
 
-          {/* Subtitle — Pragmatic, Trust-Building */}
+          {/* Subtitle - Pragmatic, Trust-Building */}
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -125,7 +125,7 @@ export default function Hero({ onBrowseFleet }: HeroProps) {
             Clean, reliable vehicles delivered directly to you across the Port St. Lucie / Treasure Coast area.
           </motion.p>
 
-          {/* Action Row — CTA flanked tightly by Social Proof */}
+          {/* Action Row - CTA flanked tightly by Social Proof */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -141,7 +141,7 @@ export default function Hero({ onBrowseFleet }: HeroProps) {
               <ArrowRight size={18} className="relative z-10 transition-transform duration-500 group-hover:translate-x-1" />
             </button>
 
-            {/* Native Trust Strip — replaces heavy floating badge */}
+            {/* Native Trust Strip - replaces heavy floating badge */}
             <div className="flex items-center gap-4">
               <div className="flex -space-x-3">
                 {[

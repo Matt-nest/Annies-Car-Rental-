@@ -1,5 +1,5 @@
 /**
- * VehicleSlotIcons — SVG illustrated car outline placeholders for each photo slot.
+ * VehicleSlotIcons - SVG illustrated car outline placeholders for each photo slot.
  * Reusable, themeable, gold accent on dark / muted on light.
  * Follows customer site design system.
  */
@@ -17,7 +17,7 @@ const baseStyle = (filled: boolean): React.CSSProperties => ({
   transform: filled ? 'scale(1)' : 'scale(0.95)',
 });
 
-/** Front view — car facing viewer */
+/** Front view - car facing viewer */
 export function FrontViewIcon({ size = 48, filled = false, className }: SlotIconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" fill="none" className={className} style={baseStyle(filled)}>
@@ -32,7 +32,7 @@ export function FrontViewIcon({ size = 48, filled = false, className }: SlotIcon
   );
 }
 
-/** Driver side view — car profile from left */
+/** Driver side view - car profile from left */
 export function DriverSideIcon({ size = 48, filled = false, className }: SlotIconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" fill="none" className={className} style={baseStyle(filled)}>
@@ -46,7 +46,7 @@ export function DriverSideIcon({ size = 48, filled = false, className }: SlotIco
   );
 }
 
-/** Passenger side view — car profile from right */
+/** Passenger side view - car profile from right */
 export function PassengerSideIcon({ size = 48, filled = false, className }: SlotIconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" fill="none" className={className} style={baseStyle(filled)}>
@@ -60,7 +60,7 @@ export function PassengerSideIcon({ size = 48, filled = false, className }: Slot
   );
 }
 
-/** Rear view — car from behind */
+/** Rear view - car from behind */
 export function RearViewIcon({ size = 48, filled = false, className }: SlotIconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" fill="none" className={className} style={baseStyle(filled)}>

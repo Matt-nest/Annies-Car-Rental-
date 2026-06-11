@@ -76,7 +76,7 @@ export default function AddressStep({ draft, onUpdate, onContinue, onBack, theme
               <label className="text-[10px] uppercase tracking-[0.15em] mb-1 block ml-0.5" style={{ color: 'var(--text-tertiary)' }}>State *</label>
               <select className={inputClass('state')} style={{ ...inputStyle, ...borderStyle('state') }}
                 value={draft.address.state} onChange={e => updateAddress('state', e.target.value)}>
-                <option value="">—</option>
+                <option value="">Select</option>
                 {US_STATES.map(s => <option key={s.value} value={s.value}>{s.value}</option>)}
               </select>
             </div>

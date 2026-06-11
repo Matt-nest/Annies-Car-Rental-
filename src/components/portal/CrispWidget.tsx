@@ -121,7 +121,7 @@ export default function CrispWidget({ booking, visible = true }: CrispWidgetProp
     if (!window.$crisp) return;
     try {
       window.$crisp.push(['do', visible ? 'chat:show' : 'chat:hide']);
-    } catch { /* script not ready yet — initial visibility will apply onload */ }
+    } catch { /* script not ready yet - initial visibility will apply onload */ }
   }, [visible]);
 
   return null;

@@ -34,7 +34,7 @@ export default function ContactSection({ onBrowseFleet }: ContactSectionProps) {
             </h2>
             <p className="text-base sm:text-lg mb-8 sm:mb-10 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
               Call us directly, or browse the fleet and submit a request online.
-              Whether it's a week, a month, or all winter — we serve {brand.location.city} and the surrounding area,
+              Whether it's a week, a month, or all winter, we serve {brand.location.city} and the surrounding area,
               and we'll remember you next season.
             </p>
             <div className="space-y-4 sm:space-y-5">
@@ -73,7 +73,7 @@ export default function ContactSection({ onBrowseFleet }: ContactSectionProps) {
                   <Car size={18} style={{ color: 'var(--accent-color)' }} />
                 </div>
                 <div>
-                  <p className="text-base sm:text-lg font-medium leading-snug">Rideshare drivers — we have weekly plans.</p>
+                  <p className="text-base sm:text-lg font-medium leading-snug">Rideshare drivers: we have weekly plans.</p>
                   <a
                     href={`tel:${brand.phone.replace(/[^\d+]/g, '')}`}
                     className="text-sm font-medium transition-opacity hover:opacity-70"

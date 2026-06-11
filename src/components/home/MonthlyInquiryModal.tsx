@@ -66,7 +66,7 @@ export default function MonthlyInquiryModal({ vehicle, onClose }: MonthlyInquiry
       });
       setSuccess(true);
     } catch {
-      // Still show success — inquiry may have saved
+      // Still show success - inquiry may have saved
       setSuccess(true);
     }
     setSubmitting(false);
@@ -120,7 +120,7 @@ export default function MonthlyInquiryModal({ vehicle, onClose }: MonthlyInquiry
               </h3>
               <p className="text-sm leading-relaxed mb-6" style={{ color: 'var(--text-secondary)' }}>
                 We will personally reach out within 24 hours to discuss your monthly rental.
-                No pressure — just a conversation.
+                No pressure, just a conversation.
               </p>
               <a
                 href={`tel:${brand.phone.replace(/[^\d+]/g, '')}`}

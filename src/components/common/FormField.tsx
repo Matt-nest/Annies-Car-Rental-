@@ -21,7 +21,7 @@ export interface FormFieldProps {
 
 /**
  * Validated form input with animated error/success states.
- * Extracted from ConfirmBooking — general-purpose reusable field.
+ * Extracted from ConfirmBooking - general-purpose reusable field.
  */
 export default function FormField({
   id,

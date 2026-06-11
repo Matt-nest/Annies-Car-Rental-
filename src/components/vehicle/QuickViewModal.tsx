@@ -52,7 +52,7 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
         onClick={onClose}
       />
 
-      {/* Modal — no scroll, everything fits in viewport */}
+      {/* Modal - no scroll, everything fits in viewport */}
       <motion.div
         initial={{ opacity: 0, scale: 0.92, y: 40 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -79,7 +79,7 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
           <X size={18} />
         </button>
 
-        {/* Image — compact landscape hero. Renders only if vehicle has images. */}
+        {/* Image - compact landscape hero. Renders only if vehicle has images. */}
         <div className="relative w-full shrink-0 overflow-hidden bg-black" style={{ aspectRatio: '16 / 8' }}>
           {vehicle.images.length > 0 && (
             <AnimatePresence mode="wait">
@@ -90,7 +90,7 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.4, ease: EASE.standard }}
                 src={vehicle.images[imgIndex]}
-                alt={`${displayName} — angle ${imgIndex + 1}`}
+                alt={`${displayName}, angle ${imgIndex + 1}`}
                 className="w-full h-full object-contain"
                 style={{ backgroundColor: theme === 'dark' ? '#0a0a0a' : '#f0f0f0', filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.3))' }}
               />
@@ -144,7 +144,7 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
           )}
         </div>
 
-        {/* Content — compact, no scroll */}
+        {/* Content - compact, no scroll */}
         <div className="p-4 sm:p-5 md:px-7 md:py-5 space-y-3 sm:space-y-4 flex-1 overflow-y-auto">
           {/* Row 1: Title + stars on left, Rate Toggle on right */}
           <div className="flex items-start justify-between gap-4">
@@ -164,7 +164,7 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
             <RateToggle value={quickRateMode} onChange={setQuickRateMode} compact />
           </div>
 
-          {/* Price display — animates on rate mode change */}
+          {/* Price display - animates on rate mode change */}
           <AnimatePresence mode="wait">
             <motion.div
               key={quickRateMode}
@@ -249,7 +249,7 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
             </motion.div>
           </AnimatePresence>
 
-          {/* Row 2: Specs inline — compact horizontal strip */}
+          {/* Row 2: Specs inline - compact horizontal strip */}
           <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
             {specs.map((spec, i) => (
               <div
@@ -264,7 +264,7 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
             ))}
           </div>
 
-          {/* Row 3: Review quote — compact */}
+          {/* Row 3: Review quote - compact */}
           {reviews.length > 0 && (
             <div
               className="rounded-xl px-4 py-3 border flex gap-3 items-start"
@@ -281,13 +281,13 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
                 <p className="text-[13px] italic leading-snug line-clamp-2" style={{ color: 'var(--text-secondary)' }}>
                   "{reviews[0].comment}"
                 </p>
-                <p className="text-[11px] font-medium mt-1" style={{ color: 'var(--text-tertiary)' }}>— {reviews[0].reviewerName}</p>
+                <p className="text-[11px] font-medium mt-1" style={{ color: 'var(--text-tertiary)' }}>{reviews[0].reviewerName}</p>
               </div>
             </div>
           )}
         </div>
 
-        {/* Footer bar — CTAs + location, always visible, no scroll */}
+        {/* Footer bar - CTAs + location, always visible, no scroll */}
         <div
           className="shrink-0 px-4 sm:px-5 md:px-7 py-3 sm:py-4 flex items-center gap-2 sm:gap-3 border-t"
           style={{ borderColor: 'var(--border-subtle)' }}

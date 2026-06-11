@@ -58,7 +58,7 @@ export default function Navbar({ onNavigate, isHomePage = false }: NavbarProps) 
         }}
       >
         <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
-          {/* Logo — fades in/out based on hero logo visibility; crossfades color between themes */}
+          {/* Logo - fades in/out based on hero logo visibility; crossfades color between themes */}
           <button onClick={() => onNavigate('home')} className="flex items-center group cursor-pointer">
             <div className="relative inline-flex h-[32px] md:h-[40px]">
               {/* Dark mode: white logo with drop shadow */}
@@ -89,7 +89,7 @@ export default function Navbar({ onNavigate, isHomePage = false }: NavbarProps) 
             </div>
           </button>
 
-          {/* Desktop Nav — CSS hover via .nav-link class replaces JS handlers */}
+          {/* Desktop Nav - CSS hover via .nav-link class replaces JS handlers */}
           <div className="hidden md:flex items-center gap-8 text-sm font-medium">
             {navLinks.map((link) => (
               <button

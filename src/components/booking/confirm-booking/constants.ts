@@ -1,6 +1,6 @@
 import { loadStripe } from '@stripe/stripe-js';
 
-// Re-export from shared config — single source of truth
+// Re-export from shared config - single source of truth
 export { API_URL } from '../../../config';
 
 import { brand } from '../../../config/brand';
@@ -25,7 +25,7 @@ export const stripePromise = loadStripe(
 );
 
 /* ────────────────────────────────────────────────────────
-   Bonzah insurance — runtime config + tier metadata
+   Bonzah insurance - runtime config + tier metadata
    ──────────────────────────────────────────────────────── */
 
 // Tier shape returned by GET /bookings/insurance/config (Supabase settings.bonzah_tiers)
@@ -54,7 +54,7 @@ export interface BonzahQuote {
   markup_cents: number;    // Brand cut
   total_cents: number;     // Customer-facing price
   coverage_information: any[];
-  expires_at: string;      // ISO — internal 24h re-quote window
+  expires_at: string;      // ISO - internal 24h re-quote window
 }
 
 // Bonzah coverage descriptions for UI bullets
@@ -65,7 +65,7 @@ export const BONZAH_COVERAGE_LABELS: Record<string, { label: string; summary: st
   pai:  { label: 'Personal Accident & Effects', summary: '$50K renter · $5K passenger · $500 personal items' },
 };
 
-// Mandatory disclosure copy from Bonzah legal.md — must render above the purchase CTA
+// Mandatory disclosure copy from Bonzah legal.md - must render above the purchase CTA
 export const BONZAH_DISCLOSURE_TEXT =
   'By selecting any of these insurances, the renter agrees to these Terms and Conditions, ' +
   'Privacy, and Covered Vehicles. Insurance is only for drivers 21 years and older with a valid ' +
@@ -80,14 +80,14 @@ export const BONZAH_DISCLOSURE_LINKS = {
 };
 
 /* ────────────────────────────────────────────────────────
-   Wizard Draft — persisted to sessionStorage
+   Wizard Draft - persisted to sessionStorage
    ──────────────────────────────────────────────────────── */
 export interface WizardDraft {
   // Navigation
   stage: number;
   subStep: number;
 
-  // Stage 1 — Agreement
+  // Stage 1 - Agreement
   address: { line1: string; city: string; state: string; zip: string };
   dob: string;
   license: { number: string; state: string; expiry: string };
@@ -95,7 +95,7 @@ export interface WizardDraft {
   acknowledgements: boolean[];
   signature: { mode: 'draw' | 'type'; data: string };
 
-  // Stage 1 — Personal insurance (optional, from agreement)
+  // Stage 1 - Personal insurance (optional, from agreement)
   personalInsurance: {
     company: string;
     policyNumber: string;
@@ -105,12 +105,12 @@ export interface WizardDraft {
     vehicleDescription: string;
   };
 
-  // Stage 2 — Insurance choice
+  // Stage 2 - Insurance choice
   insuranceChoice: 'own' | 'bonzah' | null;
   bonzahTierId: string | null;
   bonzahQuote: BonzahQuote | null;     // last-displayed quote (for fallback if /quote re-call fails on Continue)
 
-  // Stage 1 — License photo uploads (optional, stored as storage paths)
+  // Stage 1 - License photo uploads (optional, stored as storage paths)
   licensePhotoPaths: string[];
 
   // Completed flags

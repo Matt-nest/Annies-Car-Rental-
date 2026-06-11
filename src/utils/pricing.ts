@@ -1,9 +1,9 @@
 /**
- * Client-side pricing utilities — mirrors backend pricingService.js logic.
+ * Client-side pricing utilities - mirrors backend pricingService.js logic.
  * Display-only: server-side pricing is always authoritative.
  */
 
-/** Round price for display only — never use for payment calculations. */
+/** Round price for display only - never use for payment calculations. */
 export function displayPrice(amount: number): number {
   return Math.round(amount);
 }
@@ -76,7 +76,7 @@ export function calcPriceBreakdown({
     rateType = remainderDays === 0 ? 'weekly' : 'weekly_mixed';
     subtotal = parseFloat(((fullWeeks * weeklyRate) + (remainderDays * dailyRate)).toFixed(2));
     mileageIncluded = unlimitedMileageEnabled;
-    mileageFee = 0; // included — not sold
+    mileageFee = 0; // included - not sold
   } else {
     fullWeeks = 0;
     remainderDays = rentalDays;

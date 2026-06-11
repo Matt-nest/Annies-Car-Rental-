@@ -20,9 +20,9 @@ export default function OrderSummary({ bookingSummary: bs, draft, depositAmount,
     const tierLabel = draft.bonzahTierId
       ? draft.bonzahTierId.charAt(0).toUpperCase() + draft.bonzahTierId.slice(1)
       : 'Bonzah';
-    insuranceLabel = `Bonzah Insurance — ${tierLabel} (${rentalDays} day${rentalDays === 1 ? '' : 's'})`;
+    insuranceLabel = `Bonzah Insurance: ${tierLabel} (${rentalDays} day${rentalDays === 1 ? '' : 's'})`;
   } else if (draft.insuranceChoice === 'own') {
-    insuranceLabel = 'Your own insurance — no charge';
+    insuranceLabel = 'Your own insurance (no charge)';
   }
 
   const rentalTotal = bs?.totalCost || 0;

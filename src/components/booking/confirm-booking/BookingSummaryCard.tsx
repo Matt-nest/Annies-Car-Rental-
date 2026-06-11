@@ -118,7 +118,7 @@ export default function BookingSummaryCard({ bookingSummary, theme }: BookingSum
           </div>
         )}
 
-        {/* Security Deposit — included in Stripe charge */}
+        {/* Security Deposit - included in Stripe charge */}
         {bookingSummary.depositAmount > 0 && (
           <>
             <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>

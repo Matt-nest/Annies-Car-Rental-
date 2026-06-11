@@ -142,7 +142,7 @@ export default function FleetGrid({ onSelectVehicle, rateMode = 'daily', onRateM
               }}
             >
               <TrendingUp size={12} />
-              Weekly &amp; monthly save more — see the difference
+              Weekly &amp; monthly save more, see the difference
               <ArrowRight size={12} />
             </motion.button>
           )}
@@ -169,7 +169,7 @@ export default function FleetGrid({ onSelectVehicle, rateMode = 'daily', onRateM
               className="text-xs font-medium"
               style={{ color: 'var(--accent-color)' }}
             >
-              Every long-term rental is personal — call us for your rate
+              Every long-term rental is personal. Call us for your rate
             </motion.p>
           )}
         </AnimatePresence>
@@ -224,7 +224,7 @@ export default function FleetGrid({ onSelectVehicle, rateMode = 'daily', onRateM
               </h3>
 
               <p className="text-base leading-relaxed mb-10 max-w-lg mx-auto" style={{ color: 'var(--text-secondary)' }}>
-                Monthly rates are personal — every situation is different.
+                Monthly rates are personal. Every situation is different.
                 Snowbird staying the season? Rideshare driver needing a weekly car?
                 Between vehicles? Call us, tell us what you need, and we'll
                 put together a rate that makes sense. No platform fees. No fine print.

@@ -44,7 +44,7 @@ export default function StripeCheckoutForm({
       setPayError(error.message || 'Payment failed. Please try again.');
       setPaying(false);
     } else {
-      // Payment succeeded — tell the backend to record it
+      // Payment succeeded - tell the backend to record it
       try {
         await fetch(`${API_URL}/stripe/confirm-payment`, {
           method: 'POST',

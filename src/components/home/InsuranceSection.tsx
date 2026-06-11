@@ -46,7 +46,7 @@ export default function InsuranceSection() {
           style={{ color: 'var(--text-secondary)' }}
         >
           Every rental includes the option for comprehensive protection coverage.
-          We make insurance simple — you'll review your options after your request is approved.
+          We make insurance simple. You'll review your options after your request is approved.
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-left">

@@ -27,7 +27,7 @@ export function useVehicles() {
           setVehicles(data);
         }
       } catch {
-        // Silently fall back to hardcoded data — API unreachable
+        // Silently fall back to hardcoded data - API unreachable
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -40,7 +40,7 @@ export function useVehicles() {
 }
 
 /**
- * Synchronous accessor — returns cached API data or hardcoded fallback.
+ * Synchronous accessor - returns cached API data or hardcoded fallback.
  * Useful for components that need a vehicle by ID outside of React context.
  */
 export function getVehicleByIdSync(id: string): Vehicle | undefined {

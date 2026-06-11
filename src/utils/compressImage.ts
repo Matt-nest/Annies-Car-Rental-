@@ -1,5 +1,5 @@
 /**
- * compressImage — Client-side image compression to stay under Vercel's 4.5 MB
+ * compressImage - Client-side image compression to stay under Vercel's 4.5 MB
  * serverless body-size limit.
  *
  * Resizes the image to maxWidth (default 1600px) and re-encodes as JPEG at the
@@ -11,7 +11,7 @@ export function compressImage(
   quality = 0.8
 ): Promise<File> {
   return new Promise((resolve) => {
-    // Small enough already — skip
+    // Small enough already - skip
     if (file.size < 1 * 1024 * 1024) return resolve(file);
 
     const img = new Image();

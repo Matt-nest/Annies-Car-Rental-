@@ -1,6 +1,6 @@
 import { Review } from '../types';
 
-// Real reviews from Annie's Turo customers — curated to show 4-5 star reviews only
+// Real reviews from Annie's Turo customers - curated to show 4-5 star reviews only
 // "host" language has been adjusted for Annie's direct rental brand
 
 export const REVIEWS: Review[] = [

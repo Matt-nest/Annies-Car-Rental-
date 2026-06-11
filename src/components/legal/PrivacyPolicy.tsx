@@ -1,5 +1,5 @@
 /**
- * Privacy Policy — public page at /privacy.
+ * Privacy Policy - public page at /privacy.
  *
  * Content satisfies the disclosures Twilio reviewers require for A2P 10DLC
  * SMS campaign approval: explicit mention of data collected, that phone
@@ -57,7 +57,7 @@ export default function PrivacyPolicy() {
             <li><strong>Identity and contact data:</strong> first and last name, email address, phone number, and date of birth.</li>
             <li><strong>Driver verification:</strong> driver's license number, issuing state, expiration date, and an uploaded image of your license.</li>
             <li><strong>Address:</strong> street, city, state, and ZIP for billing and rental agreement records.</li>
-            <li><strong>Payment data:</strong> processed exclusively by <strong>Stripe</strong>. We never see or store your full card number — Stripe returns only a last-4 digit reference and the card brand for our records.</li>
+            <li><strong>Payment data:</strong> processed exclusively by <strong>Stripe</strong>. We never see or store your full card number. Stripe returns only a last-4 digit reference and the card brand for our records.</li>
             <li><strong>Rental activity:</strong> booking dates, pickup and return times, vehicle assigned, pricing, mileage, and post-trip inspection notes.</li>
             <li><strong>Communications:</strong> messages you send or receive through our booking confirmation, SMS reminders, email receipts, and in-app chat.</li>
           </ul>
@@ -81,20 +81,20 @@ export default function PrivacyPolicy() {
             <strong>Message and data rates may apply.</strong> Message frequency varies by rental length. You can reply <strong>STOP</strong>, <strong>UNSUB</strong>, <strong>CANCEL</strong>, <strong>END</strong>, or <strong>QUIT</strong> at any time to stop receiving messages. Reply <strong>HELP</strong> for support or call <a href={`tel:${brand.phone.replace(/\D/g, '')}`} className="underline">{brand.phone}</a>.
           </p>
           <p>
-            <strong>We do not share your phone number with third parties for marketing purposes. We do not sell your phone number. We do not use your phone number for marketing by any other company.</strong> SMS opt-in data is not shared with anyone, ever — including affiliates.
+            <strong>We do not share your phone number with third parties for marketing purposes. We do not sell your phone number. We do not use your phone number for marketing by any other company.</strong> SMS opt-in data is not shared with anyone, ever, including affiliates.
           </p>
         </Section>
 
         <Section title="4. Service providers we use">
           <p>To deliver the booking experience, we share specific data with these processors only as needed:</p>
           <ul>
-            <li><strong>Twilio Inc.</strong> — SMS delivery and inbound webhook for opt-out handling. Receives your phone number and the message body.</li>
-            <li><strong>Resend</strong> — Transactional email delivery. Receives your email address and message content.</li>
-            <li><strong>Stripe, Inc.</strong> — Payment processing. Receives card details directly from your browser; we never receive them. Receives your name and email for receipt.</li>
-            <li><strong>Bonzah (Bonzah Inc.)</strong> — Optional rental insurance purchased through the booking flow. Receives your name, address, date of birth, and rental dates only if you elect coverage.</li>
-            <li><strong>Bouncie (Bouncie LLC)</strong> — Vehicle telematics (GPS and odometer). Receives no customer data — only operates on our fleet vehicles.</li>
-            <li><strong>Supabase</strong> — Database hosting (encrypted at rest) and authentication for our admin staff. Stores all customer data described in Section 2.</li>
-            <li><strong>Vercel, Inc.</strong> — Application hosting for this website and admin dashboard.</li>
+            <li><strong>Twilio Inc.:</strong> SMS delivery and inbound webhook for opt-out handling. Receives your phone number and the message body.</li>
+            <li><strong>Resend:</strong> Transactional email delivery. Receives your email address and message content.</li>
+            <li><strong>Stripe, Inc.:</strong> Payment processing. Receives card details directly from your browser; we never receive them. Receives your name and email for receipt.</li>
+            <li><strong>Bonzah (Bonzah Inc.):</strong> Optional rental insurance purchased through the booking flow. Receives your name, address, date of birth, and rental dates only if you elect coverage.</li>
+            <li><strong>Bouncie (Bouncie LLC):</strong> Vehicle telematics (GPS and odometer). Receives no customer data, and only operates on our fleet vehicles.</li>
+            <li><strong>Supabase:</strong> Database hosting (encrypted at rest) and authentication for our admin staff. Stores all customer data described in Section 2.</li>
+            <li><strong>Vercel, Inc.:</strong> Application hosting for this website and admin dashboard.</li>
           </ul>
           <p>
             All processors have entered into data-processing agreements consistent with their published privacy commitments. None of these processors are permitted to use your data for their own marketing purposes.
@@ -117,7 +117,7 @@ export default function PrivacyPolicy() {
 
         <Section title="6. Data retention">
           <p>
-            We retain rental records for seven years for tax and insurance purposes. We retain SMS opt-out flags indefinitely so that customers who have opted out are never re-contacted. You may request earlier deletion by emailing <a href={`mailto:${brand.email}`} className="underline">{brand.email}</a> — we will delete data not subject to legal retention requirements within thirty days of the request.
+            We retain rental records for seven years for tax and insurance purposes. We retain SMS opt-out flags indefinitely so that customers who have opted out are never re-contacted. You may request earlier deletion by emailing <a href={`mailto:${brand.email}`} className="underline">{brand.email}</a>. We will delete data not subject to legal retention requirements within thirty days of the request.
           </p>
         </Section>
 
@@ -135,7 +135,7 @@ export default function PrivacyPolicy() {
 
         <Section title="8. Security">
           <p>
-            Data in transit is protected by TLS. Data at rest in our Supabase database is encrypted by the database provider. Payment data is handled exclusively by Stripe within their PCI-DSS compliant environment — we never store full card numbers. Admin access to customer data is restricted to authenticated staff members.
+            Data in transit is protected by TLS. Data at rest in our Supabase database is encrypted by the database provider. Payment data is handled exclusively by Stripe within their PCI-DSS compliant environment, and we never store full card numbers. Admin access to customer data is restricted to authenticated staff members.
           </p>
         </Section>
 

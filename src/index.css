@@ -145,7 +145,7 @@
   animation: fade-up 0.5s var(--ease-out-quart) forwards;
 }
 
-/* === Vehicle card — only transform+shadow, not "all" === */
+/* === Vehicle card - only transform+shadow, not "all" === */
 .vehicle-card {
   transition: border-color 0.4s ease, box-shadow 0.4s ease, transform 0.4s var(--ease-out-expo);
 }
@@ -199,7 +199,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   outline-offset: 0;
 }
 
-/* === Theme transition — scoped, only bg/border/color === */
+/* === Theme transition - scoped, only bg/border/color === */
 .theme-transition,
 .theme-transition > * {
   transition: background-color 0.5s ease, border-color 0.4s ease, color 0.3s ease !important;
@@ -214,7 +214,7 @@ details[open] > div {
 
 /* === MOBILE PERFORMANCE === */
 @media (max-width: 767px) {
-  /* Kill slow-zoom animation on mobile — saves GPU compositing layer */
+  /* Kill slow-zoom animation on mobile - saves GPU compositing layer */
   .animate-slow-zoom {
     animation: none !important;
     transform: scale(1);
@@ -230,7 +230,7 @@ details[open] > div {
   /* Footer safe area for sticky CTA */
   footer { padding-bottom: 5rem !important; }
 
-  /* Disable hover:scale on touch — it fires on tap and causes jank */
+  /* Disable hover:scale on touch - it fires on tap and causes jank */
   .vehicle-card { will-change: auto; }
 }
 
@@ -253,7 +253,7 @@ details[open] > div {
   body { background: white; color: black; }
 }
 
-/* === CTA button glow — accent color shadow on hover === */
+/* === CTA button glow - accent color shadow on hover === */
 @media (hover: hover) and (pointer: fine) {
   .cta-glow:hover {
     box-shadow: 0 0 24px var(--accent-glow), 0 4px 16px rgba(0, 0, 0, 0.15);

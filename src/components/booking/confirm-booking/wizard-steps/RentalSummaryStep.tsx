@@ -20,7 +20,7 @@ function ReadOnlyField({ label, value }: { label: string; value: string }) {
           color: 'var(--text-primary)',
         }}
       >
-        {value || <span style={{ color: 'var(--text-tertiary)' }}>—</span>}
+        {value || <span style={{ color: 'var(--text-tertiary)' }}>Not provided</span>}
       </div>
     </div>
   );
@@ -91,7 +91,7 @@ export default function RentalSummaryStep({ autoFilled: af, theme, onContinue }:
         className="group w-full py-4 rounded-full font-medium transition-all duration-300 active:scale-95 hover:scale-[1.02] hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer"
         style={{ backgroundColor: 'var(--accent-color)', color: 'var(--accent-fg)' }}
       >
-        Looks Good — Continue
+        Looks Good, Continue
         <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
       </button>
     </div>

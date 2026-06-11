@@ -80,7 +80,7 @@ export default function WeeklyUpsell({
     );
   }
 
-  // Nudge state: 5-6 days — show savings if they extend to a full week
+  // Nudge state: 5-6 days - show savings if they extend to a full week
   const daysNeeded = 7 - days;
   const weeklyRate = parseFloat(((dailyRate * 7) * (1 - weeklyDiscountPercent / 100)).toFixed(2));
   const currentCost = parseFloat((dailyRate * days).toFixed(2));
@@ -107,7 +107,7 @@ export default function WeeklyUpsell({
           <p className="text-xs mt-0.5 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
             A full week costs <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>${Math.round(weeklyRate).toLocaleString()}</span>
             {saving > 0 ? (
-              <> — you'd <span className="font-semibold" style={{ color: '#D4AF37' }}>save ${Math.round(saving).toLocaleString()}</span> vs. your current {days} days</>
+              <>, and you'd <span className="font-semibold" style={{ color: '#D4AF37' }}>save ${Math.round(saving).toLocaleString()}</span> vs. your current {days} days</>
             ) : (
               <> at {weeklyDiscountPercent}% off daily pricing</>
             )}

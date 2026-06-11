@@ -58,7 +58,7 @@ export default function LicenseStep({ draft, onUpdate, onContinue, onBack, theme
       onUpdate({ licensePhotoPaths: newPaths.filter(Boolean) });
       setPreviews(prev => ({ ...prev, [side]: url }));
     } catch {
-      // silently fail — photos are optional
+      // silently fail - photos are optional
     } finally {
       setUploading(prev => ({ ...prev, [side]: false }));
     }
@@ -166,7 +166,7 @@ export default function LicenseStep({ draft, onUpdate, onContinue, onBack, theme
               <label className="text-[10px] uppercase tracking-[0.15em] mb-1 block ml-0.5" style={{ color: 'var(--text-tertiary)' }}>State *</label>
               <select className={inputClass('state')} style={{ ...inputStyle, ...borderStyle('state') }}
                 value={draft.license.state} onChange={e => updateLicense('state', e.target.value)}>
-                <option value="">—</option>
+                <option value="">Select</option>
                 {US_STATES.map(s => <option key={s.value} value={s.value}>{s.value}</option>)}
               </select>
             </div>
@@ -178,10 +178,10 @@ export default function LicenseStep({ draft, onUpdate, onContinue, onBack, theme
             </div>
           </div>
 
-          {/* Photo upload — optional */}
+          {/* Photo upload - optional */}
           <div>
             <p className="text-[10px] uppercase tracking-[0.15em] mb-2 ml-0.5" style={{ color: 'var(--text-tertiary)' }}>
-              License Photos <span className="normal-case opacity-60">(optional — speeds up check-in)</span>
+              License Photos <span className="normal-case opacity-60">(optional, speeds up check-in)</span>
             </p>
             <div className="flex gap-3">
               {renderSlot('front', 'Front')}

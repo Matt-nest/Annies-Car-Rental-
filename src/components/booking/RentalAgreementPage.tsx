@@ -40,7 +40,7 @@ export default function RentalAgreementPage() {
               </span>
             </h1>
             <p className="text-sm sm:text-base" style={{ color: 'var(--text-secondary)' }}>
-              {brand.legalEntity} — {brand.location.city}, {brand.location.state}
+              {brand.legalEntity}, {brand.location.city}, {brand.location.state}
             </p>
           </motion.div>
 

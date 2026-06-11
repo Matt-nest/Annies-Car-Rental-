@@ -163,7 +163,7 @@ export default function ReviewsSection() {
           </motion.h2>
         </div>
 
-        {/* Rating Summary Card — Turo-style */}
+        {/* Rating Summary Card - Turo-style */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -221,7 +221,7 @@ export default function ReviewsSection() {
 
       </div>
       
-      {/* Horizontal Bleed Reviews Slider — ALL reviews, infinite auto-scroll */}
+      {/* Horizontal Bleed Reviews Slider - ALL reviews, infinite auto-scroll */}
       <div className="mt-8 md:mt-16 w-full">
         <div className="flex items-center justify-between mb-8 max-w-5xl mx-auto px-2">
           <h3 className="text-xs uppercase tracking-[0.2em] font-semibold" style={{ color: 'var(--text-secondary)' }}>

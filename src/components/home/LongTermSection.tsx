@@ -16,7 +16,7 @@ const appLogos = [
 ];
 
 const bullets = [
-  { label: 'Snowbird Season Ready', desc: 'A few weeks to the full season — extend any time.' },
+  { label: 'Snowbird Season Ready', desc: 'A few weeks to the full season. Extend any time.' },
   { label: 'Rideshare Partner Plans', desc: 'We partner with Uber, DoorDash, and Lyft drivers.' },
   { label: 'Between Vehicles', desc: 'Reliable wheels while you wait.' },
 ];
@@ -28,7 +28,7 @@ export default function LongTermSection() {
     <section id="longterm" className="py-16 sm:py-28 px-4 sm:px-6 max-w-7xl mx-auto">
       <div className="grid md:grid-cols-[3fr_2fr] gap-10 md:gap-14 items-center">
 
-        {/* Image — LEFT, landscape crop so face + hand are visible */}
+        {/* Image - LEFT, landscape crop so face + hand are visible */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           whileInView={{ opacity: 1, scale: 1 }}
@@ -50,7 +50,7 @@ export default function LongTermSection() {
             />
           </div>
 
-          {/* Floating app logos card — bottom-RIGHT, centered layout */}
+          {/* Floating app logos card - bottom-RIGHT, centered layout */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -94,7 +94,7 @@ export default function LongTermSection() {
           </motion.div>
         </motion.div>
 
-        {/* Text — RIGHT column */}
+        {/* Text - RIGHT column */}
         <div>
           <motion.span
             initial={{ opacity: 0 }}
@@ -125,7 +125,7 @@ export default function LongTermSection() {
             className="text-sm sm:text-base leading-relaxed mb-6"
             style={{ color: 'var(--text-secondary)' }}
           >
-            Monthly rates are personal — every situation is different.
+            Monthly rates are personal. Every situation is different.
             Call us, tell us what you need, and we'll put together
             a rate that makes sense. No platform fees. No fine print.
             Just a fair deal, directly with the owner.
@@ -145,7 +145,7 @@ export default function LongTermSection() {
                 <span className="mt-[5px] shrink-0 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--accent-color)' }} />
                 <p className="text-xs sm:text-sm" style={{ color: 'var(--text-secondary)' }}>
                   <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{item.label}</span>
-                  {' '}— {item.desc}
+                  {': '}{item.desc}
                 </p>
               </motion.div>
             ))}
