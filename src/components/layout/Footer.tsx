@@ -111,6 +111,15 @@ export default function Footer() {
           <div className="flex items-center gap-4">
             <p>{brand.location.city}, {brand.location.state}</p>
             <a
+              href="/drive.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="transition-opacity hover:opacity-70 font-medium"
+              style={{ color: 'var(--accent-color, var(--text-secondary))' }}
+            >
+              Drive with Us
+            </a>
+            <a
               href={brand.adminUrl}
               target="_blank"
               rel="noopener noreferrer"
