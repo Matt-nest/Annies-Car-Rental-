@@ -1,7 +1,6 @@
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import { SpeedInsights } from '@vercel/speed-insights/react';
-import { brand } from './config/brand';
 import { RECAPTCHA_SITE_KEY } from './config';
 import App from './App.tsx';
 import { registerSW } from './pwa/registerSW';
@@ -27,13 +26,4 @@ if (RECAPTCHA_SITE_KEY) {
   recaptcha.src = `https://www.google.com/recaptcha/api.js?render=${RECAPTCHA_SITE_KEY}`;
   recaptcha.async = true;
   document.head.appendChild(recaptcha);
-}
-
-// ── Optional chat widget (injected at runtime, not hardcoded in HTML) ──
-if (brand.chatWidgetId) {
-  const script = document.createElement('script');
-  script.src = 'https://widgets.leadconnectorhq.com/loader.js';
-  script.setAttribute('data-resources-url', 'https://widgets.leadconnectorhq.com/chat-widget/loader.js');
-  script.setAttribute('data-widget-id', brand.chatWidgetId);
-  document.body.appendChild(script);
 }
