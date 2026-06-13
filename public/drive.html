@@ -5,12 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#0c0c0e" />
 <meta name="robots" content="noindex, nofollow" />
-<title>Drive with Annie's Car Rental — Rideshare & Delivery Rentals · Treasure Coast FL</title>
-<meta name="description" content="A rideshare-ready car, delivered to your door, on the road this week. No credit check. No deposit. Insurance, maintenance & unlimited miles included — $279/week all-in. Port St. Lucie & the Treasure Coast." />
+<title>Weekly Gig Driver Car Rentals in Port St. Lucie | Annie's Car Rental</title>
+<meta name="description" content="Apply for a weekly gig-driver rental from Annie's Car Rental in Port St. Lucie. $279/week. Local pickup or delivery available across the Treasure Coast. Fast text response." />
 
 <meta property="og:type" content="website" />
-<meta property="og:title" content="Start earning this week — $279/wk all-in, delivered to your door" />
-<meta property="og:description" content="No credit check. No deposit. Insurance, maintenance & unlimited miles included. Rideshare-ready cars from a real local host on the Treasure Coast." />
+<meta property="og:title" content="Weekly Gig Driver Car Rentals in Port St. Lucie | Annie's Car Rental" />
+<meta property="og:description" content="Apply for a weekly gig-driver rental. $279/week. Local pickup or delivery across the Treasure Coast. Fast text response." />
 <meta property="og:image" content="hero-poster.jpg" />
 
 <link rel="icon" href="favicon.ico" />
@@ -19,424 +19,692 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
-    --navy:#16181D; --navy-deep:#0c0c0e; --navy-soft:#23252c;
+    --brand:#16181D; --brand-deep:#0c0c0e; --brand-soft:#23252c;
     --gold:#D4AF37; --gold-bright:#E5C45A; --gold-deep:#B8941E;
-    --sky:#b08d2e; --sunset:#C9A227;
     --sand:#f4efe2; --sand-2:#faf6ec; --paper:#fcf9f1;
-    --ink:#16181D; --muted:rgba(22,24,29,0.66); --hair:rgba(22,24,29,0.12);
-    --on-navy:#ece9e1; --on-navy-soft:rgba(236,233,225,0.74);
+    --ink:#16181D; --muted:rgba(22,24,29,0.66); --faint:rgba(22,24,29,0.46); --hair:rgba(22,24,29,0.12);
+    --on-dark:#ece9e1; --on-dark-soft:rgba(236,233,225,0.74); --on-dark-faint:rgba(236,233,225,0.5);
     --serif:'Fraunces',Georgia,serif; --sans:'Inter',system-ui,sans-serif;
-    --shadow:0 1px 2px rgba(12,12,14,0.2),0 18px 48px rgba(12,12,14,0.18);
-    --maxw:1120px;
+    --shadow:0 1px 2px rgba(12,12,14,0.2),0 18px 48px rgba(12,12,14,0.16);
+    --shadow-lg:0 24px 70px rgba(12,12,14,0.28);
+    --maxw:1140px; --radius:18px;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+  html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;scroll-padding-top:74px}
   @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
   body{font-family:var(--sans);color:var(--ink);background:var(--sand);-webkit-font-smoothing:antialiased;line-height:1.55;overflow-x:hidden}
   img{max-width:100%;display:block}
   a{color:inherit;text-decoration:none}
   .wrap{max-width:var(--maxw);margin:0 auto;padding:0 22px}
-  .serif{font-family:var(--serif)}
-  .reveal{opacity:0;transform:translateY(18px);transition:opacity .7s ease,transform .7s ease}
+  .reveal{opacity:0;transform:translateY(20px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
   .reveal.in{opacity:1;transform:none}
 
-  .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font-weight:700;font-size:15px;letter-spacing:.01em;border-radius:999px;padding:15px 26px;cursor:pointer;border:0;transition:transform .15s,filter .15s,box-shadow .15s;white-space:nowrap;min-height:52px}
+  /* buttons */
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font-weight:700;font-size:15px;letter-spacing:.01em;border-radius:999px;padding:15px 26px;cursor:pointer;border:0;transition:transform .15s,filter .15s,box-shadow .15s,background .15s;white-space:nowrap;min-height:52px;text-align:center}
   .btn svg{width:18px;height:18px;flex-shrink:0}
-  .btn-gold{background:linear-gradient(180deg,var(--gold-bright),var(--gold));color:var(--navy-deep);box-shadow:0 6px 20px rgba(212,175,55,.4)}
-  .btn-gold:hover{transform:translateY(-2px);filter:brightness(1.04)}
-  .btn-ghost{background:transparent;color:var(--on-navy);border:1.5px solid rgba(236,233,225,.4)}
-  .btn-ghost:hover{background:rgba(236,233,225,.08);border-color:rgba(236,233,225,.7)}
-  .btn-navy{background:var(--navy);color:var(--on-navy)}
-  .btn-navy:hover{transform:translateY(-2px);background:var(--navy-soft)}
+  .btn-gold{background:linear-gradient(180deg,var(--gold-bright),var(--gold));color:var(--brand-deep);box-shadow:0 6px 20px rgba(212,175,55,.42)}
+  .btn-gold:hover{transform:translateY(-2px);filter:brightness(1.05);box-shadow:0 10px 28px rgba(212,175,55,.5)}
+  .btn-ghost{background:transparent;color:var(--on-dark);border:1.5px solid rgba(236,233,225,.42)}
+  .btn-ghost:hover{background:rgba(236,233,225,.09);border-color:rgba(236,233,225,.75)}
+  .btn-dark{background:var(--brand);color:var(--on-dark)}
+  .btn-dark:hover{transform:translateY(-2px);background:var(--brand-soft)}
+  .btn-outline{background:transparent;color:var(--ink);border:1.5px solid var(--hair)}
+  .btn-outline:hover{border-color:var(--gold);background:rgba(212,175,55,.06)}
   .btn-block{width:100%}
+  .btn-sm{min-height:44px;padding:11px 18px;font-size:14px}
 
-  header.bar{position:sticky;top:0;z-index:50;background:rgba(12,12,14,.92);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom:1px solid rgba(212,175,55,.18)}
-  .bar .wrap{display:flex;align-items:center;justify-content:space-between;height:62px}
-  .bar img{height:30px;width:auto}
-  .bar .callmini{display:inline-flex;align-items:center;gap:7px;color:var(--gold-bright);font-weight:700;font-size:14px}
-  .bar .callmini svg{width:16px;height:16px}
+  /* header */
+  header.bar{position:sticky;top:0;z-index:60;background:rgba(12,12,14,.92);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border-bottom:1px solid rgba(212,175,55,.16);transition:background .25s}
+  .bar .wrap{display:flex;align-items:center;gap:18px;height:64px}
+  .bar .logo{height:30px;width:auto}
+  .bar nav{display:flex;gap:24px;margin-left:26px}
+  .bar nav a{font-size:14px;font-weight:600;color:var(--on-dark-soft);transition:color .15s}
+  .bar nav a:hover{color:var(--gold-bright)}
+  .bar .actions{margin-left:auto;display:flex;align-items:center;gap:10px}
+  .bar .callmini{display:inline-flex;align-items:center;gap:7px;color:var(--on-dark);font-weight:700;font-size:14px}
+  .bar .callmini svg{width:16px;height:16px;color:var(--gold-bright)}
+  @media (max-width:920px){.bar nav{display:none}.bar .callmini span{display:none}}
 
-  .hero{position:relative;background:var(--navy-deep);color:var(--on-navy);overflow:hidden}
+  /* hero */
+  .hero{position:relative;background:var(--brand-deep);color:var(--on-dark);overflow:hidden}
   .hero .bg{position:absolute;inset:0;z-index:0}
-  .hero .bg img{width:100%;height:100%;object-fit:cover;opacity:.42}
-  .hero .bg::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(12,12,14,.72) 0%,rgba(12,12,14,.82) 55%,var(--navy-deep) 100%),radial-gradient(ellipse at 70% 18%,rgba(212,175,55,.16),transparent 55%)}
-  .hero .wrap{position:relative;z-index:1;padding:42px 22px 48px}
-  .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:11.5px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--gold-bright);margin-bottom:18px}
+  .hero .bg img{width:100%;height:100%;object-fit:cover;opacity:.34}
+  .hero .bg::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(12,12,14,.72) 0%,rgba(12,12,14,.86) 60%,var(--brand-deep) 100%)}
+  .hero .blob{position:absolute;z-index:0;border-radius:50%;filter:blur(70px);opacity:.5;animation:float 14s ease-in-out infinite}
+  .hero .blob.a{width:340px;height:340px;background:radial-gradient(circle,rgba(212,175,55,.5),transparent 70%);top:-80px;right:-40px}
+  .hero .blob.b{width:300px;height:300px;background:radial-gradient(circle,rgba(176,141,46,.4),transparent 70%);bottom:-90px;left:-60px;animation-delay:-6s}
+  @keyframes float{0%,100%{transform:translate(0,0)}50%{transform:translate(-18px,22px)}}
+  .hero .wrap{position:relative;z-index:1;padding:54px 22px 56px;max-width:920px}
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:11.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--gold-bright);margin-bottom:18px}
   .eyebrow .pin{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 4px rgba(212,175,55,.22)}
-  .hero h1{font-family:var(--serif);font-weight:500;font-size:clamp(33px,7.2vw,56px);line-height:1.04;letter-spacing:-.02em;color:#fff;text-wrap:balance;max-width:14ch}
+  .hero h1{font-family:var(--serif);font-weight:500;font-size:clamp(34px,7vw,58px);line-height:1.03;letter-spacing:-.02em;color:#fff;text-wrap:balance;max-width:16ch}
   .hero h1 em{font-style:italic;color:var(--gold-bright)}
-  .hero .sub{font-size:clamp(15px,2.4vw,18px);color:var(--on-navy-soft);margin-top:20px;max-width:46ch;text-wrap:pretty}
-  .priceflag{display:inline-flex;align-items:baseline;gap:10px;margin-top:26px;padding:13px 22px;border-radius:14px;background:rgba(212,175,55,.12);border:1px solid rgba(212,175,55,.4)}
-  .priceflag .amt{font-family:var(--serif);font-weight:600;font-size:38px;line-height:1;color:#fff;letter-spacing:-.02em}
-  .priceflag .amt .d{font-size:22px;vertical-align:top;color:var(--gold-bright);margin-right:1px}
-  .priceflag .per{font-size:13px;font-weight:600;color:var(--on-navy-soft);letter-spacing:.02em}
-  .priceflag .all{display:block;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold-bright);font-weight:700;margin-top:3px}
-  .hero .cta-row{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}
-  .chips{display:flex;flex-wrap:wrap;gap:9px;margin-top:30px}
-  .chip{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--on-navy);background:rgba(236,233,225,.08);border:1px solid rgba(236,233,225,.16);border-radius:999px;padding:8px 14px}
+  .hero .lead{font-size:clamp(15px,2.3vw,18px);color:var(--on-dark-soft);margin-top:18px;max-width:54ch;text-wrap:pretty}
+  .pricerow{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-top:26px}
+  .priceflag{display:inline-flex;align-items:baseline;gap:9px;padding:13px 22px;border-radius:14px;background:rgba(212,175,55,.12);border:1px solid rgba(212,175,55,.4)}
+  .priceflag .amt{font-family:var(--serif);font-weight:600;font-size:40px;line-height:1;color:#fff;letter-spacing:-.02em}
+  .priceflag .amt .d{font-size:23px;vertical-align:top;color:var(--gold-bright);margin-right:1px}
+  .priceflag .per{font-size:14px;font-weight:700;color:var(--on-dark-soft)}
+  .hero .cta-row{display:flex;flex-wrap:wrap;gap:12px;margin-top:26px}
+  .microcopy{font-size:13px;color:var(--on-dark-faint);margin-top:14px;max-width:52ch}
+  .chips{display:flex;flex-wrap:wrap;gap:9px;margin-top:26px}
+  .chip{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--on-dark);background:rgba(236,233,225,.07);border:1px solid rgba(236,233,225,.16);border-radius:999px;padding:8px 14px}
   .chip svg{width:14px;height:14px;color:var(--gold-bright);flex-shrink:0}
+  .disclaimer-note{margin-top:24px;padding:14px 18px;border-radius:12px;background:rgba(236,233,225,.05);border:1px solid rgba(236,233,225,.12);font-size:12.5px;color:var(--on-dark-soft);max-width:60ch;line-height:1.6}
 
-  .offer{background:linear-gradient(90deg,var(--gold-deep),var(--gold) 55%,var(--gold-bright));color:var(--navy-deep)}
-  .offer .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:14px 30px;padding:20px 22px}
-  .offer .lead{font-family:var(--serif);font-weight:600;font-size:21px;letter-spacing:-.01em}
-  .offer .lead em{font-style:italic}
-  .offer ul{display:flex;flex-wrap:wrap;gap:8px 18px;list-style:none;margin-left:auto}
-  .offer li{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:700}
-  .offer li svg{width:15px;height:15px}
+  /* offer bar */
+  .offer{background:linear-gradient(90deg,var(--gold-deep),var(--gold) 55%,var(--gold-bright));color:var(--brand-deep)}
+  .offer .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:10px 26px;padding:26px 22px}
+  .offer .ot{flex:1;min-width:260px}
+  .offer h2{font-family:var(--serif);font-weight:600;font-size:23px;letter-spacing:-.01em;margin-bottom:5px}
+  .offer p{font-size:14px;font-weight:500;max-width:62ch;color:rgba(12,12,14,.82)}
+  .offer .btn{background:var(--brand-deep);color:var(--gold-bright)}
+  .offer .btn:hover{background:#000}
 
-  section{padding:62px 0}
-  .sec-head{text-align:center;max-width:42ch;margin:0 auto 38px}
-  .sec-kicker{font-size:12px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-deep)}
-  .sec-head h2{font-family:var(--serif);font-weight:500;font-size:clamp(27px,5vw,40px);line-height:1.1;letter-spacing:-.02em;margin-top:12px;text-wrap:balance}
+  /* section scaffolding */
+  section{padding:64px 0}
+  .sec-head{max-width:54ch;margin:0 auto 40px;text-align:center}
+  .sec-head.left{margin-left:0;text-align:left}
+  .kicker{font-size:12px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-deep)}
+  .sec-head h2{font-family:var(--serif);font-weight:500;font-size:clamp(27px,4.6vw,40px);line-height:1.1;letter-spacing:-.02em;margin-top:12px;text-wrap:balance}
   .sec-head h2 em{font-style:italic;color:var(--gold-deep)}
   .sec-head p{color:var(--muted);font-size:16px;margin-top:14px}
+  .tint{background:var(--sand-2)}
 
-  .compare{background:var(--sand-2)}
-  .compare .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;max-width:820px;margin:0 auto}
-  .ccard{background:var(--paper);border:1px solid var(--hair);border-radius:16px;padding:20px 18px;text-align:center}
-  .ccard.us{background:var(--navy);color:var(--on-navy);border-color:var(--navy);position:relative;box-shadow:var(--shadow)}
-  .ccard .who{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-  .ccard.us .who{color:var(--gold-bright)}
-  .ccard .num{font-family:var(--serif);font-weight:600;font-size:30px;margin-top:8px;letter-spacing:-.02em}
-  .ccard .note{font-size:11.5px;color:var(--muted);margin-top:5px}
-  .ccard.us .note{color:var(--on-navy-soft)}
-  .ccard.us .tag{position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:var(--gold);color:var(--navy-deep);font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;padding:4px 11px;border-radius:999px}
+  /* vehicles */
+  .vgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:20px}
+  .vcard{background:var(--paper);border:1px solid var(--hair);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column;transition:transform .2s,box-shadow .2s,border-color .2s}
+  .vcard:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg);border-color:rgba(212,175,55,.4)}
+  .vmedia{position:relative;height:170px;background:linear-gradient(135deg,var(--brand) 0%,var(--brand-soft) 100%);display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .vmedia::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 70% 20%,rgba(212,175,55,.22),transparent 60%)}
+  .vmedia svg{width:120px;height:auto;color:rgba(229,196,90,.92);position:relative;z-index:1}
+  .vmedia .ribbon{position:absolute;top:14px;left:14px;z-index:2;background:var(--gold);color:var(--brand-deep);font-size:11px;font-weight:800;letter-spacing:.04em;padding:5px 11px;border-radius:999px}
+  /* swap .vmedia inner svg for a real <img> of an available vehicle when ready */
+  .vbody{padding:24px 22px 26px;display:flex;flex-direction:column;flex:1}
+  .vbody h3{font-family:var(--serif);font-weight:600;font-size:22px;letter-spacing:-.01em}
+  .vbody .best{font-size:13.5px;color:var(--muted);margin:6px 0 14px}
+  .vprice{font-family:var(--serif);font-weight:600;font-size:26px;color:var(--gold-deep);letter-spacing:-.02em;margin-bottom:14px}
+  .vprice small{font-family:var(--sans);font-size:13px;font-weight:600;color:var(--faint)}
+  .extags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+  .extag{font-size:11.5px;font-weight:600;color:var(--muted);background:var(--sand);border:1px solid var(--hair);border-radius:999px;padding:4px 10px}
+  .vlabel{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin:6px 0 8px}
+  .vlist{list-style:none;display:flex;flex-direction:column;gap:7px;margin-bottom:14px}
+  .vlist li{display:flex;gap:9px;font-size:14px;color:var(--ink)}
+  .vlist li svg{width:15px;height:15px;color:var(--gold-deep);flex-shrink:0;margin-top:3px}
+  .vbody .btn{margin-top:auto}
+  .vnote{font-size:12px;color:var(--faint);margin-top:12px;line-height:1.5}
 
-  .plats{display:flex;flex-wrap:wrap;justify-content:center;gap:14px;max-width:760px;margin:0 auto}
-  .plat{display:flex;flex-direction:column;align-items:center;gap:10px;background:var(--paper);border:1px solid var(--hair);border-radius:16px;padding:18px 14px;width:128px}
-  .plat img{height:34px;width:auto;object-fit:contain}
-  .plat .badge-fallback{height:34px;display:flex;align-items:center;font-weight:800;font-size:15px;color:var(--navy)}
-  .plat span{font-size:12px;font-weight:600;color:var(--muted)}
+  /* not sure block */
+  .notsure{background:var(--brand);color:var(--on-dark);border-radius:var(--radius);padding:38px 32px;margin-top:24px;text-align:center}
+  .notsure h3{font-family:var(--serif);font-weight:500;font-size:clamp(22px,3.6vw,30px);color:#fff;letter-spacing:-.01em;text-wrap:balance}
+  .notsure p{color:var(--on-dark-soft);font-size:15px;margin:14px auto 18px;max-width:60ch}
+  .notsure ul{list-style:none;display:flex;flex-wrap:wrap;justify-content:center;gap:8px 10px;margin-bottom:22px}
+  .notsure li{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--on-dark);background:rgba(236,233,225,.07);border:1px solid rgba(236,233,225,.16);border-radius:999px;padding:7px 13px}
+  .notsure li svg{width:13px;height:13px;color:var(--gold-bright)}
 
-  .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px;max-width:920px;margin:0 auto}
-  .step{background:var(--paper);border:1px solid var(--hair);border-radius:18px;padding:28px 24px;position:relative}
-  .step .n{font-family:var(--serif);font-style:italic;font-weight:600;font-size:40px;color:var(--gold);line-height:1}
-  .step h3{font-size:18px;font-weight:700;margin:14px 0 8px}
-  .step p{color:var(--muted);font-size:14.5px}
-  .step .ix{position:absolute;top:26px;right:24px;width:40px;height:40px;border-radius:11px;background:rgba(212,175,55,.13);display:flex;align-items:center;justify-content:center}
-  .step .ix svg{width:20px;height:20px;color:var(--gold-deep)}
+  /* generic two-col feature lists (why / included / who) */
+  .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
+  .fcard{background:var(--paper);border:1px solid var(--hair);border-radius:var(--radius);padding:26px 24px}
+  .fcard .ic{width:42px;height:42px;border-radius:12px;background:rgba(212,175,55,.13);display:flex;align-items:center;justify-content:center;margin-bottom:14px}
+  .fcard .ic svg{width:21px;height:21px;color:var(--gold-deep)}
+  .fcard h3{font-size:18px;font-weight:700;margin-bottom:7px}
+  .fcard p{color:var(--muted);font-size:14.5px}
 
-  .wedge{background:var(--navy-deep);color:var(--on-navy)}
-  .wedge .inner{display:grid;grid-template-columns:1fr 1fr;gap:46px;align-items:center;max-width:980px;margin:0 auto}
-  .wedge .copy .sec-kicker{color:var(--gold-bright)}
-  .wedge .copy h2{font-family:var(--serif);font-weight:500;font-size:clamp(27px,4.6vw,40px);line-height:1.1;letter-spacing:-.02em;margin:12px 0 18px;color:#fff;text-wrap:balance}
-  .wedge .copy h2 em{font-style:italic;color:var(--gold-bright)}
-  .wedge .copy p{color:var(--on-navy-soft);font-size:16px;margin-bottom:16px}
-  .wedge .copy .sign{font-family:var(--serif);font-style:italic;font-size:19px;color:var(--gold-bright);margin-top:6px}
-  .wedge .photos{position:relative}
-  .wedge .photos .main{border-radius:20px;overflow:hidden;box-shadow:var(--shadow);border:1px solid rgba(212,175,55,.25)}
-  .wedge .photos .main img{width:100%;height:420px;object-fit:cover}
-  .wedge .photos .cap{position:absolute;bottom:-18px;left:-6px;background:var(--gold);color:var(--navy-deep);font-size:11px;font-weight:800;letter-spacing:.04em;padding:7px 13px;border-radius:999px;box-shadow:var(--shadow)}
+  /* checklist panel (included / who / requirements) */
+  .panel{background:var(--paper);border:1px solid var(--hair);border-radius:var(--radius);padding:32px 30px;max-width:840px;margin:0 auto;box-shadow:var(--shadow)}
+  .checklist{list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px 26px;margin:6px 0 0}
+  .checklist li{display:flex;gap:11px;font-size:15px;color:var(--ink)}
+  .checklist li svg{width:18px;height:18px;color:var(--gold-deep);flex-shrink:0;margin-top:2px}
+  .panel .foot{margin-top:22px;padding-top:20px;border-top:1px solid var(--hair);display:flex;flex-wrap:wrap;align-items:center;gap:14px;justify-content:space-between}
+  .panel .foot p{font-size:14px;color:var(--muted);font-style:italic}
 
-  .proof{background:var(--sand-2)}
-  .stars{display:flex;justify-content:center;gap:4px;margin-bottom:8px}
-  .stars svg{width:22px;height:22px;color:var(--gold)}
-  .tgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;max-width:920px;margin:34px auto 0}
-  .tcard{background:var(--paper);border:1px solid var(--hair);border-radius:18px;padding:26px 24px}
+  /* steps */
+  .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px}
+  .step{background:var(--paper);border:1px solid var(--hair);border-radius:var(--radius);padding:28px 24px;position:relative}
+  .step .n{font-family:var(--serif);font-style:italic;font-weight:600;font-size:42px;color:var(--gold);line-height:1}
+  .step h3{font-size:17px;font-weight:700;margin:12px 0 8px}
+  .step p{color:var(--muted);font-size:14px}
+
+  /* service area */
+  .area-wrap{display:grid;grid-template-columns:1.1fr .9fr;gap:36px;align-items:center;max-width:960px;margin:0 auto}
+  .area-list{display:flex;flex-wrap:wrap;gap:9px}
+  .area-list .a{font-size:14px;font-weight:600;color:var(--ink);background:var(--paper);border:1px solid var(--hair);border-radius:999px;padding:9px 16px}
+  .area-card{background:var(--brand);color:var(--on-dark);border-radius:var(--radius);padding:30px 28px}
+  .area-card h3{font-family:var(--serif);font-weight:500;font-size:24px;color:#fff;margin-bottom:10px}
+  .area-card p{color:var(--on-dark-soft);font-size:14.5px;margin-bottom:18px}
+  @media (max-width:760px){.area-wrap{grid-template-columns:1fr;gap:24px}}
+
+  /* application form */
+  .apply{background:var(--brand-deep);color:var(--on-dark)}
+  .apply .inner{display:grid;grid-template-columns:.95fr 1.05fr;gap:44px;align-items:start;max-width:1000px;margin:0 auto}
+  .apply .copy{position:sticky;top:90px}
+  .apply h2{font-family:var(--serif);font-weight:500;font-size:clamp(28px,4.6vw,42px);line-height:1.08;letter-spacing:-.02em;color:#fff;text-wrap:balance}
+  .apply .copy p{color:var(--on-dark-soft);font-size:16px;margin:16px 0 22px;max-width:42ch}
+  .apply .copy .pf{display:inline-flex;align-items:baseline;gap:8px;margin-bottom:22px}
+  .apply .copy .pf .a{font-family:var(--serif);font-weight:600;font-size:34px;color:var(--gold-bright)}
+  .apply .copy .pf .p{font-size:13px;color:var(--on-dark-soft);font-weight:700}
+  .apply .copy .callrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:340px}
+  .formcard{background:var(--paper);color:var(--ink);border-radius:22px;padding:30px 28px;box-shadow:var(--shadow-lg)}
+  .formcard h3{font-family:var(--serif);font-weight:600;font-size:23px;letter-spacing:-.01em}
+  .formcard .fsub{font-size:13.5px;color:var(--muted);margin:6px 0 20px}
+  .frow{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .field{margin-bottom:14px}
+  .field.full{grid-column:1/-1}
+  .field label{display:block;font-size:12px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+  .field input,.field select,.field textarea{width:100%;font-family:inherit;font-size:15px;color:var(--ink);background:#fff;border:1.5px solid var(--hair);border-radius:11px;padding:13px 14px;outline:none;transition:border-color .15s,box-shadow .15s;min-height:50px}
+  .field textarea{min-height:84px;resize:vertical}
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(212,175,55,.18)}
+  .consent{display:flex;gap:11px;align-items:flex-start;margin:6px 0 16px;font-size:12.5px;color:var(--muted);line-height:1.5}
+  .consent input{width:19px;height:19px;margin-top:1px;flex-shrink:0;accent-color:var(--gold-deep)}
+  .formcard .fineprint{font-size:11.5px;color:var(--faint);margin-top:14px;text-align:center;line-height:1.5}
+  .formcard .or{text-align:center;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin:18px 0 14px;position:relative}
+  .formcard .or::before,.formcard .or::after{content:'';position:absolute;top:50%;width:32%;height:1px;background:var(--hair)}
+  .formcard .or::before{left:0}.formcard .or::after{right:0}
+  .callrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .formdone{display:none;text-align:center;padding:18px 6px 4px}
+  .formdone.show{display:block}
+  .formdone .tick{width:54px;height:54px;border-radius:50%;background:rgba(212,175,55,.16);display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
+  .formdone .tick svg{width:28px;height:28px;color:var(--gold-deep)}
+  .formdone h4{font-family:var(--serif);font-weight:600;font-size:21px;margin-bottom:8px}
+  .formdone p{font-size:14px;color:var(--muted);max-width:38ch;margin:0 auto 18px}
+  @media (max-width:820px){.apply .inner{grid-template-columns:1fr;gap:28px}.apply .copy{position:static}}
+
+  /* proof */
+  .stars{display:flex;gap:3px}
+  .stars svg{width:18px;height:18px;color:var(--gold)}
+  .tgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;margin-top:8px}
+  .tcard{background:var(--paper);border:1px solid var(--hair);border-radius:var(--radius);padding:26px 24px}
+  .tcard .stars{margin-bottom:14px}
   .tcard .quote{font-family:var(--serif);font-size:18px;line-height:1.5;letter-spacing:-.01em}
-  .tcard .who{display:flex;align-items:center;gap:10px;margin-top:18px}
-  .tcard .av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-deep));display:flex;align-items:center;justify-content:center;color:var(--navy-deep);font-weight:800;font-size:14px}
-  .tcard .who .nm{font-weight:700;font-size:14px}
-  .tcard .who .mt{font-size:12px;color:var(--muted)}
-  .statline{display:flex;flex-wrap:wrap;justify-content:center;gap:34px;margin-top:40px}
-  .statline .st{text-align:center}
-  .statline .st .v{font-family:var(--serif);font-weight:600;font-size:32px;color:var(--gold-deep);letter-spacing:-.02em}
-  .statline .st .l{font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-top:4px}
+  .tcard .who{font-size:13px;color:var(--muted);margin-top:14px;font-weight:600}
 
-  .faq{max-width:740px;margin:0 auto}
-  details{background:var(--paper);border:1px solid var(--hair);border-radius:14px;margin-bottom:12px;overflow:hidden}
+  /* faq */
+  .faq{max-width:780px;margin:0 auto}
+  details{background:var(--paper);border:1px solid var(--hair);border-radius:14px;margin-bottom:11px;overflow:hidden}
   details[open]{border-color:rgba(212,175,55,.5)}
   summary{list-style:none;cursor:pointer;padding:20px 22px;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:space-between;gap:14px}
   summary::-webkit-details-marker{display:none}
-  summary .pl{width:22px;height:22px;flex-shrink:0;position:relative;transition:transform .25s}
+  summary .pl{width:22px;height:22px;flex-shrink:0;position:relative}
   summary .pl::before,summary .pl::after{content:'';position:absolute;background:var(--gold-deep);border-radius:2px}
   summary .pl::before{top:10px;left:3px;right:3px;height:2px}
   summary .pl::after{left:10px;top:3px;bottom:3px;width:2px;transition:opacity .25s}
   details[open] summary .pl::after{opacity:0}
-  details .ans{padding:0 22px 20px;color:var(--muted);font-size:15px}
+  details .ans{padding:0 22px 20px;color:var(--muted);font-size:15px;line-height:1.6}
 
-  .final{background:var(--navy-deep);color:var(--on-navy)}
-  .final .inner{display:grid;grid-template-columns:1.05fr .95fr;gap:46px;align-items:center;max-width:980px;margin:0 auto}
-  .final h2{font-family:var(--serif);font-weight:500;font-size:clamp(28px,5vw,42px);line-height:1.08;letter-spacing:-.02em;color:#fff;text-wrap:balance}
+  /* final cta */
+  .final{background:var(--brand-deep);color:var(--on-dark);text-align:center;position:relative;overflow:hidden}
+  .final .blob{position:absolute;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,rgba(212,175,55,.4),transparent 70%);filter:blur(80px);top:-120px;left:50%;transform:translateX(-50%);z-index:0}
+  .final .wrap{position:relative;z-index:1}
+  .final h2{font-family:var(--serif);font-weight:500;font-size:clamp(30px,5.4vw,46px);line-height:1.06;letter-spacing:-.02em;color:#fff;text-wrap:balance}
   .final h2 em{font-style:italic;color:var(--gold-bright)}
-  .final .sub{color:var(--on-navy-soft);font-size:16px;margin:16px 0 24px;max-width:42ch}
-  .final .price-inline{display:inline-flex;align-items:baseline;gap:8px;margin-bottom:24px}
-  .final .price-inline .a{font-family:var(--serif);font-weight:600;font-size:34px;color:var(--gold-bright)}
-  .final .price-inline .p{font-size:13px;color:var(--on-navy-soft);font-weight:600}
-  .formcard{background:var(--paper);color:var(--ink);border-radius:22px;padding:30px 28px;box-shadow:var(--shadow)}
-  .formcard h3{font-family:var(--serif);font-weight:600;font-size:23px;letter-spacing:-.01em}
-  .formcard .fsub{font-size:13.5px;color:var(--muted);margin:6px 0 20px}
-  .field{margin-bottom:14px}
-  .field label{display:block;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
-  .field input,.field select{width:100%;font-family:inherit;font-size:15px;color:var(--ink);background:#fff;border:1.5px solid var(--hair);border-radius:11px;padding:13px 14px;outline:none;transition:border-color .15s,box-shadow .15s;min-height:50px}
-  .field input:focus,.field select:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(212,175,55,.18)}
-  .formcard .fineprint{font-size:11.5px;color:var(--muted);margin-top:14px;text-align:center;line-height:1.5}
-  .formcard .or{text-align:center;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:18px 0 14px;position:relative}
-  .formcard .or::before,.formcard .or::after{content:'';position:absolute;top:50%;width:34%;height:1px;background:var(--hair)}
-  .formcard .or::before{left:0}.formcard .or::after{right:0}
-  .callrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .final .pf{font-family:var(--serif);font-weight:600;font-size:40px;color:var(--gold-bright);margin:16px 0 4px}
+  .final .sub{color:var(--on-dark-soft);font-size:16px;margin-bottom:26px}
+  .final .cta-row{display:flex;flex-wrap:wrap;gap:12px;justify-content:center}
+  .final .micro{font-size:13px;color:var(--on-dark-faint);margin-top:16px}
 
-  footer{background:#08080a;color:var(--on-navy-soft);padding:34px 0 90px;font-size:13px}
-  footer .wrap{display:flex;flex-wrap:wrap;gap:14px 26px;align-items:center;justify-content:space-between}
-  footer img{height:26px;opacity:.92}
-  footer .meta a{color:var(--gold-bright);font-weight:600}
-  footer .legal{font-size:11.5px;color:rgba(236,233,225,.42);width:100%;line-height:1.6}
+  /* footer */
+  footer{background:#08080a;color:var(--on-dark-soft);padding:48px 0 96px;font-size:14px}
+  footer .ftop{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:30px;margin-bottom:30px}
+  footer img.flogo{height:30px;margin-bottom:14px}
+  footer h4{font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--on-dark-faint);margin-bottom:14px}
+  footer .fl a{display:block;color:var(--on-dark-soft);margin-bottom:9px;transition:color .15s}
+  footer .fl a:hover{color:var(--gold-bright)}
+  footer .contact a{color:var(--gold-bright);font-weight:700}
+  footer .area{font-size:13px;color:var(--on-dark-faint);line-height:1.7;max-width:34ch}
+  footer .disc{font-size:11.5px;color:rgba(236,233,225,.4);line-height:1.65;border-top:1px solid rgba(236,233,225,.12);padding-top:22px}
+  @media (max-width:760px){footer .ftop{grid-template-columns:1fr 1fr;gap:24px}}
 
-  .stickybar{position:fixed;left:0;right:0;bottom:0;z-index:60;display:none;gap:10px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:rgba(12,12,14,.97);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-top:1px solid rgba(212,175,55,.3)}
-  .stickybar .btn{flex:1;min-height:50px;font-size:15px;padding:13px}
+  /* sticky mobile cta */
+  .stickybar{position:fixed;left:0;right:0;bottom:0;z-index:70;display:none;flex-direction:column;gap:6px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:rgba(12,12,14,.97);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-top:1px solid rgba(212,175,55,.3)}
+  .stickybar .row{display:flex;gap:10px}
+  .stickybar .btn{flex:1;min-height:48px;font-size:15px;padding:12px}
+  .stickybar .micro{text-align:center;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--gold-bright)}
 
-  @media (max-width:860px){
-    .wedge .inner,.final .inner{grid-template-columns:1fr;gap:30px}
-    .wedge .photos{max-width:380px;margin:0 auto}
-    .wedge .photos .main img{height:340px}
-    .offer ul{margin-left:0}
-  }
   @media (max-width:640px){
-    section{padding:46px 0}
-    .hero .wrap{padding:34px 22px 40px}
-    .hero .cta-row .btn{flex:1}
+    section{padding:48px 0}
+    .hero .wrap{padding:40px 22px 44px}
+    .hero .cta-row .btn,.final .cta-row .btn{flex:1}
+    .offer .btn{width:100%}
     .stickybar{display:flex}
-    footer{padding-bottom:96px}
-    .offer .lead{font-size:18px}
-    .statline{gap:22px}
+    footer{padding-bottom:120px}
   }
 </style>
 </head>
 <body>
 
-<!-- ══ TOP BAR ══ -->
+<!-- ══ HEADER ══ -->
 <header class="bar">
   <div class="wrap">
-    <img src="brand/annies-wordmark-white.svg" alt="Annie's Car Rental" />
-    <a class="callmini" href="tel:+17722071655">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-      (772) 207-1655
-    </a>
+    <img class="logo" src="brand/annies-wordmark-white.svg" alt="Annie's Car Rental" />
+    <nav>
+      <a href="#vehicles">Vehicles</a>
+      <a href="#how">How It Works</a>
+      <a href="#requirements">Requirements</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <div class="actions">
+      <a class="callmini" href="tel:+17722071655"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span>Call / Text</span></a>
+      <a class="btn btn-gold btn-sm" href="#apply">Apply Now</a>
+    </div>
   </div>
 </header>
 
 <!-- ══ HERO ══ -->
 <section class="hero">
   <div class="bg"><img src="hero-poster.jpg" alt="" aria-hidden="true" /></div>
+  <div class="blob a"></div><div class="blob b"></div>
   <div class="wrap">
-    <span class="eyebrow"><span class="pin"></span> Rideshare &amp; delivery drivers · Treasure Coast, FL</span>
-    <h1>A rideshare-ready car, <em>delivered to your door</em> — driving this week.</h1>
-    <p class="sub">No credit check. No deposit. Insurance, maintenance, and unlimited miles all included in one flat weekly rate. We bring the keys to you and you start earning today.</p>
-
-    <div class="priceflag">
-      <span class="amt"><span class="d">$</span>279</span>
-      <span class="per">/ week<span class="all">all-in · cancel anytime</span></span>
+    <span class="eyebrow"><span class="pin"></span> Weekly gig-driver rentals · Port St. Lucie</span>
+    <h1>Need a car to <em>start earning</em> this week?</h1>
+    <p class="lead">Apply for a weekly rental from Annie's Car Rental in Port St. Lucie. Clean, reliable vehicles for delivery, courier, service-app, and gig-driving work. Local pickup or delivery available across the Treasure Coast. Fast text response.</p>
+    <div class="pricerow">
+      <div class="priceflag"><span class="amt"><span class="d">$</span>279</span><span class="per">/ week</span></div>
     </div>
-
     <div class="cta-row">
-      <a class="btn btn-gold" href="#request">Check availability</a>
-      <a class="btn btn-ghost" href="sms:+17722071655?&body=Hi%20Annie%27s%20—%20I%27m%20a%20gig%20driver%20and%20want%20a%20rental.">Text us now</a>
+      <a class="btn btn-gold" href="#apply">Apply for a Weekly Rental</a>
+      <a class="btn btn-ghost" href="sms:+17722071655?&body=Hi%20Annie%27s%20—%20I%27d%20like%20a%20weekly%20gig%20rental.">Call / Text Annie's</a>
     </div>
-
+    <p class="microcopy">Takes about 2 minutes. We'll text you back with availability, requirements, and pickup or delivery options.</p>
     <div class="chips">
-      <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> No credit check</span>
-      <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> No deposit</span>
-      <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Insurance included</span>
-      <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Unlimited miles</span>
-      <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Same-day pickup</span>
+      <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> $279/week</span>
+      <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Local Treasure Coast team</span>
+      <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Pickup or delivery available</span>
+      <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Same-day pickup may be available</span>
+      <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Fast text response</span>
+      <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Weekly rentals</span>
     </div>
+    <p class="disclaimer-note">App and platform approval depends on your driver account, documents, the specific vehicle, and the current rules of each platform.</p>
   </div>
 </section>
 
-<!-- ══ OFFER BAR ══ -->
+<!-- ══ QUICK OFFER BAR ══ -->
 <div class="offer">
   <div class="wrap">
-    <div class="lead"><em>$279</em>/week — everything's in it.</div>
-    <ul>
-      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Insurance</li>
-      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Maintenance</li>
-      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Unlimited miles</li>
-      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Roadside</li>
-      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Door delivery</li>
-    </ul>
+    <div class="ot">
+      <h2>Weekly rental cars for local drivers</h2>
+      <p>Need a car for delivery, courier work, rideshare research, grocery delivery, or service-app work? Annie's gives Treasure Coast drivers a local rental option without the corporate rental-counter runaround.</p>
+    </div>
+    <a class="btn" href="#apply">Start Application</a>
   </div>
 </div>
 
-<!-- ══ COMPARE ══ -->
-<section class="compare">
+<!-- ══ VEHICLES ══ -->
+<section id="vehicles">
   <div class="wrap">
     <div class="sec-head reveal">
-      <div class="sec-kicker">Do the math</div>
-      <h2>One flat rate that <em>actually adds up</em></h2>
-      <p>The big programs nickel-and-dime you on miles and deposits. We don't. Here's the weekly picture.</p>
+      <div class="kicker">The fleet</div>
+      <h2>Choose the vehicle type that <em>fits your work</em></h2>
+      <p>Pick the option that matches how you drive. Availability changes weekly — apply and we'll text you what's ready now.</p>
     </div>
-    <div class="grid reveal">
-      <div class="ccard"><div class="who">Lyft Express</div><div class="num">~$209</div><div class="note">mileage often capped</div></div>
-      <div class="ccard"><div class="who">Uber program</div><div class="num">~$260</div><div class="note">+ fees, counter pickup</div></div>
-      <div class="ccard"><div class="who">Go With Gig</div><div class="num">~$375</div><div class="note">national, no local face</div></div>
-      <div class="ccard us"><div class="tag">Best value</div><div class="who">Annie's</div><div class="num">$279</div><div class="note">all-in · unlimited miles · delivered</div></div>
+    <div class="vgrid">
+
+      <!-- Economy Sedan -->
+      <div class="vcard reveal">
+        <div class="vmedia"><span class="ribbon">$279 / week</span>
+          <!-- swap for a real photo of an available economy sedan -->
+          <svg viewBox="0 0 120 54" fill="currentColor"><path d="M8 40c0 2 1.6 4 4 4h3c0 3 2.4 5 5.5 5s5.5-2 5.5-5h44c0 3 2.4 5 5.5 5s5.5-2 5.5-5h3c2.4 0 4-2 4-4v-9c0-3-2-5-5-6l-12-2-9-9c-2-2-4-3-7-3H37c-3 0-6 1-8 4l-7 8-9 2c-3 1-5 3-5 6v9z M30 22l5-6c1-1 2-2 4-2h10v9H29zm26-8h6c2 0 3 .5 4 2l5 6H56z"/><circle cx="25.5" cy="40" r="3.5"/><circle cx="83.5" cy="40" r="3.5"/></svg>
+        </div>
+        <div class="vbody">
+          <h3>Economy Sedan</h3>
+          <p class="best">Best for delivery, grocery apps, courier work, and daily gig driving.</p>
+          <div class="vprice">$279 <small>/ week</small></div>
+          <div class="vlabel">Examples</div>
+          <div class="extags"><span class="extag">Nissan Altima</span><span class="extag">Toyota Corolla</span><span class="extag">Hyundai Elantra</span><span class="extag">Chevy Malibu</span><span class="extag">or similar</span></div>
+          <div class="vlabel">Good for</div>
+          <ul class="vlist">
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>DoorDash · Uber Eats · Instacart</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Courier &amp; medical courier work</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Local service-app work</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Backup vehicle while your car is down</li>
+          </ul>
+          <div class="vlabel">Includes</div>
+          <ul class="vlist">
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Clean, reliable vehicle</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Weekly rental terms · pickup or delivery</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Fast local support · terms confirmed first</li>
+          </ul>
+          <a class="btn btn-gold btn-block" href="#apply" data-vehicle="Economy Sedan">Apply for Economy Sedan</a>
+          <p class="vnote">Tell us what app or work you plan to use the car for. We'll help confirm whether the available vehicle fits your intended use.</p>
+        </div>
+      </div>
+
+      <!-- Fuel-Saver / Hybrid -->
+      <div class="vcard reveal">
+        <div class="vmedia"><span class="ribbon">Ask for availability</span>
+          <svg viewBox="0 0 120 54" fill="currentColor"><path d="M8 40c0 2 1.6 4 4 4h3c0 3 2.4 5 5.5 5s5.5-2 5.5-5h44c0 3 2.4 5 5.5 5s5.5-2 5.5-5h3c2.4 0 4-2 4-4v-9c0-3-2-5-5-6l-12-2-9-9c-2-2-4-3-7-3H37c-3 0-6 1-8 4l-7 8-9 2c-3 1-5 3-5 6v9z M30 22l5-6c1-1 2-2 4-2h10v9H29zm26-8h6c2 0 3 .5 4 2l5 6H56z"/><circle cx="25.5" cy="40" r="3.5"/><circle cx="83.5" cy="40" r="3.5"/></svg>
+        </div>
+        <div class="vbody">
+          <h3>Fuel-Saver / Hybrid</h3>
+          <p class="best">Best for high-mileage drivers who want to lower fuel costs.</p>
+          <div class="vprice">Ask for availability</div>
+          <div class="vlabel">Examples</div>
+          <div class="extags"><span class="extag">Toyota Prius</span><span class="extag">Corolla Hybrid</span><span class="extag">Elantra Hybrid</span><span class="extag">or similar</span></div>
+          <div class="vlabel">Good for</div>
+          <ul class="vlist">
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Long delivery shifts</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Grocery delivery &amp; courier work</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>High-mileage weekly driving</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Drivers focused on fuel savings</li>
+          </ul>
+          <div class="vlabel">Includes</div>
+          <ul class="vlist">
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Fuel-efficient options when available</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Weekly rental terms · pickup or delivery</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Fast local support · terms confirmed first</li>
+          </ul>
+          <a class="btn btn-outline btn-block" href="#apply" data-vehicle="Fuel-Saver / Hybrid">Ask About Fuel-Saver Cars</a>
+          <p class="vnote">Availability changes weekly. Apply now and we'll text you what is currently available.</p>
+        </div>
+      </div>
+
+      <!-- Midsize SUV -->
+      <div class="vcard reveal">
+        <div class="vmedia"><span class="ribbon">Ask for availability</span>
+          <svg viewBox="0 0 120 56" fill="currentColor"><path d="M8 42c0 2 1.6 4 4 4h3c0 3 2.4 5 5.5 5s5.5-2 5.5-5h44c0 3 2.4 5 5.5 5s5.5-2 5.5-5h3c2.4 0 4-2 4-4V27c0-3-2-5-5-6l-10-1-7-12c-1-2-3-3-6-3H34c-3 0-5 1-6 3l-7 12-10 1c-3 1-5 3-5 6v15z M30 20l5-9c.6-1 1.6-2 3-2h9v13H28zm25-11h7c1.4 0 2.4 1 3 2l5 9H55z"/><circle cx="25.5" cy="42" r="3.5"/><circle cx="83.5" cy="42" r="3.5"/></svg>
+        </div>
+        <div class="vbody">
+          <h3>Midsize SUV</h3>
+          <p class="best">Best for drivers who need more space.</p>
+          <div class="vprice">Ask for availability</div>
+          <div class="vlabel">Examples</div>
+          <div class="extags"><span class="extag">Toyota RAV4</span><span class="extag">Honda CR-V</span><span class="extag">Hyundai Tucson</span><span class="extag">Chevy Equinox</span><span class="extag">or similar</span></div>
+          <div class="vlabel">Good for</div>
+          <ul class="vlist">
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Grocery &amp; package delivery</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Larger cargo needs</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Family use between shifts</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Comfortable weekly driving</li>
+          </ul>
+          <div class="vlabel">Includes</div>
+          <ul class="vlist">
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Extra space</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Weekly rental terms · pickup or delivery</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Fast local support · terms confirmed first</li>
+          </ul>
+          <a class="btn btn-outline btn-block" href="#apply" data-vehicle="Midsize SUV">Apply for SUV Availability</a>
+          <p class="vnote">SUV pricing may vary by vehicle and availability.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Not sure which car -->
+    <div class="notsure reveal">
+      <h3>Not sure which car you need?</h3>
+      <p>Every driver's situation is different. Some need the lowest weekly cost, some need better fuel economy, some need more cargo room — and some just need a clean car fast because their own car is down. Tell us what you drive for and we'll point you to the best available option.</p>
+      <ul>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>What city you're in</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>When you need the car</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>What apps or work you'll use it for</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Pickup or delivery</li>
+      </ul>
+      <a class="btn btn-gold" href="#apply">Get Vehicle Recommendation</a>
     </div>
   </div>
 </section>
 
-<!-- ══ PLATFORMS ══ -->
-<section>
+<!-- ══ WHAT'S INCLUDED ══ -->
+<section class="tint" id="included">
   <div class="wrap">
     <div class="sec-head reveal">
-      <div class="sec-kicker">Built for gig work</div>
-      <h2>Approved to drive on <em>every major platform</em></h2>
-      <p>Rideshare or delivery — if you're earning on an app, this car is ready for it.</p>
+      <div class="kicker">No surprises</div>
+      <h2>Clear weekly rental terms <em>before you book</em></h2>
+      <p>Before you take the car, we'll confirm the important details so there are no surprises. Don't guess — we'll explain the terms before you book.</p>
     </div>
-    <div class="plats reveal">
-      <div class="plat"><img src="UBER.png" alt="Uber" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'badge-fallback',textContent:'Uber'}))" /><span>Rideshare</span></div>
-      <div class="plat"><img src="Lyft.png" alt="Lyft" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'badge-fallback',textContent:'Lyft'}))" /><span>Rideshare</span></div>
-      <div class="plat"><img src="Doordash.png" alt="DoorDash" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'badge-fallback',textContent:'DoorDash'}))" /><span>Delivery</span></div>
-      <div class="plat"><div class="badge-fallback">Uber Eats</div><span>Delivery</span></div>
-      <div class="plat"><div class="badge-fallback">Instacart</div><span>Delivery</span></div>
-      <div class="plat"><div class="badge-fallback">Amazon Flex</div><span>Delivery</span></div>
+    <div class="panel reveal">
+      <div class="vlabel">We'll confirm</div>
+      <ul class="checklist">
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Weekly price</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Deposit requirement, if any</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Insurance &amp; coverage details</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Mileage terms</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Pickup or delivery options</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Payment timing</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Vehicle availability</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Rental agreement terms</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>What happens if the car needs service</li>
+      </ul>
+      <div class="foot">
+        <p>Do not guess. We'll explain the terms before you book.</p>
+        <a class="btn btn-gold" href="#apply">Apply Now</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ WHY ANNIE'S ══ -->
+<section id="why">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="kicker">Why Annie's</div>
+      <h2>Local beats corporate when you <em>need a car fast</em></h2>
+      <p>Annie's is a local Treasure Coast rental company built for drivers who need a real answer quickly.</p>
+    </div>
+    <div class="cols">
+      <div class="fcard reveal"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><h3>Fast text response</h3><p>Call or text and get a real person, not a national rental-counter runaround.</p></div>
+      <div class="fcard reveal"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 12-9 12s-9-5-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div><h3>Local pickup or delivery</h3><p>Pickup or delivery may be available in Port St. Lucie and nearby Treasure Coast cities.</p></div>
+      <div class="fcard reveal"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><h3>Simple weekly pricing</h3><p>The offer is built around weekly rental math, so you can decide if the car makes sense for your income plan.</p></div>
+      <div class="fcard reveal"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z"/><path d="M9 12l2 2 4-4"/></svg></div><h3>Clean, reliable cars</h3><p>You need a vehicle that can handle long driving days, delivery routes, and weekly use.</p></div>
+      <div class="fcard reveal"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div><h3>Straight answers before booking</h3><p>We'll confirm availability, requirements, payment, deposit, mileage, and vehicle terms before you take the car.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ WHO THIS IS FOR ══ -->
+<section class="tint" id="who">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="kicker">Who this is for</div>
+      <h2>Built for drivers who <em>need a car to work</em></h2>
+      <p>Annie's weekly rentals may be a fit if you recognize yourself below.</p>
+    </div>
+    <div class="panel reveal">
+      <div class="vlabel">A fit if</div>
+      <ul class="checklist">
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Your car is down</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Your car isn't worth more miles</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>You need a vehicle for delivery or courier work</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>You need a temporary car while you figure out your next move</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>You want a local team instead of a national counter</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>You need pickup or delivery in the Treasure Coast area</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>You want a clear weekly price before committing</li>
+      </ul>
+      <div class="vlabel" style="margin-top:22px">Common use cases</div>
+      <div class="extags">
+        <span class="extag">DoorDash</span><span class="extag">Uber Eats</span><span class="extag">Instacart</span><span class="extag">Amazon Flex</span><span class="extag">Courier work</span><span class="extag">Medical courier</span><span class="extag">Package delivery</span><span class="extag">Local service-app work</span><span class="extag">Backup while your car is repaired</span>
+      </div>
+      <div class="foot">
+        <p>For Uber, Lyft, or any platform with specific rental rules, ask first — approval depends on your driver account, documents, vehicle, and current app rules.</p>
+        <a class="btn btn-gold" href="#apply">Apply Now</a>
+      </div>
     </div>
   </div>
 </section>
 
 <!-- ══ HOW IT WORKS ══ -->
-<section class="compare">
+<section id="how">
   <div class="wrap">
     <div class="sec-head reveal">
-      <div class="sec-kicker">Fast &amp; simple</div>
-      <h2>On the road in <em>three steps</em></h2>
-      <p>No paperwork marathon, no waiting room. Most drivers go from "hello" to driving the same day.</p>
+      <div class="kicker">The process</div>
+      <h2>Apply in <em>4 simple steps</em></h2>
     </div>
     <div class="steps">
-      <div class="step reveal">
-        <div class="ix"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
-        <div class="n">1</div>
-        <h3>Request</h3>
-        <p>Text us or fill the quick form — name, number, which apps you drive. Takes about two minutes.</p>
+      <div class="step reveal"><div class="n">1</div><h3>Submit the quick application</h3><p>Tell us who you are, where you are, when you need the car, and what kind of driving work you'll use it for.</p></div>
+      <div class="step reveal"><div class="n">2</div><h3>Get reviewed by text</h3><p>We'll text you back with availability, requirements, vehicle options, and next steps.</p></div>
+      <div class="step reveal"><div class="n">3</div><h3>Choose pickup or delivery</h3><p>Pick up locally or ask about delivery across Port St. Lucie and the Treasure Coast.</p></div>
+      <div class="step reveal"><div class="n">4</div><h3>Sign, pay, and drive</h3><p>Once approved and documents are complete, we'll review the rental terms with you and get you into the vehicle.</p></div>
+    </div>
+    <div style="text-align:center;margin-top:32px" class="reveal"><a class="btn btn-gold" href="#apply">Start Application</a></div>
+  </div>
+</section>
+
+<!-- ══ REQUIREMENTS ══ -->
+<section class="tint" id="requirements">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="kicker">Basic requirements</div>
+      <h2>What you need <em>to apply</em></h2>
+      <p>You don't need every document ready before the first form. Start with the quick application and we'll text you the next step.</p>
+    </div>
+    <div class="panel reveal">
+      <div class="vlabel">Be ready to provide</div>
+      <ul class="checklist">
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Valid driver's license</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Valid mobile number</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Current city or ZIP code</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Proof of age</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Payment method</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Intended vehicle use</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Rental agreement approval</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Proof of app activity or income if requested</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ══ SERVICE AREA ══ -->
+<section id="area">
+  <div class="wrap">
+    <div class="area-wrap">
+      <div class="reveal">
+        <div class="kicker">Service area</div>
+        <h2 style="font-family:var(--serif);font-weight:500;font-size:clamp(26px,4.4vw,38px);line-height:1.1;letter-spacing:-.02em;margin:12px 0 20px">Serving Port St. Lucie <em style="font-style:italic;color:var(--gold-deep)">and the Treasure Coast</em></h2>
+        <div class="area-list">
+          <span class="a">Port St. Lucie</span><span class="a">Tradition</span><span class="a">St. Lucie West</span><span class="a">Fort Pierce</span><span class="a">Stuart</span><span class="a">Jensen Beach</span><span class="a">Vero Beach</span><span class="a">Palm City</span><span class="a">Nearby Treasure Coast areas</span>
+        </div>
       </div>
-      <div class="step reveal">
-        <div class="ix"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg></div>
-        <div class="n">2</div>
-        <h3>Get approved</h3>
-        <p>No credit check. No deposit. A valid license and a quick chat — that's it. We'll have you cleared fast.</p>
-      </div>
-      <div class="step reveal">
-        <div class="ix"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14M5 17a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h11l4 4v4a2 2 0 0 1-2 2M7 17a2 2 0 1 0 0 .01M17 17a2 2 0 1 0 0 .01"/></svg></div>
-        <div class="n">3</div>
-        <h3>Drive today</h3>
-        <p>Same-day pickup, or we deliver the car right to your door. Spotless, fueled, and ready to earn.</p>
+      <div class="area-card reveal">
+        <h3>Not sure if we reach you?</h3>
+        <p>Pickup and delivery availability depends on location, schedule, and current vehicle availability. Tell us where you are and we'll confirm.</p>
+        <a class="btn btn-gold btn-block" href="#apply">Check My Area</a>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ══ WEDGE / WHY US ══ -->
-<section class="wedge">
+<!-- ══ APPLICATION ══ -->
+<section class="apply" id="apply">
   <div class="wrap">
     <div class="inner">
       <div class="copy reveal">
-        <div class="sec-kicker">The Annie's difference</div>
-        <h2>Rent from a <em>real local host</em>, not a counter.</h2>
-        <p>I'm Aaron — Annie's is locally owned and run right here on the Treasure Coast. This isn't a faceless lot with a phone tree; it's a neighbor who actually answers.</p>
-        <p>Every car is personally cleaned, maintained, and checked before it reaches you. Got a question at 8pm? You're texting the owner, not a call center. And when you're ready, I bring the keys to your door.</p>
-        <div class="sign">— Aaron, Annie's Car Rental</div>
+        <h2>Apply for a Weekly Rental</h2>
+        <div class="pf"><span class="a">$279</span><span class="p">/ week</span></div>
+        <p>Takes about 2 minutes. We'll text you back with availability and next steps. For the fastest response, call or text us directly.</p>
+        <div class="callrow">
+          <a class="btn btn-gold" href="tel:+17722071655"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>Call</a>
+          <a class="btn btn-ghost" href="sms:+17722071655?&body=Hi%20Annie%27s%20—%20I%27d%20like%20a%20weekly%20gig%20rental.">Text</a>
+        </div>
       </div>
-      <div class="photos reveal">
-        <div class="main"><img src="rideshare-driver.jpeg" alt="A rideshare driver with an Annie's Car Rental vehicle" /></div>
-        <span class="cap">Local host · real support</span>
+
+      <div class="formcard reveal">
+        <form id="reqform" novalidate>
+          <h3>Quick application</h3>
+          <p class="fsub">Takes about 2 minutes. We'll text you back with availability and next steps.</p>
+          <div class="frow">
+            <div class="field"><label for="f-name">Full name</label><input id="f-name" name="name" type="text" autocomplete="name" required placeholder="First &amp; last" /></div>
+            <div class="field"><label for="f-phone">Mobile number</label><input id="f-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required placeholder="(772) 555-0123" /></div>
+          </div>
+          <div class="frow">
+            <div class="field"><label for="f-email">Email address</label><input id="f-email" name="email" type="email" autocomplete="email" placeholder="you@email.com" /></div>
+            <div class="field"><label for="f-city">City / ZIP code</label><input id="f-city" name="city" type="text" placeholder="Port St. Lucie / 34952" /></div>
+          </div>
+          <div class="frow">
+            <div class="field"><label for="f-when">When do you need it?</label>
+              <select id="f-when" name="when"><option>Today</option><option>Tomorrow</option><option>This week</option><option>Next week</option><option>Just researching</option></select>
+            </div>
+            <div class="field"><label for="f-use">Plan to use it for</label>
+              <select id="f-use" name="use"><option>DoorDash</option><option>Uber Eats</option><option>Instacart</option><option>Amazon Flex</option><option>Courier work</option><option>Medical courier</option><option>Package delivery</option><option>Uber</option><option>Lyft</option><option>Personal transportation</option><option>Other</option></select>
+            </div>
+          </div>
+          <div class="frow">
+            <div class="field"><label for="f-license">Valid driver's license?</label>
+              <select id="f-license" name="license"><option>Yes</option><option>No</option></select>
+            </div>
+            <div class="field"><label for="f-age">Are you 21 or older?</label>
+              <select id="f-age" name="age"><option>Yes</option><option>No</option></select>
+            </div>
+          </div>
+          <div class="frow">
+            <div class="field"><label for="f-deliver">Pickup or delivery?</label>
+              <select id="f-deliver" name="deliver"><option>Pickup</option><option>Delivery</option><option>Either</option></select>
+            </div>
+            <div class="field"><label for="f-ready">Ready to start if approved?</label>
+              <select id="f-ready" name="ready"><option>Yes</option><option>Maybe</option><option>Not yet</option></select>
+            </div>
+          </div>
+          <div class="field full"><label for="f-notes">Notes / questions</label><textarea id="f-notes" name="notes" placeholder="Anything we should know?"></textarea></div>
+          <label class="consent"><input type="checkbox" id="f-consent" required /><span>I agree to be contacted by call or text about my rental application. Message and data rates may apply.</span></label>
+          <button class="btn btn-gold btn-block" type="submit">Submit Application</button>
+          <p class="fineprint">App/platform approval depends on your driver account, documents, vehicle, and current platform rules.</p>
+        </form>
+        <div class="formdone" id="formdone">
+          <div class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+          <h4>Thanks — we received your application.</h4>
+          <p>Annie's will text you with availability, requirements, and next steps. For the fastest response, call or text us directly.</p>
+          <div class="callrow" style="max-width:300px;margin:0 auto">
+            <a class="btn btn-dark" href="tel:+17722071655">Call now</a>
+            <a class="btn btn-dark" href="sms:+17722071655">Text now</a>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </section>
 
 <!-- ══ PROOF ══ -->
-<section class="proof">
+<section class="tint" id="reviews">
   <div class="wrap">
     <div class="sec-head reveal">
-      <div class="stars">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-      </div>
-      <div class="sec-kicker">Drivers on the Treasure Coast</div>
-      <h2>The kind of rental you <em>come back for</em></h2>
+      <div class="kicker">Reviews</div>
+      <h2>Local drivers choose Annie's for <em>fast, simple rentals</em></h2>
     </div>
-    <!-- TODO: swap in real Google reviews once the review link is live -->
+    <!-- TODO: replace with REAL Google reviews only. Do not publish fake testimonials. -->
     <div class="tgrid">
-      <div class="tcard reveal"><div class="quote">"Approved same day, no credit check, and they dropped the car at my place. Was online for Uber by that afternoon."</div><div class="who"><div class="av">M</div><div><div class="nm">Marcus T.</div><div class="mt">Uber &amp; Uber Eats · Port St. Lucie</div></div></div></div>
-      <div class="tcard reveal"><div class="quote">"Unlimited miles is the whole game for delivery. Flat $279 and I never think about a per-mile fee again."</div><div class="who"><div class="av">D</div><div><div class="nm">Dana R.</div><div class="mt">DoorDash &amp; Instacart · Fort Pierce</div></div></div></div>
-      <div class="tcard reveal"><div class="quote">"Aaron actually texts back. Felt like renting from a neighbor, not a counter. Car was spotless."</div><div class="who"><div class="av">L</div><div><div class="nm">Luis G.</div><div class="mt">Lyft · Stuart</div></div></div></div>
-    </div>
-    <div class="statline reveal">
-      <div class="st"><div class="v">$279</div><div class="l">All-in / week</div></div>
-      <div class="st"><div class="v">0</div><div class="l">Credit checks</div></div>
-      <div class="st"><div class="v">∞</div><div class="l">Miles included</div></div>
-      <div class="st"><div class="v">Same day</div><div class="l">Pickup or delivery</div></div>
+      <div class="tcard reveal"><div class="stars"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg></div><div class="quote">"Clean car, quick response, and the process was simple."</div><div class="who">— Local renter</div></div>
+      <div class="tcard reveal"><div class="stars"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg></div><div class="quote">"Way easier than dealing with a big rental counter."</div><div class="who">— Port St. Lucie renter</div></div>
+      <div class="tcard reveal"><div class="stars"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg></div><div class="quote">"They answered fast and helped me get back on the road."</div><div class="who">— Treasure Coast driver</div></div>
     </div>
   </div>
 </section>
 
 <!-- ══ FAQ ══ -->
-<section>
+<section id="faq">
   <div class="wrap">
     <div class="sec-head reveal">
-      <div class="sec-kicker">Good to know</div>
-      <h2>Questions, <em>answered straight</em></h2>
+      <div class="kicker">FAQ</div>
+      <h2>Frequently asked <em>questions</em></h2>
     </div>
     <div class="faq reveal">
-      <details open><summary>Do you check my credit? <span class="pl"></span></summary><div class="ans">Nope. No credit check and no big deposit to get started. If you've got a valid license and you're ready to drive, we can work with you.</div></details>
-      <details><summary>Is insurance really included? <span class="pl"></span></summary><div class="ans">Yes — commercial-grade coverage is built into your weekly rate, along with maintenance and roadside. No surprise add-ons.</div></details>
-      <details><summary>Are the miles really unlimited? <span class="pl"></span></summary><div class="ans">Unlimited, every week. Gig work means high mileage, so we never charge per mile. Drive as much as you need to.</div></details>
-      <details><summary>How fast can I start? <span class="pl"></span></summary><div class="ans">Most drivers are approved and rolling the same day. We can do a same-day pickup or deliver the car right to your door on the Treasure Coast.</div></details>
-      <details><summary>Which apps can I drive for? <span class="pl"></span></summary><div class="ans">Uber, Lyft, DoorDash, Uber Eats, Instacart, and Amazon Flex. Rideshare or delivery — you're approved to drive on all of them.</div></details>
-      <details><summary>What do I need to qualify? <span class="pl"></span></summary><div class="ans">A valid driver's license and an active gig account (or one you're about to set up). Message us and we'll walk you through it in a couple of minutes.</div></details>
-      <details><summary>Where do you serve? <span class="pl"></span></summary><div class="ans">Port St. Lucie and across the Treasure Coast — Fort Pierce, Stuart, Jensen Beach, Vero Beach and Palm City. We'll deliver to you.</div></details>
-      <details><summary>Can I cancel? <span class="pl"></span></summary><div class="ans">It's a weekly flat rate — keep the car as long as you're earning, hand it back when you're done. No long contract.</div></details>
+      <details open><summary>How much is the weekly rental?<span class="pl"></span></summary><div class="ans">Weekly rentals start at $279/week for eligible vehicles. We'll confirm the final price and terms before you book.</div></details>
+      <details><summary>Is $279 the total price?<span class="pl"></span></summary><div class="ans">We'll confirm the full payment amount before you book, including any deposit, taxes, fees, delivery charges, mileage terms, insurance details, or other rental requirements.</div></details>
+      <details><summary>Do I need to apply or just check availability?<span class="pl"></span></summary><div class="ans">Apply first. The application helps us confirm the best vehicle, timing, requirements, and pickup or delivery options.</div></details>
+      <details><summary>How fast can I get a car?<span class="pl"></span></summary><div class="ans">Same-day pickup may be available depending on vehicle availability, your documents, payment, and location.</div></details>
+      <details><summary>Do you deliver the car?<span class="pl"></span></summary><div class="ans">Delivery may be available in Port St. Lucie and nearby Treasure Coast cities. Ask about your location when you apply.</div></details>
+      <details><summary>Is insurance included?<span class="pl"></span></summary><div class="ans">We'll explain the insurance and coverage details before you book. Make sure you understand what is included, what is not included, and what you are responsible for before taking the vehicle.</div></details>
+      <details><summary>Is there a deposit?<span class="pl"></span></summary><div class="ans">Deposit requirements may vary. We'll confirm the deposit requirement, if any, before you book.</div></details>
+      <details><summary>Are there mileage limits?<span class="pl"></span></summary><div class="ans">Mileage terms will be confirmed before booking. If you plan to drive heavy mileage, tell us during the application.</div></details>
+      <details><summary>Can I use the car for DoorDash, Uber Eats, Instacart, Amazon Flex, or courier work?<span class="pl"></span></summary><div class="ans">Many drivers use rental vehicles for delivery, courier, grocery, package, or service-app work. Requirements vary by platform, vehicle, and driver account. Tell us what you plan to use the car for and we'll help you review the fit.</div></details>
+      <details><summary>Can I use the car for Uber or Lyft?<span class="pl"></span></summary><div class="ans">Do not assume every rental vehicle can be used for Uber or Lyft. Some platforms have specific rental and vehicle rules. Tell us which platform you plan to use, and we'll help you confirm whether an available vehicle may fit the current requirements.</div></details>
+      <details><summary>What do I need to qualify?<span class="pl"></span></summary><div class="ans">You should have a valid driver's license, valid phone number, payment method, and meet Annie's rental requirements. Additional documents may be requested before approval.</div></details>
+      <details><summary>Can I rent longer than one week?<span class="pl"></span></summary><div class="ans">Weekly rentals may be extended depending on availability, payment status, and rental terms.</div></details>
+      <details><summary>What happens if the car needs service?<span class="pl"></span></summary><div class="ans">Contact Annie's right away. We'll explain the next step based on the vehicle issue and your rental agreement.</div></details>
     </div>
   </div>
 </section>
 
-<!-- ══ FINAL CTA + FORM ══ -->
-<section class="final" id="request">
+<!-- ══ FINAL CTA ══ -->
+<section class="final">
+  <div class="blob"></div>
   <div class="wrap">
-    <div class="inner">
-      <div class="copy reveal">
-        <h2>Keys in hand. <em>Earning this week.</em></h2>
-        <div class="price-inline"><span class="a">$279</span><span class="p">/ week · all-in · cancel anytime</span></div>
-        <p class="sub">Tell us a little about you and we'll text you back fast with availability and your delivery options. No credit pull, no obligation.</p>
-        <div class="callrow" style="max-width:360px">
-          <a class="btn btn-gold" href="tel:+17722071655">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-            Call
-          </a>
-          <a class="btn btn-ghost" href="sms:+17722071655?&body=Hi%20Annie%27s%20—%20I%27m%20a%20gig%20driver%20and%20want%20a%20rental.">Text</a>
-        </div>
+    <div class="reveal">
+      <h2>Need a car <em>this week?</em></h2>
+      <div class="pf">$279<span style="font-family:var(--sans);font-size:15px;font-weight:700;color:var(--on-dark-soft)"> / week</span></div>
+      <p class="sub">Apply now and get a clear answer from a local Treasure Coast rental team. Local pickup or delivery may be available.</p>
+      <div class="cta-row">
+        <a class="btn btn-gold" href="#apply">Apply for a Weekly Rental</a>
+        <a class="btn btn-ghost" href="sms:+17722071655?&body=Hi%20Annie%27s%20—%20I%27d%20like%20a%20weekly%20gig%20rental.">Call / Text Annie's</a>
       </div>
-
-      <div class="formcard reveal">
-        <h3>Check availability</h3>
-        <p class="fsub">Two minutes. We'll text you right back.</p>
-        <form id="reqform" novalidate>
-          <div class="field"><label for="f-name">Your name</label><input id="f-name" name="name" type="text" autocomplete="name" required placeholder="First &amp; last" /></div>
-          <div class="field"><label for="f-phone">Mobile number</label><input id="f-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required placeholder="(772) 555-0123" /></div>
-          <div class="field"><label for="f-plat">What do you drive for?</label>
-            <select id="f-plat" name="platform">
-              <option value="Uber">Uber</option>
-              <option value="Lyft">Lyft</option>
-              <option value="DoorDash">DoorDash</option>
-              <option value="Uber Eats">Uber Eats</option>
-              <option value="Instacart">Instacart</option>
-              <option value="Amazon Flex">Amazon Flex</option>
-              <option value="Multiple apps">Multiple apps</option>
-              <option value="Just getting started">Just getting started</option>
-            </select>
-          </div>
-          <div class="field"><label for="f-city">Pickup / delivery city</label><input id="f-city" name="city" type="text" placeholder="Port St. Lucie, Fort Pierce, Stuart…" /></div>
-          <button class="btn btn-gold btn-block" type="submit">Text me availability →</button>
-          <p class="fineprint">By submitting you agree to be contacted by text or call about your rental. No credit check. We never share your info.</p>
-        </form>
-        <div class="or">or reach us directly</div>
-        <div class="callrow">
-          <a class="btn btn-navy" href="tel:+17722071655">Call now</a>
-          <a class="btn btn-navy" href="sms:+17722071655">Text now</a>
-        </div>
-      </div>
+      <p class="micro">Fast text response. Clear terms before booking.</p>
     </div>
   </div>
 </section>
@@ -444,52 +712,81 @@
 <!-- ══ FOOTER ══ -->
 <footer>
   <div class="wrap">
-    <img src="brand/annies-wordmark-white.svg" alt="Annie's Car Rental" />
-    <div class="meta">
-      <a href="tel:+17722071655">(772) 207-1655</a> ·
-      <a href="mailto:info@anniescarrental.com">info@anniescarrental.com</a> ·
-      <a href="https://anniescarrental.com">anniescarrental.com</a>
+    <div class="ftop">
+      <div>
+        <img class="flogo" src="brand/annies-wordmark-white.svg" alt="Annie's Car Rental" />
+        <p class="area">Port St. Lucie / Treasure Coast, Florida<br><br><span class="contact"><a href="tel:+17722071655">Call / Text: (772) 207-1655</a></span></p>
+      </div>
+      <div>
+        <h4>Explore</h4>
+        <div class="fl">
+          <a href="https://anniescarrental.com">Home</a>
+          <a href="#vehicles">Vehicles</a>
+          <a href="#apply">Apply Now</a>
+          <a href="#faq">FAQ</a>
+          <a href="tel:+17722071655">Contact</a>
+        </div>
+      </div>
+      <div>
+        <h4>Service area</h4>
+        <p class="area">Port St. Lucie, Fort Pierce, Stuart, Jensen Beach, Vero Beach, Palm City, Tradition, St. Lucie West, and nearby areas.</p>
+        <h4 style="margin-top:18px">Legal</h4>
+        <div class="fl">
+          <a href="https://anniescarrental.com/privacy">Privacy Policy</a>
+          <a href="https://anniescarrental.com/terms">Terms</a>
+        </div>
+      </div>
     </div>
-    <div class="legal">Annie's Car Rental · Port St. Lucie, FL &amp; across the Treasure Coast · Premium cars, right in your neighborhood. Vehicle availability and same-day delivery subject to fleet and location. Weekly rate shown is all-inclusive of insurance, maintenance, roadside and unlimited miles; taxes/fees may apply. Driver must hold a valid license.</div>
+    <p class="disc">Vehicle availability, pricing, deposit requirements, pickup, delivery, insurance, coverage, mileage terms, approval, and platform eligibility are subject to Annie's current rental terms and fleet availability. App/platform approval depends on the driver's account, documents, vehicle, and current platform rules. Annie's Car Rental is not affiliated with Uber, Lyft, DoorDash, Instacart, Amazon Flex, or any other third-party platform unless specifically stated in writing.</p>
   </div>
 </footer>
 
-<!-- ══ STICKY MOBILE CALL BAR ══ -->
+<!-- ══ STICKY MOBILE CTA ══ -->
 <div class="stickybar">
-  <a class="btn btn-gold" href="tel:+17722071655">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-    Call
-  </a>
-  <a class="btn btn-navy" href="sms:+17722071655?&body=Hi%20Annie%27s%20—%20I%27m%20a%20gig%20driver%20and%20want%20a%20rental.">Text</a>
-  <a class="btn btn-navy" href="#request" style="background:var(--gold-deep)">Get approved</a>
+  <div class="row">
+    <a class="btn btn-gold" href="#apply">Apply Now</a>
+    <a class="btn btn-dark" href="tel:+17722071655">Call / Text</a>
+  </div>
+  <div class="micro">$279/week rental cars</div>
 </div>
 
 <script>
-  const io = new IntersectionObserver((entries)=>{
-    entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
-  },{threshold:0.12});
+  // reveal on scroll
+  const io = new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}})},{threshold:0.1});
   document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
 
-  const BIZ_SMS = '+17722071655';
-  const BIZ_EMAIL = 'info@anniescarrental.com';
-  const form = document.getElementById('reqform');
-  form.addEventListener('submit', function(ev){
+  // vehicle buttons preselect the "use" intent context via the notes
+  let preselectVehicle = '';
+  document.querySelectorAll('[data-vehicle]').forEach(b=>b.addEventListener('click',()=>{ preselectVehicle = b.getAttribute('data-vehicle'); }));
+
+  // application form -> compose SMS (mobile) / mailto (desktop). No backend dependency.
+  const BIZ_SMS='+17722071655', BIZ_EMAIL='info@anniescarrental.com';
+  const form=document.getElementById('reqform'), done=document.getElementById('formdone');
+  form.addEventListener('submit',function(ev){
     ev.preventDefault();
-    const name = (document.getElementById('f-name').value || '').trim();
-    const phone = (document.getElementById('f-phone').value || '').trim();
-    const plat = document.getElementById('f-plat').value;
-    const city = (document.getElementById('f-city').value || '').trim();
-    if(!name || !phone){
-      if(!name){ document.getElementById('f-name').focus(); } else { document.getElementById('f-phone').focus(); }
-      return;
-    }
-    const msg = `Hi Annie's Car Rental — I'd like a rideshare rental.\nName: ${name}\nPhone: ${phone}\nDrives for: ${plat}${city ? '\nCity: ' + city : ''}`;
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if(isMobile){
-      window.location.href = 'sms:' + BIZ_SMS + '?&body=' + encodeURIComponent(msg);
-    }else{
-      window.location.href = 'mailto:' + BIZ_EMAIL + '?subject=' + encodeURIComponent('Rideshare rental request — ' + name) + '&body=' + encodeURIComponent(msg);
-    }
+    const g=id=>(document.getElementById(id).value||'').trim();
+    const name=g('f-name'), phone=g('f-phone');
+    if(!name){document.getElementById('f-name').focus();return;}
+    if(!phone){document.getElementById('f-phone').focus();return;}
+    if(!document.getElementById('f-consent').checked){document.getElementById('f-consent').focus();return;}
+    const lines=[
+      "Annie's — weekly rental application",
+      'Name: '+name,
+      'Phone: '+phone,
+      g('f-email')&&'Email: '+g('f-email'),
+      g('f-city')&&'City/ZIP: '+g('f-city'),
+      'Needed: '+g('f-when'),
+      'Use: '+g('f-use'),
+      preselectVehicle&&'Vehicle interest: '+preselectVehicle,
+      'License: '+g('f-license')+' · 21+: '+g('f-age'),
+      'Prefers: '+g('f-deliver')+' · Ready: '+g('f-ready'),
+      g('f-notes')&&'Notes: '+g('f-notes')
+    ].filter(Boolean);
+    const body=encodeURIComponent(lines.join('\n'));
+    const mobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    window.location.href = mobile ? ('sms:'+BIZ_SMS+'?&body='+body)
+      : ('mailto:'+BIZ_EMAIL+'?subject='+encodeURIComponent('Weekly rental application — '+name)+'&body='+body);
+    form.style.display='none'; done.classList.add('show'); done.scrollIntoView({behavior:'smooth',block:'center'});
   });
 </script>
 </body>
