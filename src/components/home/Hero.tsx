@@ -22,15 +22,21 @@ export default function Hero({ onBrowseFleet }: HeroProps) {
         className="absolute inset-0 z-0 origin-right"
         style={{ y, opacity }}
       >
-        <img
-          src="/hero-sentra-front.png"
-          alt={`Clean, reliable Nissan Sentra — ${brand.name}`}
-          className="w-full h-full object-cover animate-slow-zoom object-[60%_center] sm:object-[90%_center]"
-          fetchPriority="high"
-          decoding="async"
-          width={1920}
-          height={1080}
-        />
+        {/* Cinematic hero motion plate: white Altima in Tradition Town Center.
+            Poster (a still from the same clip) covers the load gap and is the
+            reduced-motion / no-autoplay fallback. */}
+        <video
+          className="w-full h-full object-cover object-[65%_center] sm:object-[72%_center]"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+          poster="/hero-poster.jpg"
+          aria-label={`Clean, reliable vehicles in Tradition Town Center — ${brand.name}`}
+        >
+          <source src="/hero-motion.mp4" type="video/mp4" />
+        </video>
         
         {/* Deep Studio Fade: Anchors left for readability */}
         <div
