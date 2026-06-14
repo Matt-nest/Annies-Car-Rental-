@@ -98,8 +98,10 @@
   /* form card */
   .formcard{background:#fff;border:1px solid var(--line);border-radius:20px;padding:26px 24px;box-shadow:var(--shadow-lg)}
   .formcard .fbadge{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#7A5B12;background:#FCF4DE;border:1px solid #EAD79B;border-radius:999px;padding:5px 12px;margin-bottom:14px}
-  .formcard h3{font-family:var(--serif);font-weight:600;font-size:23px;letter-spacing:-.01em}
+  .formcard h3{font-family:var(--serif);font-weight:800;font-size:23px;letter-spacing:-.02em}
   .formcard .fsub{font-size:13.5px;color:var(--ink-soft);margin:6px 0 18px}
+  .formcard .fhead{text-align:center;margin-bottom:18px}
+  .formcard .fhead .fsub{margin:8px auto 0;max-width:36ch;line-height:1.5}
   .frow{display:grid;grid-template-columns:1fr 1fr;gap:13px}
   .field{margin-bottom:13px}
   .field.full{grid-column:1/-1}
@@ -111,17 +113,17 @@
   .consent{display:flex;gap:10px;align-items:flex-start;margin:4px 0 14px;font-size:12.5px;color:var(--ink-soft);line-height:1.5}
   .consent input{width:18px;height:18px;margin-top:1px;flex-shrink:0;accent-color:var(--gold-deep)}
   /* license upload dropzone */
-  .filedrop{display:flex;align-items:center;gap:11px;border:1.5px dashed var(--line);border-radius:11px;padding:13px 14px;cursor:pointer;background:var(--bg-2);transition:border-color .15s,background .15s}
+  .filedrop{display:flex;align-items:center;gap:10px;border:1.5px dashed var(--line);border-radius:11px;padding:9px 12px;cursor:pointer;background:var(--bg-2);transition:border-color .15s,background .15s}
   .filedrop:hover{border-color:var(--gold)}
   .filedrop input{position:absolute;width:0;height:0;opacity:0}
-  .filedrop .fd-icon{width:34px;height:34px;border-radius:9px;background:#FCF4DE;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .filedrop .fd-icon{width:30px;height:30px;border-radius:8px;background:#FCF4DE;display:flex;align-items:center;justify-content:center;flex-shrink:0}
   .filedrop .fd-icon svg{width:18px;height:18px;color:var(--gold-deep)}
   .filedrop .fd-text{font-size:13.5px;font-weight:600;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .filedrop.has{border-style:solid;border-color:var(--green);background:#F1FAF4}
   .filedrop.has .fd-icon{background:#E8F5EC}
   .filedrop.has .fd-icon svg{color:var(--green)}
   .field-note{display:flex;gap:7px;font-size:12px;color:#5C4A1E;line-height:1.5;margin:0 0 14px;background:#FCF8EC;border:1px solid #EAD79B;border-radius:9px;padding:9px 12px}
-  .field-note svg{color:var(--gold-deep);flex-shrink:0;margin-top:1px}
+  .field-note svg{width:15px;height:15px;color:var(--gold-deep);flex-shrink:0;margin-top:1px}
   .formcard .fineprint{font-size:11.5px;color:var(--faint);margin-top:13px;text-align:center;line-height:1.5}
   .formcard .fineprint a{color:var(--gold-deep);font-weight:700}
   .formdone{display:none;text-align:center;padding:14px 6px 4px}
@@ -132,7 +134,7 @@
   .formdone p{font-size:14px;color:var(--ink-soft);max-width:38ch;margin:0 auto 18px}
   .callrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   /* form progress bar */
-  .progress{display:flex;gap:6px;margin:2px 0 18px}
+  .progress{display:flex;gap:6px;margin:0 0 20px}
   .pseg{flex:1;height:6px;border-radius:999px;background:var(--line);transition:background .35s}
   .pseg.on{background:linear-gradient(90deg,var(--gold-2),var(--gold))}
   /* vehicle picker rows (step 2) */
@@ -400,14 +402,16 @@
       <div class="hero-form" id="apply">
         <div class="formcard">
           <form id="reqform" novalidate>
-            <h3>Book a car today!</h3>
+            <div class="fhead">
+              <h3>Book a car today!</h3>
+            </div>
             <div class="progress" id="fprogress" role="progressbar" aria-valuemin="1" aria-valuemax="3" aria-valuenow="1" aria-label="Application progress">
               <span class="pseg on"></span><span class="pseg"></span><span class="pseg"></span>
             </div>
-            <p class="fsub" style="margin:0 0 16px">Book Online Now In 3 Minutes</p>
 
             <!-- STEP 1, the minimum viable lead -->
             <div class="fstep" id="step1">
+              <p class="fsub" style="margin:0 0 14px">Get on the road quickly and start earning.</p>
               <div class="field full"><label for="f-name">Full name</label><input id="f-name" name="name" type="text" autocomplete="name" required placeholder="First &amp; last" /></div>
               <div class="field full"><label for="f-phone">Mobile number</label><input id="f-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required placeholder="(772) 555-0123" /></div>
               <div class="field full"><label for="f-email">Email address</label><input id="f-email" name="email" type="email" inputmode="email" autocomplete="email" required placeholder="you@email.com" /></div>
@@ -829,7 +833,7 @@
     if(!licFile) return;
     licFile.addEventListener('change',function(){
       const fd=document.getElementById('filedrop'), t=document.getElementById('fd-text');
-      if(licFile.files && licFile.files[0]){ licenseFileName=licFile.files[0].name; t.textContent='✓ '+licenseFileName; fd.classList.add('has'); }
+      if(licFile.files && licFile.files[0]){ licenseFileName=licFile.files[0].name; t.textContent='✓ Uploaded'; fd.classList.add('has'); }
       else { licenseFileName=''; t.textContent='Tap to upload a photo of your license'; fd.classList.remove('has'); }
     });
   })();

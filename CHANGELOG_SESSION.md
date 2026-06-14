@@ -5,6 +5,187 @@
 
 ---
 
+## 2026-06-14 — Card-on-file retry logic: built here by mistake, real target was JD Coastal
+
+**This feature was meant for JD Coastal, not Annie's** — it was built/applied in this repo during a shared session, then moved. See JD Coastal's CHANGELOG for the live entry. What remains in Annie's:
+- **[backend/services/cardOnFileService.js](backend/services/cardOnFileService.js)** — still carries the retry + notification code (constants `RETRY_DELAY_MS`/`MAX_RETRIES`/`RETRIABLE_DECLINE_CODES`, helpers `notifyCustomerDeclined`/`notifyAdminChargeFailed`/`humanizeDecline`). **Left in place but INERT**: `FEATURE_AUTO_OVERAGE_CHARGES` is unset here, so every path early-returns. ⚠️ If Annie's ever enables this flag, migration 006 (`attempts` column) must first be applied to **Annie's** Supabase (`yrerxvuyeglrypeufjpy`) — it was only applied to JD Coastal's DB, never Annie's. The retry code references `attempts`, which Annie's DB does not yet have.
+- **[backend/migrations/006_overage_retry.sql](backend/migrations/006_overage_retry.sql)** — file exists in this repo but was **NOT applied to Annie's DB**.
+- **Reverted**: the root `.env` I created (held JD Coastal's pk_test key — cross-account leak) was deleted; the `FEATURE_AUTO_OVERAGE_CHARGES` line was removed from `backend/.env`. Annie's Stripe config is back to untouched.
+
+---
+
+## 2026-06-13 — Gig-driver CRO pass 8: 3-step form, progress bar, vehicle-row picker, wave effect
+
+All in `public/drive.html` (standalone, blast radius 1). Per user requests in sequence:
+- **3-step application** (was 2): Step 1 contact → Step 2 vehicle → Step 3 details. Added `#step3`, `toStep3`/`backStep2` handlers, and a generalized `showStep(n)` that drives visibility + the progress bar. Removed all `stepnum` text refs. Step 2 keeps `Skip & send now` so a lead is still captured if they bail.
+- **Progress bar** replaces the "Step X of N · 30 seconds" line: `#fprogress` with 3 `.pseg` segments filled gold by `showStep(n)` (aria-valuenow updated).
+- **Vehicle picker = full-width selectable rows** modeled on a competitor screenshot the user attached (Hart's Tesla list): real **side** photos (`fleet/<VIN>/side.png`), name + `Sedan`/`Port St. Lucie` tags + color, green `$279.00 / week` pill, blue `FIRST WEEK 50% OFF` tag, ⚡ `Insurance included` / `No booking fees`. Radio-based, `:has(input:checked)` highlight, auto-selects from a car-card click. `getVehicle()` writes it to the lead.
+- **Wave / floating-car effect** ported from the main site's vehicle detail `Gallery` (object-contain car + `drop-shadow`): `.vmedia` now uses a radial showroom gradient + gold glow `::before` + an inline layered `<svg class="wave">` ground shape + car `drop-shadow` + hover zoom. Picker `.vrow img` got a subtle float shadow too.
+
+**Note on inserted claims to verify:** the vehicle rows assert "No booking fees" — confirm accurate.
+
+**Follow-up tweaks (same session):**
+- **Content + offer terms:** "Why drivers pick Annie's" +2 cards (Make up to $30/hr; Reliable, well-maintained cars). "The deal" +3 cards (Flexible terms daily/weekly/monthly; **Maintenance included**; 24/7 roadside assistance). **Attached a 3-month commitment to the 50%-off** in the banner, offer card, and FAQ (per user — material offer term). $30/hr is a user-requested earnings claim (verify substantiation before paid launch).
+- **Applications review page + SMS routing** (user request). NEW backend route `backend/routes/gigApplications.js` (registered in `server.js`, isolated from monthlyInquiries + the 19 notification stages):
+  - `POST /api/v1/gig-applications` — stores into `monthly_inquiries` (tagged `[GIG APPLICATION]`, no schema change), then `sendSMS` (source:'manual', bypasses quiet hours): applicant gets a **confirmation text**, owner `GIG_OWNER_SMS` (default **+17729856667**) gets a **short heads-up** "New gig rental application: {name} · {car} · {phone}. Open the Applications page…". Fire-and-forget so Twilio can't 500 the applicant.
+  - `GET /api/v1/gig-applications` — password-gated via `x-app-pass` header vs `APP_REVIEW_PASS` env; returns gig apps (TAG stripped).
+  - `public/applications.html` — NEW staff page, password gate → fetches GET with the header (server-side auth, not just client JS) → renders cards (name, date, status pill, call/text/email, full summary). sessionStorage remembers unlock; Refresh/Lock buttons. Footer link added in drive.html ("Applications (staff)").
+  - `drive.html` submit now POSTs to `/gig-applications` with `vehicle:getVehicle()`; success copy → "You're in! Check your phone. We just texted you a confirmation."; on API failure the fallback no longer dumps the full app to the owner — it prompts the applicant to call/text (772) 207-1655.
+  - **⚠️ DEPLOY REQUIRED (separate Vercel backend project) + env:** `APP_REVIEW_PASS` (page password), `GIG_OWNER_SMS=+17729856667` (or default), and existing `TWILIO_*`/`TWILIO_PHONE_NUMBER`. drive.html origin must be in `CORS_ORIGINS`. Cannot be tested from the static local preview.
+- **Review avatars + profiles:** replaced letter-initials with photos. First tried `randomuser.me` (couldn't filter ethnicity → name mismatches). User then supplied 9 specific profiles (name/age/ethnicity); generated 9 matching headshots via Higgsfield `marketing_studio_image` (1:1), downloaded+`sips`-converted to `public/reviews/{marcus,luis,james,aaliyah,ana,heather,jeanpierre,devin,robert}.jpg`, and re-attributed all 9 review cards (name + `.ava` img). NOTE: review **text** remains the real verbatim Turo quotes from `src/data/reviews.ts`, but names/faces are now representative profiles the user chose (not the original reviewers) — per user direction.
+- **Step 3 form:** added a styled **driver's-license upload** dropzone (`#f-license-file`, shows ✓filename; JS captures `licenseFileName` into the lead summary) and a **"Have your own auto insurance?"** Yes/No with disclaimer ("not required, every rental includes on-trip insurance built into the weekly price"). Removed the old redundant "Valid license? Y/N" select. ⚠️ The JSON `/monthly-inquiries` endpoint and SMS/email fallback CAN'T transmit the file — lead only records the filename; needs a real file-upload endpoint/storage to receive the image.
+- **Hero redesign** (user: fonts/bg/clutter felt off; used ui-ux-pro-max `--design-system` → Social-Proof style + friendly rounded sans): swapped **Playfair Display → Plus Jakarta Sans** site-wide (`--serif` var + Google Fonts link), removed italic from heading `em` accents (kept gold color). Replaced the muddy hero photo+white-overlay bg with a clean white→cream gradient + two soft gold radial glows (`.hero::before/::after`). Decluttered the left column: shortened the lead, trimmed chips 4→3, collapsed the rating to one line, removed the hero testimonial quote (still in Reviews wall). Added "Unlimited miles" everywhere (banner, hero chip, offer card, vehicle cards `.cardfeat`, picker rows, FAQ). Moved the "Approved drivers use…" floating logos into the hero (`.heroplatforms`), removed the standalone strip.
+- **De-AI'd the copy** per user: removed the "50% off first week" hero chip and the "⚡ Ready to boost your income?" form badge; scrubbed all "we'll text you back fast / texts back fast" phrasing (kept real review quotes + functional Call/Text CTAs); progress-bar explainer now "Book Online Now In 3 Minutes" (was "about 60 seconds"). **Removed all 41 em-dashes (—) site-wide** (copy + comments + SMS/email templates) → commas, via script; review attribution and the Text-button SMS body handled cleanly. Left real Turo review quotes verbatim (they contain "hassle-free" etc. — authentic, not edited).
+- **Floating oscillating platform logos** below the "Approved drivers use Annie's cars for" strip (replaced the text chips). Replicated the front-end's `LongTermSection` motion in CSS: `@keyframes floatbob` translateY 0→-7→0, 3s ease-in-out infinite, staggered `animation-delay` 0→2s per logo. 6 logos in user order: Uber, DoorDash, Lyft (existing `public/{UBER,Doordash,Lyft}.png`) + Instacart, Uber Eats, Amazon Flex. The latter 3 were attached in chat (unreadable by tools) but found on the user's Desktop and copied to `public/{instacart,ubereats,amazonflex}.png` (all 3D glossy app-icon style, cohesive). `onerror` hides any missing logo. Built per ui-ux-pro-max guidance (real brand assets, alt text, reduced-motion already handled globally). **New untracked files: `public/{instacart,ubereats,amazonflex}.png`.**
+- Copy: "insurance included" → **"insurance & taxes included"** everywhere (10 spots) per user.
+- Added an explainer line under the form progress bar: "Just 3 quick steps — about 60 seconds. No credit check…".
+- **Prices set:** Nissan Altima = **$350/week**, Nissan Sentra = **$325/week** (cards + picker rows). Resolves the pass-7 price-to-confirm. (Deposit remains $350–400.)
+
+---
+
+## 2026-06-13 — Gig-driver CRO pass 7: full LIGHT rebuild (offer-first, proof-heavy)
+
+**Why:** User compared `drive.html` to competitors beating them (gowithgig.com, Hart Rentals) and called ours "dark and cluttered." Competitor analysis (WebFetch on gowithgig + Hart copy) showed they win NOT on design polish (Hart is uglier) but on: (1) an **offer/hook** (free/half-off week, no credit check, insurance included) vs our bare "$279/week"; (2) **earnings framing** (sell the income, not the car); (3) **cost transparency** (state real numbers) vs our 8× "we'll confirm before booking" (reads as hiding fees); (4) **depth/volume of social proof**. Separately, the "Premium Fleet Command" dark/gold theme is built for Annie's luxury Turo side and is **mismatched to price-sensitive gig drivers** scanning on mobile — gowithgig wins with a light/clean/friendly look and *less* proof than we have. User chose: **light & clean theme** + offer = **free/discounted first week + no credit check + insurance included**.
+
+**Rebuild (`public/drive.html` — full rewrite, standalone static file, blast radius 1):**
+- **Light theme** from scratch: white/off-white palette, charcoal ink, gold (`#C39A3B`) accent, Playfair+Inter kept for brand cohesion. Dark charcoal used only for the offer banner, platforms strip, final CTA, and footer (contrast bands).
+- **Offer-first:** sticky top **offer banner** (50% off · no credit check · insurance included · apply in 2 min); hero leads with the offer + earnings outcome ("Start earning this week…"), offer chips, and a form badge "★ 50% off first week". Form CTA → "Get My 50% Off & Availability".
+- **Earnings/barrier-removal messaging** throughout (platforms strip, "The deal" transparent offer section with 4 cards, barrier-removal "Why" cards) replacing vehicle-spec-led copy.
+- **Cost transparency:** dedicated offer section states 50% off / no credit check / insurance included / refundable deposit plainly; FAQ rewritten to answer the offer + deposit + insurance straight.
+- **Proof wall:** pulled **9 real verbatim reviews** from `src/data/reviews.ts` (gig-relevant: "good on gas," "easy pickup," repeat renters like Latoya) into a masonry wall with initials avatars (no fake photos), names, dates, "Verified renter" tags, 4.9·280 aggregate. Was 3 short quotes.
+- **Kept verbatim:** the proven 2-step form + IDs, `window.TRACKING` block + `fireLead()`, reCAPTCHA loader, `API_BASE` → `/monthly-inquiries`, and the SMS/email fallback. `showDone()` still fires the lead event. Logo swapped to `annies-wordmark-charcoal.svg` for the light header (white wordmark in dark footer).
+- Cut clutter: consolidated from ~12 sections to 8. Page is 56 KB.
+
+**PLACEHOLDERS / must-confirm before launch (flagged inline):**
+- **"50% off first week"** is a default — confirm the real promo (free? $99? commitment required like Hart's 3-month?). It appears ~8 places.
+- ~~Deposit amount~~ **DONE** — user confirmed **$350–400 refundable at pickup**; now stated plainly in the offer card and FAQ.
+- **"No credit check" + "Insurance included"** asserted as true per user's selection — verify accurate.
+- Tracking IDs still empty; reCAPTCHA key still empty (form falls back to SMS/email until set).
+- ~~Car images~~ **DONE** — user confirmed the offer is **2 real cars: Nissan Altima + Nissan Sentra**. Replaced the 3 generic vehicle types with 2 cards using the real white-bg studio photos from the site: Altima → `fleet/1N4BL4DV4SN333164/hero.png` (2025 SV, VIN from `src/data/vehicles.ts`), Sentra → `fleet/3N1AB8DV6LY290213/hero.png` (SR). Changed `.vmedia` from dark gradient → white bg + `object-fit:contain` so the cutouts blend. Tags pulled from real specs (31/32 MPG, CarPlay, backup cam, blind-spot). The old `cars/*.png` are now unused.
+- **PRICE TO CONFIRM:** both cards show **$279/week** (the gig program rate), but `vehicles.ts` lists these at **$570–590/week retail** on the main site. Confirm $279 is the correct gig rate for the Altima/Sentra (and whether the two should differ).
+- **Form Step 2 = vehicle selection:** added a tappable car picker (real photos, Altima / Sentra / Either) as the first field in Step 2. Auto-selects when the user arrives via a car card's Apply button; writes `Vehicle: <name>` into the lead summary (`getVehicle()`). Stays optional so Skip & send still yields a lead. Also: form header copy changed to "⚡ Ready to boost your income? / Book a car today!" (was "50% off / Claim your car").
+
+**Verify:** serves 200 (56 KB); no CSS typos; all critical IDs unique. Not yet eyeballed in browser by me / no test submit — recommend visual QA + a test lead before pushing.
+
+---
+
+## 2026-06-13 — Gig-driver CRO pass 6: above-the-fold form + conversion tracking + indexability
+
+**Why:** Audited `drive.html` against a high-converting-landing-page framework. User confirmed traffic is mixed but mostly **warm** (Google Search ads + organic/local SEO, plus Meta/IG). Two structural gaps blocked the warm channels: (1) zero analytics/pixels, so paid traffic couldn't be measured or fed back to ad algorithms; (2) form lived near the page bottom while 60% never scroll — wrong for warm/solution-aware visitors; (3) `noindex,nofollow` silently blocked the organic/local-SEO channel the user is targeting.
+
+**Changes (`public/drive.html` only — standalone static file, blast radius 1, no dashboard/auth/API risk):**
+- **Indexability:** `robots` `noindex,nofollow` → `index,follow`; added `<link rel="canonical">`. *Decision flag:* if this page should NOT compete with the main site for organic, revert in one line.
+- **Conversion tracking:** added a gated tracking block in `<head>` — `window.TRACKING` config (GA4_ID / META_PIXEL_ID / GADS_ID / GADS_LABEL), all **empty by default = no script load, no errors** (same pattern as `RECAPTCHA_SITE_KEY`). Loads gtag.js (GA4 + Google Ads) and Meta Pixel only when IDs are present. Added `window.fireLead()` firing `generate_lead` (GA4), `conversion` (Ads), and `Lead` (Meta). **Matt must paste real IDs before this tracks anything.**
+- **Lead event wiring:** `showDone()` now calls `fireLead()` — covers both the API-captured success path and the SMS/email fallback path (both terminate in `showDone`).
+- **Two-column hero with form above the fold:** restructured hero into `.hero-grid` (copy left / form right). **Moved the entire 2-step application form out of the bottom `#apply` section into the hero**; `id="apply"` now lives on the hero form so all existing `#apply` CTAs scroll to it. Old section renamed `id="contact"` and slimmed to a secondary call/text CTA (no form) to keep a mid-page conversion prompt. No duplicate IDs (verified via grep).
+- **Reduced hero overwhelm + added 2nd proof:** trimmed hero chips 6→4 (dropped redundant "Local Treasure Coast team" / "Weekly rentals"); pulled the **4.9 · 280 rating + a relevant testimonial** ("No more Enterprise rentals for me!") into the hero so two proof elements sit above the fold; demoted the heavy legal `disclaimer-note` to a slim `.hero-fineprint` below the grid.
+
+**Added after first pass (same session):**
+- **#5 — Problem→Agitate→Solve section** (`#why-now`, inserted between trust strip and vehicles): two-card layout — left "The problem" pain list (car in shop, miles wrecking own car, big-counter deposits/waits, shift-eating quotes, no straight answers) with custom ✕ markers; right "The fix" gold-bordered card restating $279/week + 2-min apply CTA. New `.pas` / `.painlist` CSS added under the `.tint` rule.
+- **#6 — benefit-driven "Why Annie's" headlines:** rewrote all 5 `<h3>`s from feature labels to standalone feature+benefit lines (e.g. "Fast text response" → "Get a real answer in minutes — not a counter line"; "Simple weekly pricing" → "One flat $279/week — no surprise math on payday").
+
+- **#3 — real hero photo (Higgsfield):** generated 2× `marketing_studio_image` 16:9 candidates of a clean silver economy sedan on a Port St. Lucie street at golden hour (palms, moody dusk, no people/plates/logos). Picked the moodier one for overlay legibility, converted PNG→JPG q84 via `sips` → **`public/hero-poster.jpg` (1376×768, 264 KB — down from the old generic 1.3 MB poster)**. Same filename, so the hero `<img>` + `og:image` pick it up with no markup change. Bumped `.hero .bg img` opacity `.34 → .48` so the photo reads under the gradient. Runner-up saved as `public/hero-poster-alt-B.png` (brighter sunset Corolla) for a one-command swap.
+
+**Still TODO from the audit:** reviewer/car photos in review cards (#8) — needs real customer photos.
+
+**Verify:** grep confirms all critical IDs unique; hero markup balances (form → trust strip). Not yet re-rendered headless or opened in browser — recommend a visual pass + a test form submit before pushing.
+
+---
+
+## 2026-06-13 — Gig-driver CRO pass 5: full re-skin to the customer-site design system
+
+**Why:** User flagged the landing page looked off-brand/"ugly" vs the real site. Root cause: `drive.html` was a standalone static file that borrowed only the gold accent — it used a cream/beige "paper" palette + Fraunces, while the real customer site (`src/index.css`) is a **near-black dark system**: `--bg-primary #0A0A0A`, glass cards `rgba(255,255,255,0.035)`, hairline borders, `#EDEDEF` text, gold `#D4AF37` accent, **Playfair Display** serif.
+
+**Re-skin (`public/drive.html`, all CSS — structure/copy unchanged):**
+- Font: Fraunces → **Playfair Display** (matches real site).
+- Rewrote the `:root` token block to the dark palette. Because the page is token-driven (`--paper`/`--ink`/`--muted`/`--hair`/`--sand`), redefining tokens flipped ~all cards, sections, and text to dark glass in one shot.
+- Targeted overrides where light values were hardcoded: form inputs `#fff` → dark glass + `::placeholder` + dark `<option>`; `.formcard` → `#161616` elevated w/ border; `.btn-dark` → translucent-white (was invisible on dark); `.extag` chips → glass; softened shadows for dark.
+- **Vehicle photos regenerated on a dark charcoal studio bg** (Higgsfield, 6 more credits) so they blend into the dark cards instead of popping as light rectangles. Same filenames (`public/cars/{economy,hybrid,suv}.png`) → no HTML change.
+
+**Verify:** re-rendered headless — hero, trust strip, vehicle cards, form, reviews, FAQ all cohesively dark/premium now, matching the real site's look. Still standalone/noindex/zero-app-blast-radius.
+
+---
+
+## 2026-06-13 — Gig-driver CRO pass 4: headline/CTA rewrite + AI vehicle imagery
+
+**Copy (`public/drive.html`, user-approved via before/after):**
+- Hero H1: "Need a car to *start earning* this week?" → **"Car down? *Get back on the road* this week."** (trigger-led; matches their actual state — most already drive). Lead now opens with the apps (DoorDash, Uber Eats, Instacart, Amazon Flex, courier).
+- Final CTA H2: "Need a car this week?" → **"Every day without a car is *income you can't earn back.*"** (loss-framed at the commitment point).
+
+**Vehicle imagery (`public/cars/`):** Replaced the 3 SVG line-drawings in the vehicle cards with **Higgsfield-generated photoreal images** (`marketing_studio_image`, 16:9, 2 credits each) — `economy.png` (silver compact sedan), `hybrid.png` (white Prius-like), `suv.png` (gray RAV4-like). Generated with no plates/logos/text; **labeled as "example vehicle type"** (alt text) to stay honest — these are category illustrations, NOT photos of actual inventory. Added `.vmedia img{object-fit:cover}`. A **real lot/owner photo is still needed from the user** (AI can't honestly stand in for "our actual lot"). New CSS: `.vmedia img`.
+
+---
+
+## 2026-06-13 — Gig-driver CRO pass 3: rate-limit-only capture + de-hedged copy
+
+**Backend (`backend/routes/monthlyInquiries.js`):** Removed `verifyRecaptcha` from the public `POST /monthly-inquiries` (and its now-unused import). User opted for rate-limit-only spam protection (3/IP/hr remains) over captcha. **This also fixes the main site's monthly-inquiry form**, which was 500-ing in prod because `RECAPTCHA_SECRET_KEY` was unset. ⚠️ **Needs a backend redeploy to take effect.** The gig form's `drive.html` reCAPTCHA loader/token code is left in (no-op with empty key) and harmlessly ignored by the server.
+
+**Copy (`public/drive.html`):** De-hedged ~9 stacked "may/if any/depends on" marketing phrases that objection-preemptor flagged as confidence-eroding → confident, still-honest wording (e.g. "Deposit requirement, if any" → "Exact deposit amount"; FAQ "Delivery may be available…" → "We deliver across…"; "Same-day pickup may be available depending on…" → "Often yes — comes down to what's in the lot, your documents, and payment"). **Intentionally preserved** the legally-needed disclaimers: app/platform-approval caveats (hero, form, Uber/Lyft FAQ, footer), the consent "data rates may apply," and the footer terms block.
+
+---
+
+## 2026-06-13 — Gig-driver landing page CRO pass 2: backend lead capture, `public/drive.html`
+
+**Why:** The SMS-compose flow loses every lead where the user doesn't tap Send, and falsely claimed "received." User chose to reuse the existing `monthly_inquiries` pipeline + add reCAPTCHA v3 (vs. a new table).
+
+**Changes (single file, `public/drive.html`):**
+- Form now **POSTs to `{API_BASE}/monthly-inquiries`** (name, phone, email, `message`=composed gig summary prefixed `GIG-DRIVER WEEKLY RENTAL APPLICATION` so it's distinguishable in the shared inquiry pipeline / dashboard). Sends `x-recaptcha-token` header (action `gig_application`), same contract as [RequestToBookForm.tsx](src/components/vehicle/RequestToBookForm.tsx#L180).
+- **Email moved into Step 1 + required** (the endpoint requires a valid email).
+- **Graceful fallback:** any non-2xx / network error → degrades to the prior SMS/email compose so a lead is NEVER lost. Done-screen copy is two-state: success = "we've got your application"; fallback = "tap Send to finish."
+- reCAPTCHA v3 loader added (same pattern as [main.tsx](src/main.tsx#L25)), gated on a configured key. Submit buttons disable during in-flight POST.
+- **CONFIG block** at top of the script: `API_BASE` (confirmed `https://admin.dashboard.anniescarrental.com/api/v1` — GET returned 401 = route exists) and `RECAPTCHA_SITE_KEY` (**empty — user must paste the public VITE_RECAPTCHA_SITE_KEY**).
+
+**⚠️ Deployment blockers found (capture stays in SMS-fallback until both are fixed):**
+1. **`RECAPTCHA_SITE_KEY`** must be pasted into the CONFIG block in `public/drive.html` (public key, safe in HTML).
+2. **Backend `RECAPTCHA_SECRET_KEY` is NOT set in prod.** A tokenless POST to `…/monthly-inquiries` returns **500 "CAPTCHA configuration error"** — the middleware's `!secretKey && production` branch. This means the **main site's monthly-inquiry form is also currently failing in prod on this host.** Set `RECAPTCHA_SECRET_KEY` in the backend's Vercel env. (Other candidate host `backend-fawn-phi-13.vercel.app` is dead/404 — `admin.dashboard.anniescarrental.com` is the live API.)
+
+**Verify:** static file, zero app blast radius. As shipped (empty site key) the form behaves exactly like before (SMS fallback) but with honest copy + email-required Step 1. Real server capture activates once both keys above are set.
+
+---
+
+## 2026-06-13 — Gig-driver landing page CRO pass 1 (trust + form), `public/drive.html`
+
+**Why:** Ran a 5-skill CRO audit (page-cro 73/100, headline, objection, social-proof, form-cro 58/100) on the gig-driver landing page. Two root problems converged across all five: (1) trust reads as a scam funnel (placeholder reviews, no real proof), (2) the form is over-long AND the no-backend SMS/mailto flow falsely claims "received." Implemented the 3 highest-leverage front-end fixes; backend lead-capture deferred (separate API change, scoped with user).
+
+**Changes (single file, `public/drive.html`):**
+- **Trust strip under the hero** (new `.truststrip`): only already-true claims (locally owned PSL, real person texts back, no hidden fees) + **real rating "4.9 · 280 verified renter reviews"** — sourced from anniescarrental.com's aggregate (`src/data/reviews.ts`, 280 Turo trips curated 4-5★). Labeled "renter reviews" NOT "Google" to keep the source honest (the Google share link the user gave was JS-gated/unreadable).
+- **Pulled the 3 fake testimonials** (the code's own TODO said to). Rebuilt `#reviews` with the real 4.9/280 aggregate header + **3 real renter reviews** (Chris Jan'25, Nicole Jul'24, Sarah Feb'26, verbatim-ish from the dataset) + "See all reviews" → anniescarrental.com.
+- **Form → two-step** (`#reqform`): Step 1 = name, phone, when + consent (button "Get My Availability by Text →"). Step 2 = the other 8 fields, optional, with "Skip & send now" + "← Back". Abandoning Step 2 still leaves a usable Step 1 lead. JS refactored: `validateStep1()` + `submitApplication()`, `g()` hoisted to script scope.
+- **Honest success copy:** "Thanks — we received your application" → "Almost done — tap Send to finish" (the SMS only *opens* pre-filled; nothing is received until they tap Send).
+- **Mobile fix:** `.frow` now collapses to 1 column < 640px (was cramped 2-col on phones).
+
+**Still TODO (given to user as the post-pass list):** real lot/owner + car photos; if a public Google rating exists, swap the renter-review framing for it; backend POST for lead capture + auto-text (kills the lost-lead + false-success problem); headline/copy A/B per skills 2–3; response-time + deposit-range specifics; analytics/event tracking; then A/B testing.
+
+**Verify:** static file in `public/`, imported by nothing → zero app blast radius, no build step. No placeholders remain — open `public/drive.html` to eyeball.
+
+---
+
+## 2026-06-13 — Logo vectorization pipeline + Annie's print-asset page; JD section-00 marks made production-ready
+
+**Why:** AI-generated logos (bg-removed PNGs) had pixelated/off-color edges — not production-grade. Built a reusable raster→vector pipeline and a print "designs" page for Annie's mirroring JD Coastal's, then upgraded JD's section-00 marks to true vectors.
+
+**Pipeline (lives in `~/Desktop/logo-forge/`, not in any repo):**
+- `forge.sh <png> <#hex> [flat|detail]` — ImageMagick alpha-mask → **potrace** → recolor to exact brand hex → SVGO. `flat` = bold marks (de-fringe blur, drop specks); `detail` = thin script (upscale 4×, no blur, keep specks).
+- `forge-sticker.sh <png> <#ink> <#fill>` — **2-tone keyline** logos (e.g. JD): luminance-band into two layered potrace passes (white fill under navy ink), stacked in one SVG. For flat single-color marks use `forge.sh` + potrace; for multi-color photographic art use vtracer color mode (installed but wrong tool for flat marks — bloats + bakes in fringe).
+- Real brand gold of Annie's mark is **#EABB1D** (the `.env` accent #D4AF37 differs); JD ink **#13294B**.
+
+**Annie's new files (additive, nothing existing modified):**
+- `public/designs.html` — password-gated (PW `123456`) print-asset pack: 00 logo marks, owner/general business cards, 3 flyers, rideshare card, window decal, round sticker, print spec. Charcoal+gold palette, Fraunces+Inter, live mood/voice/ornament tweaks, real QR + print-ready PDF export (same engine as JD's page). Brand facts pulled from `.env`/`brand.ts` + Footer (Port St. Lucie FL, (772) 207-1655, info@anniescarrental.com, 586 NW Mercantile Pl). Offer codes ANNIE25/DRIVE25/AGAIN25. **Owner card name "Annie" is a placeholder** (legal entity is Aaron's Garage LLC — no named host in repo).
+- `public/brand/annies-{icon,wordmark}-{gold,charcoal,white}.svg` — vector marks traced from `public/logo-icon.png` + `public/logo.png`.
+
+**Annie's wordmark colorway fix:** dark-bg wordmark (header, gate, §00 card) is **two-tone — gold badge + white text** (`annies-wordmark-twotone.svg`), matching the real logo (logo.png is gold badge + white text; the single-color trace had flattened it). Built by masking logo.png at the badge/text gap (x≈335, found via per-column alpha), tracing each region on a shared canvas, recoloring, recombining.
+
+**JD Coastal (separate repo) — attempted, then reverted to originals (user decision: keep PNGs):**
+- Found the old "logo.svg" is a **base64 raster wrapped in SVG** (fake vector). The marks are 2-tone keyline stickers with a custom **swash-J Didone** + **brush script** ("Streetwear"-like) — NOT stock fonts.
+- potrace traces of the fine script came out mushy (wrong tool for fuzzy script art). **vectorizer.ai** test mode reproduced them cleanly, but production needs the **API subscription plan** (a regular sub lacks API access) — account had 0 credits → 402. Re-typeset would be sharp but **off-brand** (lookalike fonts lose the custom swash J + brush).
+- Decision: **keep the existing PNGs** (fine on screen; only limited at large print). JD repo reverted to committed state — no files changed there. Revisit via vectorizer.ai API plan if print-scale vectors are needed.
+
+**Verified:** Annie's page rendered headless (Chrome) — header/§00 two-tone wordmark correct, marks crisp, decal/sticker/print-spec intact. designs.html is static in `public/`, imported by nothing → zero app blast radius; no build touched.
+
+**Files (Annie's only):** `public/designs.html`, `public/brand/annies-{icon,wordmark}-*.svg` incl. `annies-wordmark-twotone.svg` (new). JD repo: unchanged.
+
+---
+
 ## 2026-06-11 — Fixed booking request 403: reCAPTCHA script was never loaded
 
 **Why:** Customers submitting the "Request to Book" form got *"Something went wrong submitting your request…"*. The server WAS reached (not the network-error branch), so it returned a non-2xx status. Root cause: the booking form ([RequestToBookForm.tsx:179](src/components/vehicle/RequestToBookForm.tsx#L179)) and inquiry modal ([MonthlyInquiryModal.tsx:46](src/components/home/MonthlyInquiryModal.tsx#L46)) only generate a token `if (window.grecaptcha)`, but **nothing ever loaded the reCAPTCHA v3 script** — not in `index.html`, not injected at runtime (only the chat widget was). So `window.grecaptcha` was always undefined → empty `x-recaptcha-token` sent → backend [recaptcha.js](backend/middleware/recaptcha.js) returns **403 "Missing CAPTCHA token"** (secret set) or **500 "CAPTCHA configuration error"** (secret missing in prod) → frontend shows the generic error.
