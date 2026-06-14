@@ -11,7 +11,7 @@ import { brand } from '../../../config/brand';
 export const PHONE_NUMBER = brand.phone;
 
 export const STAGES = [
-  { number: 1, label: 'Agreement',  sublabel: 'Sign rental contract', subSteps: 6 },
+  { number: 1, label: 'Agreement',  sublabel: 'Sign rental contract', subSteps: 7 },
   { number: 2, label: 'Insurance',  sublabel: 'Coverage selection',   subSteps: 1 },
   { number: 3, label: 'Payment',    sublabel: 'Review & pay',         subSteps: 1 },
 ] as const;
@@ -83,6 +83,9 @@ export const BONZAH_DISCLOSURE_LINKS = {
    Wizard Draft - persisted to sessionStorage
    ──────────────────────────────────────────────────────── */
 export interface WizardDraft {
+  // Schema version — bump on any wizard-structure change so stale saved drafts
+  // are discarded instead of resuming at a now-wrong stage/subStep.
+  _v?: number;
   // Navigation
   stage: number;
   subStep: number;
@@ -117,8 +120,12 @@ export interface WizardDraft {
   completedStages: number[];
 }
 
+// Bump whenever the wizard's step structure changes (added the Scan step → 2).
+export const DRAFT_VERSION = 2;
+
 export function getDefaultDraft(): WizardDraft {
   return {
+    _v: DRAFT_VERSION,
     stage: 1,
     subStep: 1,
     address: { line1: '', city: '', state: '', zip: '' },
@@ -148,6 +155,9 @@ export function loadDraft(bookingCode: string): WizardDraft {
     const saved = sessionStorage.getItem(getStorageKey(bookingCode));
     if (saved) {
       const parsed = JSON.parse(saved);
+      // Discard drafts saved before a wizard-structure change so they don't
+      // resume at a now-wrong stage/subStep (e.g. past the Address/License steps).
+      if (parsed?._v !== DRAFT_VERSION) return getDefaultDraft();
       return { ...getDefaultDraft(), ...parsed };
     }
   } catch {}

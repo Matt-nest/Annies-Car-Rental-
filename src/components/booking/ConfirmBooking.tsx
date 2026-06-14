@@ -12,6 +12,7 @@ import { brand } from '../../config/brand';
 
 // Wizard steps
 import RentalSummaryStep from './confirm-booking/wizard-steps/RentalSummaryStep';
+import ScanStep from './confirm-booking/wizard-steps/ScanStep';
 import AddressStep from './confirm-booking/wizard-steps/AddressStep';
 import LicenseStep from './confirm-booking/wizard-steps/LicenseStep';
 import TermsStep from './confirm-booking/wizard-steps/TermsStep';
@@ -426,20 +427,28 @@ export default function ConfirmBooking() {
   };
 
   // Stage 1 sub-step navigation
+  // Address (3) + License (4) are redundant once the scan has filled them, so
+  // skip straight from Scan (2) to Terms (5) when the details are complete.
+  const detailsComplete = () => !!(
+    draft.address.line1 && draft.address.city && draft.address.state && draft.address.zip &&
+    draft.license.number && draft.license.state && draft.license.expiry && draft.dob
+  );
+
   const nextSubStep = () => {
-    if (draft.subStep < 6) {
-      goToSubStep(draft.subStep + 1);
-    } else {
-      // Stage 1 complete → Stage 2
+    let next = draft.subStep + 1;
+    if (draft.subStep === 2 && detailsComplete()) next = 5; // Scan → Terms (skip Address+License)
+    if (next > 7) {
       completeStage(1);
       goToStage(2);
+      return;
     }
+    goToSubStep(next);
   };
 
   const prevSubStep = () => {
-    if (draft.subStep > 1) {
-      goToSubStep(draft.subStep - 1);
-    }
+    let prev = draft.subStep - 1;
+    if (draft.subStep === 5 && detailsComplete()) prev = 2; // Terms → Scan (skip back over the filled steps)
+    if (prev >= 1) goToSubStep(prev);
   };
 
   // ── Missing ref code ──────────────────────────────────
@@ -535,18 +544,21 @@ export default function ConfirmBooking() {
                 <RentalSummaryStep autoFilled={af} theme={theme} onContinue={nextSubStep} />
               )}
               {draft.stage === 1 && draft.subStep === 2 && (
-                <AddressStep draft={draft} onUpdate={updateDraft} onContinue={nextSubStep} onBack={prevSubStep} theme={theme} />
+                <ScanStep draft={draft} onUpdate={updateDraft} onContinue={nextSubStep} onBack={prevSubStep} onEdit={() => goToSubStep(3)} theme={theme} bookingName={af.customerName} />
               )}
               {draft.stage === 1 && draft.subStep === 3 && (
-                <LicenseStep draft={draft} onUpdate={updateDraft} onContinue={nextSubStep} onBack={prevSubStep} theme={theme} />
+                <AddressStep draft={draft} onUpdate={updateDraft} onContinue={nextSubStep} onBack={prevSubStep} theme={theme} />
               )}
               {draft.stage === 1 && draft.subStep === 4 && (
-                <TermsStep draft={draft} onUpdate={updateDraft} onContinue={nextSubStep} onBack={prevSubStep} theme={theme} />
+                <LicenseStep draft={draft} onUpdate={updateDraft} onContinue={nextSubStep} onBack={prevSubStep} theme={theme} />
               )}
               {draft.stage === 1 && draft.subStep === 5 && (
-                <AcknowledgementsStep draft={draft} onUpdate={updateDraft} onContinue={nextSubStep} onBack={prevSubStep} theme={theme} />
+                <TermsStep draft={draft} onUpdate={updateDraft} onContinue={nextSubStep} onBack={prevSubStep} theme={theme} />
               )}
               {draft.stage === 1 && draft.subStep === 6 && (
+                <AcknowledgementsStep draft={draft} onUpdate={updateDraft} onContinue={nextSubStep} onBack={prevSubStep} theme={theme} />
+              )}
+              {draft.stage === 1 && draft.subStep === 7 && (
                 <SignatureStep draft={draft} onUpdate={updateDraft} onContinue={nextSubStep} onBack={prevSubStep} theme={theme} />
               )}
 

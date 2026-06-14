@@ -5,6 +5,18 @@
 
 ---
 
+## 2026-06-14 — Port JD Coastal booking-flow upgrades (dedicated Scan step + summary redesign)
+
+Ports the full set from JD Coastal (verified there first): dedicated live-camera ID **Scan step**, Rental Summary redesign, redundant-scanner removal, draft versioning, and skip-when-scanned.
+- **New** `ScanStep.tsx` — live rear-camera PDF417 (`decodeFromConstraints` 1920×1080) + tap/Capture high-res still → barcode→Azure, tips infographic, success animation, name-match vs booking, reduced-motion aware. Inserted as Agreement **subStep 2** (before Address).
+- **ConfirmBooking** — renumbered 6→7 substeps; `nextSubStep`/`prevSubStep` **skip Address(3)+License(4) when the scan filled them** (Scan→Terms); `onEdit` escape → Address.
+- **RentalSummaryStep** rebuilt: car photo + make/model/year + pickup-or-delivery + pickup/return date+time + price; removed VIN/plate/color. **agreements.js** `autoFilled` gains `vehicleImage`/`deliveryType`/`deliveryAddress`.
+- **LicenseStep** — inline scan button removed (scanning is its own step now).
+- **constants.ts** — `DRAFT_VERSION=2`; `loadDraft` discards stale drafts so the renumber doesn't resume past Address/License.
+- Reuses the shared Azure resource (`AZURE_DOCINTEL_*` already in the `dashboard` Vercel project). Build passes.
+
+---
+
 ## 2026-05-12 — Phase 2: notification timeline redesign + cron timing externalization
 
 **Why:** The legacy Templates + Sequences tabs treated each notification as a row in a list, divorced from when it actually fires. Admin couldn't see the rental lifecycle at a glance or preview what a customer would receive. Phase 2 introduces a horizontal lifecycle timeline (Request → Approval → Payment → Ready → Pickup → During → Return → Post-trip), with each notification stage as a draggable card that opens a full editor with byte-identical live email + SMS previews.

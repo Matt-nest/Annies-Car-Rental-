@@ -1,9 +1,8 @@
 import React from 'react';
-import { CreditCard, Upload, X, CheckCircle, ScanLine } from 'lucide-react';
+import { CreditCard, Upload, X, CheckCircle } from 'lucide-react';
 import { US_STATES } from '../../../../data/rentalTerms';
 import { API_URL } from '../constants';
 import { compressImage } from '../../../../utils/compressImage';
-import type { ParsedLicense } from '../../../../utils/aamva';
 import type { WizardDraft } from '../constants';
 
 interface Props {
@@ -20,11 +19,8 @@ export default function LicenseStep({ draft, onUpdate, onContinue, onBack, theme
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [uploading, setUploading] = React.useState<Record<PhotoSide, boolean>>({ front: false, back: false });
   const [previews, setPreviews] = React.useState<Record<PhotoSide, string | null>>({ front: null, back: null });
-  const [scanning, setScanning] = React.useState(false);
-  const [scanStatus, setScanStatus] = React.useState<'ok' | 'fail' | null>(null);
   const frontRef = React.useRef<HTMLInputElement>(null);
   const backRef = React.useRef<HTMLInputElement>(null);
-  const scanRef = React.useRef<HTMLInputElement>(null);
 
   const inputStyle: React.CSSProperties = {
     backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.04)',
@@ -66,67 +62,6 @@ export default function LicenseStep({ draft, onUpdate, onContinue, onBack, theme
     } finally {
       setUploading(prev => ({ ...prev, [side]: false }));
     }
-  };
-
-  // Auto-fill License + Address + DOB from a decoded license. Fields stay editable.
-  const applyScan = (p: ParsedLicense) => {
-    onUpdate({
-      license: {
-        number: p.licenseNumber || draft.license.number,
-        state: p.jurisdiction || draft.license.state,
-        expiry: p.expiry || draft.license.expiry,
-      },
-      ...(p.dob ? { dob: p.dob } : {}),
-      address: {
-        line1: p.addressLine1 || draft.address.line1,
-        city: p.city || draft.address.city,
-        state: p.jurisdiction || draft.address.state,
-        zip: p.zip || draft.address.zip,
-      },
-    });
-    setErrors({});
-  };
-
-  // Server-side OCR fallback (Azure) for the FRONT photo / foreign IDs.
-  const scanIdViaBackend = async (file: File): Promise<ParsedLicense | null> => {
-    try {
-      const compressed = await compressImage(file);
-      const form = new FormData();
-      form.append('file', compressed);
-      const res = await fetch(`${API_URL}/uploads/scan-id`, { method: 'POST', body: form });
-      if (!res.ok) return null;
-      const data = await res.json();
-      if (!data?.ok || !data.fields) return null;
-      const fx = data.fields;
-      return {
-        firstName: fx.firstName, lastName: fx.lastName,
-        licenseNumber: fx.licenseNumber, jurisdiction: fx.state,
-        dob: fx.dob, expiry: fx.expiry,
-        addressLine1: fx.addressLine1, city: fx.city, zip: fx.zip,
-      };
-    } catch {
-      return null;
-    }
-  };
-
-  // Scan a license photo (front OR back): free in-browser barcode first (back),
-  // then server OCR fallback (front). Auto-fill + store as the matching photo slot.
-  const handleScan = async (file: File) => {
-    setScanning(true);
-    setScanStatus(null);
-    let storedSide: PhotoSide = 'back';
-    try {
-      const { scanLicenseBarcode } = await import('../../../../utils/scanLicenseBarcode');
-      let parsed = await scanLicenseBarcode(file);
-      if (!parsed) { parsed = await scanIdViaBackend(file); if (parsed) storedSide = 'front'; }
-      if (parsed) { applyScan(parsed); setScanStatus('ok'); }
-      else setScanStatus('fail');
-    } catch {
-      setScanStatus('fail');
-    } finally {
-      setScanning(false);
-    }
-    handlePhotoUpload(storedSide, file);
   };
 
   const removePhoto = (side: PhotoSide) => {
@@ -218,43 +153,6 @@ export default function LicenseStep({ draft, onUpdate, onContinue, onBack, theme
           </div>
           <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Driver's License</h3>
         </div>
-
-        {/* Scan-to-autofill — barcode (back) is read in your browser; if that fails,
-            the front photo is OCR'd server-side. Fills the fields below. */}
-        <button
-          type="button"
-          onClick={() => scanRef.current?.click()}
-          disabled={scanning}
-          className="w-full mb-3 py-3 rounded-xl border border-dashed flex items-center justify-center gap-2 transition-all cursor-pointer hover:opacity-90 disabled:opacity-60"
-          style={{ borderColor: 'var(--accent-color)', backgroundColor: 'var(--accent-glow)', color: 'var(--accent-color)' }}
-        >
-          {scanning ? (
-            <span className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--accent-color)', borderTopColor: 'transparent' }} />
-          ) : (
-            <ScanLine size={16} />
-          )}
-          <span className="text-sm font-medium">
-            {scanning ? 'Reading license…' : 'Scan my license to autofill'}
-          </span>
-        </button>
-        <input
-          ref={scanRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="hidden"
-          onChange={e => { const f = e.target.files?.[0]; if (f) handleScan(f); e.target.value = ''; }}
-        />
-        {scanStatus === 'ok' && (
-          <div className="mb-3 flex items-center gap-2 text-xs px-3 py-2 rounded-lg" style={{ backgroundColor: 'var(--accent-glow)', color: 'var(--accent-color)' }}>
-            <CheckCircle size={14} /> Read from your license — please review the details below.
-          </div>
-        )}
-        {scanStatus === 'fail' && (
-          <div className="mb-3 text-xs px-3 py-2 rounded-lg" style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: 'rgb(239,68,68)' }}>
-            Couldn't read the license. Photograph the <strong>front or back</strong> in good light, or enter the details manually below.
-          </div>
-        )}
 
         <div className="space-y-3">
           <div className="grid grid-cols-6 gap-2">
