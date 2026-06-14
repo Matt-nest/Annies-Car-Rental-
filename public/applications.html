@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Applications · Annie's Car Rental (Staff)</title>
+<link rel="icon" href="favicon.ico" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#16181D; --ink-soft:#4A4F58; --faint:#8A909B;
+    --line:#E7E6E1; --bg:#F7F6F2; --card:#FFFFFF;
+    --gold:#C39A3B; --gold-2:#E0BD5C; --gold-deep:#A9822B;
+    --green:#1F8A52; --blue:#2E62C9;
+    --serif:'Plus Jakarta Sans','Inter',system-ui,sans-serif; --sans:'Inter',system-ui,sans-serif;
+    --shadow:0 8px 24px rgba(20,22,30,.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--sans);color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased;line-height:1.55}
+  a{color:inherit}
+  .wrap{max-width:920px;margin:0 auto;padding:0 18px}
+
+  /* gate */
+  .gate{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:22px}
+  .gate.hidden{display:none}
+  .gatecard{background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:34px 30px;max-width:380px;width:100%;text-align:center}
+  .gatecard h1{font-family:var(--serif);font-weight:800;font-size:22px;letter-spacing:-.02em;margin-bottom:6px}
+  .gatecard p{font-size:14px;color:var(--ink-soft);margin-bottom:20px}
+  .gatecard input{width:100%;font-family:inherit;font-size:16px;text-align:center;letter-spacing:.12em;color:var(--ink);background:#fff;border:1.5px solid var(--line);border-radius:11px;padding:14px;outline:none;transition:border-color .15s,box-shadow .15s}
+  .gatecard input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(195,154,59,.16)}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:700;font-size:15px;border-radius:11px;padding:13px 22px;cursor:pointer;border:0;transition:transform .15s,filter .15s;min-height:48px;font-family:inherit}
+  .btn-gold{background:linear-gradient(180deg,var(--gold-2),var(--gold));color:#2A1F06;width:100%;margin-top:12px}
+  .btn-gold:hover{transform:translateY(-1px);filter:brightness(1.04)}
+  .err{color:#C0392B;font-size:13px;font-weight:600;margin-top:12px;min-height:18px}
+
+  /* header */
+  header{background:var(--ink);color:#fff;padding:18px 0}
+  header .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  header h1{font-family:var(--serif);font-weight:800;font-size:19px;letter-spacing:-.01em}
+  header .meta{font-size:13px;color:rgba(255,255,255,.6);font-weight:600}
+  .bar{display:flex;align-items:center;gap:10px}
+  .bar button{font-family:inherit;font-size:13px;font-weight:700;color:#fff;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);border-radius:9px;padding:8px 13px;cursor:pointer}
+  .bar button:hover{background:rgba(255,255,255,.2)}
+
+  main{padding:24px 0 80px}
+  .count{font-size:13px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;margin-bottom:16px}
+  .state{text-align:center;color:var(--ink-soft);padding:50px 20px;font-size:15px}
+
+  .app{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:20px 20px;margin-bottom:14px}
+  .app .top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .app .nm{font-family:var(--serif);font-weight:800;font-size:18px;letter-spacing:-.01em}
+  .app .when{font-size:12.5px;color:var(--faint);font-weight:600;margin-top:2px}
+  .pill{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;border-radius:7px;padding:4px 9px;white-space:nowrap}
+  .pill.new{color:var(--green);background:#E8F5EC}
+  .pill.contacted{color:var(--blue);background:#E7EEFB}
+  .pill.converted{color:#7A5B12;background:#FCF4DE}
+  .pill.closed{color:var(--faint);background:#EFEFEA}
+  .app .contact{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 12px}
+  .app .contact a{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:700;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:8px 13px;text-decoration:none}
+  .app .contact a:hover{border-color:var(--gold)}
+  .app .contact a svg{width:14px;height:14px;color:var(--gold-deep)}
+  .app .detail{font-size:13.5px;color:var(--ink-soft);line-height:1.6;white-space:pre-line;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:13px 15px}
+  .app .detail b{color:var(--ink)}
+</style>
+</head>
+<body>
+
+<!-- ══ PASSWORD GATE ══ -->
+<div class="gate" id="gate">
+  <div class="gatecard">
+    <h1>Applications</h1>
+    <p>Staff access only. Enter the password to view rental applications.</p>
+    <form id="gateForm">
+      <input id="gatePw" type="password" inputmode="text" autocomplete="off" placeholder="Password" aria-label="Password" />
+      <button class="btn btn-gold" type="submit" id="gateBtn">Unlock</button>
+    </form>
+    <div class="err" id="gateErr"></div>
+  </div>
+</div>
+
+<!-- ══ APP ══ -->
+<header>
+  <div class="wrap">
+    <div>
+      <h1>Rental Applications</h1>
+      <div class="meta" id="hmeta">Annie's Car Rental · staff</div>
+    </div>
+    <div class="bar">
+      <button id="refreshBtn" type="button">Refresh</button>
+      <button id="logoutBtn" type="button">Lock</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <div class="count" id="count"></div>
+    <div id="list"></div>
+    <div class="state" id="state" style="display:none"></div>
+  </div>
+</main>
+
+<script>
+  // Same backend the landing page posts to. CONFIRM matches Vercel VITE_API_URL.
+  const API_BASE='https://admin.dashboard.anniescarrental.com/api/v1';
+  const SK='annies_apps_pass';
+
+  const gate=document.getElementById('gate'), gateForm=document.getElementById('gateForm');
+  const gatePw=document.getElementById('gatePw'), gateErr=document.getElementById('gateErr'), gateBtn=document.getElementById('gateBtn');
+  const listEl=document.getElementById('list'), countEl=document.getElementById('count'), stateEl=document.getElementById('state');
+
+  const esc=s=>(s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const fmtDate=iso=>{ if(!iso) return ''; const d=new Date(iso); if(isNaN(d)) return ''; return d.toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}); };
+
+  function showState(msg){ stateEl.textContent=msg; stateEl.style.display='block'; listEl.innerHTML=''; countEl.textContent=''; }
+
+  function render(apps){
+    stateEl.style.display='none';
+    if(!apps.length){ showState('No applications yet.'); return; }
+    countEl.textContent=apps.length+(apps.length===1?' application':' applications');
+    listEl.innerHTML=apps.map(a=>{
+      const status=(a.status||'new').toLowerCase();
+      const phone=(a.phone||'').replace(/[^0-9+]/g,'');
+      const detail=esc(a.message||'').replace(/^(Name|Phone|Email|City\/ZIP|Needed|Driving for|Vehicle|License photo|Has own insurance|Prefers|Notes):/gm,'<b>$1:</b>');
+      return `<div class="app">
+        <div class="top">
+          <div><div class="nm">${esc(a.name||'No name')}</div><div class="when">${esc(fmtDate(a.created_at))}</div></div>
+          <span class="pill ${status}">${esc(status)}</span>
+        </div>
+        <div class="contact">
+          ${phone?`<a href="tel:${esc(phone)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>Call</a>
+          <a href="sms:${esc(phone)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Text</a>`:''}
+          ${a.email?`<a href="mailto:${esc(a.email)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="m22 6-10 7L2 6"/></svg>${esc(a.email)}</a>`:''}
+        </div>
+        <div class="detail">${detail||'(no extra details)'}</div>
+      </div>`;
+    }).join('');
+  }
+
+  async function load(pass){
+    showState('Loading…');
+    let res;
+    try{
+      res=await fetch(API_BASE+'/gig-applications',{ headers:{ 'x-app-pass':pass } });
+    }catch(e){ showState('Network error. Check your connection and try Refresh.'); return false; }
+    if(res.status===401){ return false; }            // wrong password
+    if(!res.ok){ showState('Server error ('+res.status+'). Try Refresh.'); return true; } // authed but failed
+    const apps=await res.json();
+    render(apps);
+    return true;
+  }
+
+  async function unlock(pass){
+    gateBtn.disabled=true; gateErr.textContent='';
+    const ok=await load(pass);
+    gateBtn.disabled=false;
+    if(ok){ try{ sessionStorage.setItem(SK,pass); }catch(e){} gate.classList.add('hidden'); }
+    else { gateErr.textContent='Incorrect password.'; gatePw.select(); }
+  }
+
+  gateForm.addEventListener('submit',e=>{ e.preventDefault(); const p=gatePw.value.trim(); if(p) unlock(p); });
+  document.getElementById('refreshBtn').addEventListener('click',()=>{ const p=sessionStorage.getItem(SK); if(p) load(p); });
+  document.getElementById('logoutBtn').addEventListener('click',()=>{ try{ sessionStorage.removeItem(SK); }catch(e){} gate.classList.remove('hidden'); gatePw.value=''; gatePw.focus(); });
+
+  // Auto-unlock if we already have a valid password this session.
+  (function(){ let p=''; try{ p=sessionStorage.getItem(SK)||''; }catch(e){} if(p){ unlock(p); } else { gatePw.focus(); } })();
+</script>
+</body>
+</html>
