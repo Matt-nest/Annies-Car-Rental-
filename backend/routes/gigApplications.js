@@ -107,4 +107,40 @@ router.get('/', asyncHandler(async (req, res) => {
   res.json(apps);
 }));
 
+/** PATCH /:id — archive or restore a gig application (password-gated).
+ *  Body { archived: true|false }. Archived maps to status 'closed' (an allowed
+ *  value of the monthly_inquiries status CHECK constraint); restore maps to 'new'. */
+router.patch('/:id', asyncHandler(async (req, res) => {
+  const pass = req.get('x-app-pass') || '';
+  if (!REVIEW_PASS || pass !== REVIEW_PASS) return res.status(401).json({ error: 'Unauthorized' });
+
+  const status = req.body?.archived === true ? 'closed' : 'new';
+  const { data, error } = await supabase
+    .from('monthly_inquiries')
+    .update({ status })
+    .eq('id', req.params.id)
+    .ilike('message', `${TAG}%`)        // safety: only touch gig applications
+    .select('id, status')
+    .single();
+  if (error) {
+    if (error.code === 'PGRST116') return res.status(404).json({ error: 'Application not found' });
+    throw error;
+  }
+  res.json({ success: true, id: data.id, status: data.status });
+}));
+
+/** DELETE /:id — permanently delete a gig application (password-gated). */
+router.delete('/:id', asyncHandler(async (req, res) => {
+  const pass = req.get('x-app-pass') || '';
+  if (!REVIEW_PASS || pass !== REVIEW_PASS) return res.status(401).json({ error: 'Unauthorized' });
+
+  const { error } = await supabase
+    .from('monthly_inquiries')
+    .delete()
+    .eq('id', req.params.id)
+    .ilike('message', `${TAG}%`);       // safety: only delete gig applications
+  if (error) throw error;
+  res.json({ success: true });
+}));
+
 export default router;
