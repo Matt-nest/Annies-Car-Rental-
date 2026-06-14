@@ -87,7 +87,7 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
       { mode: 'monthly', label: 'Monthly', price: vehicle.monthlyDisplayPrice ? `$${vehicle.monthlyDisplayPrice.toLocaleString()}` : 'Call', unit: vehicle.monthlyDisplayPrice ? '/mo' : '' },
     ];
     return (
-      <div className="relative rounded-2xl border p-1.5 flex gap-1.5 mt-3" style={railSurface}>
+      <div className="relative rounded-2xl border p-1 flex gap-1 mt-4" style={railSurface}>
         {tiers.map(({ mode, label, price, unit }) => {
           const active = selectedRate === mode;
           return (
@@ -95,25 +95,38 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
               key={mode}
               type="button"
               onClick={() => handleRateSelect(mode)}
-              className="relative flex-1 rounded-xl py-2 px-1 text-center transition-all duration-300 active:scale-95 cursor-pointer"
-              style={{ backgroundColor: active ? 'var(--accent)' : 'transparent' }}
+              aria-pressed={active}
+              className="relative flex-1 rounded-xl py-2.5 px-1 text-center cursor-pointer transition-transform duration-200 active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[var(--accent-color)]"
             >
-              {mode === 'weekly' && (
+              {/* Sliding gold indicator — morphs between tabs (magic motion) */}
+              {active && (
+                <motion.div
+                  layoutId="rateActivePill"
+                  className="absolute inset-0 rounded-xl"
+                  style={{ backgroundColor: 'var(--accent)', boxShadow: '0 6px 18px -6px color-mix(in srgb, var(--accent-color) 60%, transparent)' }}
+                  transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                />
+              )}
+              {/* "Popular" nudge — only when Weekly isn't the active choice */}
+              {mode === 'weekly' && !active && (
                 <span
-                  className="absolute -top-3 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-[9px] font-semibold whitespace-nowrap shadow-sm"
+                  className="absolute -top-[9px] left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded-full text-[8px] uppercase tracking-wider font-bold whitespace-nowrap shadow-sm"
                   style={{ backgroundColor: 'var(--accent-color)', color: 'var(--accent-fg)' }}
                 >
-                  Most Popular
+                  Popular
                 </span>
               )}
               <span
-                className="block text-[10px] uppercase tracking-wider font-semibold"
-                style={{ color: active ? 'var(--accent-fg)' : 'var(--text-tertiary)', opacity: active ? 0.85 : 1 }}
+                className="relative z-10 block text-[10px] uppercase tracking-wider font-semibold transition-colors duration-200"
+                style={{ color: active ? 'var(--accent-fg)' : 'var(--text-secondary)' }}
               >
                 {label}
               </span>
-              <span className="block text-sm font-medium mt-0.5" style={{ color: active ? 'var(--accent-fg)' : 'var(--text-primary)' }}>
-                {price}<span className="text-[10px] font-normal" style={{ opacity: 0.7 }}>{unit}</span>
+              <span
+                className="relative z-10 block text-[15px] font-semibold mt-0.5 transition-colors duration-200"
+                style={{ color: active ? 'var(--accent-fg)' : 'var(--text-primary)' }}
+              >
+                {price}<span className="text-[10px] font-normal opacity-70">{unit}</span>
               </span>
             </button>
           );
