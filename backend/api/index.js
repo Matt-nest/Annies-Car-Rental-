@@ -68,9 +68,18 @@ app.use('/api/v1/messaging/webhook/crisp', express.json({
   verify: (req, _res, buf) => { req.rawBody = buf; },
   limit: '2mb',
 }));
-app.use(express.json({ limit: '2mb' }));
+// Skip JSON parsing for Stripe webhook (needs raw body for HMAC signature verification).
+// Without this guard the global json parser consumes the body before express.raw()
+// (mounted below) can claim it, so Stripe signature verification fails in production.
+app.use((req, res, next) => {
+  if (req.path === '/api/v1/stripe/webhook') return next();
+  express.json({ limit: '2mb' })(req, res, next);
+});
 // Twilio webhooks default to application/x-www-form-urlencoded — required for /messaging/webhook/inbound
-app.use(express.urlencoded({ extended: false, limit: '1mb' }));
+app.use((req, res, next) => {
+  if (req.path === '/api/v1/stripe/webhook') return next();
+  express.urlencoded({ extended: false, limit: '1mb' })(req, res, next);
+});
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
