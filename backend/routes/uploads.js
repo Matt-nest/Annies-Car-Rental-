@@ -78,6 +78,30 @@ router.post('/id-photo', upload.single('file'), asyncHandler(async (req, res) =>
 }));
 
 // ══════════════════════════════════════════════════════════════════════════════
+// POST /uploads/scan-id
+// Public (booking flow) — fallback license OCR via Azure Document Intelligence.
+// Used only when the in-browser barcode scan fails. Returns parsed fields; never
+// throws to the client (returns { ok: false } so the UI falls back to manual).
+// ══════════════════════════════════════════════════════════════════════════════
+router.post('/scan-id', upload.single('file'), asyncHandler(async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded. Field name must be "file".' });
+  }
+  const { scanIdDocument, AZURE_ID_SCAN_ENABLED } = await import('../services/idScanService.js');
+  if (!AZURE_ID_SCAN_ENABLED) return res.json({ ok: false, reason: 'not_configured' });
+  try {
+    const fields = await scanIdDocument(req.file.buffer);
+    if (!fields || (!fields.licenseNumber && !fields.lastName)) {
+      return res.json({ ok: false, reason: 'no_id_found' });
+    }
+    res.json({ ok: true, fields });
+  } catch (err) {
+    console.warn('[scan-id] Azure OCR failed:', err.message);
+    res.json({ ok: false, reason: 'error' });
+  }
+}));
+
+// ══════════════════════════════════════════════════════════════════════════════
 // POST /uploads/vehicle-image
 // Admin only (JWT auth)
 // Uploads a vehicle photo to the public 'vehicle-images' bucket

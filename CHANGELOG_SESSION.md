@@ -5,6 +5,16 @@
 
 ---
 
+## 2026-06-14 — Free ID scanner ported from JD Coastal (barcode + Azure OCR fallback)
+
+Parity with JD Coastal's booking ID scanner. Scan the license → auto-fill License + Address + DOB (review-style).
+- **New:** [src/utils/aamva.ts](src/utils/aamva.ts), [src/utils/scanLicenseBarcode.ts](src/utils/scanLicenseBarcode.ts) (in-browser PDF417 via `@zxing/browser`), [backend/services/idScanService.js](backend/services/idScanService.js) (Azure `prebuilt-idDocument`).
+- **[LicenseStep.tsx](src/components/booking/confirm-booking/wizard-steps/LicenseStep.tsx)** — "Scan my license" button: barcode first (back, free/in-browser) → Azure OCR fallback (front/foreign IDs) off one photo. `POST /uploads/scan-id` added to [backend/routes/uploads.js](backend/routes/uploads.js). ZXing lazy-loaded.
+- **Azure:** reuses JD Coastal's resource `id-leadflow-acrjd` (eastus, F0 free 500/mo, shared). Creds in `backend/.env` (gitignored); gated by `AZURE_DOCINTEL_*` so it no-ops if unset.
+- **Branch note:** committed on `integration/unify-all-functionality`. To reach Annie's PROD it must land on `main` + Azure env set in Annie's Vercel — not yet deployed. Frontend build passes; backend syntax OK.
+
+---
+
 ## 2026-06-14 — Card-on-file retry logic: built here by mistake, real target was JD Coastal
 
 **This feature was meant for JD Coastal, not Annie's** — it was built/applied in this repo during a shared session, then moved. See JD Coastal's CHANGELOG for the live entry. What remains in Annie's:
