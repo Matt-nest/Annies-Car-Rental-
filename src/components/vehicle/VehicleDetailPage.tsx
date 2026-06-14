@@ -66,6 +66,62 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
     }, 50);
   };
 
+  const isDark = theme === 'dark';
+
+  // Compact, floating rate selector that docks directly above the booking card.
+  // Dark mode keeps the subtle surface; light mode mirrors the card's frosted glass.
+  const railSurface: React.CSSProperties = isDark
+    ? { backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }
+    : {
+        background: 'linear-gradient(155deg, rgba(255,255,255,0.92), rgba(255,255,255,0.78))',
+        borderColor: 'rgba(255,255,255,0.85)',
+        backdropFilter: 'blur(20px) saturate(160%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+        boxShadow: '0 18px 50px -28px rgba(19,41,75,0.28)',
+      };
+
+  const renderRateBar = () => {
+    const tiers: { mode: RateMode; label: string; price: string; unit: string }[] = [
+      { mode: 'daily',   label: 'Daily',   price: `$${Math.round(vehicle.dailyRate)}`,  unit: '/day' },
+      { mode: 'weekly',  label: 'Weekly',  price: `$${Math.round(vehicle.weeklyRate)}`, unit: '/wk' },
+      { mode: 'monthly', label: 'Monthly', price: vehicle.monthlyDisplayPrice ? `$${vehicle.monthlyDisplayPrice.toLocaleString()}` : 'Call', unit: vehicle.monthlyDisplayPrice ? '/mo' : '' },
+    ];
+    return (
+      <div className="relative rounded-2xl border p-1.5 flex gap-1.5 mt-3" style={railSurface}>
+        {tiers.map(({ mode, label, price, unit }) => {
+          const active = selectedRate === mode;
+          return (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => handleRateSelect(mode)}
+              className="relative flex-1 rounded-xl py-2 px-1 text-center transition-all duration-300 active:scale-95 cursor-pointer"
+              style={{ backgroundColor: active ? 'var(--accent)' : 'transparent' }}
+            >
+              {mode === 'weekly' && (
+                <span
+                  className="absolute -top-3 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-[9px] font-semibold whitespace-nowrap shadow-sm"
+                  style={{ backgroundColor: 'var(--accent-color)', color: 'var(--accent-fg)' }}
+                >
+                  Most Popular
+                </span>
+              )}
+              <span
+                className="block text-[10px] uppercase tracking-wider font-semibold"
+                style={{ color: active ? 'var(--accent-fg)' : 'var(--text-tertiary)', opacity: active ? 0.85 : 1 }}
+              >
+                {label}
+              </span>
+              <span className="block text-sm font-medium mt-0.5" style={{ color: active ? 'var(--accent-fg)' : 'var(--text-primary)' }}>
+                {price}<span className="text-[10px] font-normal" style={{ opacity: 0.7 }}>{unit}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
+
   const specs = useMemo(() => [
     { label: 'Transmission', value: vehicle.transmission, icon: Settings2 },
     { label: 'Fuel Economy', value: `${vehicle.mpg} MPG`, icon: Gauge },
@@ -151,83 +207,8 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
               {vehicle.description}
             </motion.p>
 
-            {/* Pricing Tiers - selectable */}
-            <motion.div
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3, ease: EASE.standard }}
-              className="grid grid-cols-3 gap-3 md:gap-4"
-            >
-              {/* Daily */}
-              <button
-                type="button"
-                onClick={() => handleRateSelect('daily')}
-                className="rounded-2xl p-4 md:p-5 space-y-2 text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-                style={{
-                  backgroundColor: selectedRate === 'daily' ? 'rgba(212,175,55,0.06)' : 'var(--bg-card)',
-                  border: selectedRate === 'daily' ? '2px solid var(--accent-color)' : '1px solid var(--border-subtle)',
-                }}
-              >
-                <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>Daily</p>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-light">${Math.round(vehicle.dailyRate)}</span>
-                  <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>/day</span>
-                </div>
-                <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>200 miles/day</p>
-              </button>
-
-              {/* Weekly */}
-              <button
-                type="button"
-                onClick={() => handleRateSelect('weekly')}
-                className="rounded-2xl p-4 md:p-5 space-y-2 relative text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-                style={{
-                  backgroundColor: selectedRate === 'weekly' ? 'rgba(212,175,55,0.06)' : 'var(--bg-card)',
-                  border: selectedRate === 'weekly' ? '2px solid var(--accent-color)' : '1px solid var(--border-subtle)',
-                }}
-              >
-                <div
-                  className="absolute -top-3 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap"
-                  style={{ backgroundColor: 'var(--accent-color)', color: '#0a0a0a' }}
-                >
-                  Most Popular
-                </div>
-                <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>Weekly</p>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-light">${Math.round(vehicle.weeklyRate)}</span>
-                  <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>/week</span>
-                </div>
-                <p className="text-xs font-medium" style={{ color: 'var(--accent-color)' }}>
-                  Save ${Math.round(vehicle.dailyRate * 7 - vehicle.weeklyRate)}
-                </p>
-                <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>∞ Unlimited mileage</p>
-              </button>
-
-              {/* Monthly */}
-              <button
-                type="button"
-                onClick={() => handleRateSelect('monthly')}
-                className="rounded-2xl p-4 md:p-5 space-y-2 text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-                style={{
-                  backgroundColor: selectedRate === 'monthly' ? 'rgba(212,175,55,0.06)' : 'var(--bg-card)',
-                  border: selectedRate === 'monthly' ? '2px solid var(--accent-color)' : '1px solid var(--border-subtle)',
-                }}
-              >
-                <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>Monthly</p>
-                {vehicle.monthlyDisplayPrice ? (
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-light">${vehicle.monthlyDisplayPrice.toLocaleString()}</span>
-                    <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>/mo</span>
-                  </div>
-                ) : (
-                  <span className="text-base font-medium block" style={{ color: 'var(--accent-color)' }}>
-                    Call Us
-                  </span>
-                )}
-                <p className="text-xs font-medium" style={{ color: 'var(--accent-color)' }}>Best rate</p>
-                <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>∞ Unlimited mileage</p>
-              </button>
-            </motion.div>
+            {/* Pricing tiers now live in the compact floating rate selector
+                docked directly above the booking card (right rail / mobile). */}
 
             {/* Specs Row */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -285,7 +266,10 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
 
             {/* Mobile-only: Price, Form, Insurance - appears between Included and Reviews */}
             <div id="booking-form" className="lg:hidden space-y-6">
-              <RequestToBookForm vehicle={vehicle} selectedRate={selectedRate} />
+              <div className="space-y-2.5">
+                {renderRateBar()}
+                <RequestToBookForm vehicle={vehicle} selectedRate={selectedRate} />
+              </div>
               <InsuranceExplainer />
             </div>
 
@@ -530,7 +514,10 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
           {/* Right Column: Sticky Request Card - desktop only */}
           <div className="hidden lg:block lg:col-span-1">
             <div className="sticky top-24 space-y-6">
-              <RequestToBookForm vehicle={vehicle} selectedRate={selectedRate} />
+              <div className="space-y-2.5">
+                {renderRateBar()}
+                <RequestToBookForm vehicle={vehicle} selectedRate={selectedRate} />
+              </div>
               <InsuranceExplainer />
             </div>
           </div>
