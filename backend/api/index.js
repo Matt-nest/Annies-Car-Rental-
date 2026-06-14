@@ -40,6 +40,7 @@ import settingsRoutes from '../routes/settings.js';
 import voiceRoutes from '../routes/voice.js';
 import pushRoutes from '../routes/push.js';
 import brandRoutes from '../routes/brands.js';
+import gigApplicationRoutes from '../routes/gigApplications.js';
 
 const app = express();
 
@@ -115,6 +116,7 @@ app.use('/api/v1/settings', settingsRoutes);
 app.use('/api/v1/voice', voiceRoutes);
 app.use('/api/v1/push', pushRoutes);
 app.use('/api/v1/brands', brandRoutes);
+app.use('/api/v1/gig-applications', gigApplicationRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ error: `${req.method} ${req.path} not found` }));
