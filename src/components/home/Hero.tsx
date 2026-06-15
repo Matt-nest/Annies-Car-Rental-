@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { Star, ArrowRight } from 'lucide-react';
 import { motion, useScroll, useTransform } from 'motion/react';
 import { useTheme } from '../../context/ThemeContext';
@@ -10,10 +11,24 @@ interface HeroProps {
 export default function Hero({ onBrowseFleet }: HeroProps) {
   const { theme } = useTheme();
   const { scrollY } = useScroll();
-  
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoPlaying, setVideoPlaying] = useState(false);
+
   // Subtle parallax effect on scroll
   const y = useTransform(scrollY, [0, 1000], [0, 250]);
   const opacity = useTransform(scrollY, [0, 600], [1, 0]);
+
+  // Drive autoplay ourselves so the static poster shows cleanly when playback
+  // is blocked (iOS Low Power Mode) instead of iOS painting a play-button
+  // overlay. The <video> stays transparent until it actually starts.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    v.play().catch(() => {
+      /* autoplay blocked (e.g. Low Power Mode) — keep the poster, no overlay */
+    });
+  }, []);
 
   return (
     <section className="relative h-dvh flex flex-col justify-center sm:justify-end overflow-hidden pt-20 sm:pt-0 pb-16 sm:pb-32">
@@ -23,17 +38,29 @@ export default function Hero({ onBrowseFleet }: HeroProps) {
         style={{ y, opacity }}
       >
         {/* Cinematic hero motion plate: white Altima in Tradition Town Center.
-            Poster (a still from the same clip) covers the load gap and is the
-            reduced-motion / no-autoplay fallback. */}
+            The poster is a real <img> base layer that is ALWAYS shown; the
+            <video> fades in on top only once it actually starts. On iOS Low
+            Power Mode (autoplay blocked) the video stays hidden, so there's no
+            play-button overlay — just the clean still. */}
+        <img
+          src="/hero-poster.jpg"
+          alt={`Clean, reliable vehicles in Tradition Town Center — ${brand.name}`}
+          className="absolute inset-0 w-full h-full object-cover object-[65%_center] sm:object-[72%_center]"
+          fetchPriority="high"
+          decoding="async"
+        />
         <video
-          className="w-full h-full object-cover object-[65%_center] sm:object-[72%_center]"
-          autoPlay
+          ref={videoRef}
+          className={`absolute inset-0 w-full h-full object-cover object-[65%_center] sm:object-[72%_center] transition-opacity duration-700 ${
+            videoPlaying ? 'opacity-100' : 'opacity-0'
+          }`}
           muted
           loop
           playsInline
           preload="auto"
-          poster="/hero-poster.jpg"
-          aria-label={`Clean, reliable vehicles in Tradition Town Center — ${brand.name}`}
+          aria-hidden="true"
+          tabIndex={-1}
+          onPlaying={() => setVideoPlaying(true)}
         >
           <source src="/hero-motion.mp4" type="video/mp4" />
         </video>
