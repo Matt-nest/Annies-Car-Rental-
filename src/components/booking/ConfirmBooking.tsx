@@ -37,6 +37,14 @@ import { useTheme } from '../../context/ThemeContext';
 // elsewhere doesn't pull in @stripe/stripe-js.
 const stripePromise = getStripe();
 
+// When an admin pre-fills agreement details at booking creation, the backend
+// returns `prefilledSteps` from GET /agreements/:code. Map those keys to this
+// site's Stage-1 sub-steps so the customer's link skips what's already done.
+// Annie's Stage 1: 1 Summary · 2 Address · 3 License · 4 Terms · 5 Acks · 6 Sign.
+// ('scan' has no sub-step here — there's no Scan step on this site — so it's
+// ignored; the license/address fields it carries still pre-fill the draft.)
+const PREFILL_SUBSTEP: Record<string, number> = { address: 2, license: 3 };
+
 /* ────────────────────────────────────────────────────────
    Inner form (needs Stripe context)
    ──────────────────────────────────────────────────────── */
@@ -427,6 +435,17 @@ export default function ConfirmBooking() {
     }
   }, [agreementData, confirmed]);
 
+  // Stage-1 sub-steps the admin already filled — skipped in forward/back nav.
+  // Empty set when there's no admin pre-fill (normal customer booking).
+  const skipSubSteps = React.useMemo(() => {
+    const set = new Set<number>();
+    for (const k of (agreementData?.prefilledSteps || [])) {
+      const n = PREFILL_SUBSTEP[k];
+      if (n) set.add(n);
+    }
+    return set;
+  }, [agreementData]);
+
   // Navigation helpers
   const goToStage = (stage: number, subStep = 1) => {
     updateDraft({ stage, subStep });
@@ -448,10 +467,12 @@ export default function ConfirmBooking() {
     updateDraft({ completedStages: completed });
   };
 
-  // Stage 1 sub-step navigation
+  // Stage 1 sub-step navigation — skips any sub-step the admin pre-filled.
   const nextSubStep = () => {
-    if (draft.subStep < 6) {
-      goToSubStep(draft.subStep + 1);
+    let n = draft.subStep + 1;
+    while (n <= 6 && skipSubSteps.has(n)) n++;
+    if (n <= 6) {
+      goToSubStep(n);
     } else {
       // Stage 1 complete → Stage 2
       completeStage(1);
@@ -460,8 +481,10 @@ export default function ConfirmBooking() {
   };
 
   const prevSubStep = () => {
-    if (draft.subStep > 1) {
-      goToSubStep(draft.subStep - 1);
+    let n = draft.subStep - 1;
+    while (n >= 1 && skipSubSteps.has(n)) n--;
+    if (n >= 1) {
+      goToSubStep(n);
     }
   };
 

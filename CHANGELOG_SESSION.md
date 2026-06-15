@@ -5,6 +5,135 @@
 
 ---
 
+## 2026-06-15 — SEO Phase 4: image/CWV optimization (customer site)
+
+**Goal:** kill the multi-MB homepage images flagged in the audit (LCP/data on mobile). Originals are **kept** (gig-logo PNGs are also used by `public/drive.html` + `ads/index.html`); React components serve optimized `.webp` via `<picture>` with the original as fallback. Template-safe — committed `.webp` outputs mean clones inherit them with no build-time `cwebp` dependency.
+
+- **[scripts/optimize-images.mjs](scripts/optimize-images.mjs)** (NEW) — `cwebp`-based one-shot optimizer (`npm run optimize:images`). Resizes + re-encodes the 5 heavy photos to WebP at display-appropriate widths; keeps originals. Re-run after replacing any source photo.
+- **[package.json](package.json)** — added `"optimize:images"` script.
+- **Generated `public/*.webp`** (committed): `rideshare-driver` 2156 KB → **26 KB**, `happy-driver` 752 KB → **66 KB**, `UBER` 1325 KB → **3 KB**, `Doordash` 1837 KB → **4 KB**, `Lyft` 1764 KB → **4 KB**. **Homepage image payload ~7.8 MB → ~103 KB.**
+- **[src/components/home/LongTermSection.tsx](src/components/home/LongTermSection.tsx)** — gig-logo URLs switched to `.webp` (decorative animated `motion.img`); rideshare photo wrapped in `<picture className="contents">` (WebP source + `.jpeg` fallback). `display:contents` so the wrapper doesn't disturb the aspect-ratio box layout. Existing `loading="lazy"`/`decoding="async"` preserved.
+- **[src/components/home/TrustSection.tsx](src/components/home/TrustSection.tsx)** — happy-driver photo wrapped in `<picture className="contents">` (WebP + `.png` fallback).
+- **Build:** `npm run build` clean; `.webp` emitted to `dist/`. (`npm run lint`/tsc has **pre-existing** errors in `ErrorBoundary.tsx` + `sw.ts`, unrelated — vite build is the project's build path.)
+- **Not touched this pass:** `hero-motion.mp4` (6.8 MB) — video re-encode is a separate effort; it's poster-gated so not the LCP. `hero-poster.jpg` (260 KB) left as-is (reasonable, and it's the `og:image`). `public/drive.html`/`ads/` image optimization out of scope (standalone gig pages).
+- **Blast radius:** 4 code files + 1 script + committed binaries. No API/auth/schema/token edits.
+
+---
+
+## 2026-06-15 — SEO Phase 1: structured data + per-page meta (customer site)
+
+**Goal:** ship the low-risk, high-ROI SEO primitives from the audit on the *existing* CSR architecture — no routing change yet. All template-driven (clones inherit via `VITE_BRAND_*`). Phase 2 (router + prerender) and Phase 3 (location/service landing pages) are still pending.
+
+- **[src/data/faq.ts](src/data/faq.ts)** (NEW) — extracted the 9 FAQ items out of `FAQ.tsx` into a dependency-free data module so the on-page accordion **and** the build-time `FAQPage` JSON-LD share one source (no drift). Imported by both `FAQ.tsx` (browser) and `vite.config.ts` (Node build).
+- **[src/components/home/FAQ.tsx](src/components/home/FAQ.tsx)** — now imports `faqs` from `../../data/faq` instead of defining the array inline. Rendering unchanged.
+- **[vite.config.ts](vite.config.ts)** — `brand-html-inject` plugin now injects two `<script type="application/ld+json">` blocks into the **static** `<head>` at build (so crawlers/social/AI scrapers see structured data without the React render): **`AutoRental`** (LocalBusiness subtype — name/legalName/address/geo/phone/email/priceRange/areaServed, all from `VITE_BRAND_*` with Annie's fallbacks mirroring `src/config/brand.ts`) and **`FAQPage`** (from `src/data/faq.ts`). JSON is `<`-escaped for safe embedding; injected via a **function** replacement on `</head>` so `$$`/`$&` sequences (priceRange, `$0.34/mile`, fee amounts) aren't mangled by `String.replace` patterns. Verified in `dist/index.html`: both graphs parse, `priceRange:"$$"`, all `$` amounts intact.
+- **[src/hooks/usePageSeo.ts](src/hooks/usePageSeo.ts)** (NEW) — keeps `document.title` + `<meta name=description>` + `<link rel=canonical>` in sync with the in-memory route (App.tsx switches pages without reload, so these were frozen on homepage values for `/privacy`, `/terms`, the wizard, etc.). Per-page copy table derived from `brand.ts`; home title mirrors the build-time `%BRAND_TITLE%` (no divergence); detail canonical includes `?vin=` so each vehicle is distinct.
+- **[src/App.tsx](src/App.tsx)** — wired `usePageSeo(currentPage)` next to the existing hooks. `Page` type already matches `SeoPage` keys.
+- **Build:** `npm run build` clean.
+- **Blast radius:** 5 files (approved). No edits to `api/client.js`, `auth/`, Supabase schema, or notification system. robots.txt/sitemap.xml generation untouched.
+- **Next:** Phase 4 (image/CWV optimization, parallel-safe) → Phase 2 (extend homemade router + post-build prerender) → Phase 3 (template-driven location/service landing pages + sitemap wiring + internal links).
+
+---
+
+## 2026-06-15 — Tier-2: destructive-action error feedback + BottomNav coverage
+
+**Goal:** stop booking actions from failing silently, and put the daily Check-Ins workflow in the mobile nav. Touches a shared modal component + the global bottom nav — behavior preserved on success.
+
+- **[dashboard/src/pages/BookingDetailPage.jsx](dashboard/src/pages/BookingDetailPage.jsx)** + **[dashboard/src/components/shared/BookingModals.jsx](dashboard/src/components/shared/BookingModals.jsx)** — `doAction` previously did `catch → console.error` then **closed the modal unconditionally**, so a failed decline/cancel/payment/etc. looked like success. Now it closes + resets forms **only on success**; on failure it keeps the modal open and sets `actionError`, surfaced via a new inline `ActionError` banner injected into all 7 modal bodies. Error auto-clears when the open modal changes. (True "undo" isn't viable — decline/cancel are terminal backend transitions — so the guardrail is clear in-flight state + typed-reason confirmation, already present, + this failure feedback.)
+- **[dashboard/src/components/layout/BottomNav.jsx](dashboard/src/components/layout/BottomNav.jsx)** — swapped the `Clients` primary slot for `Check-Ins` (`/check-ins`, `ClipboardCheck` icon, badged with `pickups_today_count`). Clients remains reachable via the "More" drawer. Daily pickup/return work is now one thumb-tap away.
+- **Build:** clean. **Deferred:** mileage/amount inputs still `type="number"` — could add `inputMode` for better Android keyboards (low-risk follow-up).
+
+---
+
+## 2026-06-15 — ID scanner capture affordance + audit corrections
+
+- **[dashboard/src/components/bookings/AdminScanStep.jsx](dashboard/src/components/bookings/AdminScanStep.jsx)** — added an explicit "Capture license" shutter button below the live viewport (auto-detect + tap-the-video still work; the button just makes capture discoverable). Placed outside the `role="button"` viewport so it can't double-fire.
+- **Audit correction:** two items the UX-audit agents flagged as Tier-1 mobile blockers were already well-built and needed **no change** — `AdminScanStep` (playsInline, `facingMode: environment`, keyboard+aria tap-to-capture, file fallback with `capture`, reduced-motion, name-match feedback) and **`MessagingPage`** (full list-OR-chat mobile drawer with iOS-style sticky chat header, 44px back/call targets, icon-grid tab switcher). The agents speculated without reading the implementations. Logged so future sessions don't re-litigate them.
+
+---
+
+## 2026-06-15 — Signature pad: crisp + recoverable (Tier-1 blocker, legal flow)
+
+**Goal:** harden the counter-sign signature pad in `AgreementSection` for mobile/retina + add failure feedback. Shared component (`BookingDetailPage` consumer) — behavior preserved, only the pad internals + modal footer changed.
+
+- **[dashboard/src/components/shared/AgreementSection.jsx](dashboard/src/components/shared/AgreementSection.jsx)** — `SignaturePad` now sizes its backing store to `clientWidth × devicePixelRatio` (capped 3×) via a `ResizeObserver` instead of a fixed 520×160 store → crisp on retina, fills container at any width; stroke width derived from the DPR ratio so it stays ~2.5 CSS px; pointer mapping unchanged (already ratio-correct). Clear control moved from a ~28px corner icon to a 44px labeled "Clear" button below the pad (disabled until drawn). **Counter-sign failures now surface an inline error** (`signError`) instead of leaving the modal silently open (was `console.error` only). All modal buttons → 44px min height.
+- **Build:** clean.
+
+---
+
+## 2026-06-15 — Calendar: mobile day-agenda (Tier-1 blocker)
+
+**Goal:** the Fleet Calendar was a desktop Gantt forced to `min-w-[800px]` → on a phone you saw ~4 days and swiped endlessly. Added a mobile-only view; desktop Gantt unchanged. Page-local change, no API/token edits.
+
+- **[dashboard/src/pages/CalendarPage.jsx](dashboard/src/pages/CalendarPage.jsx)** — new `selectedDay` state (synced to today/1st when `month` changes via effect) + `vehicleDayState(v, day)` helper reusing the existing `isCovered`/`isBlockedDay` logic. `lg:hidden` agenda: a horizontally-scrollable day-chip selector (48×56px chips, today ringed, selected filled) over a `card` list of every vehicle's status for that day (colored dot + name/code + booked-customer/Blocked/Available + chevron→booking detail). Existing Gantt wrapped in `hidden lg:block`. Header made responsive (`flex-col sm:flex-row`, month label `flex-1` on mobile, Today button 44px).
+- **Build:** `cd dashboard && npm run build` clean.
+
+---
+
+## 2026-06-15 — Dashboard home: mobile-first UX pass (reference screen)
+
+**Goal:** make the Dashboard **home screen** + its widget system Toro-grade on mobile — the reference template other pages will inherit patterns from. Output of a full UX audit (Nielsen + mobile-ergonomics) across nav/widgets/flows/pages. **Scoped to the home screen only**; respects existing CSS-variable tokens (no `globals.css` edits) and the widget-engine architecture. No API/schema/auth changes.
+
+- **[dashboard/src/hooks/useMediaQuery.js](dashboard/src/hooks/useMediaQuery.js)** (NEW) — SSR-safe `useMediaQuery(query)` + `useIsMobile()` for JS-driven chart responsiveness Recharts can't do in CSS. Reusable across future widgets.
+- **[dashboard/src/components/layout/AlertPillBar.jsx](dashboard/src/components/layout/AlertPillBar.jsx)** — added `variant` prop. `inline` = original desktop header row; new `strip` = `lg:hidden` full-bleed (`-mx-6 px-6`) horizontally-scrollable pill row for mobile. Pills now use `.tap-target` (44px) instead of `minHeight:40`; hover-scale gated to `md:`. **Fixes audit finding: alerts were `hidden md:flex` → invisible on phones.**
+- **[dashboard/src/pages/DashboardPage.jsx](dashboard/src/pages/DashboardPage.jsx)** — **removed the `MobileQuickActions` fixed-bottom bar** (it was `z-30` and rendered *behind* the global `BottomNav` at `z-[100]` → occluded/broken) and its now-unused `overview` fetch/state + `Car/BookOpen/CheckCircle2/PenLine` imports trimmed to `Car/BookOpen`. Mobile alerts now surface via `<AlertPillBar variant="strip">` in-flow under the header. Dropped `pb-28` (only existed to clear the removed bar; layout `<main>` already reserves `BottomNav` space).
+- **[dashboard/src/components/dashboard/widgets/MorningBriefingWidget.jsx](dashboard/src/components/dashboard/widgets/MorningBriefingWidget.jsx)** — stat-chip labels no longer `hidden sm:inline` (briefing now scannable on phones); clickable chips get `minHeight:44`; "this month" chevron `opacity-60` on touch (was hover-only → never showed on mobile).
+- **[dashboard/src/components/dashboard/widgets/KPICardsWidget.jsx](dashboard/src/components/dashboard/widgets/KPICardsWidget.jsx)** — responsive density: card padding `p-5 sm:p-6 lg:p-7`, grid `gap-3 sm:gap-4 lg:gap-6`, fixed `minHeight:160` → `min-h-[140px] sm:min-h-[160px]`. Loading skeleton updated to match (no CLS).
+- **[dashboard/src/components/dashboard/widgets/RevenueHeatmapWidget.jsx](dashboard/src/components/dashboard/widgets/RevenueHeatmapWidget.jsx)** — `HeatCell` now reveals its tooltip on **tap** (auto-dismiss 2.2s) in addition to hover. **Fixes: hover-only tooltips were unusable on touch.**
+- **[dashboard/src/components/dashboard/widgets/RevenueTrendWidget.jsx](dashboard/src/components/dashboard/widgets/RevenueTrendWidget.jsx)** — `useMediaQuery('(max-width:479px)')` drives narrower YAxis width (32 vs 45), smaller tick font, larger `minTickGap` so axis labels stop overlapping/clipping on small phones.
+- **[dashboard/src/components/dashboard/widgets/FleetCommandGrid.jsx](dashboard/src/components/dashboard/widgets/FleetCommandGrid.jsx)** — mobile grid `grid-cols-3` → `grid-cols-2` (tiles were tiny on 375px). Removed dead/buggy `filtered` memo (`v.status === 'filter'` typo; `filteredVehicles` was the real one).
+- **[dashboard/src/components/dashboard/widgets/PendingApprovalsWidget.jsx](dashboard/src/components/dashboard/widgets/PendingApprovalsWidget.jsx)** — removed the "Swipe right to approve" hint that competed with the visible buttons. Tap buttons are now the single advertised path: `flex-1` full-width + `minHeight:44` on mobile (`sm:flex-none` on desktop). Swipe-to-act kept as a silent, undocumented power gesture.
+- **Build:** `cd dashboard && npm run build` clean (pre-existing `mapbox-gl` chunk-size warning only).
+- **Next slices (from the audit, not yet done):** Tier-1 mobile blockers on other screens — Calendar horizontal-scroll trap, Messaging two-pane→drawer, signature-pad canvas sizing, AdminScanStep camera orientation; Tier-2 shared work — destructive-action confirm+undo, BottomNav route coverage (Check-Ins/Messaging), global notification-badge dedupe.
+
+---
+
+## 2026-06-15 — SEO + perf quick-wins (customer marketing site)
+
+**Goal:** first batch from a 3-part audit (SEO / performance / cross-browser-mobile) of the customer site. Low-risk, no architecture change. Marketing-site only — booking flow untouched. (Audit also confirmed many items were ALREADY fixed on this branch: singlefile dropped for `manualChunks`+`React.lazy`, reCAPTCHA out of `<head>`, `hero-poster.jpg` already 260K, `h-dvh` hero, real PWA SW.)
+
+- **[src/components/home/Hero.tsx](src/components/home/Hero.tsx)** — hero `<video>` `preload="auto"` → `preload="none"`, so the **6.8 MB `hero-motion.mp4` no longer eager-fetches on load** (it competed with LCP/poster). The existing autoplay effect calls `v.play()`, which now is what triggers the download — only when we actually intend to play. Added a `navigator.connection.saveData` bail alongside the existing `prefers-reduced-motion` guard, so metered connections keep just the (preloaded) poster.
+- **[index.html](index.html)** — added canonical + Open Graph + Twitter Card tags (were entirely missing → blank link previews). All use `%BRAND_*%` tokens so clones rebrand with no HTML edits. `og:image`/`twitter:image` → `/hero-poster.jpg` (260K).
+- **[vite.config.ts](vite.config.ts)** — `brand-html-inject` plugin: added `%BRAND_DOMAIN%` substitution (fallback `anniescarrental.com`) for the new canonical/og:url tags, and a `generateBundle` hook that **emits `robots.txt` + `sitemap.xml` at build using the brand's own domain** (white-label-safe). Sitemap lists only indexable routes (`/`, `/privacy`, `/terms`); robots disallows `/confirm`, `/portal`, `/booking-status`, `/rental-agreement` (all serve the same SPA shell via the vercel rewrite).
+- **Build:** `vite build` clean. Verified `dist/robots.txt`, `dist/sitemap.xml`, the substituted OG/canonical tags in `dist/index.html`, and `preload:"none"` in the built JS.
+- **Deferred / next batches:** **#2 brand logos** — Uber/Lyft/DoorDash/Instacart/UberEats/AmazonFlex still ship as 0.7–1.8 MB PNGs (1485px) rendered at 64px (~7.7 MB total); awaiting user-supplied SVGs to swap in `LongTermSection.tsx`. **Batch 2 (SEO):** JSON-LD (AutoRental/LocalBusiness + AggregateRating 5.0/280 + Offers + FAQPage — all source data exists) and true home-route prerender (empty `#root` still served to non-rendering crawlers; speculation-rules only cover /detail,/portal). **Batch 2 (perf):** fleet PNGs 36 MB → WebP + `srcset`; `hero-sentra-front.png` (576K, the `fetchpriority=high` LCP preload) re-export. **QA:** modal Esc/focus-trap, license-scan iOS gesture/feature-detect, lead-form `autoComplete`/`inputMode`.
+
+---
+
+## 2026-06-15 — Admin new-booking redesign · Phase D (mirrored A–C to JD Coastal)
+
+Mirrored the full feature to `/Applications/JDCoastal` (see JD's own `CHANGELOG_SESSION.md` for detail). Backend routes + migration mirrored; **JD's `023` migration was applied to JD's Supabase project (`asdhnzdjpweyntxmutum`) via MCP and verified** (Annie's `yrerxvuyeglrypeufjpy` was run manually by the user). Dashboard files copied verbatim (CSS-variable based → JD's navy accent applies automatically) + `@zxing/*` deps added; build clean. **Key difference handled:** JD's customer wizard HAS a Scan sub-step (Annie's doesn't), so instead of Annie's `PREFILL_SUBSTEP` map, JD integrates a `scanPrefilled` flag into its existing `detailsComplete()` skip — when the admin pre-fills the ID, the customer skips Scan+Address+License (Summary→Terms). Both customer + dashboard builds pass on JD.
+
+---
+
+## 2026-06-15 — Admin new-booking redesign · Phase C (customer link skips pre-filled steps)
+
+**Goal:** when an admin pre-filled the customer's ID (Phase A/B), the customer's continue-booking link should skip those exact Stage-1 sub-steps. Customer-site change only.
+
+- **[src/components/booking/ConfirmBooking.tsx](src/components/booking/ConfirmBooking.tsx)** — added `PREFILL_SUBSTEP = { address: 2, license: 3 }` (module-level) mapping the backend's `prefilledSteps` keys to **this site's** Stage-1 sub-steps. Annie's Stage 1 is `1 Summary · 2 Address · 3 License · 4 Terms · 5 Acks · 6 Signature` — **there is no Scan sub-step here**, so the `'scan'` key is ignored (the license/address values it carries still pre-fill via the existing `customerDefaults` effect). New `skipSubSteps` memo builds a Set from `agreementData.prefilledSteps`; `nextSubStep`/`prevSubStep` now skip over any sub-step in that set (forward and back). Empty set ⇒ unchanged behavior for normal customer bookings.
+- **No new fields/effects needed for pre-fill itself:** the existing load effect already seeds `draft` from `customerDefaults`, which Phase A overlays with the admin pre-fill. Signature/Terms/Acks are never skipped (legal) — admin pre-fill never marks them.
+- **Build:** `vite build` (customer site, Vite 6) clean. `tsc --noEmit` shows only **pre-existing, unrelated** errors (`ErrorBoundary.tsx` React-type mismatch, `sw.ts` NotificationOptions) — none in `ConfirmBooking.tsx`.
+- **End-to-end (Annie's) now complete:** admin scans/enters ID in the modal → `agreement_prefill` → `bookings.admin_prefill` → `GET /agreements` returns `customerDefaults` + `prefilledSteps` → customer link pre-fills and skips Address/License. **Next: mirror A–C to JD Coastal** (note JD's Stage 1 HAS a Scan sub-step, so JD's `PREFILL_SUBSTEP` must include `scan` and shift the numbering).
+
+---
+
+## 2026-06-15 — Admin new-booking redesign · Phase B (modal rebuild + ID scanner)
+
+**Goal:** rebuild the admin `NewBookingModal` to mirror the customer booking flow and capture optional ID pre-fill. Frontend-only (dashboard). Wires to Phase A's backend.
+
+- **Deps:** added `@zxing/browser`, `@zxing/library` to [dashboard/package.json](dashboard/package.json) (in-browser PDF417 license decode). Loaded via dynamic `import()` in the scanner so they're code-split out of the main bundle.
+- **NEW ported utils** (from the customer site, TS→JS): [utils/aamva.js](dashboard/src/utils/aamva.js) (AAMVA barcode parse), [utils/scanLicenseBarcode.js](dashboard/src/utils/scanLicenseBarcode.js) (ZXing decode), [utils/compressImage.js](dashboard/src/utils/compressImage.js) (sub-4.5MB re-encode).
+- **NEW [api/bookingApi.js](dashboard/src/api/bookingApi.js)** — sibling to the protected `api/client.js` (untouched, 25 consumers). Multipart `scanId(file)` → `POST /uploads/scan-id` (Azure OCR fallback, never throws) + `uploadIdPhoto(file)` → `POST /uploads/id-photo`. Same bearer-token auth pattern as client.js.
+- **NEW [components/bookings/RangeCalendar.jsx](dashboard/src/components/bookings/RangeCalendar.jsx)** — the customer two-click range calendar, ported. Maps the customer's `var(--accent)` → dashboard's `var(--accent-color)`. Exports `prettyDate`/`parseYMD`/`toYMD`.
+- **NEW [components/bookings/VehiclePickCard.jsx](dashboard/src/components/bookings/VehiclePickCard.jsx)** — visual vehicle card (image probe over `images[]`/`photo_url`/`image_url`, rate, spec badges, accent ring) replacing the old text-button list.
+- **NEW [components/bookings/AdminScanStep.jsx](dashboard/src/components/bookings/AdminScanStep.jsx)** — the customer `ScanStep`, ported to `framer-motion` + `bookingApi`. Auto-detects camera: live rear-camera PDF417 on a tablet/phone, "upload a photo" → Azure OCR on desktop (mode `denied`). Normalizes to `onApply({license,dob,address,firstName,lastName})`; stores the still via `uploadIdPhoto` → `onPhotoPath`.
+- **REWRITE [components/bookings/NewBookingModal.jsx](dashboard/src/components/bookings/NewBookingModal.jsx)** — same `{open,onClose,onCreated}` contract. New 6-step animated stepper: **0 Dates & pickup** (RangeCalendar + times + delivery) · **1 Vehicle** (cards + est. total) · **2 Add-ons** · **3 Customer** (contact) · **4 ID (optional)** · **5 Review**. Step 4 is a gate — "I have the ID now" (scan/enter → builds `agreement_prefill`) vs "Customer adds it" (skip). `buildPrefill()` sends `{ license, dob, address, license_photo_paths, steps[] }` only when a license # is present; `steps` = `['scan','license'(,'address')]`. Fixed the old vehicle-before-dates ordering confusion. **Signature always stays with the customer** (backend supports `prefilledSignature` for a later pass).
+- **Build:** `vite build` clean — 3674 modules, 0 errors.
+- **Note:** `IdCard` isn't exported by lucide-react 0.358 → used `CreditCard` for the ID step icon.
+- **Next:** Phase C — `ConfirmBooking.tsx` reads Phase A's `prefilledSteps` and skips the matching Stage-1 substeps on the customer link. Then mirror A–C to JD Coastal.
+
+---
+
 ## 2026-06-15 — Admin new-booking redesign · Phase A (backend pre-fill plumbing)
 
 **Goal:** rebuild the admin dashboard "New Booking" modal to match the customer booking flow (same `RangeCalendar`, visual vehicle cards, built-in ID scanner, intuitive stepper) AND let the admin pre-fill agreement details so the customer's continue-link auto-skips the steps the admin already completed. Per-step optional ("ask the admin; else the customer fills it"). Scope: admin modal + the customer continue-link only — **the public marketing site is untouched**. Build on Annie's, then mirror to JD Coastal. This entry is **Phase A: backend only.**

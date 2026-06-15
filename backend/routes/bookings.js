@@ -126,15 +126,33 @@ router.post('/', bookingRateLimit, verifyRecaptcha, asyncHandler(async (req, res
  *  success will auto-approve in stripeService.
  */
 router.post('/admin-create', requireAuth, asyncHandler(async (req, res) => {
-  const errors = validateBookingPayload(req.body);
+  // agreement_prefill is admin-captured agreement data (license/address/dob/id
+  // photos/signature + the step keys the admin completed). It rides alongside the
+  // booking payload but is persisted separately so createBooking + validation
+  // stay untouched.
+  const { agreement_prefill, ...bookingBody } = req.body;
+
+  const errors = validateBookingPayload(bookingBody);
   if (errors.length) return res.status(400).json({ error: 'Validation failed', details: errors });
 
   const booking = await createBooking({
-    ...req.body,
+    ...bookingBody,
     source: 'admin',
     created_by_admin: true,
     insurance_status: 'pending',
   });
+
+  // Persist whatever the admin pre-filled onto the booking. GET /agreements/:code
+  // overlays this into customerDefaults and returns prefilled_steps so the
+  // customer's continue link skips those steps. Failure here must not fail the
+  // booking — the customer can always fill everything on the link.
+  if (agreement_prefill && Array.isArray(agreement_prefill.steps) && agreement_prefill.steps.length) {
+    const { error: prefillErr } = await supabase
+      .from('bookings')
+      .update({ admin_prefill: agreement_prefill })
+      .eq('id', booking.id);
+    if (prefillErr) console.error('[admin-create] admin_prefill save failed:', prefillErr.message);
+  }
 
   // Build the continue link the admin can copy/paste.
   const siteUrl = brand.siteUrl;

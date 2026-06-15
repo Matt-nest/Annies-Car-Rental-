@@ -74,6 +74,13 @@ router.get('/:bookingCode', asyncHandler(async (req, res) => {
   const customer = booking.customers || {};
   const vehicle = booking.vehicles || {};
 
+  // Admin-entered pre-fill (from POST /bookings/admin-create). Overlays the
+  // customer record for these defaults and drives which steps the customer link
+  // can skip. Null/absent for customer-originated bookings → behaves as before.
+  const prefill = booking.admin_prefill || null;
+  const prefillAddr = prefill?.address || {};
+  const prefillLic = prefill?.license || {};
+
   res.json({
     alreadySigned: !!existing?.customer_signed_at,
     ownerCounterSigned: !!existing?.owner_signed_at,
@@ -108,17 +115,24 @@ router.get('/:bookingCode', asyncHandler(async (req, res) => {
       taxAmount: Number(booking.tax_amount || 0),
       totalCost: Number(booking.total_cost),
     },
-    // Pre-fill from customer record if they have previous data
+    // Pre-fill from admin pre-fill first (booking-scoped, authoritative for this
+    // booking), then fall back to the customer record's stored data.
     customerDefaults: {
-      address_line1: customer.address_line1 || '',
-      city: customer.city || '',
-      state: customer.state || '',
-      zip: customer.zip || '',
-      date_of_birth: customer.date_of_birth || '',
-      driver_license_number: customer.driver_license_number || '',
-      driver_license_state: customer.driver_license_state || '',
-      driver_license_expiry: customer.driver_license_expiry || '',
+      address_line1: prefillAddr.line1 || customer.address_line1 || '',
+      city: prefillAddr.city || customer.city || '',
+      state: prefillAddr.state || customer.state || '',
+      zip: prefillAddr.zip || customer.zip || '',
+      date_of_birth: prefill?.dob || customer.date_of_birth || '',
+      driver_license_number: prefillLic.number || customer.driver_license_number || '',
+      driver_license_state: prefillLic.state || customer.driver_license_state || '',
+      driver_license_expiry: prefillLic.expiry || customer.driver_license_expiry || '',
     },
+    // Steps the admin already completed — the customer wizard skips these.
+    // Empty array when there's no admin pre-fill (normal customer booking).
+    prefilledSteps: Array.isArray(prefill?.steps) ? prefill.steps : [],
+    // Admin-captured signature (in-person bookings) and ID photo paths, if any.
+    prefilledSignature: prefill?.signature || null,
+    prefilledLicensePhotos: Array.isArray(prefill?.license_photo_paths) ? prefill.license_photo_paths : null,
   });
 }));
 
