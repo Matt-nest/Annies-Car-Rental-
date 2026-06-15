@@ -10,6 +10,8 @@
 import { getStripe } from '../utils/stripe.js';
 import { supabase } from '../db/supabase.js';
 import brand from '../config/brand.js';
+import { sendPaymentDeclined } from './emailService.js';
+import { sendEmail as sendBrandedEmail, wrapInBrandedHTML } from './notifyService.js';
 
 const stripe = getStripe();
 
@@ -18,6 +20,30 @@ export const FEATURE_AUTO_OVERAGE_CHARGES =
 
 /** 48-hour dispute window before a scheduled overage charge fires. */
 export const OVERAGE_DELAY_MS = 48 * 60 * 60 * 1000;
+
+/** On a retriable decline, wait this long before re-attempting the charge. */
+export const RETRY_DELAY_MS = 3 * 24 * 60 * 60 * 1000;
+
+/** Max number of retry attempts after the initial charge (4 total attempts). */
+export const MAX_RETRIES = 3;
+
+/**
+ * Decline codes worth retrying — transient issues (no funds, soft decline,
+ * issuer unavailable) that a later attempt may clear. Anything not listed
+ * (lost/stolen card, invalid number, authentication_required) is permanent:
+ * retrying won't help, so we fail immediately and flag for manual follow-up.
+ */
+const RETRIABLE_DECLINE_CODES = new Set([
+  'insufficient_funds',
+  'generic_decline',
+  'try_again_later',
+  'processing_error',
+  'issuer_not_available',
+  'card_velocity_exceeded',
+  'reenter_transaction',
+  'temporary_hold',
+  'approve_with_id',
+]);
 
 /**
  * Idempotently get-or-create a Stripe Customer for the given customer row.
@@ -126,7 +152,7 @@ export async function processDueOverageCharges() {
   const nowIso = new Date().toISOString();
   const { data: due, error } = await supabase
     .from('pending_overage_charges')
-    .select('id, booking_id, amount_cents, description, line_items')
+    .select('id, booking_id, amount_cents, description, line_items, attempts')
     .eq('status', 'pending')
     .lte('scheduled_for', nowIso)
     .limit(50);
@@ -147,7 +173,7 @@ export async function processDueOverageCharges() {
 async function processSingleCharge(charge) {
   const { data: booking } = await supabase
     .from('bookings')
-    .select('id, booking_code, customer_id, stripe_payment_method_id, customers(stripe_customer_id, email)')
+    .select('id, booking_code, customer_id, stripe_payment_method_id, customers(stripe_customer_id, email, first_name)')
     .eq('id', charge.booking_id)
     .single();
 
@@ -185,6 +211,7 @@ async function processSingleCharge(charge) {
       .update({
         status: 'succeeded',
         payment_intent_id: pi.id,
+        attempts: (charge.attempts || 0) + 1,
         processed_at: new Date().toISOString(),
       })
       .eq('id', charge.id);
@@ -193,20 +220,135 @@ async function processSingleCharge(charge) {
   } catch (err) {
     // Stripe throws on requires_action / authentication_required / card_declined etc.
     const code = err?.code || err?.raw?.code;
-    await markFailed(charge.id, code || err.message);
-    await logChargeEvent(charge.id, 'failed', { code, message: err.message }, 'system');
-    return { id: charge.id, status: 'failed', reason: code || err.message };
+    const declineCode = err?.decline_code || err?.raw?.decline_code;
+    const attemptsMade = (charge.attempts || 0) + 1;
+    const retriesUsed = attemptsMade - 1;
+    // authentication_required can't be cleared off-session — always permanent.
+    const retriable =
+      code !== 'authentication_required' &&
+      RETRIABLE_DECLINE_CODES.has(declineCode || code);
+
+    if (retriable && retriesUsed < MAX_RETRIES) {
+      const nextAttempt = new Date(Date.now() + RETRY_DELAY_MS).toISOString();
+      await supabase
+        .from('pending_overage_charges')
+        .update({ status: 'pending', attempts: attemptsMade, scheduled_for: nextAttempt })
+        .eq('id', charge.id);
+      await logChargeEvent(charge.id, 'retry_scheduled', {
+        code, decline_code: declineCode, attempt: attemptsMade, next_attempt: nextAttempt,
+      }, 'system');
+      // First decline: give the customer a single heads-up so they can update
+      // their card before the retries run out. Later retry declines stay quiet.
+      if (attemptsMade === 1) {
+        await notifyCustomerDeclined(charge, booking, declineCode || code);
+      }
+      return { id: charge.id, status: 'retry_scheduled', attempt: attemptsMade, next_attempt: nextAttempt };
+    }
+
+    // Permanent failure: non-retriable decline, or retries exhausted.
+    const reason = code || declineCode || err.message;
+    await markFailed(charge.id, reason, attemptsMade);
+    await logChargeEvent(charge.id, 'failed', {
+      code, decline_code: declineCode, message: err.message,
+      attempts: attemptsMade, exhausted: retriable,
+    }, 'system');
+    // A non-retriable first failure never hit the retry branch, so the customer
+    // hasn't been told yet — send the heads-up now. (Exhausted retries already
+    // got theirs on attempt 1.)
+    if (attemptsMade === 1) {
+      await notifyCustomerDeclined(charge, booking, declineCode || code);
+    }
+    // Always escalate a terminal failure to the owner for manual follow-up.
+    await notifyAdminChargeFailed(charge, booking, {
+      reason, attempts: attemptsMade, exhausted: retriable,
+    });
+    return { id: charge.id, status: 'failed', reason, attempts: attemptsMade };
   }
 }
 
-async function markFailed(chargeId, reason) {
+/** Friendly phrasing for a Stripe decline code, for customer-facing copy. */
+function humanizeDecline(code) {
+  const map = {
+    insufficient_funds: 'insufficient funds',
+    card_declined: 'the card was declined',
+    generic_decline: 'the card was declined',
+    expired_card: 'the card has expired',
+    lost_card: 'the card was reported lost',
+    stolen_card: 'the card was reported stolen',
+    incorrect_number: 'the card number is invalid',
+    invalid_account: 'the card account is invalid',
+    authentication_required: 'the card requires authentication',
+    processing_error: 'a processing error occurred',
+  };
+  return map[code] || String(code || 'declined').replace(/_/g, ' ');
+}
+
+/**
+ * Email the customer that the saved-card charge was declined and ask them to
+ * update their payment method in the portal. Reuses the purpose-built
+ * emailService template. Best-effort — never throws into the charge loop.
+ */
+async function notifyCustomerDeclined(charge, booking, declineCode) {
+  const customer = booking.customers;
+  if (!customer?.email) return;
+  try {
+    await sendPaymentDeclined({
+      customer,
+      booking,
+      amountCents: charge.amount_cents,
+      reason: humanizeDecline(declineCode),
+    });
+    await logChargeEvent(charge.id, 'customer_notified', { decline_code: declineCode }, 'system');
+  } catch (err) {
+    console.warn('[cardOnFile] customer decline email failed:', err.message);
+  }
+}
+
+/**
+ * Alert the owner that an overage charge failed permanently and needs manual
+ * follow-up. Best-effort — never throws into the charge loop.
+ */
+async function notifyAdminChargeFailed(charge, booking, { reason, attempts, exhausted }) {
+  try {
+    const amount = `$${((charge.amount_cents || 0) / 100).toFixed(2)}`;
+    const customer = booking.customers || {};
+    const who = customer.first_name || customer.email || 'Unknown customer';
+    const outcome = exhausted
+      ? `gave up after ${attempts} attempt${attempts === 1 ? '' : 's'}`
+      : 'card declined — not retriable';
+    const text = [
+      'An automatic incidental/overage charge could not be collected and needs manual follow-up.',
+      '',
+      `Booking: ${booking.booking_code}`,
+      `Customer: ${who}${customer.email ? ` (${customer.email})` : ''}`,
+      `Amount: ${amount}`,
+      `Reason: ${reason}`,
+      `Outcome: ${outcome}`,
+      '',
+      'The customer has been asked to update their card on file. Review in the dashboard to retry or settle manually against the deposit.',
+    ].join('\n');
+
+    await sendBrandedEmail({
+      to: brand.ownerEmail,
+      subject: `⚠️ Overage charge failed — ${booking.booking_code} (${amount})`,
+      html: wrapInBrandedHTML(`Overage Charge Failed — ${booking.booking_code}`, text),
+    });
+    await logChargeEvent(charge.id, 'admin_alerted', { to: brand.ownerEmail, reason, attempts }, 'system');
+  } catch (err) {
+    console.warn('[cardOnFile] admin failure alert failed:', err.message);
+  }
+}
+
+async function markFailed(chargeId, reason, attempts) {
+  const update = {
+    status: 'failed',
+    failure_reason: String(reason || 'unknown').slice(0, 500),
+    processed_at: new Date().toISOString(),
+  };
+  if (attempts !== undefined) update.attempts = attempts;
   await supabase
     .from('pending_overage_charges')
-    .update({
-      status: 'failed',
-      failure_reason: String(reason || 'unknown').slice(0, 500),
-      processed_at: new Date().toISOString(),
-    })
+    .update(update)
     .eq('id', chargeId);
 }
 

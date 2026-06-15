@@ -19,3 +19,6 @@ _agent/
 _reference/
 dashboard/leadflow-template
 HANDOFF.md
+
+# Local MCP server config (project ref / local tooling)
+.mcp.json
