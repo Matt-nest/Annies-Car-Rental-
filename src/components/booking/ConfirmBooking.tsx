@@ -604,12 +604,7 @@ export default function ConfirmBooking() {
                   bookingSummary={bookingSummary}
                   draft={draft}
                   depositAmount={depositAmount}
-                  customerName={af.customerName}
                   theme={theme}
-                  onEditDetails={() => goToStage(1, 2)}
-                  onEditLicense={() => goToStage(1, 3)}
-                  onEditInsurance={() => goToStage(2)}
-                  onEditSignature={() => goToStage(1, 6)}
                   onContinue={() => { completeStage(3); goToStage(4); }}
                   onBack={() => goToStage(2)}
                 />
