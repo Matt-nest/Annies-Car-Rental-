@@ -5,6 +5,25 @@
 
 ---
 
+## 2026-06-14 — Vehicle detail page brought up to JD Coastal's booking-wizard template
+
+**Goal:** Annie's detail page was still on the OLD long-form booking design while the unified template (live on JD Coastal) has a glassmorphic 5-step wizard card + compact rate-pill selector, inline on both desktop right-rail and mobile. This change ports that proven template to Annie's — additive, not a rebuild.
+
+> Note: an earlier pass this session built a parallel mobile system (a vaul bottom-sheet `BookingSheet`, a `VehicleHeroMobile`, a `useBookingRequest` hook, and a standalone `RangeCalendar`) and gutted the desktop booking card. That approach was **reverted/deleted** — those 4 files no longer exist. The port below is the kept state.
+
+- **[RequestToBookForm.tsx](src/components/vehicle/RequestToBookForm.tsx)** — replaced with JD Coastal's 5-step wizard (Dates → Pickup & Delivery → Add-ons → Your Details → Review), with an **inline two-click `RangeCalendar`**, segmented progress header, glass card surface (light/dark aware), slide transitions, monthly call/text bypass, and the animated success screen. **Annie's-specific:** kept the required **photo-ID upload** (capture + client compression + `POST /uploads/id-photo`, sent as `id_photo_url`) by grafting it into the "Your Details" step + `validateStep(3)`/`validate()`/submit. `POST /bookings` payload unchanged.
+- **[VehicleDetailPage.tsx](src/components/vehicle/VehicleDetailPage.tsx)** — ported JD Coastal's structure: removed the big left-column pricing tiles; added `renderRateBar()` (Daily/Weekly/Monthly pills with a `layoutId` sliding gold indicator) docked above the booking card in BOTH the mobile `#booking-form` block and the desktop sticky right rail; `InsuranceExplainer horizontal` now sits under Rates & Policies. **Kept Annie's brand header colors** (`rgba(10,10,10,0.97)` / `rgba(250,250,249,0.97)`), not JD Coastal's navy. Sticky mobile bottom bar still scrolls to `#booking-form`.
+- **[InsuranceExplainer.tsx](src/components/vehicle/InsuranceExplainer.tsx)** — replaced with JD Coastal's version that supports the `horizontal` prop (logo/price panel + coverage chips). Brand-agnostic (CSS vars + shared `bonzah-logo.svg`).
+- **Deleted:** `BookingSheet.tsx`, `VehicleHeroMobile.tsx`, `RangeCalendar.tsx`, `src/hooks/useBookingRequest.ts` (the reverted parallel system).
+- **Verify:** `vite build` passes; VehicleDetailPage chunk 68 kB. No backend/Stripe/theme/desktop-destruction. Desktop + mobile now share the same beautiful wizard, matching JD Coastal.
+
+### Follow-up — mobile booking presented as an app-style sheet (additive)
+The actual focus: on mobile, "Book Now" should open the booking flow as a modal, not scroll. Done **without touching the wizard or desktop**:
+- **New: [src/components/vehicle/MobileBookingSheet.tsx](src/components/vehicle/MobileBookingSheet.tsx)** — a thin Vaul `Drawer` shell (drag-to-dismiss, scroll-lock, focus trap, ESC, safe-area) that applies the `${theme}` class so CSS vars resolve in the body portal. Hosts children only — no booking logic.
+- **[VehicleDetailPage.tsx](src/components/vehicle/VehicleDetailPage.tsx)** — removed the inline mobile `#booking-form` block; the sticky bottom bar's **Book Now** now opens `MobileBookingSheet` containing the SAME `renderRateBar()` + `RequestToBookForm` wizard. `renderRateBar(layoutId?)` parameterized so the sheet's sliding pill uses `rateActivePillMobile` (avoids a Framer `layoutId` collision with the always-mounted desktop rail). `handleRateSelect` simplified to just set the rate (scroll target removed). **Desktop right rail unchanged.**
+
+---
+
 ## 2026-06-14 — Free ID scanner ported from JD Coastal (barcode + Azure OCR fallback)
 
 Parity with JD Coastal's booking ID scanner. Scan the license → auto-fill License + Address + DOB (review-style).

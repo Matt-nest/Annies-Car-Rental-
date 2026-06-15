@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Users, Fuel, Gauge, Settings2, CheckCircle2, XCircle, MapPin, ArrowLeft, Phone, Star, ArrowRight, X, DollarSign, Clock, Car } from 'lucide-react';
+import { Users, Fuel, Gauge, Settings2, CheckCircle2, XCircle, ArrowLeft, Phone, Star, ArrowRight, X, DollarSign, Clock, Car } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Vehicle, RateMode } from '../../types';
 import { getVehicleDisplayName } from '../../data/vehicles';
 import { getReviewsForVehicle, addReview } from '../../data/reviews';
 import Gallery from './Gallery';
 import RequestToBookForm from './RequestToBookForm';
+import MobileBookingSheet from './MobileBookingSheet';
 import InsuranceExplainer from './InsuranceExplainer';
 import { useTheme } from '../../context/ThemeContext';
-import { EASE, DURATION, STAGGER } from '../../utils/motion';
+import { EASE, STAGGER } from '../../utils/motion';
 import ThemeToggle from '../common/ThemeToggle';
 import StarRating from '../common/StarRating';
 import { brand } from '../../config/brand';
@@ -19,8 +20,9 @@ interface VehicleDetailPageProps {
 }
 
 export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPageProps) {
-  const { theme, toggleTheme } = useTheme();
-  const [selectedRate, setSelectedRate] = useState<RateMode>('weekly');
+  const { theme } = useTheme();
+  const [selectedRate, setSelectedRate] = useState<RateMode>('daily');
+  const [bookingOpen, setBookingOpen] = useState(false);
   const [showAllReviews, setShowAllReviews] = useState(false);
   const [showAddReviewModal, setShowAddReviewModal] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
@@ -61,9 +63,75 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
 
   const handleRateSelect = (rate: RateMode) => {
     setSelectedRate(rate);
-    setTimeout(() => {
-      document.getElementById('booking-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 50);
+  };
+
+  const isDark = theme === 'dark';
+
+  // Compact, floating rate selector that docks directly above the booking card.
+  // Dark mode keeps the subtle surface; light mode mirrors the card's frosted glass.
+  const railSurface: React.CSSProperties = isDark
+    ? { backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }
+    : {
+        background: 'linear-gradient(155deg, rgba(255,255,255,0.92), rgba(255,255,255,0.78))',
+        borderColor: 'rgba(255,255,255,0.85)',
+        backdropFilter: 'blur(20px) saturate(160%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+        boxShadow: '0 18px 50px -28px rgba(0,0,0,0.28)',
+      };
+
+  const renderRateBar = (layoutId = 'rateActivePill') => {
+    const tiers: { mode: RateMode; label: string; price: string; unit: string }[] = [
+      { mode: 'daily',   label: 'Daily',   price: `$${Math.round(vehicle.dailyRate)}`,  unit: '/day' },
+      { mode: 'weekly',  label: 'Weekly',  price: `$${Math.round(vehicle.weeklyRate)}`, unit: '/wk' },
+      { mode: 'monthly', label: 'Monthly', price: vehicle.monthlyDisplayPrice ? `$${vehicle.monthlyDisplayPrice.toLocaleString()}` : 'Call', unit: vehicle.monthlyDisplayPrice ? '/mo' : '' },
+    ];
+    return (
+      <div className="relative rounded-2xl border p-1 flex gap-1 mt-4" style={railSurface}>
+        {tiers.map(({ mode, label, price, unit }) => {
+          const active = selectedRate === mode;
+          return (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => handleRateSelect(mode)}
+              aria-pressed={active}
+              className="relative flex-1 rounded-xl py-2.5 px-1 text-center cursor-pointer transition-transform duration-200 active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[var(--accent-color)]"
+            >
+              {/* Sliding gold indicator — morphs between tabs (magic motion) */}
+              {active && (
+                <motion.div
+                  layoutId={layoutId}
+                  className="absolute inset-0 rounded-xl"
+                  style={{ backgroundColor: 'var(--accent)', boxShadow: '0 6px 18px -6px color-mix(in srgb, var(--accent-color) 60%, transparent)' }}
+                  transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                />
+              )}
+              {/* "Popular" nudge — only when Weekly isn't the active choice */}
+              {mode === 'weekly' && !active && (
+                <span
+                  className="absolute -top-[9px] left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded-full text-[8px] uppercase tracking-wider font-bold whitespace-nowrap shadow-sm"
+                  style={{ backgroundColor: 'var(--accent-color)', color: 'var(--accent-fg)' }}
+                >
+                  Popular
+                </span>
+              )}
+              <span
+                className="relative z-10 block text-[10px] uppercase tracking-wider font-semibold transition-colors duration-200"
+                style={{ color: active ? 'var(--accent-fg)' : 'var(--text-secondary)' }}
+              >
+                {label}
+              </span>
+              <span
+                className="relative z-10 block text-[15px] font-semibold mt-0.5 transition-colors duration-200"
+                style={{ color: active ? 'var(--accent-fg)' : 'var(--text-primary)' }}
+              >
+                {price}<span className="text-[10px] font-normal opacity-70">{unit}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    );
   };
 
   const specs = useMemo(() => [
@@ -151,83 +219,8 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
               {vehicle.description}
             </motion.p>
 
-            {/* Pricing Tiers — selectable */}
-            <motion.div
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3, ease: EASE.standard }}
-              className="grid grid-cols-3 gap-3 md:gap-4"
-            >
-              {/* Daily */}
-              <button
-                type="button"
-                onClick={() => handleRateSelect('daily')}
-                className="rounded-2xl p-4 md:p-5 space-y-2 text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-                style={{
-                  backgroundColor: selectedRate === 'daily' ? 'color-mix(in srgb, var(--accent-color) 6%, transparent)' : 'var(--bg-card)',
-                  border: selectedRate === 'daily' ? '2px solid var(--accent-color)' : '1px solid var(--border-subtle)',
-                }}
-              >
-                <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>Daily</p>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-light">${Math.round(vehicle.dailyRate)}</span>
-                  <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>/day</span>
-                </div>
-                <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>200 miles/day</p>
-              </button>
-
-              {/* Weekly */}
-              <button
-                type="button"
-                onClick={() => handleRateSelect('weekly')}
-                className="rounded-2xl p-4 md:p-5 space-y-2 relative text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-                style={{
-                  backgroundColor: selectedRate === 'weekly' ? 'color-mix(in srgb, var(--accent-color) 6%, transparent)' : 'var(--bg-card)',
-                  border: selectedRate === 'weekly' ? '2px solid var(--accent-color)' : '1px solid var(--border-subtle)',
-                }}
-              >
-                <div
-                  className="absolute -top-3 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap"
-                  style={{ backgroundColor: 'var(--accent-color)', color: '#0a0a0a' }}
-                >
-                  Most Popular
-                </div>
-                <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>Weekly</p>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-light">${Math.round(vehicle.weeklyRate)}</span>
-                  <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>/week</span>
-                </div>
-                <p className="text-xs font-medium" style={{ color: 'var(--accent-color)' }}>
-                  Save ${Math.round(vehicle.dailyRate * 7 - vehicle.weeklyRate)}
-                </p>
-                <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>∞ Unlimited mileage</p>
-              </button>
-
-              {/* Monthly */}
-              <button
-                type="button"
-                onClick={() => handleRateSelect('monthly')}
-                className="rounded-2xl p-4 md:p-5 space-y-2 text-left transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-                style={{
-                  backgroundColor: selectedRate === 'monthly' ? 'color-mix(in srgb, var(--accent-color) 6%, transparent)' : 'var(--bg-card)',
-                  border: selectedRate === 'monthly' ? '2px solid var(--accent-color)' : '1px solid var(--border-subtle)',
-                }}
-              >
-                <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>Monthly</p>
-                {vehicle.monthlyDisplayPrice ? (
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-light">${vehicle.monthlyDisplayPrice.toLocaleString()}</span>
-                    <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>/mo</span>
-                  </div>
-                ) : (
-                  <span className="text-base font-medium block" style={{ color: 'var(--accent-color)' }}>
-                    Call Us
-                  </span>
-                )}
-                <p className="text-xs font-medium" style={{ color: 'var(--accent-color)' }}>Best rate</p>
-                <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>∞ Unlimited mileage</p>
-              </button>
-            </motion.div>
+            {/* Pricing tiers now live in the compact floating rate selector
+                docked directly above the booking card (right rail / mobile). */}
 
             {/* Specs Row */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -283,11 +276,9 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
               </div>
             </section>
 
-            {/* Mobile-only: Price, Form, Insurance — appears between Included and Reviews */}
-            <div id="booking-form" className="lg:hidden space-y-6">
-              <RequestToBookForm vehicle={vehicle} selectedRate={selectedRate} />
-              <InsuranceExplainer />
-            </div>
+            {/* On mobile the booking wizard lives in the MobileBookingSheet,
+                opened from the sticky "Book Now" bar (rendered below). Desktop
+                keeps the inline sticky right-rail card. */}
 
             {/* Reviews — unified star visualization */}
             <section className="space-y-8 pt-8" style={{ borderTop: '1px solid var(--border-subtle)' }}>
@@ -394,7 +385,7 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
                 </div>
                 </>
               ) : (
-                <div 
+                <div
                   className="rounded-2xl border p-12 text-center flex flex-col items-center justify-center space-y-4"
                   style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}
                 >
@@ -442,7 +433,7 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
                     >
                       <X size={20} />
                     </button>
-                    
+
                     <h3 className="text-2xl font-semibold mb-6">Write a review</h3>
                     <form onSubmit={handleReviewSubmit} className="space-y-4">
                       <div>
@@ -525,13 +516,18 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
                 ))}
               </div>
             </section>
+
+            {/* Insurance partner — horizontal Bonzah card under Rates & Policies */}
+            <InsuranceExplainer horizontal />
           </div>
 
           {/* Right Column: Sticky Request Card — desktop only */}
           <div className="hidden lg:block lg:col-span-1">
             <div className="sticky top-24 space-y-6">
-              <RequestToBookForm vehicle={vehicle} selectedRate={selectedRate} />
-              <InsuranceExplainer />
+              <div className="space-y-2.5">
+                {renderRateBar()}
+                <RequestToBookForm vehicle={vehicle} selectedRate={selectedRate} />
+              </div>
             </div>
           </div>
         </main>
@@ -573,7 +569,7 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
           </div>
           <button
             type="button"
-            onClick={() => document.getElementById('booking-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            onClick={() => setBookingOpen(true)}
             className="tap-target px-6 py-3 rounded-full font-medium text-sm whitespace-nowrap active:scale-95 transition-transform shadow-lg"
             style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
           >
@@ -582,6 +578,14 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
           </button>
         </div>
       </div>
+
+      {/* Mobile booking modal — hosts the SAME rate selector + wizard as desktop,
+          presented as an app-style bottom sheet from the "Book Now" bar. */}
+      <MobileBookingSheet open={bookingOpen} onOpenChange={setBookingOpen}>
+        <div className="pb-2">
+          <RequestToBookForm vehicle={vehicle} selectedRate={selectedRate} />
+        </div>
+      </MobileBookingSheet>
     </div>
   );
 }
