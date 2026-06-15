@@ -1,5 +1,20 @@
 import Modal from './Modal';
 
+/** Inline failure banner — shown inside whichever modal is open when an
+ *  action fails, so a failed decline/cancel/etc. no longer closes silently. */
+function ActionError({ msg }) {
+  if (!msg) return null;
+  return (
+    <div
+      role="alert"
+      className="flex items-start gap-2 text-sm px-3 py-2 rounded-lg"
+      style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: 'var(--danger-color)' }}
+    >
+      {msg}
+    </div>
+  );
+}
+
 /**
  * Booking action modals: Decline, Cancel, Check-In, Check-Out, Damage, Payment.
  * Extracted from BookingDetailPage to reduce component size.
@@ -7,12 +22,13 @@ import Modal from './Modal';
 export default function BookingModals({
   modal, setModal, modalInput, setModalInput,
   conditionForm, setConditionForm, damageForm, setDamageForm,
-  paymentForm, setPaymentForm, actioning, doAction, booking,
+  paymentForm, setPaymentForm, actioning, doAction, actionError, booking,
 }) {
   return (
     <>
       <Modal open={modal === 'approve'} onClose={() => setModal(null)} title="Approve Booking">
         <div className="space-y-4">
+          <ActionError msg={actionError} />
           <p className="text-sm text-stone-600">
             You're about to approve{' '}
             <span className="font-mono text-sm font-semibold text-stone-900 bg-stone-100 px-2 py-0.5 rounded">
@@ -32,6 +48,7 @@ export default function BookingModals({
 
       <Modal open={modal === 'decline'} onClose={() => setModal(null)} title="Decline Booking">
         <div className="space-y-4">
+          <ActionError msg={actionError} />
           <div>
             <label className="label">Reason (sent to customer)</label>
             <textarea className="input resize-none" rows={3} value={modalInput} onChange={e => setModalInput(e.target.value)} placeholder="Vehicle unavailable…" />
@@ -47,6 +64,7 @@ export default function BookingModals({
 
       <Modal open={modal === 'cancel'} onClose={() => setModal(null)} title="Cancel Booking">
         <div className="space-y-4">
+          <ActionError msg={actionError} />
           <div>
             <label className="label">Reason</label>
             <textarea className="input resize-none" rows={3} value={modalInput} onChange={e => setModalInput(e.target.value)} placeholder="Customer requested cancellation…" />
@@ -62,10 +80,11 @@ export default function BookingModals({
 
       <Modal open={modal === 'pickup'} onClose={() => setModal(null)} title="Record Check-In">
         <div className="space-y-4">
+          <ActionError msg={actionError} />
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Mileage Out</label>
-              <input className="input" type="number" value={modalInput} onChange={e => setModalInput(e.target.value)} placeholder="15000" />
+              <input className="input" type="number" inputMode="numeric" value={modalInput} onChange={e => setModalInput(e.target.value)} placeholder="15000" />
             </div>
             <div>
               <label className="label">Fuel Level</label>
@@ -94,10 +113,11 @@ export default function BookingModals({
 
       <Modal open={modal === 'return'} onClose={() => setModal(null)} title="Record Check-Out">
         <div className="space-y-4">
+          <ActionError msg={actionError} />
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Mileage In</label>
-              <input className="input" type="number" value={modalInput} onChange={e => setModalInput(e.target.value)} placeholder="15450" />
+              <input className="input" type="number" inputMode="numeric" value={modalInput} onChange={e => setModalInput(e.target.value)} placeholder="15450" />
             </div>
             <div>
               <label className="label">Fuel Level</label>
@@ -126,6 +146,7 @@ export default function BookingModals({
 
       <Modal open={modal === 'damage'} onClose={() => setModal(null)} title="File Damage Report">
         <div className="space-y-4">
+          <ActionError msg={actionError} />
           <div>
             <label className="label">Description</label>
             <textarea className="input resize-none text-sm" rows={3} placeholder="Describe the damage…" value={damageForm.description} onChange={e => setDamageForm(f => ({ ...f, description: e.target.value }))} />
@@ -139,7 +160,7 @@ export default function BookingModals({
             </div>
             <div>
               <label className="label">Estimated Cost ($)</label>
-              <input className="input" type="number" step="0.01" placeholder="0.00" value={damageForm.estimated_cost} onChange={e => setDamageForm(f => ({ ...f, estimated_cost: e.target.value }))} />
+              <input className="input" type="number" inputMode="decimal" step="0.01" placeholder="0.00" value={damageForm.estimated_cost} onChange={e => setDamageForm(f => ({ ...f, estimated_cost: e.target.value }))} />
             </div>
           </div>
           <div>
@@ -158,6 +179,7 @@ export default function BookingModals({
 
       <Modal open={modal === 'payment'} onClose={() => setModal(null)} title="Record Payment">
         <div className="space-y-4">
+          <ActionError msg={actionError} />
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Type</label>
@@ -167,7 +189,7 @@ export default function BookingModals({
             </div>
             <div>
               <label className="label">Amount</label>
-              <input className="input" type="number" step="0.01" value={paymentForm.amount} onChange={e => setPaymentForm(p => ({ ...p, amount: e.target.value }))} placeholder="0.00" />
+              <input className="input" type="number" inputMode="decimal" step="0.01" value={paymentForm.amount} onChange={e => setPaymentForm(p => ({ ...p, amount: e.target.value }))} placeholder="0.00" />
             </div>
             <div>
               <label className="label">Method</label>

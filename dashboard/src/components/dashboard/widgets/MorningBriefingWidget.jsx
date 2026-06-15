@@ -20,14 +20,14 @@ function StatChip({ icon: Icon, value, label, color, onClick }) {
   const content = (
     <div
       className="flex items-center gap-2 px-3 py-2 rounded-xl transition-colors"
-      style={{ backgroundColor: `${color}14`, cursor: onClick ? 'pointer' : 'default' }}
+      style={{ backgroundColor: `${color}14`, cursor: onClick ? 'pointer' : 'default', minHeight: onClick ? 44 : undefined }}
       onClick={onClick}
       onMouseEnter={onClick ? (e) => (e.currentTarget.style.backgroundColor = `${color}22`) : undefined}
       onMouseLeave={onClick ? (e) => (e.currentTarget.style.backgroundColor = `${color}14`) : undefined}
     >
       <Icon size={13} style={{ color, flexShrink: 0 }} />
       <span className="text-base font-bold display-num" style={{ color }}>{value}</span>
-      <span className="text-xs hidden sm:inline" style={{ color: 'var(--text-tertiary)' }}>{label}</span>
+      <span className="text-xs whitespace-nowrap" style={{ color: 'var(--text-tertiary)' }}>{label}</span>
     </div>
   );
   return content;
@@ -122,7 +122,7 @@ export default function MorningBriefingWidget() {
               ${Math.round(revenueMonth).toLocaleString()}
             </p>
           </div>
-          <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--accent-color)' }} />
+          <ChevronRight size={14} className="opacity-60 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity" style={{ color: 'var(--accent-color)' }} />
         </div>
       </div>
     </motion.div>

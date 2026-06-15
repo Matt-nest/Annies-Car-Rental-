@@ -45,7 +45,30 @@ export default function WebhookFailuresPage() {
             <p className="text-sm font-medium text-[var(--danger-color)]">{failures.length} failed webhook{failures.length !== 1 ? 's' : ''}</p>
             <p className="text-xs text-[var(--danger-color)] ml-1">— GHL may not have received these notifications</p>
           </div>
-          <div className="overflow-x-auto">
+          {/* Mobile cards — a 5-column table sideways-scrolls on a phone, so
+              stack each failure into a readable card below md. */}
+          <div className="md:hidden divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
+            {failures.map(f => (
+              <div key={f.id} className="px-4 py-3 space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{f.event_type}</span>
+                  <span className="text-xs bg-[var(--danger-glow)] text-[var(--danger-color)] px-2 py-0.5 rounded-full font-medium shrink-0">
+                    {f.status_code || 'Failed'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                  <span>{formatDistanceToNow(new Date(f.created_at), { addSuffix: true })}</span>
+                  {f.booking_code && <span className="font-mono">· {f.booking_code}</span>}
+                </div>
+                {f.error_message && (
+                  <p className="text-xs break-words" style={{ color: 'var(--text-secondary)' }}>{f.error_message}</p>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border-subtle)]">

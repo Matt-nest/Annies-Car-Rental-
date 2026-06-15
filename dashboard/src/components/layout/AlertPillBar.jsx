@@ -16,7 +16,7 @@ import { useAlerts } from '../../lib/alertsContext';
  *  - Active          → green   (#22c55e, pulseGreen)        — transient
  *  - Inspections     → purple  (#a78bfa, pulsePurple)       — return under inspection
  */
-export default function AlertPillBar({ onActiveAlertClick }) {
+export default function AlertPillBar({ onActiveAlertClick, variant = 'inline' }) {
   const navigate = useNavigate();
   const { alerts } = useAlerts();
 
@@ -87,8 +87,17 @@ export default function AlertPillBar({ onActiveAlertClick }) {
   const visible = pills.filter(p => p.count > 0);
   if (visible.length === 0) return null;
 
+  // `strip` — mobile/tablet full-bleed horizontally-scrollable row. Negative
+  // margins let it bleed to the screen edges inside the page's `p-6` padding so
+  // pills can scroll past the viewport edge instead of being clipped. `inline`
+  // is the desktop header row (original look).
+  const isStrip = variant === 'strip';
+  const containerClass = isStrip
+    ? 'lg:hidden flex items-center gap-2 overflow-x-auto no-scrollbar -mx-6 px-6 py-0.5'
+    : 'flex items-center gap-2';
+
   return (
-    <div className="hidden md:flex items-center gap-2">
+    <div className={containerClass}>
       <AnimatePresence>
         {visible.map(pill => (
           <motion.button
@@ -100,13 +109,12 @@ export default function AlertPillBar({ onActiveAlertClick }) {
             transition={{ duration: 0.18 }}
             onClick={pill.onClick}
             title={pill.title}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold tabular-nums transition-transform hover:scale-[1.04] whitespace-nowrap"
+            className="tap-target inline-flex items-center gap-2 px-5 rounded-full text-sm font-semibold tabular-nums transition-transform active:scale-[0.97] md:hover:scale-[1.04] whitespace-nowrap shrink-0"
             style={{
               backgroundColor: pill.bg,
               border: `1px solid ${pill.border}`,
               color: pill.color,
               animation: pill.pulse,
-              minHeight: 40,
             }}
           >
             <pill.icon size={14} />

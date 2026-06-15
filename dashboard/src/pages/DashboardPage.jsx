@@ -1,118 +1,20 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Car, BookOpen, CheckCircle2, PenLine } from 'lucide-react';
+import { Car, BookOpen } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
-import { api } from '../api/client';
 import brand from '../config/brand';
-import { cachedQuery } from '../lib/queryCache';
 import DashboardLayoutEngine from '../components/dashboard/DashboardLayoutEngine';
 import AlertPillBar from '../components/layout/AlertPillBar';
 
 const EASE = [0.25, 1, 0.5, 1];
 
-// ─── Mobile quick-action bar ──────────────────────────────────────────────────
-function MobileQuickActions({ pendingApprovals, pendingAgreements, navigate }) {
-  return (
-    <div
-      className="lg:hidden fixed bottom-0 inset-x-0 z-30 px-4 py-3 flex gap-2.5"
-      style={{
-        backgroundColor: 'var(--header-bg)',
-        borderTop: '1px solid var(--border-subtle)',
-        backdropFilter: 'blur(24px)',
-        WebkitBackdropFilter: 'blur(24px)',
-      }}
-    >
-      {pendingApprovals > 0 && (
-        <button
-          onClick={() => {
-            const el = document.querySelector('[data-widget="pending-approvals"]');
-            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            else navigate('/bookings?status=pending_approval');
-          }}
-          className="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl transition-colors relative"
-          style={{
-            backgroundColor: 'rgba(245,158,11,0.1)',
-            color: '#F59E0B',
-            boxShadow: '0 0 12px rgba(245,158,11,0.2), inset 0 0 0 1px rgba(245,158,11,0.2)',
-            animation: 'pulseYellow 2s ease-in-out infinite',
-            minHeight: 54,
-          }}
-        >
-          <span
-            className="absolute top-1.5 right-1.5 text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center"
-            style={{ backgroundColor: '#F59E0B', color: '#fff' }}
-          >
-            {pendingApprovals}
-          </span>
-          <CheckCircle2 size={19} />
-          <span className="text-[11px] font-medium">Approve</span>
-        </button>
-      )}
-
-      {pendingAgreements > 0 && (
-        <button
-          onClick={() => {
-            const el = document.querySelector('[data-widget="pending-counter-sign"]');
-            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }}
-          className="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl transition-colors relative"
-          style={{
-            backgroundColor: 'rgba(70,95,255,0.1)',
-            color: '#465FFF',
-            boxShadow: '0 0 12px rgba(70,95,255,0.2), inset 0 0 0 1px rgba(70,95,255,0.2)',
-            animation: 'pulseBlue 2s ease-in-out infinite',
-            minHeight: 54,
-          }}
-        >
-          <span
-            className="absolute top-1.5 right-1.5 text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center"
-            style={{ backgroundColor: '#465FFF', color: '#fff' }}
-          >
-            {pendingAgreements}
-          </span>
-          <PenLine size={19} />
-          <span className="text-[11px] font-medium">Sign</span>
-        </button>
-      )}
-
-      <button
-        onClick={() => navigate('/bookings')}
-        className="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl transition-colors"
-        style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)', minHeight: 54 }}
-      >
-        <BookOpen size={19} />
-        <span className="text-[11px] font-medium">Bookings</span>
-      </button>
-
-      <button
-        onClick={() => navigate('/fleet')}
-        className="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl transition-colors"
-        style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)', minHeight: 54 }}
-      >
-        <Car size={19} />
-        <span className="text-[11px] font-medium">Fleet</span>
-      </button>
-    </div>
-  );
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
-  const [pending, setPending] = useState(0);
-  const [pendingAgreements, setPendingAgreements] = useState(0);
   const navigate = useNavigate();
 
-  // Lightweight fetch of pending count for the header button + mobile bar.
-  // Uses the same cache key as KPICardsWidget / MorningBriefingWidget — no extra network request.
-  useEffect(() => {
-    cachedQuery('overview', () => api.getOverview())
-      .then((ov) => {
-        setPending(ov?.pending_approvals || 0);
-        setPendingAgreements(ov?.pending_agreements || 0);
-      })
-      .catch(() => {});
-  }, []);
+  const openActiveModal = () =>
+    window.dispatchEvent(new CustomEvent('dashboard:open-active-modal'));
 
   const greeting = useCallback(() => {
     const h = new Date().getHours();
@@ -123,7 +25,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      <div className="p-6 lg:p-8 pb-28 lg:pb-8 space-y-6">
+      <div className="p-6 lg:p-8 space-y-6">
 
         {/* ── Page header ─────────────────────────────────────────────── */}
         <motion.div
@@ -151,11 +53,7 @@ export default function DashboardPage() {
               custom event that DashboardLayout listens for to open the
               acknowledgement modal. */}
           <div className="hidden lg:flex items-center gap-2 shrink-0 pb-1">
-            <AlertPillBar
-              onActiveAlertClick={() =>
-                window.dispatchEvent(new CustomEvent('dashboard:open-active-modal'))
-              }
-            />
+            <AlertPillBar onActiveAlertClick={openActiveModal} />
             <button onClick={() => navigate('/bookings')} className="btn btn-secondary">
               <BookOpen size={14} /> Bookings
             </button>
@@ -165,12 +63,18 @@ export default function DashboardPage() {
           </div>
         </motion.div>
 
+        {/* ── Mobile alert strip ──────────────────────────────────────────
+            On phones/tablets the header's desktop pill row is hidden, so the
+            same high-priority alerts surface here as a full-bleed, horizontally
+            scrollable strip — visible in-flow at the top of the page instead of
+            a fixed bottom bar that fought the global BottomNav for z-space.
+            Renders null (no phantom gap) when there are no active alerts. */}
+        <AlertPillBar variant="strip" onActiveAlertClick={openActiveModal} />
+
         {/* ── Widget engine ──────────────────────────────────────────── */}
         <DashboardLayoutEngine />
 
       </div>
-
-      <MobileQuickActions pendingApprovals={pending} pendingAgreements={pendingAgreements} navigate={navigate} />
     </>
   );
 }

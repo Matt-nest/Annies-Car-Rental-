@@ -65,10 +65,19 @@ function HeatCell({ day, cellSize }) {
   const [showTip, setShowTip] = useState(false);
   const [tipPos, setTipPos] = useState({ x: 0, y: 0 });
   const ref = useRef(null);
+  const hideTimer = useRef(null);
+
+  useEffect(() => () => clearTimeout(hideTimer.current), []);
 
   if (day.isFuture) {
     return <div style={{ width: cellSize, height: cellSize, borderRadius: 2, backgroundColor: 'transparent' }} />;
   }
+
+  const reveal = (el) => {
+    const rect = el.getBoundingClientRect();
+    setTipPos({ x: rect.left, y: rect.top });
+    setShowTip(true);
+  };
 
   return (
     <div
@@ -82,12 +91,15 @@ function HeatCell({ day, cellSize }) {
         position: 'relative',
         transition: 'opacity 0.15s',
       }}
-      onMouseEnter={(e) => {
-        setShowTip(true);
-        const rect = e.currentTarget.getBoundingClientRect();
-        setTipPos({ x: rect.left, y: rect.top });
-      }}
+      onMouseEnter={(e) => reveal(e.currentTarget)}
       onMouseLeave={() => setShowTip(false)}
+      // Touch devices have no hover — tap reveals the tooltip, then it
+      // auto-dismisses so it never sticks under the next tap.
+      onClick={(e) => {
+        clearTimeout(hideTimer.current);
+        reveal(e.currentTarget);
+        hideTimer.current = setTimeout(() => setShowTip(false), 2200);
+      }}
     >
       {showTip && (
         <div

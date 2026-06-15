@@ -5,6 +5,37 @@
 
 ---
 
+## 2026-06-15 — SEO Phase 3: landing-page content + internal linking (customer site)
+
+**Goal:** populate the Phase 2 pipeline with real high-intent pages and link them internally. Pure content + linking — no pipeline changes (routing/prerender/sitemap already pick up new entries automatically).
+
+- **[src/config/seoPages.ts](src/config/seoPages.ts)** — added 4 pages with distinct, hand-written copy (h1/intro/2 body paras/4 highlights/4 FAQs each), avoiding keyword cannibalization between them: `uber-lyft-rentals-port-st-lucie` (rideshare intent), `doordash-instacart-rental-car` (delivery intent), `car-rental-fort-pierce` + `car-rental-stuart-fl` (neighboring-city intent, honest "based in PSL, serve via pickup/delivery" framing). Total now 5 landing pages.
+- **[src/components/layout/Footer.tsx](src/components/layout/Footer.tsx)** — new "Rentals" column with real `<a href="/{slug}">` links to every landing page (crawlable internal links); footer grid `lg:grid-cols-3` → `lg:grid-cols-4`.
+- **[src/components/seo/LandingPage.tsx](src/components/seo/LandingPage.tsx)** — added a "More rental options" section linking to sibling pages (real anchors).
+- **[vite.config.ts](vite.config.ts)** — prerender body now emits the same sibling cross-links as crawlable `<nav><ul>` so link equity flows between landing pages even without JS.
+- **Verified:** `npm run build` clean; all 5 `dist/<slug>/index.html` emitted with correct title/H1/Service+FAQPage+BreadcrumbList schema + sibling links; sitemap now lists 8 URLs (home + 5 landing + privacy + terms). Phase 3 files have zero type errors (only the pre-existing `ErrorBoundary`/`sw.ts` tsc errors remain).
+- **Internal-linking coverage:** landing→landing cross-links are in the prerendered (crawlable) HTML; sitemap covers discovery of all pages; home→landing footer links are JS-rendered (home isn't prerendered with a body) — fine, since sitemap + cross-links already give crawlers the paths. A future enhancement could prerender the home footer links too.
+- **Blast radius:** 4 files (1 config, 2 components, vite.config.ts). No API/auth/schema/token edits.
+- **To add more pages later:** append to `seoPages.ts` — routing, prerender, sitemap, footer, and cross-links all update automatically.
+
+---
+
+## 2026-06-15 — SEO Phase 2: routing + build-time prerender for landing pages (customer site)
+
+**Goal:** make distinct, crawlable URLs possible — the foundation for high-intent location/service landing pages. Chose **extend the homemade router + build-time static prerender** over a react-router migration (keeps `AnimatePresence`, `useScrollRestoration`, and the PWA SW chunk-name globs intact) and over a headless-browser snapshot (Vercel-safe, no Chromium dep). Proven end-to-end with one seed page; Phase 3 scales by adding config entries.
+
+- **[src/config/seoPages.ts](src/config/seoPages.ts)** (NEW) — dependency-free data model (`SeoPage`: slug/serviceName/city/title/metaDescription/h1/intro/body/highlights/faqs) + `findSeoPage(pathname)`. **Must stay free of `brand.ts`/`import.meta.env`** because `vite.config.ts` imports it in a Node context. Seeded with `weekly-car-rentals-port-st-lucie`. Per-clone content file.
+- **[src/components/seo/LandingPage.tsx](src/components/seo/LandingPage.tsx)** (NEW) — renders a page from `seoPages` (Navbar + breadcrumb + hero/H1/intro + tel/sms CTAs + highlights + body + page FAQ + Footer). Reuses `Navbar`/`Footer`; `brand`/`brandPhoneDigits` for contact. Same data source as the prerender → no copy drift.
+- **[src/hooks/usePageSeo.ts](src/hooks/usePageSeo.ts)** — added `'landing'` to the page union + a `PageSeoOverride` 2nd arg (title/description/canonicalPath); landing routes pass a full override from their `SeoPage`.
+- **[src/App.tsx](src/App.tsx)** — extended the existing `pathname` router: `findSeoPage()` in the state initializer + `popstate` handler; new `landingPage` state; lazy `LandingPage` route branch (keyed by slug); `usePageSeo(currentPage, landingOverride)`. No react-router. `<ErrorBoundary>` JSX error in tsc is **pre-existing** (broken `ErrorBoundary.tsx` types), not from this change.
+- **[vite.config.ts](vite.config.ts)** — (a) sitemap now includes every `seoPages` slug (priority 0.9). (b) New `writeBundle` hook prerenders each landing page to `dist/<slug>/index.html`: clones the **written** `index.html` (so it carries Vite's hashed `<script>/<link>` — the SPA loads), swaps `<title>`/description/canonical + OG/Twitter, **strips the home FAQPage graph** (keeps AutoRental) and appends per-page **Service + FAQPage + BreadcrumbList** JSON-LD, and injects the page copy as crawlable HTML into `#root` (React's `createRoot` replaces it on mount — no hydration mismatch). Prerender runs in `writeBundle` (not `generateBundle`) because `index.html` isn't reliably in the `generateBundle` bundle in this Vite version. All replacements use function form / `escAttr` to survive `$` and quotes.
+- **Verified:** `npm run build` clean; `dist/weekly-car-rentals-port-st-lucie/index.html` has correct title/desc/canonical, the hashed app script, the H1 + body in `#root`, and Service/FAQPage/BreadcrumbList schema; home `index.html` untouched (9-question FAQPage + AutoRental intact); sitemap lists the slug. `vite preview` serves the file at `/<slug>/` and `/<slug>/index.html` (HTTP 200, correct title).
+- **Vercel serving:** clean URL `/<slug>` resolves to `dist/<slug>/index.html` via Vercel's filesystem-first precedence (same precedence the home route already depends on); the catch-all rewrite in `vercel.json` only fires for paths with no matching file. **`vercel.json` intentionally NOT modified** (production-critical). Note: `vite preview`'s SPA fallback serves the home shell for the no-trailing-slash path — a local-preview quirk only, not Vercel behavior.
+- **Blast radius:** 5 files (2 new components/config, 1 hook, App.tsx, vite.config.ts). No API/auth/schema/token edits; robots/PWA untouched.
+- **Next (Phase 3):** add the remaining target pages to `seoPages.ts` (rideshare / Uber-Lyft / DoorDash / Fort Pierce / Stuart) + footer/nav internal links to them. Pipeline already handles routing + prerender + sitemap automatically.
+
+---
+
 ## 2026-06-15 — SEO Phase 4: image/CWV optimization (customer site)
 
 **Goal:** kill the multi-MB homepage images flagged in the audit (LCP/data on mobile). Originals are **kept** (gig-logo PNGs are also used by `public/drive.html` + `ads/index.html`); React components serve optimized `.webp` via `<picture>` with the original as fallback. Template-safe — committed `.webp` outputs mean clones inherit them with no build-time `cwebp` dependency.
@@ -32,6 +63,44 @@
 - **Build:** `npm run build` clean.
 - **Blast radius:** 5 files (approved). No edits to `api/client.js`, `auth/`, Supabase schema, or notification system. robots.txt/sitemap.xml generation untouched.
 - **Next:** Phase 4 (image/CWV optimization, parallel-safe) → Phase 2 (extend homemade router + post-build prerender) → Phase 3 (template-driven location/service landing pages + sitemap wiring + internal links).
+
+---
+
+## 2026-06-15 — Nav polish: pill contrast + full-screen mobile drawer
+
+Follow-up to the floating-pill work, per review feedback.
+
+- **[dashboard/src/components/layout/BottomNav.jsx](dashboard/src/components/layout/BottomNav.jsx)** — bumped inactive item contrast: icons/labels `--text-tertiary` → `--text-secondary`, icon `22→23`px, stroke `1.8→2`, label `10→11`px. Text/icons now read clearly against the frosted glass.
+- **[dashboard/src/components/layout/Sidebar.jsx](dashboard/src/components/layout/Sidebar.jsx)** — the "More" drawer was a janky 260px partial panel: `mt-16 + h-screen` overflowed the viewport, it had **no `transform` transition** (snapped open), and `isWide` was false on mobile so it showed **icon-only with dead space**. Now a proper full-screen slide-in: mobile width `100%` (via `<lg` media query), `top-0 h-dvh` (no overflow), `z-[100000]` (covers header; X button already present to close), `transform` added to the transition (smooth 0.4s slide), and `isWide = isMobile || pinned || hoverExpanded` (new `useMediaQuery('(max-width:1023px)')`) so the mobile drawer always shows full logo + labels. Desktop rail (260/72px pinned/hover) unchanged.
+- **Build:** clean.
+
+---
+
+## 2026-06-15 — BottomNav → floating glassmorphic pill (Instagram-style)
+
+**Goal:** replace the bottom-attached nav bar with an Apple/Instagram-style floating frosted pill — scroll-reactive, theme-tuned glass. Guided by ui-ux-pro-max (VisionOS/Spatial-UI glass spec) + reduced-motion/transform-perf UX rules.
+
+- **[dashboard/src/components/layout/BottomNav.jsx](dashboard/src/components/layout/BottomNav.jsx)** — was `fixed bottom-0 inset-x-0` full-width bar w/ top border. Now an outer rail (`fixed inset-x-0 bottom-0`, 12px gutters, `pointer-events-none`, float gap = `max(safe-area-inset-bottom, 10px)`) holding a `pointer-events-auto w-full rounded-[28px] overflow-hidden` pill. Glass: `backdrop-filter: blur(28px) saturate(180%)`, floating shadow + inset top highlight. **Theme-tuned tint** (per request): light = `rgba(232,236,244,0.86)` (more opaque/darker so it reads over bright content), dark = `rgba(18,26,44,0.46)` (more transparent → content glows through). New `compact` prop scales the pill to `0.9` (origin-bottom, 300ms) when scrolling down, back to `1` scrolling up. Active-tab `layoutId` pill + `active:scale` interaction kept.
+- **[dashboard/src/components/layout/DashboardLayout.jsx](dashboard/src/components/layout/DashboardLayout.jsx)** — added rAF-throttled scroll-direction detection on `mainScrollRef` → `navCompact` state passed to `BottomNav` (full size near top / on scroll-up; compact on scroll-down, 6px delta hysteresis). Bumped `<main>` bottom padding `64px → 84px` to clear the floating pill's larger footprint.
+- **Build:** clean. **Note:** GPU layer comes from the persistent `scale` transform + `will-change` (removed an invalid `translateZ(0)` that was inside `backdrop-filter`).
+
+---
+
+## 2026-06-15 — Investigation: notification-badge "dedupe" — WONTFIX (not a bug)
+
+Traced the two count sources the UX audit flagged as redundant/desyncing. **They are intentionally different and should not be merged:**
+- **Bell badge** — `NotificationDropdown` → `api.getUnreadCount()` against the **notifications inbox** (event log: new_booking, payment_received, status_change, damage_report, …). Cleared by *reading* / "mark all read." Answers "what's new since I looked?"
+- **Pills + BottomNav badges** — `AlertsContext` → `api.getOverview()` live **work-to-do counts** (pending_approvals, pickups_today_count, pending_inspections, …), derived from booking *state*. Clear when the work is *done*. Answers "what needs action now?"
+
+The audit's "dismiss in bell, nav badge persists" example is correct behavior (reading a new_booking notification ≠ approving the booking). Deduping would conflate an inbox-read model with a live-work model and break one. **No code change.** This closes the last open item from the mobile-UX audit.
+
+---
+
+## 2026-06-15 — Tier-3: mobile keyboards + WebhookFailures mobile cards
+
+- **[dashboard/src/components/shared/BookingModals.jsx](dashboard/src/components/shared/BookingModals.jsx)** — added `inputMode="numeric"` to the two mileage inputs and `inputMode="decimal"` to the damage estimated-cost + payment amount inputs, so phones surface the right keypad (Android in particular). `type="number"` kept.
+- **[dashboard/src/pages/WebhookFailuresPage.jsx](dashboard/src/pages/WebhookFailuresPage.jsx)** — the failures list is a hand-rolled 5-column `<table>` that sideways-scrolled on phones (it never used the shared `DataTable`, contrary to the audit note). Added a `md:hidden` card list (event + status pill, relative time + booking code, wrapped error message) and gated the table to `hidden md:block`.
+- **Build:** clean.
 
 ---
 

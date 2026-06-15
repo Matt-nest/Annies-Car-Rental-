@@ -10,20 +10,42 @@ function SignaturePad({ canvasRef, onDrawn }) {
   const drawing = useRef(false);
   const lastPos = useRef(null);
 
+  // Size the backing store to the element's CSS size × devicePixelRatio so the
+  // signature stays crisp on retina and the pad fills its container at any
+  // width (replaces the old fixed 520×160 store that rendered blurry/small on
+  // phones). Coordinate mapping below divides by the same ratio, so pointer
+  // positions stay accurate regardless of display size.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    const resize = () => {
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      if (!w || !h) return;
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+    };
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(canvas);
+    return () => ro.disconnect();
+  }, [canvasRef]);
+
   function getPos(e, canvas) {
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
-    if (e.touches) {
-      return {
-        x: (e.touches[0].clientX - rect.left) * scaleX,
-        y: (e.touches[0].clientY - rect.top) * scaleY,
-      };
-    }
+    const src = e.touches ? e.touches[0] : e;
     return {
-      x: (e.clientX - rect.left) * scaleX,
-      y: (e.clientY - rect.top) * scaleY,
+      x: (src.clientX - rect.left) * scaleX,
+      y: (src.clientY - rect.top) * scaleY,
     };
+  }
+
+  // Stroke width in backing-store px = ~2.5 CSS px regardless of DPR.
+  function strokeWidth(canvas) {
+    return 2.5 * (canvas.width / canvas.clientWidth || 1);
   }
 
   function startDraw(e) {
@@ -35,7 +57,7 @@ function SignaturePad({ canvasRef, onDrawn }) {
     lastPos.current = pos;
     const ctx = canvas.getContext('2d');
     ctx.beginPath();
-    ctx.arc(pos.x, pos.y, 1, 0, Math.PI * 2);
+    ctx.arc(pos.x, pos.y, strokeWidth(canvas) / 2, 0, Math.PI * 2);
     ctx.fillStyle = '#1c1917';
     ctx.fill();
     onDrawn?.();
@@ -52,7 +74,7 @@ function SignaturePad({ canvasRef, onDrawn }) {
     ctx.moveTo(lastPos.current.x, lastPos.current.y);
     ctx.lineTo(pos.x, pos.y);
     ctx.strokeStyle = '#1c1917';
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = strokeWidth(canvas);
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.stroke();
@@ -67,8 +89,7 @@ function SignaturePad({ canvasRef, onDrawn }) {
   return (
     <canvas
       ref={canvasRef}
-      width={520}
-      height={160}
+      style={{ height: 180 }}
       onMouseDown={startDraw}
       onMouseMove={draw}
       onMouseUp={stopDraw}
@@ -87,6 +108,7 @@ export default function AgreementSection({ bookingId }) {
   const [showModal, setShowModal] = useState(false);
   const [hasDrawn, setHasDrawn] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [signError, setSignError] = useState(null);
   const [downloading, setDownloading] = useState(false);
   const canvasRef = useRef(null);
   const { refresh: refreshAlerts } = useAlerts();
@@ -112,6 +134,7 @@ export default function AgreementSection({ bookingId }) {
 
   function closeModal() {
     setShowModal(false);
+    setSignError(null);
     clearCanvas();
   }
 
@@ -119,12 +142,15 @@ export default function AgreementSection({ bookingId }) {
     const canvas = canvasRef.current;
     if (!canvas || !hasDrawn) return;
     setSubmitting(true);
+    setSignError(null);
     try {
       await api.counterSignAgreement(bookingId, canvas.toDataURL('image/png'));
       closeModal();
       await Promise.all([load(), refreshAlerts()]);
     } catch (e) {
       console.error('Counter-sign failed:', e);
+      // Surface the failure instead of leaving the modal silently open.
+      setSignError(e?.data?.error || 'Could not save your signature. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -296,29 +322,37 @@ export default function AgreementSection({ bookingId }) {
             Draw your signature below to counter-sign and fully execute this rental agreement.
           </p>
 
-          <div className="relative">
-            <SignaturePad canvasRef={canvasRef} onDrawn={() => setHasDrawn(true)} />
+          <SignaturePad canvasRef={canvasRef} onDrawn={() => setHasDrawn(true)} />
+
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-[var(--text-tertiary)]">
+              {hasDrawn ? 'Looks good? Confirm below.' : 'Draw your signature in the box above'}
+            </p>
             <button
               onClick={clearCanvas}
-              title="Clear signature"
-              className="absolute top-2 right-2 p-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:bg-[var(--bg-secondary)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
+              disabled={!hasDrawn}
+              className="inline-flex items-center gap-1.5 px-3 rounded-lg text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] transition-colors disabled:opacity-40"
+              style={{ minHeight: 44 }}
             >
-              <RotateCcw size={14} />
+              <RotateCcw size={14} /> Clear
             </button>
           </div>
 
-          {!hasDrawn && (
-            <p className="text-xs text-[var(--text-tertiary)] text-center">Draw your signature in the box above</p>
+          {signError && (
+            <p className="text-xs text-center" style={{ color: 'var(--danger-color)' }} role="alert">
+              {signError}
+            </p>
           )}
 
           <div className="flex gap-3 pt-1">
-            <button onClick={closeModal} className="btn-secondary flex-1 justify-center">
+            <button onClick={closeModal} className="btn-secondary flex-1 justify-center" style={{ minHeight: 44 }}>
               Cancel
             </button>
             <button
               onClick={handleCounterSign}
               disabled={!hasDrawn || submitting}
               className="btn-primary flex-1 justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ minHeight: 44 }}
             >
               {submitting ? 'Signing…' : 'Confirm Counter-Sign'}
             </button>

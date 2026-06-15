@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
 import { haptic } from '../../lib/haptic';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 import brand from '../../config/brand';
 
 const MAIN_NAV = [
@@ -165,8 +166,12 @@ export default function Sidebar({ open, onClose, alerts = {}, pinned }) {
   const [hoverExpanded, setHoverExpanded] = useState(false);
   const hoverTimeout = useRef(null);
 
+  // Below lg the sidebar is a full-screen mobile drawer — always expanded
+  // (full logo + labels), never the collapsed 72px desktop rail.
+  const isMobile = useMediaQuery('(max-width: 1023px)');
+
   // Effective visual width state
-  const isWide = pinned || hoverExpanded;
+  const isWide = isMobile || pinned || hoverExpanded;
 
   function handleMouseEnter() {
     if (pinned) return;
@@ -195,23 +200,36 @@ export default function Sidebar({ open, onClose, alerts = {}, pinned }) {
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         className={`
-          fixed mt-16 flex flex-col lg:mt-0 top-0 left-0 h-screen
-          border-r z-[99999] lg:z-[999]
+          fixed flex flex-col top-0 left-0 h-dvh
+          border-r z-[100000] lg:z-[999] lg:mt-0
           ${open ? 'translate-x-0' : '-translate-x-full'}
           lg:translate-x-0 lg:flex lg:relative lg:shrink-0
         `}
         style={{
           backgroundColor: 'var(--sidebar-bg)',
           borderColor: 'var(--sidebar-border)',
-          // Mobile always 260px; desktop controlled by media query below
+          // Mobile fills the screen (media query below); desktop rail width
+          // is also driven by the media query. Base value is the desktop-wide
+          // default for the brief pre-CSS paint.
           width: 260,
           paddingLeft: 20,
           paddingRight: 20,
-          transition: 'width 0.4s cubic-bezier(0.22, 1, 0.36, 1), padding 0.4s cubic-bezier(0.22, 1, 0.36, 1)',
+          // Includes `transform` so the mobile drawer SLIDES in/out smoothly
+          // instead of snapping (it previously had no transform transition).
+          transition: 'transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), width 0.4s cubic-bezier(0.22, 1, 0.36, 1), padding 0.4s cubic-bezier(0.22, 1, 0.36, 1)',
         }}
       >
-        {/* Desktop width override via CSS — changes with pinned/hover state */}
+        {/* Width override via CSS:
+            - mobile (<lg): full-screen drawer (100% width)
+            - desktop (≥lg): 260/72px rail per pinned/hover state */}
         <style>{`
+          @media (max-width: 1023px) {
+            aside[data-sidebar-rail] {
+              width: 100% !important;
+              padding-left: 20px !important;
+              padding-right: 20px !important;
+            }
+          }
           @media (min-width: 1024px) {
             aside[data-sidebar-rail] {
               width: ${isWide ? 260 : 72}px !important;
