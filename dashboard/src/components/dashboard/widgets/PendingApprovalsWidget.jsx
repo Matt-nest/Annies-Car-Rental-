@@ -242,24 +242,22 @@ function BookingCard({ booking, onApprove, onDeclineClick, approving }) {
               </span>
             )}
           </div>
-          {/* Subtle phone-only hint that swipe is available. Hidden at md+
-              since desktop users will see the explicit buttons. */}
-          <p className="md:hidden text-[10px] mt-1 opacity-50" style={{ color: 'var(--text-tertiary)' }}>
-            Swipe right to approve · left to decline
-          </p>
         </div>
 
-        {/* Actions */}
-        <div className="flex gap-2 shrink-0 sm:ml-2">
+        {/* Actions — tap buttons are the reliable primary path on every device
+            (full-width + 44px on mobile). Swipe-to-act stays available as a
+            silent power gesture, but we don't advertise it so the two paths
+            don't compete for the user's attention. */}
+        <div className="flex gap-2 sm:shrink-0 sm:ml-2">
           <button
             onClick={() => onDeclineClick(booking)}
             disabled={approving === booking.id}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all"
             style={{
               backgroundColor: 'rgba(239,68,68,0.08)',
               border: '1px solid rgba(239,68,68,0.2)',
               color: '#ef4444',
-              minHeight: 36,
+              minHeight: 44,
             }}
             onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.14)')}
             onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.08)')}
@@ -269,12 +267,12 @@ function BookingCard({ booking, onApprove, onDeclineClick, approving }) {
           <button
             onClick={() => onApprove(booking.id)}
             disabled={approving === booking.id}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all"
             style={{
               backgroundColor: approving === booking.id ? 'rgba(34,197,94,0.05)' : 'rgba(34,197,94,0.1)',
               border: '1px solid rgba(34,197,94,0.25)',
               color: '#22c55e',
-              minHeight: 36,
+              minHeight: 44,
               opacity: approving === booking.id ? 0.6 : 1,
             }}
             onMouseEnter={(e) => { if (approving !== booking.id) e.currentTarget.style.backgroundColor = 'rgba(34,197,94,0.16)'; }}

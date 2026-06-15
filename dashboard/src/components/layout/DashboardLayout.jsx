@@ -34,6 +34,32 @@ function DashboardLayoutInner() {
   const mainScrollRef = useRef(null);
   useScrollRestoration(mainScrollRef);
 
+  // Scroll-reactive bottom nav: shrink the floating pill when scrolling DOWN
+  // (reading mode), restore at full size when scrolling UP or near the top —
+  // the iOS/Instagram floating-bar behavior. rAF-throttled; only flips state
+  // past a small delta so micro-scrolls don't jitter it.
+  const [navCompact, setNavCompact] = useState(false);
+  useEffect(() => {
+    const el = mainScrollRef.current;
+    if (!el) return;
+    let lastY = el.scrollTop;
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        const y = el.scrollTop;
+        if (y < 24) setNavCompact(false);                 // always full near top
+        else if (y - lastY > 6) setNavCompact(true);      // scrolling down
+        else if (lastY - y > 6) setNavCompact(false);     // scrolling up
+        lastY = y;
+        ticking = false;
+      });
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
+
   /* Stack-style page transitions: PUSH slides in from right (+x), POP slides
      in from left (-x). Spring physics so the motion has natural overshoot
      and damping instead of a flat ease-out. Subtle distance (24 px) keeps
@@ -294,7 +320,7 @@ function DashboardLayoutInner() {
               Routes are keyed on location.pathname so AnimatePresence runs the
               exit→enter on every navigation. Use route-key (split on /:id) so
               detail pages don't re-mount when the row id changes during back-nav. */}
-          <main ref={mainScrollRef} className="flex-1 overflow-y-auto glass-scroll pb-[calc(64px+env(safe-area-inset-bottom))] lg:pb-0">
+          <main ref={mainScrollRef} className="flex-1 overflow-y-auto glass-scroll pb-[calc(84px+env(safe-area-inset-bottom))] lg:pb-0">
             <AnimatePresence mode="wait" initial={false} custom={navType}>
               <motion.div
                 key={location.pathname.split('/').slice(0, 2).join('/') || '/'}
@@ -327,7 +353,7 @@ function DashboardLayoutInner() {
             backdrop only covers up to the BottomNav's top edge). The drawer
             IS the nav at that moment — no need for a second nav peeking
             through underneath. */}
-        {!sidebarOpen && <BottomNav onOpenMore={() => setSidebarOpen(true)} />}
+        {!sidebarOpen && <BottomNav onOpenMore={() => setSidebarOpen(true)} compact={navCompact} />}
 
         {/* Active-rental acknowledgement modal — fires when a booking flips to
             active. Pure awareness signal — no required action. Dismiss → cash rain. */}

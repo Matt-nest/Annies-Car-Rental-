@@ -217,6 +217,7 @@ export default function BookingDetailPage() {
   const [modal, setModal] = useState(null);
   const [modalInput, setModalInput] = useState('');
   const [actioning, setActioning] = useState(false);
+  const [actionError, setActionError] = useState(null);
   const [paymentForm, setPaymentForm] = useState({ payment_type: 'rental', amount: '', method: 'cash', reference_id: '', notes: '' });
   const [conditionForm, setConditionForm] = useState({ fuel: 'full', notes: '', photoUrl: '' });
   const [damageForm, setDamageForm] = useState({ description: '', severity: 'minor', estimated_cost: '', photo_url: '' });
@@ -250,8 +251,14 @@ export default function BookingDetailPage() {
 
   useEffect(() => { load(); }, [id]);
 
+  // Clear any stale action error whenever the open modal changes (opening a
+  // different action or closing). A failure leaves `modal` unchanged, so this
+  // never wipes the error the user needs to see.
+  useEffect(() => { setActionError(null); }, [modal]);
+
   async function doAction(action) {
     setActioning(true);
+    setActionError(null);
     try {
       if (action === 'approve')  await api.approveBooking(id);
       if (action === 'decline')  await api.declineBooking(id, modalInput);
@@ -274,12 +281,19 @@ export default function BookingDetailPage() {
       // Reload booking + dashboard alert badges in parallel so the top-bar
       // pills, sidebar badges, and detail page all reflect the new state.
       await Promise.all([load(), refreshAlerts()]);
-    } catch (e) { console.error(e); }
-    setModal(null);
-    setModalInput('');
-    setConditionForm({ fuel: 'full', notes: '', photoUrl: '' });
-    setDamageForm({ description: '', severity: 'minor', estimated_cost: '', photo_url: '' });
-    setActioning(false);
+      // Success — close the modal and reset its forms.
+      setModal(null);
+      setModalInput('');
+      setConditionForm({ fuel: 'full', notes: '', photoUrl: '' });
+      setDamageForm({ description: '', severity: 'minor', estimated_cost: '', photo_url: '' });
+    } catch (e) {
+      // Keep the modal open and tell the user — previously this swallowed the
+      // error and closed the modal as if the action had succeeded.
+      console.error(e);
+      setActionError(e?.data?.error || 'That action could not be completed. Please try again.');
+    } finally {
+      setActioning(false);
+    }
   }
 
   async function handleInsuranceAction(action) {
@@ -547,7 +561,7 @@ export default function BookingDetailPage() {
         conditionForm={conditionForm} setConditionForm={setConditionForm}
         damageForm={damageForm} setDamageForm={setDamageForm}
         paymentForm={paymentForm} setPaymentForm={setPaymentForm}
-        actioning={actioning} doAction={doAction}
+        actioning={actioning} doAction={doAction} actionError={actionError}
       />
 
       {/* Sprint 8b: phone-only sticky bottom CTA — single primary action per

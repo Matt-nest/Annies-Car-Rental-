@@ -4,7 +4,7 @@ import {
   LayoutDashboard,
   BookOpen,
   Car,
-  Users,
+  ClipboardCheck,
   Menu,
 } from 'lucide-react';
 import { useAlerts } from '../../lib/alertsContext';
@@ -36,8 +36,8 @@ import { SPRING_NATURAL } from '../../lib/animation';
 const PRIMARY_ITEMS = [
   { to: '/',          label: 'Home',      icon: LayoutDashboard, end: true },
   { to: '/bookings',  label: 'Bookings',  icon: BookOpen, alertKey: 'pending_approvals' },
+  { to: '/check-ins', label: 'Check-Ins', icon: ClipboardCheck, alertKey: 'pickups_today_count' },
   { to: '/fleet',     label: 'Fleet',     icon: Car },
-  { to: '/customers', label: 'Clients',   icon: Users },
 ];
 
 function BottomNavItem({ to, label, icon: Icon, end, alertKey, alerts }) {
@@ -72,9 +72,9 @@ function BottomNavItem({ to, label, icon: Icon, end, alertKey, alerts }) {
           )}
           <span className="relative">
             <Icon
-              size={22}
-              strokeWidth={isActive ? 2.2 : 1.8}
-              style={{ color: isActive ? 'var(--sidebar-active-icon)' : 'var(--text-tertiary)' }}
+              size={23}
+              strokeWidth={isActive ? 2.4 : 2}
+              style={{ color: isActive ? 'var(--sidebar-active-icon)' : 'var(--text-secondary)' }}
             />
             {count > 0 && (
               <span
@@ -86,8 +86,8 @@ function BottomNavItem({ to, label, icon: Icon, end, alertKey, alerts }) {
             )}
           </span>
           <span
-            className="text-[10px] font-semibold tracking-wide"
-            style={{ color: isActive ? 'var(--sidebar-active-text)' : 'var(--text-tertiary)' }}
+            className="text-[11px] font-semibold tracking-wide"
+            style={{ color: isActive ? 'var(--sidebar-active-text)' : 'var(--text-secondary)' }}
           >
             {label}
           </span>
@@ -97,30 +97,46 @@ function BottomNavItem({ to, label, icon: Icon, end, alertKey, alerts }) {
   );
 }
 
-export default function BottomNav({ onOpenMore }) {
+export default function BottomNav({ onOpenMore, compact = false }) {
   const { alerts } = useAlerts();
 
   return (
-    <nav
-      aria-label="Primary navigation"
-      className="lg:hidden fixed bottom-0 inset-x-0 z-[100] safe-bottom"
+    // Outer rail: full-width, fixed to the bottom, with side gutters + a float
+    // gap above the home indicator. pointer-events-none so taps pass through the
+    // gutters to content; the pill re-enables them.
+    <div
+      aria-hidden={false}
+      className="lg:hidden fixed inset-x-0 bottom-0 z-[100] flex justify-center pointer-events-none"
       style={{
-        backgroundColor: 'var(--header-bg)',
-        borderTop: '1px solid var(--border-subtle)',
-        backdropFilter: 'blur(20px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-        /* Force a dedicated GPU compositor layer. Fixes the intermittent
-           "BottomNav floats up on launch" bug on iPhone — iOS Safari's
-           URL-bar collapse/expand animation can momentarily desync a
-           fixed-bottom element from the visual viewport, especially when
-           the element also has `backdrop-filter` (which causes per-frame
-           composite work). `translateZ(0)` pins the nav to its own GPU
-           layer that doesn't lag during URL-bar transitions. */
-        transform: 'translateZ(0)',
-        willChange: 'transform',
+        paddingLeft: 12,
+        paddingRight: 12,
+        paddingBottom: 'max(env(safe-area-inset-bottom), 10px)',
       }}
     >
-      <div className="flex items-stretch">
+      <nav
+        aria-label="Primary navigation"
+        className={[
+          // w-full (no max cap) → the pill fills the page width minus the 12px
+          // gutters on every phone/tablet size.
+          'pointer-events-auto w-full flex items-stretch rounded-[28px] overflow-hidden',
+          'origin-bottom transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]',
+          // Glass tint: LIGHT mode is more opaque / darker so it reads clearly
+          // over bright content; DARK mode is more transparent so content
+          // glows through (VisionOS frosted look).
+          'bg-[rgba(232,236,244,0.86)] dark:bg-[rgba(18,26,44,0.46)]',
+          'border border-black/[0.06] dark:border-white/10',
+          compact ? 'scale-[0.9]' : 'scale-100',
+        ].join(' ')}
+        style={{
+          // Stronger blur + saturation = premium frosted glass. The persistent
+          // `scale` transform + will-change pins it to its own GPU compositor
+          // layer (fixes the iOS URL-bar float-up jitter) without translateZ.
+          backdropFilter: 'blur(28px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(28px) saturate(180%)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.12)',
+          willChange: 'transform',
+        }}
+      >
         {PRIMARY_ITEMS.map((item) => (
           <BottomNavItem key={item.to} {...item} alerts={alerts} />
         ))}
@@ -128,13 +144,13 @@ export default function BottomNav({ onOpenMore }) {
           type="button"
           onClick={() => { haptic('tap'); onOpenMore(); }}
           aria-label="Open full navigation menu"
-          className="tap-target flex-1 flex flex-col items-center justify-center gap-1 py-2 transition-[color,transform] duration-150 active:scale-[0.92]"
-          style={{ color: 'var(--text-tertiary)' }}
+          className="tap-target flex-1 flex flex-col items-center justify-center gap-1 py-2.5 transition-[color,transform] duration-150 active:scale-[0.88]"
+          style={{ color: 'var(--text-secondary)' }}
         >
-          <Menu size={22} strokeWidth={1.8} style={{ color: 'var(--text-tertiary)' }} />
-          <span className="text-[10px] font-semibold tracking-wide">More</span>
+          <Menu size={23} strokeWidth={2} style={{ color: 'var(--text-secondary)' }} />
+          <span className="text-[11px] font-semibold tracking-wide">More</span>
         </button>
-      </div>
-    </nav>
+      </nav>
+    </div>
   );
 }

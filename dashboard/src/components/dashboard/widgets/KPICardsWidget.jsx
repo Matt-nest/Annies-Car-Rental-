@@ -76,10 +76,9 @@ function KpiCard({ label, rawValue, icon: Icon, sub, onClick, alert, prefix = ''
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={onClick ? (e) => e.key === 'Enter' && onClick() : undefined}
-      className="liquid-glass relative p-7 group"
+      className="liquid-glass relative p-5 sm:p-6 lg:p-7 group min-h-[140px] sm:min-h-[160px]"
       style={{
         cursor: onClick ? 'pointer' : 'default',
-        minHeight: 160,
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
@@ -155,10 +154,10 @@ export default function KPICardsWidget() {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="rounded-2xl p-6 animate-pulse"
-            style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)', minHeight: 160 }}>
+          <div key={i} className="rounded-2xl p-5 sm:p-6 animate-pulse min-h-[140px] sm:min-h-[160px]"
+            style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
             <div className="w-10 h-10 rounded-xl mb-4 skeleton" />
             <div className="h-3 w-20 rounded mb-2 skeleton" />
             <div className="h-7 w-24 rounded skeleton" />
@@ -186,7 +185,7 @@ export default function KPICardsWidget() {
         variants={stagger}
         initial="hidden"
         animate="show"
-        className="grid grid-cols-2 lg:grid-cols-4 gap-6"
+        className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6"
       >
         <KpiCard
           label="Active Rentals"
@@ -230,7 +229,7 @@ export default function KPICardsWidget() {
       </motion.div>
 
       {/* Performance row */}
-      <div className="flex flex-col sm:flex-row gap-6 mt-5">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 mt-5">
         <div className="flex-1 liquid-glass px-5 py-4 flex items-center gap-4">
           <Star size={15} style={{ color: 'var(--accent-color)', flexShrink: 0 }} />
           <div className="relative z-10">
