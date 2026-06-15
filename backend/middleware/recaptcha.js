@@ -9,11 +9,13 @@ export async function verifyRecaptcha(req, res, next) {
   const secretKey = process.env.RECAPTCHA_SECRET_KEY;
 
   if (!secretKey) {
-    if (process.env.NODE_ENV === 'production') {
-      console.error('[reCAPTCHA] RECAPTCHA_SECRET_KEY not set in production — blocking request');
-      return res.status(500).json({ error: 'CAPTCHA configuration error' });
-    }
-    console.warn('[reCAPTCHA] RECAPTCHA_SECRET_KEY not set — skipping verification (dev mode)');
+    // reCAPTCHA is treated as optional hardening, not a hard dependency. When the
+    // secret isn't configured we skip verification rather than blocking the request
+    // (a missing key previously 500'd every public booking in production). The route
+    // still has its own per-IP rate limiter as an abuse backstop. Configure
+    // RECAPTCHA_SECRET_KEY (backend) + VITE_RECAPTCHA_SITE_KEY (frontend build) to
+    // re-enable enforcement.
+    console.warn('[reCAPTCHA] RECAPTCHA_SECRET_KEY not set — skipping verification');
     return next();
   }
 

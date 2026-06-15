@@ -5,6 +5,30 @@
 
 ---
 
+## 2026-06-15 — Admin new-booking redesign · Phase A (backend pre-fill plumbing)
+
+**Goal:** rebuild the admin dashboard "New Booking" modal to match the customer booking flow (same `RangeCalendar`, visual vehicle cards, built-in ID scanner, intuitive stepper) AND let the admin pre-fill agreement details so the customer's continue-link auto-skips the steps the admin already completed. Per-step optional ("ask the admin; else the customer fills it"). Scope: admin modal + the customer continue-link only — **the public marketing site is untouched**. Build on Annie's, then mirror to JD Coastal. This entry is **Phase A: backend only.**
+
+- **NEW [023_admin_booking_prefill.sql](backend/migrations/023_admin_booking_prefill.sql)** — `ALTER TABLE bookings ADD COLUMN IF NOT EXISTS admin_prefill JSONB` (additive, nullable, idempotent, no backfill). Holds admin-captured `{ address, dob, license, license_photo_paths, signature, steps[] }`. **Deliberately not written into `rental_agreements`** — that table is one-row-per-booking and `POST /agreements/:code/sign` treats any existing row as "already signed", so a draft row there would silently no-op the customer's signature. Keeping pre-fill on the booking preserves that invariant.
+- **[bookings.js](backend/routes/bookings.js)** — `POST /bookings/admin-create` now destructures optional `agreement_prefill` out of the body, validates/creates the booking exactly as before (`createBooking` + `validateBookingPayload` untouched), then persists `admin_prefill` via a separate `bookings` update when `agreement_prefill.steps[]` is non-empty. Save failure logs but never fails the booking.
+- **[agreements.js](backend/routes/agreements.js)** — `GET /agreements/:bookingCode` overlays `booking.admin_prefill` onto `customerDefaults` (admin value → customer record → empty) and adds three response fields: `prefilledSteps` (array; drives which substeps the customer link skips), `prefilledSignature`, `prefilledLicensePhotos`. Fully backward-compatible: absent column → `null` → empty `prefilledSteps` → identical to today's behavior.
+- **Both edited routes pass `node --check`.**
+- **⚠️ Migration NOT yet applied.** The connected Supabase MCP points at **JD Coastal** (`asdhnzdjpweyntxmutum`), not Annie's (`yrerxvuyeglrypeufjpy`) — so it was not auto-applied. Annie's `023` must be run against `yrerxvuyeglrypeufjpy`. Nothing breaks until then (code degrades gracefully); Phase B's modal requires the column before it can store pre-fill.
+- **Next:** Phase B (admin modal redesign + scanner port: `@zxing/browser`, `@zxing/library`, `aamva`/`compressImage`/`scanLicenseBarcode` utils, new `bookingApi.js` sibling to avoid touching the protected `api/client.js`), then Phase C (continue-link skip logic in `ConfirmBooking.tsx` using `prefilledSteps`), then mirror A–C to JD Coastal.
+
+---
+
+## 2026-06-15 — Fix: public booking submission 500'd on missing reCAPTCHA secret
+
+**Symptom:** Customer site request-to-book form showed *"Something went wrong submitting your request…"* on every submit — the entire booking funnel was dead end-to-end (no booking codes created, so nothing downstream could run).
+
+**Root cause:** `POST /api/v1/bookings` returned `HTTP 500 {"error":"CAPTCHA configuration error"}`. The `verifyRecaptcha` middleware hard-failed in production when `RECAPTCHA_SECRET_KEY` was unset on the backend (the `dashboard` Vercel project). reCAPTCHA is also unconfigured on the customer-site build (`VITE_RECAPTCHA_SITE_KEY` empty → empty tokens), so enforcement was never actually working. Verified live via curl against admin.dashboard.anniescarrental.com.
+
+- **[recaptcha.js](backend/middleware/recaptcha.js)** — when `RECAPTCHA_SECRET_KEY` is absent, **skip** verification (warn + `next()`) instead of 500ing in production. reCAPTCHA is now optional hardening; the route's per-IP rate limiter (5/min) remains the abuse backstop. Only route guarded by this middleware is `POST /bookings`. To re-enable enforcement later: set `RECAPTCHA_SECRET_KEY` (backend) + `VITE_RECAPTCHA_SITE_KEY` (customer-site build) and redeploy both.
+- **Deploy:** requires a redeploy of the backend (`dashboard`) Vercel project to take effect. No frontend change.
+
+---
+
 ## 2026-06-15 — Dedicated Review step (4-step wizard) + booking-flow visibility fixes
 
 **Why:** "Complete Your Booking" combined the order summary and the Stripe form on one Payment screen, and contrast was poor in both themes — worst inside the Stripe PaymentElement. Customer wanted a dedicated **Review** step before Payment, shown as its own step in the progress bar.
