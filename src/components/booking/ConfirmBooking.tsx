@@ -18,7 +18,7 @@ import TermsStep from './confirm-booking/wizard-steps/TermsStep';
 import AcknowledgementsStep from './confirm-booking/wizard-steps/AcknowledgementsStep';
 import SignatureStep from './confirm-booking/wizard-steps/SignatureStep';
 import InsuranceStep from './confirm-booking/wizard-steps/InsuranceStep';
-import OrderSummary from './confirm-booking/wizard-steps/OrderSummary';
+import ReviewStep from './confirm-booking/wizard-steps/ReviewStep';
 import SubmitLoader from './confirm-booking/wizard-steps/SubmitLoader';
 
 import {
@@ -29,7 +29,9 @@ import {
   type WizardDraft,
 } from './confirm-booking/constants';
 import { getStripe } from './confirm-booking/stripeClient';
+import { buildStripeAppearance } from './confirm-booking/stripeAppearance';
 import { useKeyboardInset } from '../../hooks/useKeyboardInset';
+import { useTheme } from '../../context/ThemeContext';
 
 // Stripe SDK is loaded here (not in constants.ts) so importing wizard helpers
 // elsewhere doesn't pull in @stripe/stripe-js.
@@ -265,12 +267,12 @@ function PaymentForm({
       </AnimatePresence>
 
       <div className="space-y-5">
-        <OrderSummary
-          bookingSummary={bookingSummary}
-          draft={draft}
-          depositAmount={depositAmount}
-          theme={theme}
-        />
+        {/* Compact total — the full breakdown lives on the Review step */}
+        <div className="rounded-xl border p-4 flex items-center justify-between"
+          style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+          <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Total due today</span>
+          <span className="text-xl font-bold" style={{ color: 'var(--accent-color)' }}>{formatCurrency(grandTotal)}</span>
+        </div>
 
         {/* Stripe Payment Element */}
         <div className="rounded-xl border p-4 sm:p-5"
@@ -332,9 +334,10 @@ export default function ConfirmBooking() {
   const keyboardInset = useKeyboardInset();
 
   const refCode = getRefCode();
-  const [theme, setTheme] = useState(() =>
-    document.documentElement.getAttribute('data-theme') || 'dark'
-  );
+  // Theme comes from ThemeContext (the theme class lives on the provider's
+  // wrapper div, NOT <html>, so reading a data-theme attribute always missed it
+  // and pinned the wizard — and the Stripe widget — to the dark fallback).
+  const { theme } = useTheme();
 
   // Booking data from server
   const [loading, setLoading] = useState(true);
@@ -360,15 +363,6 @@ export default function ConfirmBooking() {
       return next;
     });
   }, [refCode]);
-
-  // Theme observer
-  useEffect(() => {
-    const observer = new MutationObserver(() => {
-      setTheme(document.documentElement.getAttribute('data-theme') || 'dark');
-    });
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-    return () => observer.disconnect();
-  }, []);
 
   // Fetch agreement data + booking summary
   useEffect(() => {
@@ -604,8 +598,25 @@ export default function ConfirmBooking() {
                 />
               )}
 
-              {/* ═══ Stage 3: Payment ═══ */}
+              {/* ═══ Stage 3: Review ═══ */}
               {draft.stage === 3 && (
+                <ReviewStep
+                  bookingSummary={bookingSummary}
+                  draft={draft}
+                  depositAmount={depositAmount}
+                  customerName={af.customerName}
+                  theme={theme}
+                  onEditDetails={() => goToStage(1, 2)}
+                  onEditLicense={() => goToStage(1, 3)}
+                  onEditInsurance={() => goToStage(2)}
+                  onEditSignature={() => goToStage(1, 6)}
+                  onContinue={() => { completeStage(3); goToStage(4); }}
+                  onBack={() => goToStage(2)}
+                />
+              )}
+
+              {/* ═══ Stage 4: Payment ═══ */}
+              {draft.stage === 4 && (
                 (() => {
                   // Compute amount for Stripe Elements initialization
                   let insCost = 0;
@@ -621,14 +632,7 @@ export default function ConfirmBooking() {
                         mode: 'payment',
                         amount: totalCents || 50000, // fallback min
                         currency: 'usd',
-                        appearance: {
-                          theme: theme === 'dark' ? 'night' : 'stripe',
-                          variables: {
-                            colorPrimary: '#C8A97E',
-                            borderRadius: '12px',
-                            fontFamily: '"Inter", system-ui, sans-serif',
-                          },
-                        },
+                        appearance: buildStripeAppearance(theme),
                       }}
                     >
                       <PaymentForm
@@ -637,7 +641,7 @@ export default function ConfirmBooking() {
                         depositAmount={depositAmount}
                         bookingCode={refCode}
                         onUpdate={updateDraft}
-                        onBack={() => goToStage(2)}
+                        onBack={() => goToStage(3)}
                         onSuccess={() => setConfirmed(true)}
                         theme={theme}
                       />

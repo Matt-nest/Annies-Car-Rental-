@@ -20,7 +20,7 @@ export default function AddressStep({ draft, onUpdate, onContinue, onBack, theme
   };
 
   const inputClass = (field: string) =>
-    `w-full px-3.5 min-h-[46px] rounded-xl border text-sm focus:outline-none transition-all placeholder:opacity-40 appearance-none ${errors[field] ? 'border-red-500/60' : ''}`;
+    `w-full px-3.5 min-h-[46px] rounded-xl border text-sm focus:outline-none transition-all placeholder:opacity-60 appearance-none ${errors[field] ? 'border-red-500/60' : ''}`;
 
   const borderStyle = (field: string): React.CSSProperties => ({
     borderColor: errors[field] ? 'rgba(239,68,68,0.5)' : 'var(--border-subtle)',

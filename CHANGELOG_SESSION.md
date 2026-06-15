@@ -5,6 +5,21 @@
 
 ---
 
+## 2026-06-15 — Dedicated Review step (4-step wizard) + booking-flow visibility fixes
+
+**Why:** "Complete Your Booking" combined the order summary and the Stripe form on one Payment screen, and contrast was poor in both themes — worst inside the Stripe PaymentElement. Customer wanted a dedicated **Review** step before Payment, shown as its own step in the progress bar.
+
+**Root cause of the contrast issue:** `ConfirmBooking` read `theme` from a `data-theme` attribute on `<html>` that **nothing sets** (ThemeContext puts the theme class on a wrapper `<div>` and exposes it via `useTheme()`). The wizard was pinned to the `'dark'` fallback regardless of the real theme; the Stripe widget rendered `theme:'night'` on a light page. See `[[project_theme_source_gotcha]]`.
+
+- **[ConfirmBooking.tsx](src/components/booking/ConfirmBooking.tsx)** — `const { theme } = useTheme()` (removed phantom `data-theme` state + observer). Wizard is now **4 stages**: Agreement · Insurance · **Review (Stage 3)** · **Payment (Stage 4)**. `<Elements>` mounts only on Stage 4; PaymentForm Back → Review; its full `OrderSummary` replaced by a compact "Total due today" bar.
+- **NEW [ReviewStep.tsx](src/components/booking/confirm-booking/wizard-steps/ReviewStep.tsx)** — read-only confirmation: Order Summary + Driver/Address, License, Insurance, Signature cards, each with an **Edit** jump (Address=subStep 2, License=3, Signature=6); "Continue to Payment →" advances to Stage 4.
+- **NEW [stripeAppearance.ts](src/components/booking/confirm-booking/stripeAppearance.ts)** — `buildStripeAppearance(theme)`: full theme-aware Stripe `appearance` (opaque field bg, text, placeholder, border, icon, tabs) from brand tokens, replacing the thin 3-variable config. Fixes dark-on-light / invisible-placeholder fields.
+- **[constants.ts](src/components/booking/confirm-booking/constants.ts)** — added Review (3) + Payment (4) to `STAGES`. **[ProgressStepper.tsx](src/components/booking/confirm-booking/ProgressStepper.tsx)** — 4th icon (`ClipboardCheck`); sub-step counter `/6 → /{STAGES[0].subSteps}`.
+- **Contrast polish** — Address/License/Insurance inputs `placeholder:opacity-40 → 60` (failed 4.5:1 in light mode).
+- Build passes (`vite build`, 2455 modules). **Note:** the same change was also applied to JD Coastal (`/Applications/JDCoastal`, which has a 7-substep Scan variant); the stale `main` clone at `/Users/matthewnestor/Annies-Car-Rental-` was edited by mistake first — `/Applications/Annies` (this repo, the deployed `integration` branch) is the canonical one.
+
+---
+
 ## 2026-06-15 — Production cutover: prod now deploys from `integration/unify-all-functionality`
 
 **Goal:** make the live Annie's site serve the unified-rebuild work (338 commits) instead of the old `main`. `main` and `integration` are UNRELATED git histories (no merge base), so a git merge was not viable.

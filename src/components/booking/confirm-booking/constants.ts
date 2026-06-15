@@ -11,7 +11,8 @@ export const PHONE_NUMBER = brand.phone;
 export const STAGES = [
   { number: 1, label: 'Agreement',  sublabel: 'Sign rental contract', subSteps: 6 },
   { number: 2, label: 'Insurance',  sublabel: 'Coverage selection',   subSteps: 1 },
-  { number: 3, label: 'Payment',    sublabel: 'Review & pay',         subSteps: 1 },
+  { number: 3, label: 'Review',     sublabel: 'Confirm details',      subSteps: 1 },
+  { number: 4, label: 'Payment',    sublabel: 'Secure checkout',      subSteps: 1 },
 ] as const;
 
 // Legacy alias for backward compatibility

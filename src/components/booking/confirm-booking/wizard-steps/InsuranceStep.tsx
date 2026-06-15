@@ -123,7 +123,7 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
     color: 'var(--text-primary)',
   };
   const inputClass = (field: string) =>
-    `w-full px-3.5 min-h-[46px] rounded-xl border text-sm focus:outline-none transition-all placeholder:opacity-40 appearance-none ${fieldErrors[field] ? 'border-red-500/60' : ''}`;
+    `w-full px-3.5 min-h-[46px] rounded-xl border text-sm focus:outline-none transition-all placeholder:opacity-60 appearance-none ${fieldErrors[field] ? 'border-red-500/60' : ''}`;
   const borderStyle = (field: string): React.CSSProperties => ({
     borderColor: fieldErrors[field] ? 'rgba(239,68,68,0.5)' : 'var(--border-subtle)',
   });

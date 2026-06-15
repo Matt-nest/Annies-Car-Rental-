@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { FileText, Shield, CreditCard, Check } from 'lucide-react';
+import { FileText, Shield, ClipboardCheck, CreditCard, Check } from 'lucide-react';
 import { STAGES } from './constants';
 
 interface Props {
@@ -10,7 +10,7 @@ interface Props {
   theme: string;
 }
 
-const stageIcons = [FileText, Shield, CreditCard];
+const stageIcons = [FileText, Shield, ClipboardCheck, CreditCard];
 
 export default function ProgressStepper({ currentStage, currentSubStep, completedStages, theme }: Props) {
   return (
@@ -90,7 +90,7 @@ export default function ProgressStepper({ currentStage, currentSubStep, complete
             />
           ))}
           <span className="text-[10px] ml-1 shrink-0" style={{ color: 'var(--text-tertiary)' }}>
-            {currentSubStep}/6
+            {currentSubStep}/{STAGES[0].subSteps}
           </span>
         </div>
       )}
