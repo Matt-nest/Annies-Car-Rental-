@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
-  ArrowRight, ArrowLeft, CheckCircle2, Loader2, AlertCircle, Camera, X, Check,
+  ArrowRight, ArrowLeft, CheckCircle2, Loader2, AlertCircle, Check,
   Infinity, ChevronLeft, ChevronRight, Calendar as CalendarIcon,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -146,73 +146,7 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
   const [step, setStep] = useState(0);
   const [dir, setDir] = useState(1);
 
-  // ID Photo upload state
-  const [idPhoto, setIdPhoto] = useState<File | null>(null);
-  const idPhotoRef = useRef<HTMLInputElement>(null);
-
-  // Compress image before upload (keeps under Vercel's 4.5MB limit)
-  const compressImage = (file: File, maxWidth = 1200, quality = 0.8): Promise<File> => {
-    return new Promise((resolve) => {
-      // If already small enough, skip compression
-      if (file.size < 1 * 1024 * 1024) return resolve(file);
-
-      const img = new Image();
-      const canvas = document.createElement('canvas');
-      img.onload = () => {
-        let { width, height } = img;
-        if (width > maxWidth) {
-          height = Math.round((height * maxWidth) / width);
-          width = maxWidth;
-        }
-        canvas.width = width;
-        canvas.height = height;
-        canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              resolve(new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' }));
-            } else {
-              resolve(file);
-            }
-          },
-          'image/jpeg',
-          quality
-        );
-      };
-      img.onerror = () => resolve(file);
-      img.src = URL.createObjectURL(file);
-    });
-  };
-
-  const handleIdPhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    if (file.size > maxSize) {
-      setErrors(prev => ({ ...prev, idPhoto: 'File too large. Max 10MB.' }));
-      return;
-    }
-    if (!['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'].includes(file.type)) {
-      setErrors(prev => ({ ...prev, idPhoto: 'Only JPEG, PNG, WebP, or HEIC images accepted.' }));
-      return;
-    }
-    // Compress before setting state
-    const compressed = await compressImage(file);
-    setIdPhoto(compressed);
-    setErrors(prev => { const n = { ...prev }; delete n.idPhoto; return n; });
-  };
-
-  // Programmatic click on file input (most reliable cross-browser/mobile method)
-  const triggerFileInput = () => {
-    idPhotoRef.current?.click();
-  };
-
-  const removeIdPhoto = () => {
-    setIdPhoto(null);
-    if (idPhotoRef.current) idPhotoRef.current.value = '';
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleChange =(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) setErrors((prev) => { const n = { ...prev }; delete n[name]; return n; });
@@ -244,7 +178,6 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
       if (!formData.phone.trim()) errs.phone = 'Required';
       if (!formData.email.trim()) errs.email = 'Required';
       else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) errs.email = 'Invalid email';
-      if (!idPhoto) errs.idPhoto = 'Photo ID is required';
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -264,7 +197,6 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
     if (!formData.startDate) errs.startDate = 'Required';
     if (!formData.endDate) errs.endDate = 'Required';
     if (formData.startDate && formData.endDate && formData.endDate < formData.startDate) errs.endDate = 'Must be after start';
-    if (!idPhoto) errs.idPhoto = 'Photo ID is required';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -275,31 +207,7 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
     setIsSubmitting(true);
     setSubmitError('');
 
-    // 1. Upload ID photo first
-    let id_photo_url = '';
-    if (idPhoto) {
-      try {
-        const photoForm = new FormData();
-        photoForm.append('file', idPhoto);
-        const uploadRes = await fetch(`${API_URL}/uploads/id-photo`, {
-          method: 'POST',
-          body: photoForm,
-        });
-        if (!uploadRes.ok) {
-          const errData = await uploadRes.text();
-          console.error('Upload failed:', uploadRes.status, errData);
-          throw new Error(`Photo upload failed: ${uploadRes.status}`);
-        }
-        const uploadData = await uploadRes.json();
-        id_photo_url = uploadData.path || uploadData.url;
-      } catch {
-        setSubmitError('Failed to upload your photo ID. Please try again.');
-        setIsSubmitting(false);
-        return;
-      }
-    }
-
-    // 2. Generate reCAPTCHA token
+    // 1. Generate reCAPTCHA token
     let recaptchaToken = '';
     try {
       if ((window as any).grecaptcha) {
@@ -309,7 +217,7 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
       console.warn('reCAPTCHA generation failed:', err);
     }
 
-    // 3. Map frontend fields to backend API format
+    // 2. Map frontend fields to backend API format
     const bookingPayload = {
       first_name: formData.firstName.trim(),
       last_name: formData.lastName.trim(),
@@ -323,7 +231,6 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
       delivery_type: formData.deliveryOption,
       delivery_address: formData.deliveryOption !== 'pickup' ? formData.deliveryAddress.trim() : undefined,
       special_requests: formData.notes.trim() || undefined,
-      id_photo_url: id_photo_url || undefined,
       unlimited_miles: formData.unlimitedMiles || undefined,
       unlimited_tolls: formData.unlimitedTolls || undefined,
       rate_preference: selectedRate,
@@ -783,7 +690,7 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
           <div className="space-y-4">
             <div>
               <h3 className="text-lg font-medium" style={{ color: 'var(--text-primary)' }}>Your details</h3>
-              <p className="text-[13px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>So we can confirm your booking and verify your ID.</p>
+              <p className="text-[13px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>So we can confirm your booking and send your quote.</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -809,54 +716,6 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
               <label htmlFor="email" className={fieldLabel} style={{ color: 'var(--text-tertiary)' }}>Email Address</label>
               <input id="email" type="email" name="email" value={formData.email} onChange={handleChange} placeholder="you@example.com" className={inputClass('email')} style={{ ...inputStyle, ...inputBorder('email') }} />
               {errors.email && <p className="text-red-400 text-xs mt-1 ml-1">{errors.email}</p>}
-            </div>
-
-            {/* Photo ID — upload button only, no thumbnail */}
-            <div>
-              <label className={fieldLabel} style={{ color: 'var(--text-tertiary)' }}>Photo ID *</label>
-              <input
-                ref={idPhotoRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
-                capture="environment"
-                onChange={handleIdPhotoChange}
-                style={{ position: 'absolute', width: 0, height: 0, opacity: 0, overflow: 'hidden' }}
-                id="idPhotoInput"
-                aria-label="Upload photo ID"
-              />
-              {!idPhoto ? (
-                <button
-                  type="button"
-                  onClick={triggerFileInput}
-                  className="w-full flex items-center justify-center gap-2 py-4 rounded-xl border-2 border-dashed transition-all duration-300 cursor-pointer hover:border-[var(--accent)]"
-                  style={{
-                    backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
-                    borderColor: errors.idPhoto ? 'rgba(239,68,68,0.5)' : 'var(--border-subtle)',
-                    color: 'var(--text-secondary)',
-                  }}
-                >
-                  <Camera size={18} style={{ color: 'var(--text-tertiary)' }} />
-                  <span className="text-sm font-medium">Upload Driver's License or ID</span>
-                </button>
-              ) : (
-                <div
-                  className="flex items-center gap-3 p-3.5 rounded-xl border"
-                  style={{ backgroundColor: 'color-mix(in srgb, var(--accent-color) 8%, transparent)', borderColor: 'var(--accent)' }}
-                >
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}>
-                    <Check size={16} strokeWidth={3} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>ID uploaded</p>
-                    <p className="text-[11px] truncate" style={{ color: 'var(--text-tertiary)' }}>{idPhoto.name} · {(idPhoto.size / 1024 / 1024).toFixed(1)} MB</p>
-                  </div>
-                  <button type="button" onClick={removeIdPhoto} className="p-1.5 rounded-full transition-colors hover:bg-red-500/20" style={{ color: 'var(--text-tertiary)' }} aria-label="Remove ID">
-                    <X size={16} />
-                  </button>
-                </div>
-              )}
-              <span className="block text-[10px] mt-1.5 ml-1" style={{ color: 'var(--text-tertiary)' }}>JPEG, PNG, or WebP · Max 10MB</span>
-              {errors.idPhoto && <p className="text-red-400 text-xs mt-1 ml-1">{errors.idPhoto}</p>}
             </div>
 
             <div>
