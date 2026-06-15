@@ -5,6 +5,24 @@
 
 ---
 
+## 2026-06-15 — Production cutover: prod now deploys from `integration/unify-all-functionality`
+
+**Goal:** make the live Annie's site serve the unified-rebuild work (338 commits) instead of the old `main`. `main` and `integration` are UNRELATED git histories (no merge base), so a git merge was not viable.
+
+- **Cutover mechanism:** switched **both** Vercel projects' Production Branch from `main` → `integration/unify-all-functionality` (customer-site + dashboard/backend). No git history rewrite; fully reversible by flipping the branch back. `main` left untouched.
+- **Committed the previously-uncommitted retry work onto integration first** (it was NOT on the branch — would have been lost):
+  - `7f4498f` feat(billing): retry declined overage charges + decline/admin emails — `cardOnFileService.js` (RETRIABLE_DECLINE_CODES, MAX_RETRIES=3, RETRY_DELAY_MS=3d, customer `sendPaymentDeclined` on first decline, owner alert on terminal failure; all notify calls best-effort) + `backend/migrations/006_overage_retry.sql` (adds `pending_overage_charges.attempts`, additive/idempotent).
+  - `384b263` fix(inquiries): drop reCAPTCHA from monthly-inquiries (prod `RECAPTCHA_SECRET_KEY` unset → endpoint was 500ing; rate limit 3/IP/hr is the spam guard). **Note:** the booking form still uses reCAPTCHA v3 (`VITE_RECAPTCHA_SITE_KEY`) — only the monthly-inquiries route dropped it.
+  - `8241718` chore(assets): car category images, brand logos, hero poster, designs.html.
+  - Added `.mcp.json` to `.gitignore`.
+- **Scanner kept:** integration's `LicenseStep.tsx` + `idScanService.js` + `scanLicenseBarcode.ts` ship as-is; `main`'s "remove Photo ID upload" (`2a4ff86`) is superseded, not merged.
+- **Migration 006:** already present on prod DB `asdhnzdjpweyntxmutum` (`attempts` column exists) — no-op.
+- **Smoke test (live, post-flip):** customer site 200 (title correct); `/drive.html` + `/designs.html` 200 (integration-only files → confirms new build live); `/book` 200; backend `/health` 200; public `/api/v1/vehicles/catalog` 200 with fleet JSON; admin `/api/v1/vehicles` correctly 401.
+- **NOT smoke-tested (depend on prod env vars — verify configured):** overage cron (`CRON_SECRET`, `FEATURE_AUTO_OVERAGE_CHARGES`), web push (`VAPID_*`), ID-scan Azure fallback (`AZURE_DOCINTEL_*`), Stripe payment intent (real-money path).
+- **Rollback:** flip both Vercel projects' Production Branch back to `main` and redeploy.
+
+---
+
 ## 2026-06-14 — Vehicle detail page brought up to JD Coastal's booking-wizard template
 
 **Goal:** Annie's detail page was still on the OLD long-form booking design while the unified template (live on JD Coastal) has a glassmorphic 5-step wizard card + compact rate-pill selector, inline on both desktop right-rail and mobile. This change ports that proven template to Annie's — additive, not a rebuild.
