@@ -2,7 +2,6 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { supabase } from '../db/supabase.js';
 import { requireAuth } from '../middleware/auth.js';
-import { verifyRecaptcha } from '../middleware/recaptcha.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 
 const router = Router();
@@ -16,8 +15,10 @@ const inquiryRateLimit = rateLimit({
   legacyHeaders: false,
 });
 
-/** POST /monthly-inquiries — public, rate-limited */
-router.post('/', inquiryRateLimit, verifyRecaptcha, asyncHandler(async (req, res) => {
+/** POST /monthly-inquiries — public, rate-limited (3/IP/hr). reCAPTCHA intentionally
+ *  not required: the prod RECAPTCHA_SECRET_KEY was unset (every POST 500'd), and the
+ *  rate limit is the agreed spam guard. Inbound x-recaptcha-token (if any) is ignored. */
+router.post('/', inquiryRateLimit, asyncHandler(async (req, res) => {
   const {
     vehicle_id, name, phone,
     email,
