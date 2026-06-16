@@ -10,6 +10,9 @@ import { Check, Car, Users, Gauge, Fuel } from 'lucide-react';
  * back to a Car icon tile.
  */
 function vehicleImage(v) {
+  // The fleet stores its photo in `thumbnail_url` (same field FleetCommandGrid
+  // uses); fall back to the other shapes just in case.
+  if (v.thumbnail_url) return v.thumbnail_url;
   const imgs = v.images;
   if (Array.isArray(imgs) && imgs.length) {
     const first = imgs[0];

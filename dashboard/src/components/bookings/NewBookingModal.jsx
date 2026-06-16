@@ -12,6 +12,7 @@ import RangeCalendar, { prettyDate, parseYMD } from './RangeCalendar';
 import VehiclePickCard from './VehiclePickCard';
 import AdminScanStep from './AdminScanStep';
 import SignaturePadField from './SignaturePadField';
+import StripeCardCharge from './StripeCardCharge';
 
 /**
  * NewBookingModal — one streamlined flow for setting up a rental, forking late on
@@ -45,9 +46,9 @@ const INPERSON_TAIL  = [
 const REVIEW_ONLY = [{ key: 'review', label: 'Review', icon: CheckCircle }];
 
 const DELIVERY_OPTIONS = [
-  { value: 'pickup',          label: 'Customer pickup' },
-  { value: 'home_delivery',   label: 'Home delivery' },
-  { value: 'airport_pickup',  label: 'Airport pickup' },
+  { value: 'pickup',               label: 'Pickup at our lot' },
+  { value: 'psl_delivery',         label: 'Delivery — Port St. Lucie (+$39)' },
+  { value: 'surrounding_delivery', label: 'Delivery — surrounding area (+$49)' },
 ];
 const PAY_METHODS = [
   { value: 'cash', label: 'Cash' },
@@ -61,6 +62,12 @@ const TIME_SLOTS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00
 const formatTime = (t) => { const hr = parseInt(t.split(':')[0]); const m = t.split(':')[1]; return `${hr > 12 ? hr - 12 : (hr === 0 ? 12 : hr)}:${m} ${hr >= 12 ? 'PM' : 'AM'}`; };
 const currentTheme = () => (typeof document !== 'undefined' && document.documentElement.classList.contains('dark')) ? 'dark' : 'light';
 const money = (n) => `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+// Surface backend validation `details` (e.g. "email is required") instead of a bare "Validation failed".
+const errMsg = (e, fallback) => {
+  const d = e?.data?.details;
+  if (Array.isArray(d) && d.length) return `${e.message}: ${d.join(', ')}`;
+  return e?.message || fallback;
+};
 
 const fieldLabel = 'text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-1 block';
 
@@ -153,10 +160,14 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
   const [ownerSignature, setOwnerSignature] = useState(null);
 
   // In-person payment
-  const [payStatus, setPayStatus] = useState('paid'); // 'paid' | 'pending'
+  const [payStatus, setPayStatus] = useState('paid'); // 'paid' | 'stripe' | 'pending'
   const [payMethod, setPayMethod] = useState('cash');
   const [payAmount, setPayAmount] = useState('');
   const [payReference, setPayReference] = useState('');
+
+  // Full-fee quote for the Review receipt (mirrors createBooking pricing).
+  const [quote, setQuote] = useState(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
 
   function reset() {
     setStep(0); setDir(1); setError(''); setSubmitting(false); setResult(null); setCopied(false);
@@ -171,6 +182,7 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
     setAddrLine1(''); setAddrCity(''); setAddrState(''); setAddrZip(''); setLicensePhotoPaths([]);
     setSignatureMode('digital'); setCustomerSignature(null); setOwnerSignature(null);
     setPayStatus('paid'); setPayMethod('cash'); setPayAmount(''); setPayReference('');
+    setQuote(null); setQuoteLoading(false);
   }
 
   // Dynamic step list — base spine, then a tail chosen by fulfillment.
@@ -225,6 +237,27 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
   useEffect(() => {
     if (stepKey === 'payment' && payAmount === '' && estimate != null) setPayAmount(String(estimate));
   }, [stepKey, estimate]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch the real fee breakdown when the Review step opens (single source of
+  // truth — same computeRentalPricing the backend uses on create).
+  useEffect(() => {
+    if (stepKey !== 'review' || !selectedVehicle) return;
+    let cancelled = false;
+    setQuoteLoading(true); setQuote(null);
+    bookingApi.adminQuote({
+      vehicle_code: selectedVehicle.vehicle_code || vehicleId,
+      pickup_date: pickupDate,
+      return_date: returnDate,
+      delivery_type: deliveryType,
+      unlimited_miles: !!unlimitedMiles,
+      unlimited_tolls: !!unlimitedTolls,
+      ...overridePayload(),
+    })
+      .then(q => { if (!cancelled) setQuote(q); })
+      .catch(() => { if (!cancelled) setQuote(null); })
+      .finally(() => { if (!cancelled) setQuoteLoading(false); });
+    return () => { cancelled = true; };
+  }, [stepKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleDayClick(ymd) {
     setError('');
@@ -305,11 +338,10 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
       if (customDeposit !== '' && (Number.isNaN(Number(customDeposit)) || Number(customDeposit) < 0)) { setError('Enter a valid deposit.'); return false; }
     } else if (stepKey === 'customer') {
       if (!firstName.trim() || !lastName.trim()) { setError('First and last name required.'); return false; }
-      if (!email.trim() && !phone.trim()) { setError('Add at least one contact method — email or phone.'); return false; }
-      if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError('That email looks invalid.'); return false; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError('A valid email is required (for the receipt/contract copy and link).'); return false; }
+      if (!phone.trim()) { setError('Phone is required.'); return false; }
     } else if (stepKey === 'fulfillment') {
       if (!fulfillment) { setError('Choose how you’re completing this booking.'); return false; }
-      if (fulfillment === 'link' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError('A valid email is required to send the continue-booking link.'); return false; }
     } else if (stepKey === 'id' && fulfillment === 'link') {
       if (idMode === null) { setError("Choose whether you'll add the customer's ID now, or let them add it on their link."); return false; }
     } else if (stepKey === 'sign') {
@@ -338,7 +370,7 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
       setResult({ mode: 'link', ...res, prefilledSteps: prefill?.steps || [] });
       onCreated?.();
     } catch (e) {
-      setError(e.message || 'Failed to create booking');
+      setError(errMsg(e, 'Failed to create booking'));
     } finally {
       setSubmitting(false);
     }
@@ -352,7 +384,8 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
       const res = await api.createAdminBooking({ ...baseBookingPayload(), fulfillment: 'in_person' });
       const bookingId = res.booking_id;
 
-      // 2. Record the direct payment, if collected.
+      // 2. Record the direct payment, if collected. (Stripe-over-phone is handled
+      //    on the success screen — it needs the booking to exist first.)
       let paymentRecorded = false;
       if (payStatus === 'paid' && Number(payAmount) > 0) {
         await api.recordPayment(bookingId, {
@@ -390,10 +423,12 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
         paymentRecorded,
         payAmount: paymentRecorded ? Number(payAmount) : 0,
         payMethod,
+        needsStripe: payStatus === 'stripe',  // collect the card on the success screen
+        stripeCharged: false,
       });
       onCreated?.();
     } catch (e) {
-      setError(e.message || 'Failed to complete booking');
+      setError(errMsg(e, 'Failed to complete booking'));
     } finally {
       setSubmitting(false);
     }
@@ -467,11 +502,22 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
             <div className="text-sm">
               <p className="font-semibold text-[var(--text-primary)]">Booking <span className="font-mono">{result.booking_code}</span> created & approved.</p>
               <p className="text-[var(--text-secondary)] mt-0.5">
-                {result.paymentRecorded ? `${money(result.payAmount)} recorded via ${result.payMethod}. ` : 'No payment recorded yet. '}
+                {result.stripeCharged ? 'Card charged successfully. '
+                  : result.needsStripe ? 'Enter the card below to charge. '
+                  : result.paymentRecorded ? `${money(result.payAmount)} recorded via ${result.payMethod}. `
+                  : 'No payment recorded yet. '}
                 Contract generated and filed in the customer's documents.
               </p>
             </div>
           </div>
+
+          {result.needsStripe && !result.stripeCharged && (
+            <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+              <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-2">Take payment over the phone</p>
+              <StripeCardCharge bookingCode={result.booking_code} onSuccess={() => setResult(r => ({ ...r, stripeCharged: true }))} />
+            </div>
+          )}
+
           {wet && (
             <div className="flex items-start gap-2 p-3 rounded-xl text-sm"
               style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px dashed var(--border-subtle)', color: 'var(--text-secondary)' }}>
@@ -645,10 +691,6 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
                       </div>
                     </button>
                   ))}
-                  <div>
-                    <label className={fieldLabel}>Special requests (optional)</label>
-                    <textarea className="input w-full" rows={3} value={specialRequests} onChange={e => setSpecialRequests(e.target.value)} />
-                  </div>
                 </div>
               )}
 
@@ -669,7 +711,7 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
                   <div>
                     <label className={fieldLabel}>Email</label>
                     <input type="email" className="input w-full" value={email} onChange={e => setEmail(e.target.value)} placeholder="customer@example.com" />
-                    <p className="text-[11px] text-[var(--text-tertiary)] mt-1">Required if you send a link. If this email exists, the booking attaches to that customer.</p>
+                    <p className="text-[11px] text-[var(--text-tertiary)] mt-1">Where the receipt/contract copy (and the link, if you send one) go. If this email exists, the booking attaches to that customer.</p>
                   </div>
                   <div>
                     <label className={fieldLabel}>Phone</label>
@@ -816,10 +858,11 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
                     <h3 className="text-base font-semibold text-[var(--text-primary)]">How did the customer pay?</h3>
                     <p className="text-[13px] mt-0.5 text-[var(--text-secondary)]">Record a direct payment (paid to you), or mark it as owed for now.</p>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     {[
                       { v: 'paid', title: 'Paid me directly', sub: 'Cash, Zelle, Venmo, etc.' },
-                      { v: 'pending', title: 'Not paid yet', sub: 'Record the amount owed later.' },
+                      { v: 'stripe', title: 'Charge a card now', sub: 'Take the card over the phone (Stripe).' },
+                      { v: 'pending', title: 'Not paid yet', sub: 'Record what’s owed later.' },
                     ].map(({ v, title, sub }) => (
                       <button key={v} type="button" onClick={() => setPayStatus(v)}
                         className="p-3.5 rounded-xl border text-left transition-all cursor-pointer"
@@ -829,6 +872,13 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
                       </button>
                     ))}
                   </div>
+                  {payStatus === 'stripe' && (
+                    <div className="flex items-start gap-2 p-3 rounded-xl text-sm"
+                      style={{ backgroundColor: 'var(--accent-glow)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
+                      <CreditCard size={16} className="shrink-0 mt-0.5" style={{ color: 'var(--accent-color)' }} />
+                      <span>After you create the booking, a secure card form opens so you can enter the customer’s card and charge the rental total + deposit on the spot.</span>
+                    </div>
+                  )}
                   {payStatus === 'paid' && (
                     <div className="space-y-3">
                       <div className="grid grid-cols-2 gap-3">
@@ -876,14 +926,42 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
                     {(unlimitedMiles || unlimitedTolls) && (
                       <Row k="Add-ons" v={[unlimitedMiles && 'Unlimited miles', unlimitedTolls && 'Unlimited tolls'].filter(Boolean).join(', ')} />
                     )}
-                    {estimate != null && <Row k="Est. rental" v={money(estimate)} />}
+                  </div>
+
+                  {/* Receipt — real fees from the server quote (same math as create) */}
+                  <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-2">Receipt</p>
+                    {quoteLoading ? (
+                      <div className="flex items-center gap-2 text-[var(--text-tertiary)] py-2"><Loader2 size={14} className="animate-spin" /> Calculating totals…</div>
+                    ) : quote ? (
+                      <div className="space-y-1">
+                        {(quote.line_items || []).map((li, i) => (
+                          <Row key={i} k={li.label} v={`${li.amount < 0 ? '−' : ''}${money(Math.abs(li.amount))}`} />
+                        ))}
+                        <div className="border-t my-1.5" style={{ borderColor: 'var(--border-subtle)' }} />
+                        <div className="flex justify-between gap-4 text-sm font-semibold text-[var(--text-primary)]">
+                          <span>Rental total{quote.rate_overridden ? ' (custom rate)' : ''}</span>
+                          <span className="tabular-nums">{money(quote.total_cost)}</span>
+                        </div>
+                        <Row k={`Security deposit${quote.deposit_overridden ? ' (custom)' : ''}`} v={money(quote.deposit_amount)} />
+                        <div className="flex justify-between gap-4 text-sm font-bold text-[var(--text-primary)] pt-0.5">
+                          <span>{fulfillment === 'in_person' && payStatus === 'stripe' ? 'Card charge (total + deposit)' : 'Total + deposit'}</span>
+                          <span className="tabular-nums">{money(quote.total_with_deposit)}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-[var(--text-tertiary)] text-xs">Couldn’t load totals — they’ll be finalized on create.</p>
+                    )}
                   </div>
 
                   {fulfillment === 'in_person' ? (
                     <div className="p-3 rounded-xl space-y-1" style={{ backgroundColor: 'var(--accent-glow)', border: '1px solid var(--border-subtle)' }}>
                       <Row k="Method" v="Complete in person (approved on create)" />
                       <Row k="Signatures" v={signatureMode === 'digital' ? `On device${ownerSignature ? ' · fully executed' : ' · customer only'}` : 'Print & sign on paper'} />
-                      <Row k="Payment" v={payStatus === 'paid' ? `${money(Number(payAmount || 0))} via ${PAY_METHODS.find(m => m.value === payMethod)?.label}` : 'Not paid yet'} />
+                      <Row k="Payment" v={
+                        payStatus === 'paid' ? `${money(Number(payAmount || 0))} via ${PAY_METHODS.find(m => m.value === payMethod)?.label}`
+                        : payStatus === 'stripe' ? 'Charge card after create (Stripe)'
+                        : 'Not paid yet'} />
                       <Row k="Contract" v="Generated & filed in customer documents" />
                     </div>
                   ) : (
@@ -934,24 +1012,29 @@ function IdFields({
   dob, setDob, addrLine1, setAddrLine1, addrCity, setAddrCity, addrState, setAddrState, addrZip, setAddrZip,
   licensePhotoPaths, footnote,
 }) {
+  // While the scanner is up, show ONLY the scan UI (it has its own "Enter details
+  // by hand" button → collapses the scanner). The editable fields appear once the
+  // scanner is collapsed — either after a successful scan (pre-filled) or when the
+  // admin chooses manual entry — so the step isn't a wall of empty inputs.
+  if (showScanner) {
+    return (
+      <AdminScanStep
+        onApply={applyScan}
+        onPhotoPath={(p) => setLicensePhotoPaths(prev => prev.includes(p) ? prev : [...prev, p])}
+        onManual={() => setShowScanner(false)}
+        bookingName={bookingName}
+        theme={theme}
+      />
+    );
+  }
+
   return (
     <div className="space-y-4">
-      {showScanner && (
-        <AdminScanStep
-          onApply={applyScan}
-          onPhotoPath={(p) => setLicensePhotoPaths(prev => prev.includes(p) ? prev : [...prev, p])}
-          onManual={() => setShowScanner(false)}
-          bookingName={bookingName}
-          theme={theme}
-        />
-      )}
-      {!showScanner && (
-        <button type="button" onClick={() => setShowScanner(true)}
-          className="w-full min-h-[44px] py-2.5 rounded-xl border flex items-center justify-center gap-2 text-sm font-medium cursor-pointer"
-          style={{ borderColor: 'var(--border-subtle)', color: 'var(--accent-color)' }}>
-          <ScanLine size={15} /> Scan a license
-        </button>
-      )}
+      <button type="button" onClick={() => setShowScanner(true)}
+        className="w-full min-h-[44px] py-2.5 rounded-xl border flex items-center justify-center gap-2 text-sm font-medium cursor-pointer"
+        style={{ borderColor: 'var(--border-subtle)', color: 'var(--accent-color)' }}>
+        <ScanLine size={15} /> Scan a license instead
+      </button>
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-2">
           <div>
