@@ -17,7 +17,9 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       VitePWA({
-        registerType: 'prompt',
+        // Inert at runtime (injectRegister:false → our custom src/pwa/registerSW.js
+        // drives registration), but kept accurate: registerSW auto-applies updates.
+        registerType: 'autoUpdate',
         manifest: false,
         injectRegister: false,
         /* Sprint 18: switched from `generateSW` to `injectManifest` so the

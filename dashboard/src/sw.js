@@ -25,11 +25,15 @@ import { ExpirationPlugin } from 'workbox-expiration';
 precacheAndRoute(self.__WB_MANIFEST || []);
 cleanupOutdatedCaches();
 
-// Workbox can't intercept inflight requests until it claims clients. We don't
-// auto-skipWaiting (we surface an update toast via Workbox-window in
-// registerSW.js so the user can refresh on their own schedule), but once the
-// new SW IS active it controls all open tabs.
-self.skipWaiting = () => {};
+// Auto-update: registerSW.js posts SKIP_WAITING as soon as a new SW reaches
+// the `waiting` state, so a freshly-deployed build activates immediately
+// instead of stalling until every tab/installed-PWA instance closes (which on
+// a phone home-screen app almost never happens — that's why deploys looked
+// "stuck"). On activate we clientsClaim so the new SW controls open tabs, and
+// registerSW.js reloads once on `controlling`.
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
+});
 self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });
