@@ -9,7 +9,7 @@ import { validateBookingPayload } from '../utils/validators.js';
 import { createBooking, transitionBooking, getBookingDetail, applyCheckoutOverride } from '../services/bookingService.js';
 import { createNotification } from '../services/notificationService.js';
 import { sendBookingNotification, buildBookingPayload } from '../services/notifyService.js';
-import { computeRentalPricing, DELIVERY_FEES } from '../services/pricingService.js';
+import { computeRentalPricing, DELIVERY_FEES, resolveMultiplier } from '../services/pricingService.js';
 import { getQuote, getSetting, BonzahError } from '../services/bonzahService.js';
 
 const router = Router();
@@ -219,6 +219,71 @@ router.post('/admin-create', requireAuth, asyncHandler(async (req, res) => {
     booking_id: booking.id,
     booking_code: booking.booking_code,
     continue_url: continueUrl,
+  });
+}));
+
+/** POST /bookings/admin-quote — admin price preview for the New Booking modal.
+ *  Runs the SAME computeRentalPricing as createBooking (single source of truth)
+ *  so the Review receipt shows real subtotal/addons/delivery/tax/total + deposit,
+ *  including any custom daily-rate / deposit override. No DB writes.
+ *  Body: { vehicle_code, pickup_date, return_date, delivery_type?, unlimited_miles?,
+ *          unlimited_tolls?, custom_daily_rate?, custom_deposit_amount? }
+ */
+router.post('/admin-quote', requireAuth, asyncHandler(async (req, res) => {
+  const {
+    vehicle_code, pickup_date, return_date,
+    delivery_type = 'pickup', unlimited_miles, unlimited_tolls,
+    custom_daily_rate, custom_deposit_amount,
+  } = req.body;
+
+  if (!vehicle_code || !pickup_date || !return_date) {
+    return res.status(400).json({ error: 'vehicle_code, pickup_date and return_date are required' });
+  }
+
+  // Resolve the vehicle (by vehicle_code, then by id).
+  let { data: vehicle } = await supabase.from('vehicles').select('*').eq('vehicle_code', vehicle_code).maybeSingle();
+  if (!vehicle) {
+    const { data: byId } = await supabase.from('vehicles').select('*').eq('id', vehicle_code).maybeSingle();
+    vehicle = byId;
+  }
+  if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
+
+  const rateOverridden = custom_daily_rate != null && !Number.isNaN(parseFloat(custom_daily_rate));
+  const depositOverridden = custom_deposit_amount != null && !Number.isNaN(parseFloat(custom_deposit_amount));
+
+  const { multiplier: priceMultiplier, name: seasonalRuleName } =
+    await resolveMultiplier(supabase, pickup_date, return_date, vehicle.id);
+
+  const pricing = computeRentalPricing({
+    vehicle,
+    pickupDate: pickup_date,
+    returnDate: return_date,
+    deliveryFeeAmount: DELIVERY_FEES[delivery_type] ?? 0,
+    mileageAddonFee: unlimited_miles ? 100 : 0,
+    tollAddonFee: unlimited_tolls ? 20 : 0,
+    priceMultiplier,
+    seasonalRuleName,
+    customDailyRate: rateOverridden ? parseFloat(custom_daily_rate) : null,
+  });
+
+  const deposit_amount = depositOverridden ? parseFloat(custom_deposit_amount) : (vehicle.deposit_amount || 0);
+
+  res.json({
+    daily_rate: pricing.daily_rate,
+    rental_days: pricing.rental_days,
+    rate_type: pricing.rate_type,
+    subtotal: pricing.subtotal,
+    discount_amount: pricing.discount_amount,
+    delivery_fee: pricing.delivery_fee,
+    mileage_addon_fee: pricing.mileage_addon_fee,
+    toll_addon_fee: pricing.toll_addon_fee,
+    tax_amount: pricing.tax_amount,
+    total_cost: pricing.total_cost,
+    deposit_amount,
+    rate_overridden: rateOverridden,
+    deposit_overridden: depositOverridden,
+    line_items: pricing.line_items,
+    total_with_deposit: parseFloat((Number(pricing.total_cost) + Number(deposit_amount)).toFixed(2)),
   });
 }));
 

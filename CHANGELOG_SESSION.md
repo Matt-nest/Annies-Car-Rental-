@@ -5,6 +5,22 @@
 
 ---
 
+## 2026-06-15 — Admin booking generator: feedback round (fixes + Stripe-over-phone + fee receipt)
+
+Iteration on the unified admin booking flow from owner testing:
+- **Fix — in-person contract "doesn't work":** `validateBookingPayload` requires `email` AND `phone`, but the slimmed customer step let you proceed with one → `admin-create` 400'd. Modal now requires both, and surfaces backend validation `details` instead of a bare "Failed".
+- **#1 Vehicle thumbnails:** `VehiclePickCard` probed `images/photo_url/image_url` but the fleet stores `thumbnail_url` — added it (now photos show).
+- **#2** Removed the Special Requests field from the Add-ons step.
+- **Delivery options** aligned to the backend fee keys (`pickup`/`psl_delivery $39`/`surrounding_delivery $49`) — they previously sent keys the backend charged $0 for.
+- **#5 Scan step:** manual License/DOB/Address fields are hidden while the scanner is up; they appear only after a scan (pre-filled) or when "Enter details by hand" is clicked (AdminScanStep's existing button).
+- **#6** Scan UI constrained to `max-w-md` so it fits the modal.
+- **#7 Full-fee receipt:** new `POST /bookings/admin-quote` (auth) runs the SAME `computeRentalPricing` as create → the Review step shows real line items, subtotal, delivery, add-ons, tax, rental total, deposit, and total+deposit (reflecting custom rate/deposit). Single source of truth, no DB writes.
+- **#4 Take payment over the phone (Stripe):** added `@stripe/stripe-js` + `@stripe/react-stripe-js` to the dashboard + `VITE_STRIPE_PUBLISHABLE_KEY` (shared test fallback). New in-person Payment option "Charge a card now"; after the booking is created, a `StripeCardCharge` PaymentElement opens on the success screen and **reuses the existing** `POST /stripe/create-payment-intent` + `/confirm-payment` (amount derived from the booking incl. custom rate/deposit) — the charge lands in the payments ledger like any other.
+
+Files: `backend/routes/bookings.js` (admin-quote); `dashboard/src/components/bookings/{NewBookingModal,VehiclePickCard,AdminScanStep,StripeCardCharge}.jsx`, `api/bookingApi.js`, `package.json`, `.env.example`. Requires Vercel env `VITE_STRIPE_PUBLISHABLE_KEY` (dashboard) for live-mode card charging. Build clean; 56/56 backend tests pass.
+
+---
+
 ## 2026-06-15 — Unified admin booking + contract generator (rate/deposit override, fulfillment fork, document archive)
 
 **Goal:** turn the admin New Booking stepper into one streamlined flow that forks on the only two questions that change the work — *who captures ID + signature* (customer via link vs admin in person) and *how money is collected* (Stripe via link vs recorded direct-to-admin). Add custom rate/deposit, an in-person "generate the contract now" path (digital sign on device OR print-to-wet-sign), and a per-customer/per-booking folder of every contract + invoice ever generated. Reuses existing payment-recording, PDF generators, and invoice service — no parallel systems.

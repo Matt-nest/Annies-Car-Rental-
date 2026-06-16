@@ -72,13 +72,26 @@ export const bookingApi = {
 
   /** Resolve a short-lived signed download URL for one archived document. */
   downloadDocument: async (documentId) => jsonGet(`/documents/${documentId}/download`),
+
+  /** Price preview for the New Booking modal (mirrors createBooking pricing). */
+  adminQuote: async (body) => jsonPost(`/bookings/admin-quote`, body),
+
+  /** Create a Stripe PaymentIntent for a booking (admin charging a card over the phone). */
+  createPaymentIntent: async (bookingCode, expectedTotalCents) =>
+    jsonPost(`/stripe/create-payment-intent`, { booking_code: bookingCode, expected_total_cents: expectedTotalCents }),
+
+  /** Tell the backend to record a succeeded PaymentIntent into the payments ledger. */
+  confirmPayment: async (paymentIntentId) => jsonPost(`/stripe/confirm-payment`, { payment_intent_id: paymentIntentId }),
+
+  /** Fire the branded receipt email for a succeeded PaymentIntent. */
+  sendStripeReceipt: async (paymentIntentId) => jsonPost(`/stripe/send-receipt`, { payment_intent_id: paymentIntentId }),
 };
 
 async function jsonGet(path) {
   const res = await fetch(`${BASE}${path}`, { headers: { ...(await authHeader()) } });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw Object.assign(new Error(err.error || 'Request failed'), { status: res.status });
+    throw Object.assign(new Error(err.error || 'Request failed'), { status: res.status, data: err });
   }
   return res.json();
 }
@@ -91,7 +104,7 @@ async function jsonPost(path, body) {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw Object.assign(new Error(err.error || 'Request failed'), { status: res.status });
+    throw Object.assign(new Error(err.error || 'Request failed'), { status: res.status, data: err });
   }
   return res.json();
 }

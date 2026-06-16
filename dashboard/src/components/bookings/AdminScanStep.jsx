@@ -221,7 +221,7 @@ export default function AdminScanStep({ onApply, onPhotoPath, onManual, bookingN
   );
 
   return (
-    <div className="rounded-xl border p-4" style={card}>
+    <div className="rounded-xl border p-3.5 max-w-md mx-auto" style={card}>
       <div className="flex items-center gap-2.5 mb-1">
         <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: 'var(--accent-glow)', color: 'var(--accent-color)' }}>
           <ScanLine size={16} />
