@@ -345,11 +345,19 @@ function pageTwo(doc, agreement, booking, customer, vehicle) {
   doc.save().lineWidth(1).rect(LEFT, 248, RIGHT - LEFT, 122).stroke(C.line).restore();
   lbl(doc, 'Car Rental Rate', 52, 256, { bold: true, size: 11 });
 
+  // Weekly rate is DERIVED from the booking's daily rate (same formula pricing
+  // uses) — NOT read from vehicles.weekly_rate, which is stale/unseeded and would
+  // disagree with what the customer is actually charged.
+  const wkDiscount = vehicle.weekly_discount_percent ?? 15;
+  const derivedWeekly = booking.daily_rate != null
+    ? parseFloat(((Number(booking.daily_rate) * 7) * (1 - wkDiscount / 100)).toFixed(2))
+    : (vehicle.weekly_rate || null);
+
   y = 280;
   lbl(doc, 'Daily Rate $', 52, y + 3);
   swatch(doc, 128, y, 80); val(doc, money(booking.daily_rate), 128, y, 80);
   lbl(doc, 'Weekly Rate $', 240, y + 3);
-  swatch(doc, 325, y, 80); val(doc, money(vehicle.weekly_rate), 325, y, 80);
+  swatch(doc, 325, y, 80); val(doc, money(derivedWeekly), 325, y, 80);
   lbl(doc, 'Monthly Rate $', 430, y + 3);
   swatch(doc, 518, y, 47); val(doc, money(vehicle.monthly_rate), 518, y, 47);
 
@@ -363,7 +371,7 @@ function pageTwo(doc, agreement, booking, customer, vehicle) {
   val(doc, vehicle.mileage_limit_per_day != null ? `${vehicle.mileage_limit_per_day} / day` : '', 260, y, 88);
   lbl(doc, 'Excess $/mile', 392, y + 3);
   editField(doc, 'excess_per_mile', 462, y, RIGHT - 462,
-    15, { value: money(vehicle.excess_mileage_fee) });
+    15, { value: money(vehicle.overage_rate_per_mile) });
 
   y = 350;
   lbl(doc, 'Subtotal $', 48, y + 3);
@@ -507,7 +515,7 @@ function pageThree(doc, agreement, booking, customer, vehicle) {
 
   // Excess Mileage Fee
   lbl(doc, 'Excess Mileage Fee: $', LEFT, y + 1, { bold: true });
-  editField(doc, 'excess_mileage_fee', 150, y - 1, 70, 15, { value: money(vehicle.excess_mileage_fee) });
+  editField(doc, 'excess_mileage_fee', 150, y - 1, 70, 15, { value: money(vehicle.overage_rate_per_mile) });
   lbl(doc, 'per mile for each mile over the Miles Allowed stated in this Agreement.', 226, y + 1);
   y += 22;
 

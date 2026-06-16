@@ -266,7 +266,14 @@ router.post('/admin-quote', requireAuth, asyncHandler(async (req, res) => {
     customDailyRate: rateOverridden ? parseFloat(custom_daily_rate) : null,
   });
 
-  const deposit_amount = depositOverridden ? parseFloat(custom_deposit_amount) : (vehicle.deposit_amount || 0);
+  let deposit_amount;
+  if (depositOverridden) {
+    deposit_amount = parseFloat(custom_deposit_amount);
+  } else {
+    const { data: vd } = await supabase
+      .from('vehicle_deposits').select('amount').eq('vehicle_id', vehicle.id).maybeSingle();
+    deposit_amount = vd ? Number(vd.amount) / 100 : (Number(vehicle.deposit_amount) || 0);
+  }
 
   res.json({
     daily_rate: pricing.daily_rate,
