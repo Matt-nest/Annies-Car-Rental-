@@ -3,6 +3,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { generateInvoice, getInvoice, markInvoiceSent, sendInvoiceEmail } from '../services/invoiceService.js';
 import { getBookingDetail } from '../services/bookingService.js';
 import { generateInvoicePdf, generateInvoiceNumber } from '../utils/invoicePdfGenerator.js';
+import { archiveInvoice } from '../services/documentService.js';
 import { supabase } from '../db/supabase.js';
 
 const router = Router();
@@ -88,6 +89,11 @@ router.get('/bookings/:id/invoice/pdf', requireAuth, async (req, res) => {
     const filename = `Invoice-${booking.booking_code}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    // Archive a copy into the customer's document folder (idempotent per
+    // invoice_number). Fire-and-forget so the download isn't blocked.
+    archiveInvoice({ bookingId: req.params.id, booking, invoiceNumber, generatedBy: req.user?.email || 'admin' })
+      .catch(e => console.error('[Invoice PDF] archive failed:', e.message));
 
     await generateInvoicePdf({ booking, invoiceNumber, stream: res });
   } catch (err) {

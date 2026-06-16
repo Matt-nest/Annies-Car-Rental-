@@ -55,4 +55,43 @@ export const bookingApi = {
     }
     return res.json();
   },
+
+  /**
+   * Admin-generate a rental agreement/contract in person (no customer link).
+   * body: { address/license/dob/insurance fields, customer_signature_data?,
+   *         owner_signature_data?, signature_mode: 'digital'|'wet', license_photo_paths? }
+   * Returns { success, agreementId, signature_mode, document }.
+   */
+  adminGenerateAgreement: async (bookingId, body) => jsonPost(`/agreements/${bookingId}/admin-generate`, body),
+
+  /** List the documents (contracts + invoices) archived for a customer. */
+  getCustomerDocuments: async (customerId) => jsonGet(`/customers/${customerId}/documents`),
+
+  /** List the documents archived for a single booking. */
+  getBookingDocuments: async (bookingId) => jsonGet(`/bookings/${bookingId}/documents`),
+
+  /** Resolve a short-lived signed download URL for one archived document. */
+  downloadDocument: async (documentId) => jsonGet(`/documents/${documentId}/download`),
 };
+
+async function jsonGet(path) {
+  const res = await fetch(`${BASE}${path}`, { headers: { ...(await authHeader()) } });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw Object.assign(new Error(err.error || 'Request failed'), { status: res.status });
+  }
+  return res.json();
+}
+
+async function jsonPost(path, body) {
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw Object.assign(new Error(err.error || 'Request failed'), { status: res.status });
+  }
+  return res.json();
+}

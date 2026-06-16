@@ -130,16 +130,27 @@ router.post('/admin-create', requireAuth, asyncHandler(async (req, res) => {
   // photos/signature + the step keys the admin completed). It rides alongside the
   // booking payload but is persisted separately so createBooking + validation
   // stay untouched.
-  const { agreement_prefill, ...bookingBody } = req.body;
+  //
+  // fulfillment forks the flow:
+  //   'link'      (default) — email the customer a continue-booking link; they
+  //                 complete ID/signature/payment online. Booking stays pending.
+  //   'in_person' — the admin is completing everything on the spot. Create the
+  //                 booking already-approved, send no customer-facing emails; the
+  //                 frontend then records payment + generates the contract.
+  // custom_daily_rate / custom_deposit_amount (in bookingBody) flow into
+  // createBooking, which applies them over the vehicle's standard rate/deposit.
+  const { agreement_prefill, fulfillment = 'link', ...bookingBody } = req.body;
+  const inPerson = fulfillment === 'in_person';
 
   const errors = validateBookingPayload(bookingBody);
   if (errors.length) return res.status(400).json({ error: 'Validation failed', details: errors });
 
   const booking = await createBooking({
     ...bookingBody,
-    source: 'admin',
+    source: inPerson ? 'admin_in_person' : 'admin',
     created_by_admin: true,
     insurance_status: 'pending',
+    notify_customer: !inPerson,
   });
 
   // Persist whatever the admin pre-filled onto the booking. GET /agreements/:code
@@ -152,6 +163,31 @@ router.post('/admin-create', requireAuth, asyncHandler(async (req, res) => {
       .update({ admin_prefill: agreement_prefill })
       .eq('id', booking.id);
     if (prefillErr) console.error('[admin-create] admin_prefill save failed:', prefillErr.message);
+  }
+
+  // In-person: the admin is the gatekeeper and the customer is present, so the
+  // booking is created already-approved (reusing the canonical transition path —
+  // status_log + booking_approved hooks fire normally). No continue-link email.
+  if (inPerson) {
+    let finalStatus = booking.status;
+    try {
+      if (booking.status === 'pending_approval') {
+        await transitionBooking(booking.id, 'approved', {
+          changedBy: req.user?.email || 'admin',
+          reason: 'Admin in-person booking — approved on creation',
+        });
+        finalStatus = 'approved';
+      }
+    } catch (e) {
+      console.error('[admin-create] in-person auto-approve failed:', e.message);
+    }
+    return res.status(201).json({
+      success: true,
+      booking_id: booking.id,
+      booking_code: booking.booking_code,
+      status: finalStatus,
+      fulfillment: 'in_person',
+    });
   }
 
   // Build the continue link the admin can copy/paste.

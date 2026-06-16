@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Phone, Mail, Car, MapPin, CheckCircle, XCircle, Package, RotateCcw, Flag, DollarSign, FileText, Shield, CreditCard, User, ClipboardCheck, Receipt, Navigation, RefreshCw, AlertCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, Car, MapPin, CheckCircle, XCircle, Package, RotateCcw, Flag, DollarSign, FileText, Shield, CreditCard, User, ClipboardCheck, Receipt, Navigation, RefreshCw, AlertCircle, Loader2, FolderOpen, Download } from 'lucide-react';
 import { api } from '../api/client';
 import { bonzahApi } from '../api/bonzah';
 import { supabase } from '../auth/supabaseClient';
@@ -15,6 +15,7 @@ import CheckInPrepTab from '../components/booking-tabs/CheckInPrepTab';
 import CheckOutTab from '../components/booking-tabs/CheckOutTab';
 import InvoiceTab from '../components/booking-tabs/InvoiceTab';
 import BookingActionBar from '../components/booking-tabs/BookingActionBar';
+import DocumentsFolder from '../components/bookings/DocumentsFolder';
 import { useAlerts } from '../lib/alertsContext';
 import { format } from 'date-fns';
 
@@ -26,6 +27,7 @@ const TABS = [
   { id: 'checkin',    label: 'Check-In',   icon: Package     },
   { id: 'checkout',   label: 'Check-Out',  icon: ClipboardCheck },
   { id: 'invoice',    label: 'Invoice',    icon: Receipt     },
+  { id: 'documents',  label: 'Documents',  icon: FolderOpen  },
 ];
 
 /* ────────────────────────────────────────────────────────
@@ -541,6 +543,10 @@ export default function BookingDetailPage() {
         {activeTab === 'invoice' && (
           <InvoiceTab booking={booking} onReload={load} />
         )}
+
+        {activeTab === 'documents' && (
+          <BookingDocumentsTab booking={booking} id={id} />
+        )}
       </div>
 
       {/* Rental Agreement (always visible below tabs) */}
@@ -603,6 +609,53 @@ export default function BookingDetailPage() {
   );
 }
 
+
+/* ────────────────────────────────────────────────────────
+   Documents Tab — archived contracts + invoices for this booking,
+   plus a one-click download of the current rental contract (renders
+   even when unsigned, so the admin can print one to sign in person).
+   ──────────────────────────────────────────────────────── */
+function BookingDocumentsTab({ booking, id }) {
+  const [downloading, setDownloading] = useState(false);
+  const [err, setErr] = useState('');
+
+  async function downloadLiveContract() {
+    setDownloading(true); setErr('');
+    try {
+      const blob = await api.downloadAgreementPdf(id);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Rental_Agreement_${booking?.booking_code || id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (e) {
+      setErr(e?.data?.error || e.message || 'Could not generate the contract.');
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <Section title="Documents" icon={FolderOpen}>
+        <DocumentsFolder bookingId={id} />
+      </Section>
+      <Section title="Generate Contract" icon={FileText}>
+        <p className="text-sm text-[var(--text-secondary)] mb-3">
+          Download the current rental contract for this booking — fully filled from the booking data.
+          If it hasn't been signed yet, it prints with blank signature lines to complete by hand.
+        </p>
+        <button type="button" onClick={downloadLiveContract} disabled={downloading} className="btn-primary">
+          {downloading ? <><Loader2 size={14} className="animate-spin" /> Preparing…</> : <><Download size={14} /> Download contract PDF</>}
+        </button>
+        {err && <p className="text-xs text-[#ef4444] mt-2">{err}</p>}
+      </Section>
+    </div>
+  );
+}
 
 /* ────────────────────────────────────────────────────────
    Overview Tab — extracted from the original monolith

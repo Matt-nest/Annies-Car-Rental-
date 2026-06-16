@@ -5,6 +5,56 @@
 
 ---
 
+## 2026-06-15 — Unified admin booking + contract generator (rate/deposit override, fulfillment fork, document archive)
+
+**Goal:** turn the admin New Booking stepper into one streamlined flow that forks on the only two questions that change the work — *who captures ID + signature* (customer via link vs admin in person) and *how money is collected* (Stripe via link vs recorded direct-to-admin). Add custom rate/deposit, an in-person "generate the contract now" path (digital sign on device OR print-to-wet-sign), and a per-customer/per-booking folder of every contract + invoice ever generated. Reuses existing payment-recording, PDF generators, and invoice service — no parallel systems.
+
+### Migrations (applied to live DB via Supabase MCP)
+- **`backend/migrations/024_pricing_overrides.sql`** — `bookings.rate_overridden`, `bookings.deposit_overridden` (provenance flags; `daily_rate`/`deposit_amount` columns already existed).
+- **`backend/migrations/025_admin_agreements.sql`** — dropped `NOT NULL` on `rental_agreements.customer_signature_data` + `customer_signed_at` (enables admin-generated/wet-sign contracts); added `agreement_source` (`customer_link`|`admin_in_person`), `signature_mode` (`digital`|`wet`), `created_by`. Backward-compatible — the customer `/sign` path still always supplies a signature in app code.
+- **`backend/migrations/026_documents.sql`** — new `documents` table (insert-only archive) + indexes. Private `documents` storage bucket is created lazily in code (`documentService.ensureBucket`).
+
+### Backend
+- **[backend/services/pricingService.js](backend/services/pricingService.js)** — `computeRentalPricing` gains optional `customDailyRate`; when set it seeds `dailyRate` (weekly rate derives from it) instead of `vehicle.daily_rate`.
+- **[backend/services/bookingService.js](backend/services/bookingService.js)** — `createBooking` accepts `custom_daily_rate`, `custom_deposit_amount`, `notify_customer`. Threads custom rate into pricing, overrides `deposit_amount`, sets the `*_overridden` flags. `notify_customer:false` skips the website `booking_submitted` + confirmation emails (in-person path). **F-3 contract preserved** (both sends still fire on the default/website path — test green).
+- **[backend/services/documentService.js](backend/services/documentService.js)** (NEW) — renders the existing contract/invoice PDF generators to a Buffer via `PassThrough` (no generator changes), uploads to the private `documents` bucket, records a `documents` row. `archiveContract` (per call = a version), `archiveInvoice` (idempotent per `invoice_number`), `listDocuments`, `getDocumentDownloadUrl` (short-lived signed URL).
+- **[backend/routes/agreements.js](backend/routes/agreements.js)** — new `POST /agreements/:bookingId/admin-generate` (upsert agreement from admin-captured data + optional in-person customer signature + admin counter-signature, then archive the PDF); `GET /:bookingId/pdf` now renders even with no signed row (blank signature lines → print-to-sign); counter-sign now archives the fully-executed contract.
+- **[backend/routes/bookings.js](backend/routes/bookings.js)** — `POST /admin-create` accepts `fulfillment` (`link`|`in_person`) + the overrides. `in_person` creates the booking already-**approved** (reuses `transitionBooking`), sends no customer emails, returns `{ booking_id, booking_code, status }`. `link` path unchanged.
+- **[backend/routes/documents.js](backend/routes/documents.js)** (NEW) — `GET /customers/:id/documents`, `GET /bookings/:id/documents`, `GET /documents/:id/download`. Mounted in **both** `api/index.js` and `server.js` (`app.use('/api/v1', documentRoutes)`).
+- **[backend/routes/invoices.js](backend/routes/invoices.js)** — invoice PDF download now also archives a copy (fire-and-forget, idempotent per number).
+
+### Dashboard (`api/client.js` untouched — new calls live in `bookingApi.js`)
+- **[dashboard/src/api/bookingApi.js](dashboard/src/api/bookingApi.js)** — added `adminGenerateAgreement`, `getCustomerDocuments`, `getBookingDocuments`, `downloadDocument` (+ shared `jsonGet`/`jsonPost`).
+- **[dashboard/src/components/bookings/NewBookingModal.jsx](dashboard/src/components/bookings/NewBookingModal.jsx)** — full rebuild. Dynamic stepper: Dates → Vehicle (**+ inline rate & deposit override**, defaults to vehicle standard, live estimate) → Add-ons (explicitly skippable) → Customer (**contact only**: name + email/phone; email required only if sending a link) → **Method fork**. Link tail: optional ID prefill → Review → create + email link. In-person tail: ID (scan/manual) → Signatures (digital pads OR print-to-sign) → Payment (record cash/zelle/venmo/paypal/card + amount, or "not paid yet") → Review → create approved + record payment + generate & archive contract, with a success screen to download/print it.
+- **[dashboard/src/components/bookings/SignaturePadField.jsx](dashboard/src/components/bookings/SignaturePadField.jsx)** (NEW) — reusable canvas pad lifted from AgreementSection.
+- **[dashboard/src/components/bookings/DocumentsFolder.jsx](dashboard/src/components/bookings/DocumentsFolder.jsx)** (NEW) — lists archived contracts + invoices with signed-URL downloads; used per-customer and per-booking.
+- **[dashboard/src/pages/CustomerDetailPage.jsx](dashboard/src/pages/CustomerDetailPage.jsx)** — new **Documents** section (every contract + invoice for the customer).
+- **[dashboard/src/pages/BookingDetailPage.jsx](dashboard/src/pages/BookingDetailPage.jsx)** — new **Documents** tab: the booking's archived docs + a one-click "Download contract PDF" (renders even unsigned, for print-to-sign).
+
+### Verified
+- `cd dashboard && npm run build` — clean (only the pre-existing mapbox chunk-size warning). Backend `node --test tests/` — **56/56 pass** (incl. F-3 booking_submitted contract).
+- **Blast radius:** ~9 backend files (+3 migrations) + ~6 dashboard files. No edits to `api/client.js`, `auth/`, notification templates, or CSS variables. Ghost-block invariant untouched (in-person approve reuses canonical `transitionBooking`).
+- **Follow-ups:** deploy both backend + dashboard; the `documents` bucket self-creates on first archive. Link-path Stripe deposit holds still use `vehicle_deposits` (the deposit override here drives the contract amount + in-person records, not the Stripe hold).
+
+---
+
+## 2026-06-15 — Rental agreement v5 (4-page fillable) + JD Coastal reskin (backend + customer site, BOTH repos)
+
+**Goal:** replace the old 3-page rental-agreement PDF with the owner-approved "FINAL Fillable v5" 4-page contract, auto-filling every available booking field and leaving manual fields as clickable/editable AcroForm fields; reskin it for JD Coastal; and retire the old copy. Re-implemented in code (PDFKit, brand-driven) rather than embedding a binary template, so Annie's (gold) and JD Coastal (navy/orange) both render from their own `brand` config + logo — preserving white-label.
+
+- **[backend/utils/pdfGenerator.js](backend/utils/pdfGenerator.js)** — full rewrite, 3→4 pages. New: brand accent bar + logo + entity/EIN/address/phone header & footer; **Agreement No.** (=`booking.booking_code`), **Issue Date** (=`agreement.created_at`), **Reference**, **Phone Number** (p1); **Excess $/mile** in the rate box (p2); whole **Additional Charges & Required Notices** block — Smoke/Late/Cleaning fee amounts, Card-on-File authorization, Excess Mileage Fee, Toll/Transponder Admin Fee, Deposit Refund Timing, Accident/Police notice, Extension Approval, **FL Statute 627.7263** primary-insurance notice (p3); dedicated **Acknowledgment & Signatures** page (p4). Auto-filled booking data renders as static text; manual fields (credit card, additional driver, fees, initials, coverage checkboxes, reference, odometer-in) are **interactive `formText`/`formCheckbox`** (`doc.initForm()`), pre-filled where known. Colors are brand-driven (`C.field`=`brand.colors.pdfFieldFill`, `C.bar`=`brand.colors.primary`). **Entry-point signature unchanged**: `generateRentalAgreementPdf(agreement, booking, res)` — `routes/agreements.js` untouched.
+- **[backend/config/brand.js](backend/config/brand.js)** — added `ein` (`BRAND_EIN`, default `99-0908048`) and `colors.pdfFieldFill` (`BRAND_PDF_FIELD_FILL`, default peach `#FBE2D5`). Corrected Annie's defaults to the v5 authoritative values: address `586 NW Mercantile Pl`, zip `34986`, city `Port Saint Lucie`, phone `(772) 985-6667`. (Prod may override via env; defaults now match the contract.)
+- **[backend/preview-agreement.mjs](backend/preview-agreement.mjs)** — sample data gains `booking_code`, `created_at`, customer `phone`, vehicle `excess_mileage_fee` so the local preview exercises the new fields.
+- **[src/data/rentalTerms.ts](src/data/rentalTerms.ts)** — public Terms bumped v1.0→**v2.0**: added sections 13–18 (Additional Charges & Required Fees, Card on File, Deposit Refund Timing, Accident/Police Notice, Extension Approval, FL Statute 627.7263) mirroring the v5 PDF; added a card-on-file/additional-charges acknowledgement. Header comment made brand-neutral (white-label).
+- **[src/components/booking/RentalAgreement.tsx](src/components/booking/RentalAgreement.tsx)** — summary copy "all 12 sections" → "all 18 sections" + names the new topics.
+- **JD Coastal repo (`/Applications/JDCoastal`)** — mirrored `pdfGenerator.js`, `rentalTerms.ts`, `RentalAgreement.tsx`, `config/brand.js` (identical, env-driven). Replaced `backend/assets/logo.png` + `logo-pdf.png` (were byte-identical to Annie's) with `jdcoastalcars-horizontal.png` (navy lockup, legible on white). Added `BRAND_PDF_FIELD_FILL=#E7ECF4` (cool tint) to `backend/.env`.
+- **Verified:** rendered both variants to `/tmp/agreement-v5-test.pdf` (Annie's) and `/tmp/agreement-jd-test.pdf` (JD env) — all 4 pages correct, booking data auto-filled, manual fields interactive, brand logo/colors/EIN/address/footer correct per brand, page-4 signatures embed captured e-sig timestamps. Customer-site `tsc --noEmit`: zero errors in changed files (only the pre-existing `ErrorBoundary`/`sw.ts` errors remain, both repos).
+- **"Old copy" retirement:** the agreement PDF is generated on demand — replacing `pdfGenerator.js` retires the old 3-page contract from every download/email on next deploy; no static hosted contract file exists. Stale `*FINAL_Fillable_v*.pdf` files on the Desktop are the owner's local design drafts (not site content) — left untouched.
+- **Blast radius:** per repo — 5 files + 2 logo assets; cohesive single feature. No edits to `api/client.js`, `auth/`, Supabase schema, or notification templates.
+- **Follow-ups (not done — out of contract scope):** (1) JD Coastal **customer-site** `public/logo.png` is still byte-identical to Annie's — separate header reskin needed. (2) Confirm prod env `BRAND_ADDRESS`/`BRAND_PHONE`/`BRAND_EIN` for both brands match these values before relying on PDF header/footer. (3) Deploy both backends to make the new contract live.
+
+---
+
 ## 2026-06-15 — SEO Phase 3: landing-page content + internal linking (customer site)
 
 **Goal:** populate the Phase 2 pipeline with real high-intent pages and link them internally. Pure content + linking — no pipeline changes (routing/prerender/sitemap already pick up new entries automatically).

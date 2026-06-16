@@ -58,6 +58,13 @@ export async function createBooking(payload) {
     unlimited_miles, unlimited_tolls,
     rate_preference,
     created_by_admin = false,
+    // Admin overrides (New Booking stepper). null/undefined → vehicle standards.
+    custom_daily_rate = null,
+    custom_deposit_amount = null,
+    // When false (admin in-person path), skip the website-style "we got your
+    // request" confirmation + booking_submitted notification — the admin is
+    // completing everything in person, so those emails would be noise.
+    notify_customer = true,
   } = payload;
 
   const validRatePref = ['daily', 'weekly', 'monthly'].includes(rate_preference) ? rate_preference : null;
@@ -166,6 +173,7 @@ export async function createBooking(payload) {
     resolveCustomerLoyalty(supabase, customer.id),
   ]);
   const loyaltyTierLabel = loyaltyTier ? (LOYALTY_TIERS.find(t => t.key === loyaltyTier)?.label || null) : null;
+  const rateOverridden = custom_daily_rate != null && !Number.isNaN(parseFloat(custom_daily_rate));
   const pricing = computeRentalPricing({
     vehicle,
     pickupDate: pickup_date,
@@ -177,7 +185,12 @@ export async function createBooking(payload) {
     seasonalRuleName,
     loyaltyDiscountPct,
     loyaltyTierLabel,
+    customDailyRate: rateOverridden ? parseFloat(custom_daily_rate) : null,
   });
+
+  // Deposit: admin override (dollars) wins, else the vehicle's standard deposit.
+  const depositOverridden = custom_deposit_amount != null && !Number.isNaN(parseFloat(custom_deposit_amount));
+  const depositAmount = depositOverridden ? parseFloat(custom_deposit_amount) : (vehicle.deposit_amount || 0);
 
   // 5. Generate booking code (retry on collision)
   let booking_code = generateBookingCode();
@@ -228,7 +241,9 @@ export async function createBooking(payload) {
       line_items:              pricing.line_items,
       unlimited_miles: pricing.mileage_allowance === 'unlimited' || !!unlimited_miles,
       unlimited_tolls: !!unlimited_tolls,
-      deposit_amount: vehicle.deposit_amount || 0,
+      deposit_amount: depositAmount,
+      rate_overridden: rateOverridden,
+      deposit_overridden: depositOverridden,
       insurance_provider,
       insurance_status: insurance_status || 'pending',
       bonzah_policy_id,
@@ -255,21 +270,25 @@ export async function createBooking(payload) {
     reason: 'Booking submitted via website',
   });
 
-  // 8. Send booking notification (fire-and-forget)
+  // 8 + 9. Customer-facing confirmation. Skipped when notify_customer === false
+  // (admin in-person path) — the admin is completing the rental on the spot, so
+  // the "we got your request, we'll text you" emails would be noise.
+  //
+  // ⚠ IMPLICIT CONTRACT (Phase 1 audit F-3): for the normal website/link flow
+  // these two calls MUST both fire — notifyService.sendBookingNotification skips
+  // email dispatch when stage === 'booking_submitted' on the assumption that
+  // sendBookingConfirmation is firing the branded confirmation. Removing or
+  // renaming either leaves website customers with NO email after submission.
+  // Guarded by tests/booking-submitted-contract.test.js.
   const fullBooking = { ...booking, customers: customer, vehicles: vehicle };
-  sendBookingNotification('booking_submitted', buildBookingPayload(fullBooking));
-
-  // 9. Confirmation email to customer (fire-and-forget)
-  // ⚠ IMPLICIT CONTRACT (Phase 1 audit F-3):
-  // notifyService.sendBookingNotification skips email dispatch when
-  // stage === 'booking_submitted' on the assumption that this call is firing
-  // the branded confirmation. Removing or renaming this call leaves customers
-  // with NO email after submission. Guarded by tests/booking-submitted-contract.test.js.
-  sendBookingConfirmation({
-    customer,
-    booking,
-    vehicle: vehicle.year && vehicle.make ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : null,
-  }).catch(err => console.error('[Email] Confirmation email failed:', err));
+  if (notify_customer) {
+    sendBookingNotification('booking_submitted', buildBookingPayload(fullBooking));
+    sendBookingConfirmation({
+      customer,
+      booking,
+      vehicle: vehicle.year && vehicle.make ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : null,
+    }).catch(err => console.error('[Email] Confirmation email failed:', err));
+  }
 
   // 10. Dashboard notification
   createNotification(
