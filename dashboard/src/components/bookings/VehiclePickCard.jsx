@@ -1,24 +1,31 @@
 import { Check, Car, Users, Gauge, Fuel } from 'lucide-react';
+import brand from '../../config/brand';
 
 /**
  * VehiclePickCard — visual, selectable vehicle card for the New Booking modal.
  * Replaces the old plain text-button list with an image + rate + spec badges,
  * echoing the customer site's fleet cards. Selected state gets an accent ring.
  *
- * Vehicle rows come from GET /vehicles/available (select '*'), so the image
- * field varies by data shape — we probe images[]/photo_url/image_url and fall
- * back to a Car icon tile.
+ * Vehicle rows come from GET /vehicles/available (select '*').
  */
+
+// Fleet photos are stored as RELATIVE paths like "/fleet/<vin>/hero.png" served
+// by the CUSTOMER site, not the dashboard — so prefix them with brand.siteUrl
+// (same resolution FleetPage uses). Absolute URLs pass through unchanged.
+function resolveThumb(url) {
+  if (!url) return null;
+  return url.startsWith('/fleet/') ? `${brand.siteUrl}${url}` : url;
+}
+
 function vehicleImage(v) {
-  // The fleet stores its photo in `thumbnail_url` (same field FleetCommandGrid
-  // uses); fall back to the other shapes just in case.
-  if (v.thumbnail_url) return v.thumbnail_url;
+  if (v.thumbnail_url) return resolveThumb(v.thumbnail_url);
   const imgs = v.images;
   if (Array.isArray(imgs) && imgs.length) {
     const first = imgs[0];
-    return typeof first === 'string' ? first : (first?.url || first?.src || null);
+    const u = typeof first === 'string' ? first : (first?.url || first?.src || null);
+    return resolveThumb(u);
   }
-  return v.photo_url || v.image_url || v.hero_image || null;
+  return resolveThumb(v.photo_url || v.image_url || v.hero_image || null);
 }
 
 export default function VehiclePickCard({ vehicle: v, selected, onSelect }) {

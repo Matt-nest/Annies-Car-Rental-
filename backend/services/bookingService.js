@@ -242,8 +242,10 @@ export async function createBooking(payload) {
       unlimited_miles: pricing.mileage_allowance === 'unlimited' || !!unlimited_miles,
       unlimited_tolls: !!unlimited_tolls,
       deposit_amount: depositAmount,
-      rate_overridden: rateOverridden,
-      deposit_overridden: depositOverridden,
+      // NOTE: rate_overridden / deposit_overridden (migration 024) are intentionally
+      // NOT written here — nothing reads them, and inserting columns that may not
+      // exist on every clone's DB would 500 booking creation. The "custom rate"
+      // badge is derived client-side from the quote, not from these columns.
       insurance_provider,
       insurance_status: insurance_status || 'pending',
       bonzah_policy_id,
