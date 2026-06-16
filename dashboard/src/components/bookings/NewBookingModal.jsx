@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Loader2, AlertCircle, CheckCircle, ChevronLeft, ChevronRight, Copy, Send,
   Car, Calendar, User, Sparkles, ScanLine, ArrowRight, Check, CreditCard, UserPlus,
-  PenLine, DollarSign, Printer, FileText, Link2,
+  PenLine, DollarSign, Printer, FileText, Link2, ShieldCheck, Gauge,
 } from 'lucide-react';
 import { api } from '../../api/client';
 import { bookingApi } from '../../api/bookingApi';
@@ -38,10 +38,18 @@ const BASE_STEPS = [
 ];
 const LINK_TAIL      = [{ key: 'id', label: 'ID', icon: CreditCard }, { key: 'review', label: 'Review', icon: CheckCircle }];
 const INPERSON_TAIL  = [
-  { key: 'id',      label: 'ID',      icon: CreditCard },
-  { key: 'sign',    label: 'Sign',    icon: PenLine },
-  { key: 'payment', label: 'Payment', icon: DollarSign },
-  { key: 'review',  label: 'Review',  icon: CheckCircle },
+  { key: 'id',        label: 'ID',        icon: CreditCard },
+  { key: 'coverage',  label: 'Insurance', icon: ShieldCheck },
+  { key: 'sign',      label: 'Sign',      icon: PenLine },
+  { key: 'payment',   label: 'Payment',   icon: DollarSign },
+  { key: 'review',    label: 'Review',    icon: CheckCircle },
+];
+
+const FUEL_OPTIONS = [
+  { value: 'full', label: 'Full' },
+  { value: '3/4',  label: '¾' },
+  { value: '1/2',  label: '½' },
+  { value: '1/4',  label: '¼' },
 ];
 const REVIEW_ONLY = [{ key: 'review', label: 'Review', icon: CheckCircle }];
 
@@ -165,6 +173,14 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
   const [payAmount, setPayAmount] = useState('');
   const [payReference, setPayReference] = useState('');
 
+  // In-person insurance (customer's own policy) + optional vehicle handoff.
+  const [insCompany, setInsCompany] = useState('');
+  const [insPolicy, setInsPolicy] = useState('');
+  const [insExpiry, setInsExpiry] = useState('');
+  const [takingNow, setTakingNow] = useState(false);
+  const [pickupMileage, setPickupMileage] = useState('');
+  const [pickupFuel, setPickupFuel] = useState('full');
+
   // Full-fee quote for the Review receipt (mirrors createBooking pricing).
   const [quote, setQuote] = useState(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
@@ -182,6 +198,8 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
     setAddrLine1(''); setAddrCity(''); setAddrState(''); setAddrZip(''); setLicensePhotoPaths([]);
     setSignatureMode('digital'); setCustomerSignature(null); setOwnerSignature(null);
     setPayStatus('paid'); setPayMethod('cash'); setPayAmount(''); setPayReference('');
+    setInsCompany(''); setInsPolicy(''); setInsExpiry('');
+    setTakingNow(false); setPickupMileage(''); setPickupFuel('full');
     setQuote(null); setQuoteLoading(false);
   }
 
@@ -344,6 +362,11 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
       if (!fulfillment) { setError('Choose how you’re completing this booking.'); return false; }
     } else if (stepKey === 'id' && fulfillment === 'link') {
       if (idMode === null) { setError("Choose whether you'll add the customer's ID now, or let them add it on their link."); return false; }
+    } else if (stepKey === 'coverage') {
+      if (!insCompany.trim() || !insPolicy.trim()) { setError('Enter the customer’s insurance company and policy number.'); return false; }
+      if (takingNow) {
+        if (!pickupMileage || Number.isNaN(Number(pickupMileage)) || Number(pickupMileage) < 0) { setError('Enter the odometer reading at handoff.'); return false; }
+      }
     } else if (stepKey === 'sign') {
       if (signatureMode === 'digital' && !customerSignature) { setError('Capture the customer’s signature, or switch to print & sign on paper.'); return false; }
     } else if (stepKey === 'payment') {
@@ -380,8 +403,13 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
     if (submitting) return;
     setSubmitting(true); setError('');
     try {
-      // 1. Create the booking (already-approved, no customer emails).
-      const res = await api.createAdminBooking({ ...baseBookingPayload(), fulfillment: 'in_person' });
+      // 1. Create the booking (already-approved, no customer emails). Include the
+      //    check-out odometer/fuel if the customer is taking the vehicle now.
+      const res = await api.createAdminBooking({
+        ...baseBookingPayload(),
+        fulfillment: 'in_person',
+        ...(takingNow ? { pickup_mileage: Number(pickupMileage), pickup_fuel_level: pickupFuel } : {}),
+      });
       const bookingId = res.booking_id;
 
       // 2. Record the direct payment, if collected. (Stripe-over-phone is handled
@@ -408,6 +436,9 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
         driver_license_number: licenseNumber.trim() || undefined,
         driver_license_state: licenseState.trim() || undefined,
         driver_license_expiry: licenseExpiry || undefined,
+        insurance_company: insCompany.trim() || undefined,
+        insurance_policy_number: insPolicy.trim() || undefined,
+        insurance_expiry: insExpiry || undefined,
         customer_signature_data: signatureMode === 'digital' ? customerSignature : null,
         owner_signature_data: signatureMode === 'digital' ? ownerSignature : null,
         signature_mode: signatureMode,
@@ -814,6 +845,62 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
                 </div>
               )}
 
+              {/* Insurance & handoff — in-person */}
+              {stepKey === 'coverage' && (
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-base font-semibold text-[var(--text-primary)]">Insurance</h3>
+                    <p className="text-[13px] mt-0.5 text-[var(--text-secondary)]">The customer’s own auto policy — printed on the contract.</p>
+                  </div>
+                  <div>
+                    <label className={fieldLabel}>Insurance company</label>
+                    <input className="input w-full" value={insCompany} onChange={e => setInsCompany(e.target.value)} placeholder="e.g. GEICO, Progressive" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={fieldLabel}>Policy number</label>
+                      <input className="input w-full" value={insPolicy} onChange={e => setInsPolicy(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className={fieldLabel}>Policy expiry (optional)</label>
+                      <input type="date" className="input w-full" value={insExpiry} onChange={e => setInsExpiry(e.target.value)} />
+                    </div>
+                  </div>
+
+                  <div className="pt-1 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+                    <button type="button" onClick={() => setTakingNow(v => !v)}
+                      className="w-full flex items-center justify-between p-3.5 rounded-xl border transition-all cursor-pointer text-left mt-3"
+                      style={{ backgroundColor: takingNow ? 'var(--accent-glow)' : 'var(--bg-card)', borderColor: takingNow ? 'var(--accent-color)' : 'var(--border-subtle)' }}>
+                      <div>
+                        <p className="text-sm font-semibold text-[var(--text-primary)]">Customer is taking the vehicle now</p>
+                        <p className="text-[11px] mt-0.5 text-[var(--text-tertiary)]">Records the check-out odometer &amp; fuel on the contract. Leave off to fill in by hand at handoff.</p>
+                      </div>
+                      <div className="w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all shrink-0"
+                        style={{ backgroundColor: takingNow ? 'var(--accent-color)' : 'transparent', borderColor: takingNow ? 'var(--accent-color)' : 'var(--border-subtle)', color: takingNow ? 'var(--accent-fg)' : 'transparent' }}>
+                        {takingNow && <Check size={12} strokeWidth={3} />}
+                      </div>
+                    </button>
+                    {takingNow && (
+                      <div className="grid grid-cols-2 gap-3 mt-3">
+                        <div>
+                          <label className={fieldLabel}>Odometer (mi)</label>
+                          <div className="relative">
+                            <Gauge size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
+                            <input className="input w-full pl-8" inputMode="numeric" value={pickupMileage} onChange={e => setPickupMileage(e.target.value)} />
+                          </div>
+                        </div>
+                        <div>
+                          <label className={fieldLabel}>Fuel level</label>
+                          <select className="input w-full" value={pickupFuel} onChange={e => setPickupFuel(e.target.value)}>
+                            {FUEL_OPTIONS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Signatures — in-person */}
               {stepKey === 'sign' && (
                 <div className="space-y-4">
@@ -957,6 +1044,8 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
                   {fulfillment === 'in_person' ? (
                     <div className="p-3 rounded-xl space-y-1" style={{ backgroundColor: 'var(--accent-glow)', border: '1px solid var(--border-subtle)' }}>
                       <Row k="Method" v="Complete in person (approved on create)" />
+                      <Row k="Insurance" v={insCompany ? `${insCompany}${insPolicy ? ` · ${insPolicy}` : ''}` : '—'} />
+                      {takingNow && <Row k="Handoff" v={`Odometer ${pickupMileage || '—'} mi · ${FUEL_OPTIONS.find(f => f.value === pickupFuel)?.label} fuel`} />}
                       <Row k="Signatures" v={signatureMode === 'digital' ? `On device${ownerSignature ? ' · fully executed' : ' · customer only'}` : 'Print & sign on paper'} />
                       <Row k="Payment" v={
                         payStatus === 'paid' ? `${money(Number(payAmount || 0))} via ${PAY_METHODS.find(m => m.value === payMethod)?.label}`
