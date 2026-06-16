@@ -8,6 +8,17 @@ const router = Router();
 const stripe = getStripe();
 
 /**
+ * GET /stripe/publishable-key
+ * Public — returns THIS backend's Stripe publishable key so any client (the
+ * admin dashboard's over-the-phone charge form) always uses a key from the same
+ * account as the secret key. Avoids the silent test-vs-live mismatch that
+ * happens when the publishable key is hardcoded or set independently per app.
+ */
+router.get('/publishable-key', (_req, res) => {
+  res.json({ publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || '' });
+});
+
+/**
  * POST /stripe/create-payment-intent
  * Public — authenticated by knowing the booking code (same as the confirm page).
  * Body: { booking_code: "WL43" }

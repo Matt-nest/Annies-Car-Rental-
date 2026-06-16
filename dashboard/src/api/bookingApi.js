@@ -76,6 +76,9 @@ export const bookingApi = {
   /** Price preview for the New Booking modal (mirrors createBooking pricing). */
   adminQuote: async (body) => jsonPost(`/bookings/admin-quote`, body),
 
+  /** The backend's Stripe publishable key (matches its secret key's account). */
+  getStripePublishableKey: async () => jsonGet(`/stripe/publishable-key`),
+
   /** Create a Stripe PaymentIntent for a booking (admin charging a card over the phone). */
   createPaymentIntent: async (bookingCode, expectedTotalCents) =>
     jsonPost(`/stripe/create-payment-intent`, { booking_code: bookingCode, expected_total_cents: expectedTotalCents }),

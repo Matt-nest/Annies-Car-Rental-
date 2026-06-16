@@ -188,9 +188,19 @@ export async function createBooking(payload) {
     customDailyRate: rateOverridden ? parseFloat(custom_daily_rate) : null,
   });
 
-  // Deposit: admin override (dollars) wins, else the vehicle's standard deposit.
+  // Deposit: admin override (dollars) wins, else the vehicle's REAL standard
+  // deposit. The authoritative amount lives in vehicle_deposits (cents); the
+  // legacy vehicles.deposit_amount is often 0, which is why contracts showed
+  // $0. Mirror depositService so the contract + receipt + Stripe hold agree.
   const depositOverridden = custom_deposit_amount != null && !Number.isNaN(parseFloat(custom_deposit_amount));
-  const depositAmount = depositOverridden ? parseFloat(custom_deposit_amount) : (vehicle.deposit_amount || 0);
+  let depositAmount;
+  if (depositOverridden) {
+    depositAmount = parseFloat(custom_deposit_amount);
+  } else {
+    const { data: vd } = await supabase
+      .from('vehicle_deposits').select('amount').eq('vehicle_id', vehicle.id).maybeSingle();
+    depositAmount = vd ? Number(vd.amount) / 100 : (Number(vehicle.deposit_amount) || 0);
+  }
 
   // 5. Generate booking code (retry on collision)
   let booking_code = generateBookingCode();

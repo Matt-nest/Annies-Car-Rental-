@@ -11,14 +11,12 @@ import { bookingApi } from '../../api/bookingApi';
  * — rental + deposit + any insurance — from the booking, including custom rate),
  * then confirms + records it into the payments ledger (POST /stripe/confirm-payment).
  *
- * Same publishable-key env var as the customer site (VITE_STRIPE_PUBLISHABLE_KEY),
- * with the shared test fallback so it works in test mode without extra config.
+ * The publishable key is fetched FROM THE BACKEND (GET /stripe/publishable-key)
+ * so it always belongs to the same Stripe account as the secret key that mints
+ * the clientSecret. This avoids the silent failure where a hardcoded/independent
+ * test key is paired with a live backend (or vice-versa) and Stripe refuses to
+ * mount the form. Falls back to the VITE env var if the backend doesn't supply one.
  */
-const stripePromise = loadStripe(
-  import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ||
-    'pk_test_51THqNVBDLBS4aYcfqHPZnNGlwL6E8lGdzFOxYoSmd37DjxD3ofbWe6AsrEkL90LqnHfp8fEFDfAmrqfkDgcNYYqE00CXY3fGT'
-);
-
 const money = (cents) => `$${(Number(cents || 0) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 function ChargeForm({ clientSecret, amountCents, onSuccess }) {
@@ -61,6 +59,7 @@ function ChargeForm({ clientSecret, amountCents, onSuccess }) {
 }
 
 export default function StripeCardCharge({ bookingCode, onSuccess }) {
+  const [stripePromise, setStripePromise] = useState(null);
   const [clientSecret, setClientSecret] = useState(null);
   const [amountCents, setAmountCents] = useState(0);
   const [err, setErr] = useState('');
@@ -69,6 +68,16 @@ export default function StripeCardCharge({ bookingCode, onSuccess }) {
     let cancelled = false;
     (async () => {
       try {
+        // Load the publishable key from the backend (same account as the secret).
+        const cfg = await bookingApi.getStripePublishableKey().catch(() => ({ publishableKey: '' }));
+        const key = cfg?.publishableKey || import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '';
+        if (!key) {
+          if (!cancelled) setErr('Stripe isn’t configured — set STRIPE_PUBLISHABLE_KEY on the backend (matching the secret key) to charge cards here.');
+          return;
+        }
+        if (cancelled) return;
+        setStripePromise(loadStripe(key));
+
         const r = await bookingApi.createPaymentIntent(bookingCode);
         if (cancelled) return;
         if (r.alreadyPaid) { onSuccess?.('already'); return; }
@@ -82,7 +91,7 @@ export default function StripeCardCharge({ bookingCode, onSuccess }) {
   }, [bookingCode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (err) return <p className="text-sm text-[#ef4444] flex items-start gap-1.5"><AlertCircle size={14} className="mt-0.5 shrink-0" />{err}</p>;
-  if (!clientSecret) {
+  if (!clientSecret || !stripePromise) {
     return <div className="flex items-center gap-2 text-sm text-[var(--text-tertiary)] py-3"><Loader2 size={14} className="animate-spin" /> Preparing secure card form…</div>;
   }
 
