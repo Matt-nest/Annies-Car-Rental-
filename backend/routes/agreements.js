@@ -6,6 +6,7 @@ import { generateRentalAgreementPdf } from '../utils/pdfGenerator.js';
 import { transitionBooking } from '../services/bookingService.js';
 import { sendCounterSignNotification } from '../services/emailService.js';
 import { createNotification } from '../services/notificationService.js';
+import { archiveContract } from '../services/documentService.js';
 
 const router = Router();
 
@@ -274,6 +275,128 @@ router.post('/:bookingCode/sign', asyncHandler(async (req, res) => {
 }));
 
 // ══════════════════════════════════════════════════════════════════════════════
+// POST /agreements/:bookingId/admin-generate
+// Admin — generate a rental agreement/contract IN PERSON (no customer link).
+//
+// Upserts the rental_agreements row from admin-captured data and archives the
+// contract PDF to the customer's document folder. Two signature modes:
+//   - 'digital': the customer signed on the admin's device now (customer_signature_data
+//                supplied) and the admin counter-signs (owner_signature_data) → a
+//                fully-executed digital contract.
+//   - 'wet':     no digital customer signature — generate the contract to print and
+//                wet-sign on paper. The row + archived PDF render blank signature lines.
+// ══════════════════════════════════════════════════════════════════════════════
+router.post('/:bookingId/admin-generate', requireAuth, asyncHandler(async (req, res) => {
+  const {
+    address_line1, city, state, zip,
+    date_of_birth,
+    driver_license_number, driver_license_state, driver_license_expiry,
+    insurance_company, insurance_policy_number, insurance_expiry,
+    insurance_agent_name, insurance_agent_phone, insurance_vehicle_description,
+    customer_signature_data, customer_signature_type,
+    owner_signature_data, owner_signature_type,
+    signature_mode = customer_signature_data ? 'digital' : 'wet',
+    license_photo_paths,
+  } = req.body;
+
+  const { data: booking, error: bErr } = await supabase
+    .from('bookings')
+    .select('id, customer_id, booking_code')
+    .eq('id', req.params.bookingId)
+    .single();
+  if (bErr || !booking) return res.status(404).json({ error: 'Booking not found' });
+
+  const nowIso = new Date().toISOString();
+  const adminEmail = req.user?.email || 'admin';
+
+  // Common fields for both insert + update.
+  const fields = {
+    address_line1: address_line1 || null,
+    city: city || null,
+    state: state || null,
+    zip: zip || null,
+    date_of_birth: date_of_birth || null,
+    driver_license_number: driver_license_number || null,
+    driver_license_state: driver_license_state || null,
+    driver_license_expiry: driver_license_expiry || null,
+    insurance_company: insurance_company || null,
+    insurance_policy_number: insurance_policy_number || null,
+    insurance_expiry: insurance_expiry || null,
+    insurance_agent_name: insurance_agent_name || null,
+    insurance_agent_phone: insurance_agent_phone || null,
+    insurance_vehicle_description: insurance_vehicle_description || null,
+    customer_signature_data: customer_signature_data || null,
+    customer_signature_type: customer_signature_data ? (customer_signature_type || 'drawn') : null,
+    customer_signed_at: customer_signature_data ? nowIso : null,
+    owner_signature_data: owner_signature_data || null,
+    owner_signature_type: owner_signature_data ? (owner_signature_type || 'drawn') : null,
+    owner_signed_at: owner_signature_data ? nowIso : null,
+    owner_signed_by: owner_signature_data ? adminEmail : null,
+    agreement_source: 'admin_in_person',
+    signature_mode,
+    created_by: adminEmail,
+    license_photo_paths: Array.isArray(license_photo_paths) && license_photo_paths.length ? license_photo_paths : null,
+  };
+
+  // Upsert by booking_id (rental_agreements.booking_id is UNIQUE).
+  const { data: existing } = await supabase
+    .from('rental_agreements')
+    .select('id')
+    .eq('booking_id', booking.id)
+    .maybeSingle();
+
+  let agreement;
+  if (existing) {
+    const { data, error } = await supabase
+      .from('rental_agreements')
+      .update(fields)
+      .eq('id', existing.id)
+      .select()
+      .single();
+    if (error) throw error;
+    agreement = data;
+  } else {
+    const { data, error } = await supabase
+      .from('rental_agreements')
+      .insert({ booking_id: booking.id, ...fields })
+      .select()
+      .single();
+    if (error) throw error;
+    agreement = data;
+  }
+
+  // Mirror captured personal details onto the customer record (same as /sign).
+  if (booking.customer_id) {
+    const customerUpdate = {};
+    if (address_line1) customerUpdate.address_line1 = address_line1;
+    if (city) customerUpdate.city = city;
+    if (state) customerUpdate.state = state;
+    if (zip) customerUpdate.zip = zip;
+    if (date_of_birth) customerUpdate.date_of_birth = date_of_birth;
+    if (driver_license_number) customerUpdate.driver_license_number = driver_license_number;
+    if (driver_license_state) customerUpdate.driver_license_state = driver_license_state;
+    if (driver_license_expiry) customerUpdate.driver_license_expiry = driver_license_expiry;
+    if (Object.keys(customerUpdate).length) {
+      await supabase.from('customers').update(customerUpdate).eq('id', booking.customer_id);
+    }
+  }
+
+  // Archive the generated contract PDF to the customer's document folder.
+  let document = null;
+  try {
+    document = await archiveContract({
+      bookingId: booking.id,
+      generatedBy: adminEmail,
+      metadata: { signature_mode, source: 'admin_in_person', fully_executed: !!(customer_signature_data && owner_signature_data) },
+    });
+  } catch (e) {
+    console.error('[admin-generate] archive failed:', e.message);
+  }
+
+  res.json({ success: true, agreementId: agreement.id, signature_mode, document });
+}));
+
+// ══════════════════════════════════════════════════════════════════════════════
 // POST /agreements/:bookingId/counter-sign
 // Admin — Annie counter-signs the agreement
 // ══════════════════════════════════════════════════════════════════════════════
@@ -298,6 +421,13 @@ router.post('/:bookingId/counter-sign', requireAuth, asyncHandler(async (req, re
 
   if (error) throw error;
   if (!data) return res.status(404).json({ error: 'Agreement not found' });
+
+  // Archive the now fully-executed contract to the customer's document folder.
+  archiveContract({
+    bookingId: req.params.bookingId,
+    generatedBy: req.user?.email || 'admin',
+    metadata: { fully_executed: true, event: 'counter_sign' },
+  }).catch(e => console.error('[counter-sign] archive failed:', e.message));
 
   // Create notification for counter-sign
   const { createNotification } = await import('../services/notificationService.js');
@@ -356,16 +486,13 @@ router.get('/:bookingId/detail', requireAuth, asyncHandler(async (req, res) => {
 // Admin — downloads the signed PDF agreement
 // ══════════════════════════════════════════════════════════════════════════════
 router.get('/:bookingId/pdf', requireAuth, asyncHandler(async (req, res) => {
-  // Fetch agreement
-  const { data: agreement, error: aErr } = await supabase
+  // Fetch agreement (may not exist yet — admin can print an unsigned contract to
+  // wet-sign in person, which renders blank signature lines).
+  const { data: agreement } = await supabase
     .from('rental_agreements')
     .select('*')
     .eq('booking_id', req.params.bookingId)
-    .single();
-
-  if (aErr || !agreement) {
-    return res.status(404).json({ error: 'Agreement not found or not signed' });
-  }
+    .maybeSingle();
 
   // Fetch booking details
   const { data: booking, error: bErr } = await supabase
@@ -386,8 +513,8 @@ router.get('/:bookingId/pdf', requireAuth, asyncHandler(async (req, res) => {
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="Rental_Agreement_${booking.booking_code}.pdf"`);
 
-  // Generate and send PDF
-  await generateRentalAgreementPdf(agreement, booking, res);
+  // Generate and send PDF (agreement may be null → blank signature lines).
+  await generateRentalAgreementPdf(agreement || {}, booking, res);
 }));
 
 export default router;

@@ -249,6 +249,7 @@ AGREEMENTS (→ rental_agreements table)
 | `checkin_records` | Odometer/fuel/condition at each lifecycle stage |
 | `email_templates` | Automated email/SMS template content + merge fields |
 | `business_settings` | Singleton — admin-tunable config (quiet hours, future business hours/tax/fees). Migration 018. |
+| `documents` | Insert-only archive of every generated contract + invoice PDF (file in `documents` bucket). Migration 026. |
 | `sms_opt_out_log` | Append-only audit trail for SMS opt-out/opt-in actions (TCPA defense). Migration 018. |
 | Views/RPCs | `stats/overview`, `stats/revenue`, `stats/upcoming`, `stats/vehicles`, `stats/activity` |
 
@@ -257,6 +258,7 @@ AGREEMENTS (→ rental_agreements table)
 | Bucket | Visibility | MIME Types | Max Size | Purpose |
 |--------|-----------|------------|----------|---------|
 | `rental-photos` | Public | jpeg, png, webp, heic | 10MB | Inspection + check-in photos |
+| `documents` | Private | application/pdf | 20MB | Archived contract + invoice PDFs (lazily created by `documentService`) |
 
 ---
 
@@ -509,6 +511,47 @@ PUBLIC
 ### Migration to apply: `017_bouncie_integration.sql`
 
 Idempotent. Apply via Supabase SQL editor or `scripts/run_migration_017.js` (not yet authored — paste-and-run is fine).
+
+---
+
+## Unified Admin Booking + Contract Generator (added 2026-06-15)
+
+One admin flow that forks on (a) who captures ID + signature and (b) how money is collected. Custom rate/deposit, in-person contract generation (digital sign or print-to-wet-sign), and a per-customer/per-booking document archive. Reuses existing payment-recording + PDF generators + invoice service.
+
+### Schema (migrations 024–026)
+- `bookings.rate_overridden`, `bookings.deposit_overridden` (024)
+- `rental_agreements`: `customer_signature_data`/`customer_signed_at` now NULLABLE; `agreement_source`, `signature_mode`, `created_by` (025)
+- `documents` table + private `documents` storage bucket (026)
+
+### Backend
+| File | Description |
+|------|-------------|
+| `services/documentService.js` (NEW) | Renders contract/invoice PDFs to a Buffer (PassThrough), uploads to `documents` bucket, records `documents` rows. `archiveContract`, `archiveInvoice` (idempotent per invoice_number), `listDocuments`, `getDocumentDownloadUrl`. |
+| `routes/documents.js` (NEW) | `GET /customers/:id/documents`, `GET /bookings/:id/documents`, `GET /documents/:id/download`. Mounted in `api/index.js` + `server.js`. |
+| `services/pricingService.js` | `computeRentalPricing` accepts `customDailyRate`. |
+| `services/bookingService.js` | `createBooking` accepts `custom_daily_rate`, `custom_deposit_amount`, `notify_customer`. |
+| `routes/agreements.js` | `POST /:bookingId/admin-generate` (admin contract gen + archive); `/:bookingId/pdf` renders unsigned; counter-sign archives executed contract. |
+| `routes/bookings.js` | `/admin-create` accepts `fulfillment` (`link`\|`in_person`) + overrides; in-person creates already-approved. |
+| `routes/invoices.js` | Invoice PDF download also archives a copy. |
+
+### New API routes
+```
+POST   /api/v1/agreements/:bookingId/admin-generate   admin-generate + archive a contract
+GET    /api/v1/customers/:id/documents                customer's contract+invoice folder
+GET    /api/v1/bookings/:id/documents                 booking's documents
+GET    /api/v1/documents/:id/download                 signed download URL
+POST   /api/v1/bookings/admin-create  {fulfillment, custom_daily_rate, custom_deposit_amount, ...}
+```
+
+### Dashboard (api/client.js untouched — new calls in bookingApi.js)
+| File | Description |
+|------|-------------|
+| `api/bookingApi.js` | Added `adminGenerateAgreement`, `getCustomerDocuments`, `getBookingDocuments`, `downloadDocument`. |
+| `components/bookings/NewBookingModal.jsx` | Rebuilt: dynamic stepper with Method fork (send link vs complete in person), inline rate/deposit override, contact-only customer step, in-person ID+signature+payment+contract generation. |
+| `components/bookings/SignaturePadField.jsx` (NEW) | Reusable canvas signature pad. |
+| `components/bookings/DocumentsFolder.jsx` (NEW) | Lists + downloads archived documents (per-customer or per-booking). |
+| `pages/CustomerDetailPage.jsx` | New Documents section. |
+| `pages/BookingDetailPage.jsx` | New Documents tab (archive + on-demand contract download). |
 
 ---
 

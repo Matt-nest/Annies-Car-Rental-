@@ -89,9 +89,16 @@ export function computeRentalPricing({
   seasonalRuleName = null,
   loyaltyDiscountPct = 0,
   loyaltyTierLabel = null,
+  customDailyRate = null,
 }) {
   const rentalDays = calcRentalDays(pickupDate, returnDate);
-  const dailyRate = parseFloat(vehicle.daily_rate);
+  // customDailyRate lets the admin override the vehicle's standard daily rate at
+  // booking time (New Booking stepper). Weekly rate derives from this seed, so an
+  // override flows through to every rate_type. Falls back to the vehicle rate.
+  const overrideRate = customDailyRate != null && !Number.isNaN(parseFloat(customDailyRate))
+    ? parseFloat(customDailyRate)
+    : null;
+  const dailyRate = overrideRate != null ? overrideRate : parseFloat(vehicle.daily_rate);
   const discountPct = vehicle.weekly_discount_percent ?? 15;
   const weeklyRate = parseFloat(((dailyRate * 7) * (1 - discountPct / 100)).toFixed(2));
   const unlimitedMileageIncluded = vehicle.weekly_unlimited_mileage_enabled !== false;

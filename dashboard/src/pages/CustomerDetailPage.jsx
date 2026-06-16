@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Phone, Mail, User, Calendar, DollarSign, FileText, CreditCard, MapPin, Home, ShieldCheck, Zap } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, User, Calendar, DollarSign, FileText, CreditCard, MapPin, Home, ShieldCheck, Zap, FolderOpen } from 'lucide-react';
 import { api } from '../api/client';
 import StatusBadge from '../components/shared/StatusBadge';
+import DocumentsFolder from '../components/bookings/DocumentsFolder';
 import { SkeletonDashboard } from '../components/shared/Skeleton';
 import { format, formatDistanceToNow } from 'date-fns';
 
@@ -350,6 +351,11 @@ export default function CustomerDetailPage() {
           <CustomerTrustToggle customer={customer} onChange={setCustomer} />
         </Section>
       </div>
+
+      {/* Documents — every contract + invoice ever generated for this customer */}
+      <Section title="Documents" icon={FolderOpen}>
+        <DocumentsFolder customerId={id} showBookingCode />
+      </Section>
 
       {/* Booking History */}
       <Section title={`Booking History (${bookings.length})`} icon={Calendar}>
