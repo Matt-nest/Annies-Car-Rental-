@@ -61,6 +61,11 @@ export async function createBooking(payload) {
     // Admin overrides (New Booking stepper). null/undefined → vehicle standards.
     custom_daily_rate = null,
     custom_deposit_amount = null,
+    // Optional check-out readings captured at an in-person handoff (so the
+    // contract's "Odometer @ Check Out" + fuel print). Does NOT transition the
+    // booking — it's just the reading at signing.
+    pickup_mileage = null,
+    pickup_fuel_level = null,
     // When false (admin in-person path), skip the website-style "we got your
     // request" confirmation + booking_submitted notification — the admin is
     // completing everything in person, so those emails would be noise.
@@ -252,6 +257,8 @@ export async function createBooking(payload) {
       unlimited_miles: pricing.mileage_allowance === 'unlimited' || !!unlimited_miles,
       unlimited_tolls: !!unlimited_tolls,
       deposit_amount: depositAmount,
+      ...(pickup_mileage != null && pickup_mileage !== '' ? { pickup_mileage: Number(pickup_mileage) } : {}),
+      ...(pickup_fuel_level ? { pickup_fuel_level } : {}),
       // NOTE: rate_overridden / deposit_overridden (migration 024) are intentionally
       // NOT written here — nothing reads them, and inserting columns that may not
       // exist on every clone's DB would 500 booking creation. The "custom rate"
