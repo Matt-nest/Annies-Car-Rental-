@@ -475,9 +475,9 @@ export default function RentalAgreement({ bookingCode, theme, onSigned }: Props)
 
         {!termsExpanded ? (
           <p className="text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-            By signing below, you agree to all 12 sections of the Rental Agreement Terms and Conditions including definitions, indemnity, vehicle condition,
-            damage responsibility, prohibited uses, insurance, charges, deposit policy, property disclaimers, breach terms, modifications, and miscellaneous provisions.
-            Click "Read Full Terms" to review in detail.
+            By signing below, you agree to all 18 sections of the Rental Agreement Terms and Conditions including definitions, indemnity, vehicle condition,
+            damage responsibility, prohibited uses, insurance, charges, deposit policy, property disclaimers, breach terms, modifications, additional charges &amp; required fees,
+            card-on-file authorization, accident reporting, extension approval, and the Florida primary-insurance notice. Click "Read Full Terms" to review in detail.
           </p>
         ) : (
           <div

@@ -1,9 +1,12 @@
-// Annie's Car Rental — Rental Agreement Terms & Conditions v1.0
-// Adapted from the paper rental agreement for digital use
+// Rental Agreement Terms & Conditions v2.0 (white-label; copy is brand-driven)
+// Adapted from the paper rental agreement for digital use.
+// v2.0 adds the Additional Charges & Required Notices, card-on-file
+// authorization, and the Florida Statute 627.7263 primary-insurance notice
+// introduced in the v5 fillable rental-agreement document.
 
 import { brand } from '../config/brand';
 
-export const TERMS_VERSION = '1.0';
+export const TERMS_VERSION = '2.0';
 
 export const RENTAL_TERMS = [
   {
@@ -66,6 +69,36 @@ export const RENTAL_TERMS = [
     title: 'Miscellaneous',
     text: `A waiver by Us of any breach of this Agreement is not a waiver of any additional breach or waiver of the performance of Your obligations under this Agreement. Our acceptance of payment from You or Our failure, refusal, or neglect to exercise any of Our rights under this Agreement does not constitute a waiver of any other provision of this Agreement. Unless prohibited by law, You release Us from any consequential, special, or punitive damages in connection with this transaction or the reservation of a vehicle. If any provision of this Agreement is deemed void or unenforceable, the remaining provisions are valid and enforceable. This Agreement shall be governed and construed by the laws of the State of Florida without regarding to its conflicts and choice of law provisions.`,
   },
+  {
+    number: 13,
+    title: 'Additional Charges & Required Fees',
+    text: `In addition to the time, mileage, and taxes stated in this Agreement, You agree to pay the following charges in the amounts stated on Your Rental Agreement: (a) a Smoke Violation Fee if any evidence of smoking, smoke odor, or related residue is found inside the Vehicle upon return; (b) a Late Return Violation Fee for returning the Vehicle after the agreed-upon due date and time stated in this Agreement; (c) a Cleaning / Pet / Excessive Dirt Fee for excessive dirt, stains, pet hair or odor, trash, biohazard, or cleaning beyond normal use; (d) an Excess Mileage Fee, per mile, for each mile driven over the Miles Allowed stated in this Agreement; and (e) a Toll / Transponder / Toll-By-Plate Administrative Fee, per toll, invoice, or transaction, plus the actual tolls, toll-by-plate charges, transponder charges, citations, violations, and related fees. Toll and violation amounts may be charged to the card on file after the Vehicle is returned.`,
+  },
+  {
+    number: 14,
+    title: 'Card on File / Incidental Charges',
+    text: `You authorize ${brand.name} to keep Your credit or debit card on file and to charge it for incidentals and amounts due under this Agreement, including tolls, tickets, fuel, cleaning and smoking fees, late-return fees, damage, towing and recovery costs, administrative fees, and other applicable charges. Where permitted by law, You authorize Us to process Your card information in Your name for all Car Rental charges, including the full value of any Vehicle that is not returned to Us, all fines, towing, court costs, penalties, and administrative fees that We incur for parking, traffic, or other violations incurred during the rental term, and to apply any payments to the charges in whatever order We determine necessary.`,
+  },
+  {
+    number: 15,
+    title: 'Deposit Refund Timing',
+    text: `Your security deposit, if any, will be released or refunded within the timeframe stated on Your Rental Agreement after the Vehicle is returned and inspected, less any amounts owed to Us under this Agreement.`,
+  },
+  {
+    number: 16,
+    title: 'Accident / Police Report / Incident Notice',
+    text: `You must immediately notify ${brand.name} of any accident, damage, theft, citation, impound, towing, or police interaction involving the Vehicle. You must obtain a police or incident report when available and provide copies to Us.`,
+  },
+  {
+    number: 17,
+    title: 'Extension Approval',
+    text: `Any extension of the rental period must be requested and approved by ${brand.name} in writing before the due-back date and time. Keeping the Vehicle without written approval may result in late charges, recovery and towing charges, and other applicable charges.`,
+  },
+  {
+    number: 18,
+    title: 'Primary Insurance Notice — Florida Statute 627.7263',
+    text: `The valid and collectible liability insurance and personal injury protection insurance of any authorized rental or leasing driver is primary for the limits of liability and personal injury protection coverage required by ss. 324.021(7) and 627.736, Florida Statutes.`,
+  },
 ];
 
 export const ACKNOWLEDGEMENTS = [
@@ -73,6 +106,7 @@ export const ACKNOWLEDGEMENTS = [
   'Customer is responsible for lost car keys, a lockout situation, including electronic keys, remotes, and programming.',
   'If Your vehicle is being serviced by Us, Our right to repair Your vehicle during this rental is considered by Us to be the rental fee. You agree to all the terms and conditions of this Agreement and You acknowledge You were given an opportunity to read this Agreement before You were asked to sign.',
   'You authorize Us to process a credit/debit card voucher in Your name for all charges due under this Agreement.',
+  'You authorize Us to keep Your card on file and charge it for incidentals and amounts due under this Agreement — including tolls, citations, fuel, cleaning/smoking fees, late-return fees, excess mileage, damage, towing, and administrative fees.',
   'I confirm I am at least 21 years old and hold a valid driver\'s license.',
 ];
 
