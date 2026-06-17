@@ -88,6 +88,32 @@ export const bookingApi = {
 
   /** Fire the branded receipt email for a succeeded PaymentIntent. */
   sendStripeReceipt: async (paymentIntentId) => jsonPost(`/stripe/send-receipt`, { payment_intent_id: paymentIntentId }),
+
+  // ── Square (Annie's processor) ──────────────────────────────────────────────
+  /** Web Payments SDK bootstrap config (applicationId + locationId + environment). */
+  getSquareConfig: async () => jsonGet(`/square/config`),
+
+  /** The amount + booking summary for an over-the-phone charge (read-only). */
+  getSquareBookingSummary: async (bookingCode) => jsonGet(`/square/booking-summary/${bookingCode}`),
+
+  /** Charge a tokenized card for a booking (admin over-the-phone). */
+  squarePay: async (bookingCode, sourceToken, verificationToken, expectedTotalCents) =>
+    jsonPost(`/square/pay`, {
+      booking_code: bookingCode,
+      source_token: sourceToken,
+      verification_token: verificationToken,
+      expected_total_cents: expectedTotalCents,
+    }),
+
+  /** Fire the branded receipt email for a succeeded Square payment. */
+  sendSquareReceipt: async (paymentId) => jsonPost(`/square/send-receipt`, { payment_id: paymentId }),
+
+  /** Square location/account info for the payments admin page. */
+  getSquareAccount: async () => jsonGet(`/square/account`),
+  /** Recent Square payouts (Square has no live balance endpoint). */
+  getSquareBalance: async () => jsonGet(`/square/balance`),
+  /** Recent Square payments + refunds for the admin page. */
+  getSquareTransactions: async ({ limit = 25 } = {}) => jsonGet(`/square/transactions?limit=${limit}`),
 };
 
 async function jsonGet(path) {

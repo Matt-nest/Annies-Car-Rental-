@@ -13,6 +13,10 @@ import VehiclePickCard from './VehiclePickCard';
 import AdminScanStep from './AdminScanStep';
 import SignaturePadField from './SignaturePadField';
 import StripeCardCharge from './StripeCardCharge';
+import SquareCardCharge from './SquareCardCharge';
+
+// Payment processor for this clone. Annie's runs Square; others run Stripe.
+const PAYMENT_PROVIDER = import.meta.env.VITE_PAYMENT_PROVIDER === 'square' ? 'square' : 'stripe';
 
 /**
  * NewBookingModal — one streamlined flow for setting up a rental, forking late on
@@ -545,7 +549,11 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
           {result.needsStripe && !result.stripeCharged && (
             <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
               <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-2">Take payment over the phone</p>
-              <StripeCardCharge bookingCode={result.booking_code} onSuccess={() => setResult(r => ({ ...r, stripeCharged: true }))} />
+              {PAYMENT_PROVIDER === 'square' ? (
+                <SquareCardCharge bookingCode={result.booking_code} onSuccess={() => setResult(r => ({ ...r, stripeCharged: true }))} />
+              ) : (
+                <StripeCardCharge bookingCode={result.booking_code} onSuccess={() => setResult(r => ({ ...r, stripeCharged: true }))} />
+              )}
             </div>
           )}
 

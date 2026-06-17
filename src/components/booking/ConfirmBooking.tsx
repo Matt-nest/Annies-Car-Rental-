@@ -30,12 +30,16 @@ import {
 } from './confirm-booking/constants';
 import { getStripe } from './confirm-booking/stripeClient';
 import { buildStripeAppearance } from './confirm-booking/stripeAppearance';
+import SquareCheckoutForm from './confirm-booking/SquareCheckoutForm';
 import { useKeyboardInset } from '../../hooks/useKeyboardInset';
 import { useTheme } from '../../context/ThemeContext';
 
+// Payment processor for this clone. Annie's runs Square; others run Stripe.
+const PAYMENT_PROVIDER = import.meta.env.VITE_PAYMENT_PROVIDER === 'square' ? 'square' : 'stripe';
+
 // Stripe SDK is loaded here (not in constants.ts) so importing wizard helpers
-// elsewhere doesn't pull in @stripe/stripe-js.
-const stripePromise = getStripe();
+// elsewhere doesn't pull in @stripe/stripe-js. Skipped entirely on Square clones.
+const stripePromise = PAYMENT_PROVIDER === 'stripe' ? getStripe() : null;
 
 // When an admin pre-fills agreement details at booking creation, the backend
 // returns `prefilledSteps` from GET /agreements/:code. Map those keys to this
@@ -404,13 +408,20 @@ export default function ConfirmBooking() {
           });
         }
 
-        // Fetch payment/booking summary for pricing
-        const piRes = await fetch(`${API_URL}/stripe/create-payment-intent`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ booking_code: refCode }),
-        });
-        const piJson = await piRes.json();
+        // Fetch payment/booking summary for pricing. Square uses a dedicated
+        // read-only endpoint; Stripe derives it from create-payment-intent.
+        let piJson: any;
+        if (PAYMENT_PROVIDER === 'square') {
+          const sumRes = await fetch(`${API_URL}/square/booking-summary/${refCode}`);
+          piJson = await sumRes.json();
+        } else {
+          const piRes = await fetch(`${API_URL}/stripe/create-payment-intent`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ booking_code: refCode }),
+          });
+          piJson = await piRes.json();
+        }
 
         if (piJson.alreadyPaid) {
           setConfirmed(true);
@@ -634,7 +645,18 @@ export default function ConfirmBooking() {
               )}
 
               {/* ═══ Stage 4: Payment ═══ */}
-              {draft.stage === 4 && (
+              {draft.stage === 4 && PAYMENT_PROVIDER === 'square' && (
+                <SquareCheckoutForm
+                  bookingSummary={bookingSummary}
+                  draft={draft}
+                  depositAmount={depositAmount}
+                  bookingCode={refCode}
+                  onBack={() => goToStage(3)}
+                  onSuccess={() => setConfirmed(true)}
+                  theme={theme}
+                />
+              )}
+              {draft.stage === 4 && PAYMENT_PROVIDER === 'stripe' && (
                 (() => {
                   // Compute amount for Stripe Elements initialization
                   let insCost = 0;

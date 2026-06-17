@@ -2,10 +2,17 @@ import { useState, useEffect, useCallback } from 'react';
 import { ExternalLink, RefreshCw, DollarSign, CreditCard, Landmark, CheckCircle, XCircle, ArrowUpRight, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { api } from '../api/client';
+import { bookingApi } from '../api/bookingApi';
 import { SkeletonKpi, SkeletonTable } from '../components/shared/Skeleton';
 import EmptyState from '../components/shared/EmptyState';
 
 const EASE = [0.25, 1, 0.5, 1];
+
+// Payment processor for this clone. Annie's runs Square; others run Stripe.
+const PAYMENT_PROVIDER = import.meta.env.VITE_PAYMENT_PROVIDER === 'square' ? 'square' : 'stripe';
+const IS_SQUARE = PAYMENT_PROVIDER === 'square';
+const PROVIDER_LABEL = IS_SQUARE ? 'Square' : 'Stripe';
+const PROVIDER_DASHBOARD_URL = IS_SQUARE ? 'https://squareup.com/dashboard' : 'https://dashboard.stripe.com';
 
 function StatusBadge({ status }) {
   const config = {
@@ -44,9 +51,9 @@ export default function StripePage() {
     if (isRefresh) setRefreshing(true); else setLoading(true);
     try {
       const [acct, bal, txns] = await Promise.all([
-        api.getStripeAccount().catch(() => null),
-        api.getStripeBalance().catch(() => null),
-        api.getStripeTransactions({ limit: 25 }).catch(() => ({ transactions: [], refunds: [] })),
+        (IS_SQUARE ? bookingApi.getSquareAccount() : api.getStripeAccount()).catch(() => null),
+        (IS_SQUARE ? bookingApi.getSquareBalance() : api.getStripeBalance()).catch(() => null),
+        (IS_SQUARE ? bookingApi.getSquareTransactions({ limit: 25 }) : api.getStripeTransactions({ limit: 25 })).catch(() => ({ transactions: [], refunds: [] })),
       ]);
       setAccount(acct);
       setBalance(bal);
@@ -86,7 +93,7 @@ export default function StripePage() {
         className="flex items-center justify-between"
       >
         <div>
-          <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Stripe</h1>
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>{PROVIDER_LABEL}</h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>Payment processing management</p>
         </div>
         <div className="flex items-center gap-2">
@@ -99,12 +106,12 @@ export default function StripePage() {
             Refresh
           </button>
           <a
-            href="https://dashboard.stripe.com"
+            href={PROVIDER_DASHBOARD_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="btn-secondary"
           >
-            <ExternalLink size={14} /> Stripe Dashboard
+            <ExternalLink size={14} /> {PROVIDER_LABEL} Dashboard
           </a>
         </div>
       </motion.div>
@@ -297,11 +304,16 @@ export default function StripePage() {
       <div className="card p-5">
         <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>API Configuration</h2>
         <div className="space-y-2">
-          {[
+          {(IS_SQUARE ? [
+            { label: 'Access Token', envKey: 'SQUARE_ACCESS_TOKEN', set: !!account },
+            { label: 'Location ID', envKey: 'SQUARE_LOCATION_ID', note: 'The location payments are attributed to' },
+            { label: 'Application ID', envKey: 'SQUARE_APPLICATION_ID', note: 'Used in customer checkout (Web Payments SDK)' },
+            { label: 'Webhook Signature Key', envKey: 'SQUARE_WEBHOOK_SIGNATURE_KEY', note: 'Required for production webhook verification' },
+          ] : [
             { label: 'Secret Key', envKey: 'STRIPE_SECRET_KEY', set: !!account },
             { label: 'Webhook Secret', envKey: 'STRIPE_WEBHOOK_SECRET', note: 'Required for production webhook verification' },
             { label: 'Publishable Key', envKey: 'VITE_STRIPE_PUBLISHABLE_KEY', note: 'Used in customer checkout' },
-          ].map(({ label, envKey, note, set }) => (
+          ]).map(({ label, envKey, note, set }) => (
             <div key={envKey} className="flex items-center justify-between py-2" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
               <div>
                 <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{label}</p>

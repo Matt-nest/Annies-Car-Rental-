@@ -24,6 +24,7 @@
     "node-cron": "^3.0.3",
     "node-fetch": "^3.3.2",
     "pdfkit": "^0.18.0",
+    "square": "^44.1.0",
     "stripe": "^22.0.0",
     "web-push": "^3.6.7"
   },

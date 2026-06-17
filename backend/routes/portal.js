@@ -474,7 +474,10 @@ router.post('/dispute', requirePortalAuth, async (req, res) => {
  */
 router.get('/pending-charges', requirePortalAuth, async (req, res) => {
   try {
-    const { listCustomerVisibleCharges } = await import('../services/cardOnFileService.js');
+    const { IS_SQUARE } = await import('../utils/paymentProvider.js');
+    const { listCustomerVisibleCharges } = IS_SQUARE
+      ? await import('../services/squareCardOnFileService.js')
+      : await import('../services/cardOnFileService.js');
     const charges = await listCustomerVisibleCharges(req.portal.bookingId);
     res.json(charges);
   } catch (err) {
@@ -489,7 +492,10 @@ router.get('/pending-charges', requirePortalAuth, async (req, res) => {
  */
 router.post('/pending-charges/:id/dispute', requirePortalAuth, async (req, res) => {
   try {
-    const { disputePendingCharge } = await import('../services/cardOnFileService.js');
+    const { IS_SQUARE } = await import('../utils/paymentProvider.js');
+    const { disputePendingCharge } = IS_SQUARE
+      ? await import('../services/squareCardOnFileService.js')
+      : await import('../services/cardOnFileService.js');
     // Verify the charge belongs to this customer's booking before mutating.
     const { data: charge } = await supabase
       .from('pending_overage_charges')

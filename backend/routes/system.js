@@ -26,6 +26,8 @@ router.get('/health', async (req, res) => {
   checks.integrations = {
     stripe:       !!process.env.STRIPE_SECRET_KEY,
     stripe_webhook: !!process.env.STRIPE_WEBHOOK_SECRET,
+    square:       !!process.env.SQUARE_ACCESS_TOKEN && !!process.env.SQUARE_LOCATION_ID,
+    square_webhook: !!process.env.SQUARE_WEBHOOK_SIGNATURE_KEY,
     supabase:     !!process.env.SUPABASE_URL && !!process.env.SUPABASE_SERVICE_KEY,
     resend:       !!process.env.RESEND_API_KEY,
     resend_webhook: !!process.env.RESEND_WEBHOOK_SECRET,
