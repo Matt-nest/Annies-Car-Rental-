@@ -21,22 +21,23 @@ const brand = {
   name:        process.env.BRAND_NAME        || "Annie's Car Rental",
   legalEntity: process.env.BRAND_LEGAL_NAME  || "Aaron's Garage LLC",
   dba:         process.env.BRAND_DBA         || "DBA Annie's & Co",
+  ein:         process.env.BRAND_EIN         || '99-0908048',
   domain:      process.env.BRAND_DOMAIN      || 'anniescarrental.com',
   siteUrl:     process.env.SITE_URL          || 'https://anniescarrental.com',
   dashboardUrl:process.env.DASHBOARD_URL     || 'https://admin.dashboard.anniescarrental.com',
 
   // ── Contact ───────────────────────────────────────────────────────────
-  phone:       process.env.BRAND_PHONE       || '(772) 207-1655',
+  phone:       process.env.BRAND_PHONE       || '(772) 985-6667',
   email:       process.env.BRAND_EMAIL       || 'info@anniescarrental.com',
   ownerEmail:  process.env.OWNER_EMAIL       || 'annie@anniescarrental.com',
   emailFrom:   process.env.EMAIL_FROM        || "Annie's Car Rental <noreply@anniescarrental.com>",
 
   // ── Location ──────────────────────────────────────────────────────────
   location: {
-    city:    process.env.BRAND_CITY    || 'Port St. Lucie',
+    city:    process.env.BRAND_CITY    || 'Port Saint Lucie',
     state:   process.env.BRAND_STATE   || 'FL',
-    zip:     process.env.BRAND_ZIP     || '34952',
-    address: process.env.BRAND_ADDRESS || '1234 SE Commerce Ave',
+    zip:     process.env.BRAND_ZIP     || '34986',
+    address: process.env.BRAND_ADDRESS || '586 NW Mercantile Pl',
     timezone: process.env.CRON_TIMEZONE || 'America/New_York',
   },
 
@@ -52,6 +53,10 @@ const brand = {
     accent:    process.env.BRAND_COLOR_ACCENT    || '#92400e',  // Amber dark
     muted:     '#78716c',  // Stone muted
     link:      '#c8a97e',  // Warm gold link
+    // Fillable-field background tint on the rental-agreement PDF. Warm salmon
+    // for Annie's; clones override via BRAND_PDF_FIELD_FILL (e.g. a cool tint
+    // that reads cleanly against a navy/orange palette).
+    pdfFieldFill: process.env.BRAND_PDF_FIELD_FILL || '#FBE2D5',
   },
 
   logoUrl:     process.env.BRAND_LOGO_URL || 'https://anniescarrental.com/logo.svg',

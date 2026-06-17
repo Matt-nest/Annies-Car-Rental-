@@ -4,10 +4,13 @@ import { useTheme } from '../../context/ThemeContext';
 import { EASE, STAGGER } from '../../utils/motion';
 import { brand } from '../../config/brand';
 
+// Photo keeps its original as a <picture> fallback; logos render straight from
+// the tiny .webp (decorative, modern-browser-only animation anyway).
 const rideshareDriverImg = new URL('/rideshare-driver.jpeg', import.meta.url).href;
-const uberImg = new URL('/UBER.png', import.meta.url).href;
-const doordashImg = new URL('/Doordash.png', import.meta.url).href;
-const lyftImg = new URL('/Lyft.png', import.meta.url).href;
+const rideshareDriverWebp = new URL('/rideshare-driver.webp', import.meta.url).href;
+const uberImg = new URL('/UBER.webp', import.meta.url).href;
+const doordashImg = new URL('/Doordash.webp', import.meta.url).href;
+const lyftImg = new URL('/Lyft.webp', import.meta.url).href;
 
 const appLogos = [
   { src: uberImg, alt: 'Uber' },
@@ -40,14 +43,17 @@ export default function LongTermSection() {
             className="rounded-2xl sm:rounded-[2rem] overflow-hidden border shadow-xl"
             style={{ borderColor: 'var(--border-subtle)', aspectRatio: '4/3' }}
           >
-            <img
-              src={rideshareDriverImg}
-              alt="Rideshare driver checking their phone"
-              className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
-              style={{ objectPosition: '55% 20%' }}
-              loading="lazy"
-              decoding="async"
-            />
+            <picture className="contents">
+              <source srcSet={rideshareDriverWebp} type="image/webp" />
+              <img
+                src={rideshareDriverImg}
+                alt="Rideshare driver checking their phone"
+                className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
+                style={{ objectPosition: '55% 20%' }}
+                loading="lazy"
+                decoding="async"
+              />
+            </picture>
           </div>
 
           {/* Floating app logos card — bottom-RIGHT, centered layout */}

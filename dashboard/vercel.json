@@ -11,8 +11,20 @@
   ],
   "crons": [
     {
+      "path": "/api/v1/cron/morning",
+      "schedule": "0 11 * * *"
+    },
+    {
       "path": "/api/v1/cron/daily",
       "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/v1/cron/process-overage-charges",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/v1/cron/bonzah-poll",
+      "schedule": "0 15 * * *"
     }
   ]
 }

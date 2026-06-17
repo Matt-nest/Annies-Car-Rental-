@@ -9,7 +9,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "optimize:images": "node scripts/optimize-images.mjs"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.1.0",

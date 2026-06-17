@@ -13,6 +13,7 @@ import customerRoutes from '../routes/customers.js';
 import paymentRoutes from '../routes/payments.js';
 import damageRoutes from '../routes/damageReports.js';
 import stripeRoutes from '../routes/stripe.js';
+import squareRoutes from '../routes/square.js';
 import uploadRoutes from '../routes/uploads.js';
 import agreementRoutes from '../routes/agreements.js';
 import statsRoutes from '../routes/stats.js';
@@ -30,6 +31,8 @@ import documentRoutes from '../routes/documents.js';
 import tollRoutes from '../routes/tolls.js';
 import disputeRoutes from '../routes/disputes.js';
 import portalRoutes from '../routes/portal.js';
+import accountRoutes from '../routes/account.js';
+import recurringRoutes from '../routes/recurring.js';
 import monthlyInquiryRoutes from '../routes/monthlyInquiries.js';
 import reviewRoutes from '../routes/reviews.js';
 import pricingRulesRoutes from '../routes/pricingRules.js';
@@ -71,9 +74,18 @@ app.use('/api/v1/messaging/webhook/crisp', express.json({
   verify: (req, _res, buf) => { req.rawBody = buf; },
   limit: '2mb',
 }));
-app.use(express.json({ limit: '2mb' }));
+// Skip JSON/urlencoded parsing for Stripe + Square webhooks — they need the raw
+// body for HMAC signature verification (the raw handlers are mounted below).
+const RAW_WEBHOOK_PATHS = ['/api/v1/stripe/webhook', '/api/v1/square/webhook'];
+app.use((req, res, next) => {
+  if (RAW_WEBHOOK_PATHS.includes(req.path)) return next();
+  express.json({ limit: '2mb' })(req, res, next);
+});
 // Twilio webhooks default to application/x-www-form-urlencoded — required for /messaging/webhook/inbound
-app.use(express.urlencoded({ extended: false, limit: '1mb' }));
+app.use((req, res, next) => {
+  if (RAW_WEBHOOK_PATHS.includes(req.path)) return next();
+  express.urlencoded({ extended: false, limit: '1mb' })(req, res, next);
+});
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
@@ -89,6 +101,8 @@ app.use('/api/v1', damageRoutes);
 app.delete('/api/v1/blocked-dates/:id', damageRoutes);
 app.use('/api/v1/stripe/webhook', express.raw({ type: 'application/json' }));
 app.use('/api/v1/stripe', stripeRoutes);
+app.use('/api/v1/square/webhook', express.raw({ type: 'application/json' }));
+app.use('/api/v1/square', squareRoutes);
 app.use('/api/v1/uploads', uploadRoutes);
 app.use('/api/v1/agreements', agreementRoutes);
 app.use('/api/v1/cron', cronRoutes);
@@ -107,6 +121,8 @@ app.use('/api/v1', documentRoutes);
 app.use('/api/v1', tollRoutes);
 app.use('/api/v1/disputes', disputeRoutes);
 app.use('/api/v1/portal', portalRoutes);
+app.use('/api/v1/account', accountRoutes);
+app.use('/api/v1/recurring', recurringRoutes);
 app.use('/api/v1/monthly-inquiries', monthlyInquiryRoutes);
 app.use('/api/v1/reviews', reviewRoutes);
 app.use('/api/v1/pricing-rules', pricingRulesRoutes);

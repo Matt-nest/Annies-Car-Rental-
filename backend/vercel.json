@@ -20,11 +20,15 @@
     },
     {
       "path": "/api/v1/cron/process-overage-charges",
-      "schedule": "0 * * * *"
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/v1/cron/process-recurring-charges",
+      "schedule": "0 7 * * *"
     },
     {
       "path": "/api/v1/cron/bonzah-poll",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 15 * * *"
     }
   ]
 }

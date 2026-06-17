@@ -262,8 +262,11 @@ export async function settleDeposit(bookingId, { incidentalTotal = 0, refundedBy
   let overageScheduledId = null;
   if (amountOwed > 0) {
     try {
+      const { IS_SQUARE } = await import('../utils/paymentProvider.js');
       const { scheduleOverageCharge, FEATURE_AUTO_OVERAGE_CHARGES, OVERAGE_DELAY_MS } =
-        await import('./cardOnFileService.js');
+        IS_SQUARE
+          ? await import('./squareCardOnFileService.js')
+          : await import('./cardOnFileService.js');
       if (FEATURE_AUTO_OVERAGE_CHARGES) {
         overageScheduledId = await scheduleOverageCharge({
           bookingId,

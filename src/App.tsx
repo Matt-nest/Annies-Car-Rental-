@@ -21,6 +21,9 @@ import Footer from './components/layout/Footer';
 import CustomCursor from './components/home/CustomCursor';
 import OfflineBanner from './components/common/OfflineBanner';
 import { useScrollRestoration } from './hooks/useScrollRestoration';
+import { usePageSeo } from './hooks/usePageSeo';
+import { brand } from './config/brand';
+import { findSeoPage, type SeoPage } from './config/seoPages';
 
 /* Heavy / off-home routes are lazy-loaded so the homepage chunk stays small.
    Each becomes its own Rollup chunk, fetched only on navigation:
@@ -31,9 +34,12 @@ const VehicleDetailPage  = lazy(() => import('./components/vehicle/VehicleDetail
 const ConfirmBooking     = lazy(() => import('./components/booking/ConfirmBooking'));
 const RentalAgreementPage = lazy(() => import('./components/booking/RentalAgreementPage'));
 const BookingStatusPage  = lazy(() => import('./components/booking/BookingStatusPage'));
-const CustomerPortal     = lazy(() => import('./components/portal/CustomerPortal'));
+// Account-first portal shell (Phase 3). Falls back to the legacy code+email
+// CustomerPortal internally for /portal?code= deep links.
+const CustomerPortal     = lazy(() => import('./components/portal/account/PortalApp'));
 const PrivacyPolicy      = lazy(() => import('./components/legal/PrivacyPolicy'));
 const TermsOfService     = lazy(() => import('./components/legal/TermsOfService'));
+const LandingPage        = lazy(() => import('./components/seo/LandingPage'));
 
 // Minimal fallback for lazy routes — matches the existing 100dvh hygiene pattern.
 function RouteFallback() {
@@ -47,7 +53,7 @@ function RouteFallback() {
   );
 }
 
-type Page = 'home' | 'detail' | 'confirm' | 'rental-agreement' | 'booking-status' | 'portal' | 'privacy' | 'terms';
+type Page = 'home' | 'landing' | 'detail' | 'confirm' | 'rental-agreement' | 'booking-status' | 'portal' | 'privacy' | 'terms';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>(() => {
@@ -58,12 +64,30 @@ export default function App() {
     if (path === '/portal') return 'portal';
     if (path === '/privacy') return 'privacy';
     if (path === '/terms') return 'terms';
+    if (findSeoPage(path)) return 'landing';
     return 'home';
   });
+  // Matched SEO landing page (when currentPage === 'landing'). Seeded from the
+  // initial URL so a direct hit on a prerendered /<slug> renders the right page.
+  const [landingPage, setLandingPage] = useState<SeoPage | null>(() => findSeoPage(window.location.pathname) ?? null);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [quickViewVehicle, setQuickViewVehicle] = useState<Vehicle | null>(null);
   const [rateMode, setRateMode] = useState<RateMode>('daily');
   const { markPop } = useScrollRestoration<Page>(currentPage);
+
+  // Keep <title>/description/canonical in sync with the in-memory route.
+  // Landing pages pass a full override sourced from their SeoPage config so the
+  // client-side tags match the prerendered static <head>.
+  usePageSeo(
+    currentPage,
+    currentPage === 'landing' && landingPage
+      ? {
+          title: `${landingPage.title} | ${brand.name}`,
+          description: landingPage.metaDescription,
+          canonicalPath: `/${landingPage.slug}`,
+        }
+      : undefined,
+  );
 
   useEffect(() => {
     const handlePop = () => {
@@ -72,10 +96,12 @@ export default function App() {
       // window at wherever the previous page left off.
       markPop();
       const path = window.location.pathname;
+      const seo = findSeoPage(path);
       if (path === '/confirm') setCurrentPage('confirm');
       else if (path === '/rental-agreement') setCurrentPage('rental-agreement');
       else if (path === '/booking-status') setCurrentPage('booking-status');
       else if (path === '/portal') setCurrentPage('portal');
+      else if (seo) { setLandingPage(seo); setCurrentPage('landing'); }
       else { setCurrentPage('home'); setSelectedVehicle(null); }
     };
     window.addEventListener('popstate', handlePop);
@@ -208,6 +234,18 @@ export default function App() {
           >
             <Suspense fallback={<RouteFallback />}>
               <ConfirmBooking />
+            </Suspense>
+          </motion.div>
+        ) : currentPage === 'landing' && landingPage ? (
+          <motion.div
+            key={`landing-${landingPage.slug}`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={SPRING.natural}
+          >
+            <Suspense fallback={<RouteFallback />}>
+              <LandingPage page={landingPage} onNavigate={scrollToSection} onBrowseFleet={handleBrowseFleet} />
             </Suspense>
           </motion.div>
         ) : currentPage === 'detail' && selectedVehicle ? (

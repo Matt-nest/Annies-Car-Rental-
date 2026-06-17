@@ -94,6 +94,7 @@
 | `widgets/WeekScheduleWidget.jsx` | `api.getUpcoming()` | `upcoming` | `DashboardLayoutEngine` |
 | `widgets/VehicleRevenueWidget.jsx` | `api.getRevenue()` | `revenue-full` | `DashboardLayoutEngine` |
 | `widgets/ActivityFeedWidget.jsx` | `api.getActivity(10)` | `activity-10` | `DashboardLayoutEngine` |
+| `widgets/BookingFunnelWidget.jsx` | `bookingApi.getBookingFunnel(days)` | `funnel-<days>` | `DashboardLayoutEngine` |
 | `widgets/DamageSummaryWidget.jsx` | `api.getDamageReports()` | none | `DashboardLayoutEngine`, `FleetPage` |
 | `widgets/RevenueHeatmapWidget.jsx` | `api.getRevenue({period:'daily', days:365})` | none | `DashboardLayoutEngine`, `RevenuePage` |
 
@@ -206,6 +207,7 @@ STATS (→ views/RPCs)
   api.getUpcoming()                          GET  /stats/upcoming
   api.getActivity(limit)                     GET  /stats/activity
   api.getWebhookFailures(limit)              GET  /stats/webhook-failures
+  bookingApi.getBookingFunnel(days)          GET  /stats/funnel   (in bookingApi.js, not client.js)
 
 AGREEMENTS (→ rental_agreements table)
   api.getAgreementDetail(bookingId)          GET  /agreements/:id/detail
@@ -686,6 +688,7 @@ IDs in `widgetConfig.js` MUST match keys in `DashboardLayoutEngine.jsx`'s `WIDGE
 | `pending-approvals` | `PendingApprovalsWidget` | true |
 | `morning-briefing` | `MorningBriefingWidget` | true |
 | `kpi-cards` | `KPICardsWidget` | true |
+| `booking-funnel` | `BookingFunnelWidget` | true |
 | `fleet-grid` | `FleetCommandGrid` | true |
 | `revenue-trend` | `RevenueTrendWidget` | true |
 | `today-schedule` | `TodayScheduleWidget` | true |

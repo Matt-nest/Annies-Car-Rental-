@@ -5,6 +5,114 @@
 
 ---
 
+## 2026-06-17 — Customer portal accounts (Phase 1 — auth backend) + recurring-rental schema
+
+**Goal:** rebuild the basic code+email customer portal into an account-first, Turo-like mobile app. Admin provisions accounts (username = FirstName+LastInitial, deduped; password = phone#, `must_change_password` forces a first-login reset). Long-term private rentals become true recurring subscriptions with auto-charge or self-pay (reusable Square link) collection. This commit is **backend auth only** — no UI yet.
+
+Account auth is intentionally **separate from admin Supabase Auth** and from the existing 4h booking-code portal token: it reuses `PORTAL_JWT_SECRET` but issues a distinct `type:'account'` JWT (30d), so the two token kinds can't cross over. Passwords hashed with Node built-in `crypto.scrypt` (format `scrypt$salt$derived`) — no native dep, Vercel-safe (no bcrypt added).
+
+**New (backend):**
+- `migrations/008_customer_accounts.sql` — `customer_accounts` (1 login/customer, unique username), `customers.avatar_url`, `bookings.rental_type`, `recurring_rentals` (subscription: amount/interval/collection_method auto_charge|send_link/next_charge_date), `recurring_charges` (per-cycle ledger, unique on (rental, period_start) for idempotent cron). Idempotent; **NOT yet applied to Supabase** (apply to `yrerxvuyeglrypeufjpy`, not the MCP's `asdhn…`).
+- `services/customerAccountService.js` — provisionAccount / resetPassword / getAccountForCustomer / loginAccount / setAccountPassword / getAccountCustomer / requireAccountAuth / verifyAccountToken.
+- `routes/account.js` — `POST /account/login`, `POST /account/set-password`, `GET /account/me`, `PUT /account/profile` (whitelisted self-edit fields).
+
+**Edited:** `api/index.js` + `server.js` (mount `/api/v1/account`); `routes/customers.js` (admin: `GET/POST /customers/:id/account`, `POST /customers/:id/account/reset-password` — provision + hand off creds).
+
+NEVER-TOUCH respected: `api/client.js`, `auth/`, notify/email templates untouched. Both entry files syntax-clean; new modules import + export-check clean; scrypt hash/verify roundtrip verified; 56/56 backend tests pass.
+
+**Phase 2 (admin provisioning UI):**
+- `dashboard/src/api/bookingApi.js` — added `getCustomerAccount`, `provisionCustomerAccount`, `resetCustomerAccountPassword` (kept out of the 25-consumer `api/client.js` per hard rule).
+- `dashboard/src/pages/CustomerDetailPage.jsx` — new **Portal Login** section (`CustomerPortalAccount` + reusable `CopyField`). Create-login button (disabled until the customer has a phone), shows last-login + Temp/Set password badge, reset-to-phone button, and a copyable username/temp-password handoff card. Dashboard build clean.
+
+**Phase 3a (portal shell — auth + routing + Profile):** account-first rebuild of the `/portal` customer site (React 19 / Tailwind 4 / motion). New subtree `src/components/portal/account/`:
+- `portalClient.ts` — account API + 30d token persisted in localStorage (`annie_portal_account_token`); `authGet`/`authSend` helpers; login/getMe/setPassword/updateProfile.
+- `AccountAuthContext.tsx` — session provider: auto-restores + validates the stored token via `/account/me`, exposes login/logout/setPassword/refresh.
+- `LoginScreen.tsx` (username + phone-as-temp-password, show/hide), `SetPasswordScreen.tsx` (forced first-login reset, min 8).
+- `PortalApp.tsx` — entry shell: gates loading → login → forced reset → tabbed app (bottom-nav, Turo-style). **Legacy fallback preserved**: `/portal?code=XXXX` deep links still render the original code+email `CustomerPortal` (lazy), so no notification link breaks.
+- `screens/TripsScreen.tsx` (stub for 3b), `screens/ProfileScreen.tsx` (real: identity, contact, change-password, sign-out).
+- `src/App.tsx` — the `/portal` lazy import now points at `account/PortalApp` (one-line swap; route block + variable name unchanged).
+
+Customer-site build clean; new files type-check clean (`tsc` shows only pre-existing ErrorBoundary/sw.ts errors). Trip list (3b), avatar upload + payment methods (3c) still to come.
+
+**Phase 3b (Trips list + trip detail):**
+- `backend/routes/account.js` — `GET /account/trips` (ownership-scoped booking summaries) + `GET /account/trips/:id` (full detail gated by `customer_id === req.account.customerId`; mirrors `/portal/booking` shape — total_price/vehicle/deposit/invoice — and reveals `lockbox_code` only when status `active`). Imports `getBookingDetail` from bookingService.
+- `src/components/portal/account/portalClient.ts` — `TripSummary`/`TripDetail` types + `getTrips`/`getTrip`.
+- `screens/tripStatus.ts` (NEW) — shared status label/color map, current/upcoming/past grouping, vehicle-name + date helpers.
+- `screens/TripsScreen.tsx` — real list grouped into Current/Upcoming/Past with thumbnail cards + status pills (was a stub).
+- `screens/TripDetailScreen.tsx` (NEW) — native overview: vehicle hero, lockbox card (active), schedule, charge breakdown + deposit, and a status-aware CTA that **bridges to the legacy `/portal?code=` flow** for check-in/return (native check-in lands in Phase 5).
+- `PortalApp.tsx` — trip detail pushes over the Trips tab (`openTripId`), bottom-nav returns to tab roots.
+
+Customer build + new-file typecheck clean; 56/56 backend tests pass.
+
+**Phase 3c (Profile avatar + inline edit — completes Phase 3):**
+- `backend/routes/account.js` — `POST /account/avatar` (account-authed, multipart `file`, 5 MB image-only). Self-contained: uploads to a public `avatars` bucket (auto-created) under the customer's own folder, saves `customers.avatar_url`, returns the public URL + refreshed customer. Did NOT modify `routes/uploads.js` (mixes admin/portal auth + only returns public URLs for the vehicle bucket).
+- `src/components/portal/account/portalClient.ts` — `uploadAvatar` (multipart, no manual Content-Type).
+- `screens/ProfileScreen.tsx` — avatar uploader (tap → file picker, camera badge, spinner) + inline **Edit** mode for phone/address fields (PUT `/account/profile`, optimistic `setCustomer`). View/edit toggle.
+
+Note: chose a dedicated public `avatars` bucket over the `rental-photos/avatars` default flagged earlier — robust (auto-created) and avoids depending on a bucket whose existence isn't referenced in code.
+
+Customer build + new-file typecheck clean; 56/56 backend tests pass. **Phase 3 (portal shell) complete.**
+
+**Phase 4a (wallet — cards on file):**
+- `backend/services/squarePortalCardsService.js` (NEW) — `ensurePortalSquareCustomer` / `listCards` / `addCard` / `removeCard`. Independent of `FEATURE_AUTO_OVERAGE_CHARGES` (that flag governs auto overage charges; the wallet works whenever `IS_SQUARE`). Square is source of truth (`cards.list/create/disable`); remove verifies card ownership against the customer's `square_customer_id` first. exp month/year coerced from BigInt.
+- `backend/routes/account.js` — `GET /account/payments-config` (Web Payments SDK bootstrap), `GET/POST /account/cards`, `DELETE /account/cards/:cardId`.
+- `src/components/portal/account/portalClient.ts` — `SavedCard` + `getCards`/`addCard`/`removeCard`.
+- `screens/WalletScreen.tsx` (NEW) — saved-card list (brand/•••• last4/exp), remove (optimistic), and an Add-card panel that mounts the Square card iframe by **reusing the booking flow's `getSquarePayments`/`mountCard`** (`booking/confirm-booking/squareClient`), tokenizes, and POSTs the nonce. Provider-gated: non-Square shows a "call us" note.
+- `PortalApp.tsx` — new **Wallet** tab (CreditCard) between Trips and Profile.
+
+Customer build + new-file typecheck clean; 56/56 backend tests pass. Live card add/remove needs migration applied + `PAYMENT_PROVIDER=square` + Square sandbox creds.
+
+**Phase 4b (self-pay a trip balance):**
+- `migrations/008_customer_accounts.sql` — added `invoices.paid_at` (the table had `sent_at` but no paid timestamp).
+- `backend/services/squarePortalCardsService.js` — `getTripBalance` (server-authoritative: reads `invoices.amount_due` for payable statuses sent/overdue/disputed; never trusts the client amount) + `chargeTripBalance` (charges a saved card or one-time token via `square.payments.create`, inserts a `balance` payments row, marks the invoice `paid`).
+- `backend/routes/account.js` — `GET /account/trips/:id/balance`, `POST /account/trips/:id/pay { savedCardId | sourceId }`.
+- `src/components/portal/account/portalClient.ts` — `TripBalance` + `getTripBalance`/`payTripBalance`.
+- `screens/PaySheet.tsx` (NEW) — bottom-sheet: pick a saved card or enter a new one (reuses the Square SDK loader), fixed server amount, single Pay action.
+- `screens/TripDetailScreen.tsx` — fetches the balance and shows a "Pay balance · $X" CTA that opens the sheet; on success refetches trip + balance.
+
+Customer build + typecheck clean; 56/56 backend tests pass.
+
+**NOT done here:** apply `008_customer_accounts.sql`. Next: (4c) recurring rentals — admin create plan + reusable Square Payment Links + auto-charge cron; (5) native trip extension + check-in + messaging.
+
+---
+
+## 2026-06-16 — Square payment processor (behind PAYMENT_PROVIDER flag, Annie's only)
+
+**Goal:** let Annie's run its existing Square account instead of Stripe, without affecting other clones (each clone is its own repo/Vercel/Supabase). Built Square **alongside** Stripe behind a `PAYMENT_PROVIDER=stripe|square` flag (frontend `VITE_PAYMENT_PROVIDER`) so the cutover is a flag flip with instant rollback. Stripe code is untouched and stays as the dormant rollback path.
+
+Square SDK `square@^44` (new `SquareClient` style; BigInt money; `WebhooksHelper.verifySignature`). Stripe's PaymentIntent/clientSecret three-step collapses to client tokenize (Web Payments SDK) → `POST /square/pay` (server `payments.create` with idempotencyKey). Deposits stay charge-then-refund (maps 1:1). Receipt idempotency moved from PI metadata to `bookings.receipt_sent_at` (Square has no updatable payment metadata).
+
+**New (backend):** `utils/square.js`, `utils/paymentProvider.js`, `services/squareService.js` (createPayment / recordPayment / handleSquareWebhook / receipt), `services/squareCardOnFileService.js` (Customers+Cards API, off-session overage charges), `routes/square.js` (`/config`, `/booking-summary/:code`, `/pay`, `/send-receipt`, `/webhook` HMAC, admin `/account|/balance|/transactions`), `migrations/007_square.sql`.
+**New (frontend):** `src/components/booking/confirm-booking/{squareClient.ts,SquareCheckoutForm.tsx}`, `dashboard/src/components/bookings/SquareCardCharge.jsx`.
+**Edited:** `backend/server.js` + `backend/api/index.js` (mount Square route + raw-body webhook; **also fixed the long-standing project_whitelabel_webhook_rawbody_bug in api/index.js** — the global `express.json()` now skips both webhook paths so signature verification gets the raw body), `routes/payments.js` (refund branches stripe/square), `routes/cron.js` + `routes/portal.js` + `services/depositService.js` (overage dispatch by provider), `routes/system.js` (health shows square), `src/components/booking/ConfirmBooking.tsx` (summary fetch + Stage-4 branch; Stripe SDK not loaded on Square), `dashboard/src/components/bookings/NewBookingModal.jsx`, `dashboard/src/api/bookingApi.js` (square methods — client.js untouched), `dashboard/src/pages/StripePage.jsx` (provider-aware), all three `.env.example`.
+
+NEVER-TOUCH respected: `api/client.js`, `auth/`, notify/email templates (called, not modified), no JD Coastal. Default flag is `stripe`, so other clones are unaffected. Both builds clean; 56/56 backend tests pass.
+
+**NOT done here (deploy steps):** `007_square.sql` was written but NOT applied to Supabase (per hard rule). Apply it, then set Square env on Annie's backend Vercel project + `VITE_PAYMENT_PROVIDER=square` on both projects, register the Square webhook (→ `SQUARE_WEBHOOK_SIGNATURE_KEY`), and flip `PAYMENT_PROVIDER=square`. Needs Square App ID / Access Token / Location ID.
+
+**Live sandbox verification (same day) — fixed 2 real bugs found by running it end-to-end:**
+- Migration applied to Supabase project `yrerxvuyeglrypeufjpy` (NOT the MCP's `asdhn…` — see project_supabase_mcp_project_mismatch). Verified columns exist.
+- Drove `POST /square/pay` against a test booking → rental+deposit ledger rows, `deposit_status=paid`, `receipt_sent_at` lock, `booking_deposits` all correct. Card-on-file (with `FEATURE_AUTO_OVERAGE_CHARGES=true`): Square Customer + saved card (`ccof:…`) + **off-session charge against the saved card all succeeded**.
+- **Bug 1 — `routes/square.js`:** Square SDK's `payments.list`/`refunds.list` reject `sortOrder` unless `sortField:'CREATED_AT'` is also passed (it emits an empty `sort_field` → 400). Would have made the dashboard transactions list silently empty. Fixed both calls.
+- **Bug 2 — `services/squareService.js` createPayment:** `ensureSquareCustomer` persists the new `square_customer_id` to the DB but not the in-memory `booking.customers`, so `saveCardFromPayment` read the stale null and skipped vaulting — card was never saved on first payment. Fixed by propagating the id onto `booking.customers` before `recordPayment`.
+
+---
+
+## 2026-06-16 — Dashboard monitoring: Booking Funnel / Conversion widget
+
+**Goal:** surface site-activity monitoring *inside* the dashboard instead of a third-party tool. Discovery first: Activity Feed + Revenue Trend widgets already exist (just toggle-off in some saved layouts) — so the only genuinely new build was a conversion funnel. Supabase-native (own data, no PostHog).
+
+- **[backend/routes/stats.js](backend/routes/stats.js)** — new `GET /stats/funnel?days=` (additive; existing endpoints untouched). Cohort = bookings created in the last `days` (clamped ≤365). Cumulative/monotonic "ever-reached" counts derived from `booking_status_log.to_status` (a completed booking also counts as picked-up/confirmed/approved). `POST_APPROVAL` set so in-person admin bookings that start at `approved` aren't undercounted. Returns `{ window_days, conversion_rate, steps:[{key,label,count,pct}], outcomes:{declined,cancelled} }`.
+- **[dashboard/src/api/bookingApi.js](dashboard/src/api/bookingApi.js)** — added `getBookingFunnel(days=90)`. Kept in bookingApi.js so the 25-consumer `client.js` stays untouched (CLAUDE.md hard rule).
+- **dashboard/src/components/dashboard/widgets/BookingFunnelWidget.jsx** (NEW) — CSS funnel bars (no Recharts; eager-imported like other non-chart widgets), 30d/90d/1y window selector, conversion-rate headline, per-step drop-off (−N), declined/cancelled terminal chips. Uses design tokens + `cachedQuery('funnel-<days>')`.
+- **[dashboard/src/lib/widgetConfig.js](dashboard/src/lib/widgetConfig.js)** — `booking-funnel` registry entry (defaultVisible: true; merges to end of existing saved layouts via useWidgetLayout).
+- **[dashboard/src/components/dashboard/DashboardLayoutEngine.jsx](dashboard/src/components/dashboard/DashboardLayoutEngine.jsx)** — registered `booking-funnel` → `BookingFunnelWidget` in `WIDGET_COMPONENTS`.
+- **PROJECT_MAP.md** — updated widget table, Widget ID Registry, STATS endpoint list.
+
+No NEVER-TOUCH files, no endpoint-shape changes, no schema/migration. Blast radius 6 (5 code + map). Dashboard build clean (`npm run build`, 0 errors).
+
+---
+
 ## 2026-06-15 — Admin booking generator: feedback round (fixes + Stripe-over-phone + fee receipt)
 
 Iteration on the unified admin booking flow from owner testing:

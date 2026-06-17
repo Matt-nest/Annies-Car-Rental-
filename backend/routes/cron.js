@@ -317,10 +317,14 @@ router.get('/daily', async (req, res) => {
     }
 
     // Process pending overage charges whose 48h dispute window has closed.
-    // No-op when FEATURE_AUTO_OVERAGE_CHARGES is off.
+    // No-op when FEATURE_AUTO_OVERAGE_CHARGES is off. Dispatches to the
+    // configured processor (Square for Annie's, Stripe otherwise).
     try {
-      const { processDueOverageCharges } = await import('../services/cardOnFileService.js');
-      const overage = await processDueOverageCharges();
+      const { IS_SQUARE } = await import('../utils/paymentProvider.js');
+      const svc = IS_SQUARE
+        ? await import('../services/squareCardOnFileService.js')
+        : await import('../services/cardOnFileService.js');
+      const overage = await svc.processDueOverageCharges();
       results.overageCharges = overage;
     } catch (e) {
       console.error('[CRON/daily] processDueOverageCharges failed:', e.message);
@@ -388,11 +392,30 @@ router.get('/morning', async (req, res) => {
  */
 router.get('/process-overage-charges', async (req, res) => {
   try {
-    const { processDueOverageCharges } = await import('../services/cardOnFileService.js');
-    const result = await processDueOverageCharges();
+    const { IS_SQUARE } = await import('../utils/paymentProvider.js');
+    const svc = IS_SQUARE
+      ? await import('../services/squareCardOnFileService.js')
+      : await import('../services/cardOnFileService.js');
+    const result = await svc.processDueOverageCharges();
     res.json({ ok: true, ...result });
   } catch (err) {
     console.error('[CRON/overage] Error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /cron/process-recurring-charges — charges due recurring rental cycles
+ * (auto_charge) and opens send_link cycles. Runs daily. No-op when not Square.
+ */
+router.get('/process-recurring-charges', async (req, res) => {
+  try {
+    const { processDueRecurringCharges } = await import('../services/recurringRentalService.js');
+    const result = await processDueRecurringCharges();
+    console.log('[CRON/recurring]', result);
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    console.error('[CRON/recurring] Error:', err);
     res.status(500).json({ error: err.message });
   }
 });

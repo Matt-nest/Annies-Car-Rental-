@@ -1,6 +1,7 @@
 import { Phone, MapPin, MessageSquare } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { brand } from '../../config/brand';
+import { seoPages } from '../../config/seoPages';
 
 export default function Footer() {
   const { theme } = useTheme();
@@ -12,7 +13,7 @@ export default function Footer() {
     >
       <div className="max-w-7xl mx-auto">
         {/* Top row: Brand + Contact + Links */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 sm:gap-10 mb-10 sm:mb-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-10 mb-10 sm:mb-12">
           {/* Brand */}
           <div>
             <div className="relative inline-flex h-[44px] sm:h-[56px] mb-4">
@@ -68,6 +69,20 @@ export default function Footer() {
                 <MapPin size={14} style={{ color: 'var(--text-tertiary)' }} />
                 <span style={{ color: 'var(--text-secondary)' }}>{brand.location.address}, {brand.location.city}, {brand.location.state}</span>
               </div>
+            </div>
+          </div>
+
+          {/* Rentals — SEO landing pages (real <a href> for crawlable internal links) */}
+          <div>
+            <h4 className="text-[11px] uppercase tracking-[0.2em] font-semibold mb-4" style={{ color: 'var(--text-tertiary)' }}>
+              Rentals
+            </h4>
+            <div className="flex flex-col gap-3">
+              {seoPages.map((p) => (
+                <a key={p.slug} href={`/${p.slug}`} className="nav-link text-sm">
+                  {p.serviceName} · {p.city}
+                </a>
+              ))}
             </div>
           </div>
 

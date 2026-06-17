@@ -4,6 +4,8 @@ import { requireAuth, requireRole } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { validatePaymentPayload } from '../utils/validators.js';
 import { getStripe } from '../utils/stripe.js';
+import { getSquare } from '../utils/square.js';
+import crypto from 'crypto';
 
 const router = Router();
 
@@ -115,9 +117,9 @@ router.post('/payments/:id/refund', requireAuth, requireRole('owner', 'admin'), 
   let fullNotes = `Refund for payment ${payment.id}`;
   if (reason) fullNotes += ` - Reason: ${reason}`;
 
-  let finalStripeRefundId = null;
+  let finalGatewayRefundId = null;
 
-  // 2. Issue Stripe refund if applicable
+  // 2. Issue the gateway refund, branching on the original payment's processor.
   if (payment.method === 'stripe' && payment.reference_id && payment.reference_id.startsWith('pi_')) {
     const stripe = getStripe();
     try {
@@ -126,11 +128,27 @@ router.post('/payments/:id/refund', requireAuth, requireRole('owner', 'admin'), 
         amount: Math.round(refundTarget * 100), // Stripe expects cents
         reason: reason === 'fraudulent' ? 'fraudulent' : (reason === 'duplicate' ? 'duplicate' : 'requested_by_customer')
       });
-      finalStripeRefundId = stripeRefund.id;
+      finalGatewayRefundId = stripeRefund.id;
       fullNotes += ` (Stripe Request: ${stripeRefund.id})`;
     } catch (e) {
       console.error('[Stripe Refund Error]', e);
       return res.status(500).json({ error: `Stripe Refund Failed: ${e.message}` });
+    }
+  } else if (payment.method === 'square' && payment.reference_id) {
+    const square = getSquare();
+    try {
+      const resp = await square.refunds.refundPayment({
+        idempotencyKey: crypto.randomUUID(),
+        paymentId: payment.reference_id,
+        amountMoney: { amount: BigInt(Math.round(refundTarget * 100)), currency: 'USD' },
+        reason: reason ? String(reason).slice(0, 192) : undefined,
+      });
+      finalGatewayRefundId = resp.refund?.id || null;
+      fullNotes += ` (Square Refund: ${finalGatewayRefundId})`;
+    } catch (e) {
+      const detail = e?.errors?.[0]?.detail || e.message;
+      console.error('[Square Refund Error]', detail);
+      return res.status(500).json({ error: `Square Refund Failed: ${detail}` });
     }
   }
 
@@ -142,7 +160,7 @@ router.post('/payments/:id/refund', requireAuth, requireRole('owner', 'admin'), 
       payment_type: 'refund',
       amount: -Math.abs(refundTarget), // store as negative
       method: payment.method,
-      reference_id: finalStripeRefundId || `manual_refund_${Date.now()}`,
+      reference_id: finalGatewayRefundId || `manual_refund_${Date.now()}`,
       notes: fullNotes,
       status: 'completed',
       paid_at: new Date().toISOString()

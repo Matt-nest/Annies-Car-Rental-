@@ -10,6 +10,7 @@ import customerRoutes from './routes/customers.js';
 import paymentRoutes from './routes/payments.js';
 import damageRoutes from './routes/damageReports.js';
 import stripeRoutes from './routes/stripe.js';
+import squareRoutes from './routes/square.js';
 import uploadRoutes from './routes/uploads.js';
 import agreementRoutes from './routes/agreements.js';
 import statsRoutes from './routes/stats.js';
@@ -20,6 +21,8 @@ import cronRoutes from './routes/cron.js';
 import userRoutes from './routes/users.js';
 import systemRoutes from './routes/system.js';
 import portalRoutes from './routes/portal.js';
+import accountRoutes from './routes/account.js';
+import recurringRoutes from './routes/recurring.js';
 import depositRoutes from './routes/deposits.js';
 import checkinRoutes from './routes/checkin.js';
 import disputeRoutes from './routes/disputes.js';
@@ -68,14 +71,15 @@ app.use('/api/v1/messaging/webhook/crisp', express.json({
   verify: (req, _res, buf) => { req.rawBody = buf; },
   limit: '2mb',
 }));
-// Skip JSON parsing for Stripe webhook (needs raw body for signature verification)
+// Skip JSON parsing for Stripe + Square webhooks (need raw body for signature verification)
+const RAW_WEBHOOK_PATHS = ['/api/v1/stripe/webhook', '/api/v1/square/webhook'];
 app.use((req, res, next) => {
-  if (req.path === '/api/v1/stripe/webhook') return next();
+  if (RAW_WEBHOOK_PATHS.includes(req.path)) return next();
   express.json({ limit: '2mb' })(req, res, next);
 });
 // Twilio webhooks default to application/x-www-form-urlencoded — required for /messaging/webhook/inbound
 app.use((req, res, next) => {
-  if (req.path === '/api/v1/stripe/webhook') return next();
+  if (RAW_WEBHOOK_PATHS.includes(req.path)) return next();
   express.urlencoded({ extended: false, limit: '1mb' })(req, res, next);
 });
 
@@ -106,6 +110,10 @@ app.delete('/api/v1/blocked-dates/:id', damageRoutes);
 app.use('/api/v1/stripe/webhook', express.raw({ type: 'application/json' }));
 app.use('/api/v1/stripe', stripeRoutes);
 
+// Square — webhook raw body handler + routes (Annie's processor)
+app.use('/api/v1/square/webhook', express.raw({ type: 'application/json' }));
+app.use('/api/v1/square', squareRoutes);
+
 // File uploads (ID photos + vehicle images)
 app.use('/api/v1/uploads', uploadRoutes);
 
@@ -114,6 +122,8 @@ app.use('/api/v1/agreements', agreementRoutes);
 app.use('/api/v1/cron', cronRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/portal', portalRoutes);
+app.use('/api/v1/account', accountRoutes);
+app.use('/api/v1/recurring', recurringRoutes);
 app.use('/api/v1/deposits', depositRoutes);
 app.use('/api/v1', checkinRoutes);
 app.use('/api/v1/disputes', disputeRoutes);

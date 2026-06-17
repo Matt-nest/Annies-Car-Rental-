@@ -6,6 +6,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { EASE, STAGGER } from '../../utils/motion';
 import { brand } from '../../config/brand';
 const happyDriverImg = new URL('/happy-driver.png', import.meta.url).href;
+const happyDriverWebp = new URL('/happy-driver.webp', import.meta.url).href;
 
 export default function TrustSection() {
   const { theme } = useTheme();
@@ -98,14 +99,17 @@ export default function TrustSection() {
             className="aspect-[3/4] sm:aspect-[4/5] rounded-2xl sm:rounded-[2rem] overflow-hidden border shadow-xl"
             style={{ borderColor: 'var(--border-subtle)' }}
           >
-            <img
-              src={happyDriverImg}
-              alt="Happy customer in a rental car"
-              className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
-              loading="lazy"
-              decoding="async"
-              referrerPolicy="no-referrer"
-            />
+            <picture className="contents">
+              <source srcSet={happyDriverWebp} type="image/webp" />
+              <img
+                src={happyDriverImg}
+                alt="Happy customer in a rental car"
+                className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
+                loading="lazy"
+                decoding="async"
+                referrerPolicy="no-referrer"
+              />
+            </picture>
           </div>
           {/* Floating social proof card */}
           <motion.div

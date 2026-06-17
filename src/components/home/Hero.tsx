@@ -25,6 +25,12 @@ export default function Hero({ onBrowseFleet }: HeroProps) {
     const v = videoRef.current;
     if (!v) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    // Don't pull the 6.8 MB clip on metered / Save-Data connections — the
+    // static poster already covers the hero, so playback is purely decorative.
+    if ((navigator as unknown as { connection?: { saveData?: boolean } }).connection?.saveData) return;
+    // preload="none" means the browser hasn't fetched the clip yet; calling
+    // play() is what kicks off the download, so it only loads when we actually
+    // intend to play (not under reduced-motion / Save-Data above).
     v.play().catch(() => {
       /* autoplay blocked (e.g. Low Power Mode) — keep the poster, no overlay */
     });
@@ -57,7 +63,7 @@ export default function Hero({ onBrowseFleet }: HeroProps) {
           muted
           loop
           playsInline
-          preload="auto"
+          preload="none"
           aria-hidden="true"
           tabIndex={-1}
           onPlaying={() => setVideoPlaying(true)}

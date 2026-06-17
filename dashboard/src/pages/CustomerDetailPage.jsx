@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Phone, Mail, User, Calendar, DollarSign, FileText, CreditCard, MapPin, Home, ShieldCheck, Zap, FolderOpen } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, User, Calendar, DollarSign, FileText, CreditCard, MapPin, Home, ShieldCheck, Zap, FolderOpen, KeyRound, Copy, Check } from 'lucide-react';
 import { api } from '../api/client';
+import { bookingApi } from '../api/bookingApi';
 import StatusBadge from '../components/shared/StatusBadge';
 import DocumentsFolder from '../components/bookings/DocumentsFolder';
 import { SkeletonDashboard } from '../components/shared/Skeleton';
@@ -145,6 +146,156 @@ function CustomerTrustToggle({ customer, onChange }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Small copy-to-clipboard chip used for handing off portal credentials. */
+function CopyField({ label, value }) {
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(String(value));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch { /* clipboard blocked — value is still visible to read */ }
+  }
+  return (
+    <div>
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-1">{label}</p>
+      <button
+        type="button"
+        onClick={copy}
+        className="flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:border-[var(--accent-color)] transition-colors"
+        title="Click to copy"
+      >
+        <span className="font-mono text-sm text-[var(--text-primary)] flex-1 break-all">{value}</span>
+        {copied ? <Check size={14} className="text-[#22c55e] shrink-0" /> : <Copy size={14} className="text-[var(--text-tertiary)] shrink-0" />}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Portal account management (Phase 2 — migration 008). Admin provisions a login
+ * for the customer: username = FirstName+LastInitial (deduped), temp password =
+ * their phone number. The renter is forced to set a new password on first login.
+ */
+function CustomerPortalAccount({ customer }) {
+  const [account, setAccount] = useState(undefined); // undefined=loading, null=none, object=exists
+  const [creds, setCreds] = useState(null);          // freshly issued { username, tempPassword }
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const a = await bookingApi.getCustomerAccount(customer.id);
+        if (!cancelled) setAccount(a);
+      } catch (e) {
+        if (!cancelled) { setAccount(null); setError(e?.message || 'Failed to load account'); }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [customer.id]);
+
+  async function provision() {
+    setBusy(true); setError('');
+    try {
+      const res = await bookingApi.provisionCustomerAccount(customer.id);
+      setCreds({ username: res.username, tempPassword: res.tempPassword });
+      setAccount(await bookingApi.getCustomerAccount(customer.id));
+    } catch (e) {
+      setError(e?.message || 'Failed to create login');
+    }
+    setBusy(false);
+  }
+
+  async function resetPw() {
+    setBusy(true); setError('');
+    try {
+      const res = await bookingApi.resetCustomerAccountPassword(customer.id);
+      setCreds({ username: account?.username, tempPassword: res.tempPassword });
+      setAccount(await bookingApi.getCustomerAccount(customer.id));
+    } catch (e) {
+      setError(e?.message || 'Failed to reset password');
+    }
+    setBusy(false);
+  }
+
+  if (account === undefined) {
+    return <p className="text-sm text-[var(--text-tertiary)] animate-pulse">Loading account…</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {!account ? (
+        <>
+          <p className="text-xs text-[var(--text-tertiary)] leading-relaxed">
+            Create a portal login so this customer can manage their rentals, payments, and personal details.
+            Username is generated from their name; the temporary password is their phone number.
+          </p>
+          {!customer.phone && (
+            <p className="text-xs text-[#f59e0b]">Add a phone number first — it becomes the temporary password.</p>
+          )}
+          <button
+            type="button"
+            onClick={provision}
+            disabled={busy || !customer.phone}
+            className="btn-primary text-xs"
+            style={{ opacity: (busy || !customer.phone) ? 0.5 : 1 }}
+          >
+            {busy ? 'Creating…' : 'Create portal login'}
+          </button>
+        </>
+      ) : (
+        <>
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-[var(--text-primary)]">
+                Username: <span className="font-mono">{account.username}</span>
+              </p>
+              <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
+                {account.last_login_at
+                  ? `Last login ${formatDistanceToNow(new Date(account.last_login_at), { addSuffix: true })}`
+                  : 'Has not logged in yet'}
+              </p>
+            </div>
+            <span
+              className="badge shrink-0"
+              style={{
+                background: account.must_change_password ? 'rgba(245,158,11,0.12)' : 'rgba(34,197,94,0.12)',
+                color: account.must_change_password ? '#f59e0b' : '#22c55e',
+              }}
+            >
+              {account.must_change_password ? 'Temp password' : 'Password set'}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={resetPw}
+            disabled={busy}
+            className="btn-ghost text-xs"
+            style={{ opacity: busy ? 0.5 : 1 }}
+          >
+            {busy ? 'Resetting…' : 'Reset password to phone #'}
+          </button>
+        </>
+      )}
+
+      {/* Freshly issued credentials — copyable handoff card */}
+      {creds && (
+        <div className="space-y-2 pt-3 border-t border-[var(--border-subtle)]">
+          <p className="text-xs font-medium text-[var(--text-secondary)]">
+            Share these with the customer. They'll set their own password on first login.
+          </p>
+          {creds.username && <CopyField label="Username" value={creds.username} />}
+          <CopyField label="Temporary password" value={creds.tempPassword} />
+        </div>
+      )}
+
+      {error && <p className="text-xs text-[#ef4444]">{error}</p>}
     </div>
   );
 }
@@ -349,6 +500,11 @@ export default function CustomerDetailPage() {
         {/* Trust status (Phase 1 — migration 019) */}
         <Section title="Trust Status" icon={ShieldCheck}>
           <CustomerTrustToggle customer={customer} onChange={setCustomer} />
+        </Section>
+
+        {/* Portal login (Phase 2 — migration 008) */}
+        <Section title="Portal Login" icon={KeyRound}>
+          <CustomerPortalAccount customer={customer} />
         </Section>
       </div>
 

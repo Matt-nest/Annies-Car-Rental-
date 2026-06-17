@@ -290,6 +290,63 @@ router.get('/webhook-failures', requireAuth, asyncHandler(async (req, res) => {
   res.json(data || []);
 }));
 
+/** GET /stats/funnel — booking conversion funnel over a rolling window.
+ *  Cohort = bookings created in the last `days` days. For each booking we look
+ *  at every status it EVER reached (via booking_status_log.to_status) so the
+ *  funnel is cumulative/monotonic: a completed booking also counts as picked-up,
+ *  confirmed, approved. In-person admin bookings start at 'approved' (they skip
+ *  pending) — the POST_APPROVAL set handles that so they aren't undercounted. */
+router.get('/funnel', requireAuth, asyncHandler(async (req, res) => {
+  const days = Math.min(parseInt(req.query.days) || 90, 365);
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  // Pull status-log rows whose parent booking was created in the window.
+  // !inner so the created_at filter on the embedded booking actually prunes rows.
+  const { data: logs, error } = await supabase
+    .from('booking_status_log')
+    .select('booking_id, to_status, bookings!inner(created_at)')
+    .gte('bookings.created_at', `${since}T00:00:00`);
+  if (error) throw error;
+
+  // booking_id -> Set of every to_status it reached
+  const reached = new Map();
+  for (const row of logs || []) {
+    if (!reached.has(row.booking_id)) reached.set(row.booking_id, new Set());
+    reached.get(row.booking_id).add(row.to_status);
+  }
+
+  const POST_APPROVAL = ['approved', 'confirmed', 'ready_for_pickup', 'active', 'returned', 'completed'];
+  const POST_CONFIRM  = ['confirmed', 'ready_for_pickup', 'active', 'returned', 'completed'];
+  const POST_PICKUP   = ['active', 'returned', 'completed'];
+  const hasAny = (set, arr) => arr.some((s) => set.has(s));
+
+  const created = reached.size;
+  let approved = 0, confirmed = 0, pickedUp = 0, completed = 0, declined = 0, cancelled = 0;
+  for (const set of reached.values()) {
+    if (hasAny(set, POST_APPROVAL)) approved++;
+    if (hasAny(set, POST_CONFIRM)) confirmed++;
+    if (hasAny(set, POST_PICKUP)) pickedUp++;
+    if (set.has('completed')) completed++;
+    if (set.has('declined')) declined++;
+    if (set.has('cancelled')) cancelled++;
+  }
+
+  const pct = (n) => (created ? Math.round((n / created) * 100) : 0);
+
+  res.json({
+    window_days: days,
+    conversion_rate: pct(completed),
+    steps: [
+      { key: 'created',   label: 'Created',   count: created,   pct: 100 },
+      { key: 'approved',  label: 'Approved',  count: approved,  pct: pct(approved) },
+      { key: 'confirmed', label: 'Confirmed', count: confirmed, pct: pct(confirmed) },
+      { key: 'picked_up', label: 'Picked Up', count: pickedUp,  pct: pct(pickedUp) },
+      { key: 'completed', label: 'Completed', count: completed, pct: pct(completed) },
+    ],
+    outcomes: { declined, cancelled },
+  });
+}));
+
 /** GET /stats/activity — recent status changes */
 router.get('/activity', requireAuth, asyncHandler(async (req, res) => {
   const { data, error } = await supabase

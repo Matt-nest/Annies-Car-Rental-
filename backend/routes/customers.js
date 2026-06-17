@@ -81,6 +81,44 @@ router.patch('/:id/trust', requireAuth, requireRole('owner', 'admin'), asyncHand
   res.json(data);
 }));
 
+// ────────────────────────────────────────────────────────────────────────────
+// Customer portal accounts (admin-provisioned) — Phase 1, migration 008.
+// Placed BEFORE the generic /:id routes so literal paths match first.
+// ────────────────────────────────────────────────────────────────────────────
+
+/** GET /customers/:id/account — account status for the admin UI (no secrets). */
+router.get('/:id/account', requireAuth, asyncHandler(async (req, res) => {
+  const { getAccountForCustomer } = await import('../services/customerAccountService.js');
+  const account = await getAccountForCustomer(req.params.id);
+  res.json(account); // null if not yet provisioned
+}));
+
+/**
+ * POST /customers/:id/account — provision a portal login for this customer.
+ * Returns { username, tempPassword, alreadyExisted } so the admin can hand the
+ * credentials to the renter. tempPassword is the customer's phone number.
+ */
+router.post('/:id/account', requireAuth, requireRole('owner', 'admin'), asyncHandler(async (req, res) => {
+  const { provisionAccount } = await import('../services/customerAccountService.js');
+  try {
+    const result = await provisionAccount(req.params.id, { createdBy: req.user?.id || null });
+    res.status(result.alreadyExisted ? 200 : 201).json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+}));
+
+/** POST /customers/:id/account/reset-password — reset password to the phone#. */
+router.post('/:id/account/reset-password', requireAuth, requireRole('owner', 'admin'), asyncHandler(async (req, res) => {
+  const { resetPassword } = await import('../services/customerAccountService.js');
+  try {
+    const result = await resetPassword(req.params.id);
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+}));
+
 /** GET /customers — list with search, includes booking stats */
 router.get('/', requireAuth, asyncHandler(async (req, res) => {
   let query = supabase

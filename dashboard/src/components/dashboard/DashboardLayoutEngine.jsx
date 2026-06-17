@@ -16,6 +16,7 @@ import TodayScheduleWidget     from './widgets/TodayScheduleWidget';
 import WeekScheduleWidget      from './widgets/WeekScheduleWidget';
 import VehicleRevenueWidget    from './widgets/VehicleRevenueWidget';
 import ActivityFeedWidget      from './widgets/ActivityFeedWidget';
+import BookingFunnelWidget     from './widgets/BookingFunnelWidget';
 import DamageSummaryWidget     from './widgets/DamageSummaryWidget';
 import RevenueHeatmapWidget    from './widgets/RevenueHeatmapWidget';
 
@@ -35,6 +36,7 @@ const WIDGET_COMPONENTS = {
   'pending-approvals': PendingApprovalsWidget,
   'pending-counter-sign': PendingCounterSignWidget,
   'kpi-cards':         KPICardsWidget,
+  'booking-funnel':    BookingFunnelWidget,
 
   'revenue-trend':     RevenueTrendWidget,
   'today-schedule':    TodayScheduleWidget,

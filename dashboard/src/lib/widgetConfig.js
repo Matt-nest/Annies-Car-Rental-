@@ -22,6 +22,12 @@ export const WIDGET_REGISTRY = [
     defaultVisible: true,
   },
   {
+    id: 'booking-funnel',
+    label: 'Booking Funnel',
+    description: 'Conversion funnel — created → approved → confirmed → picked up → completed, with drop-off',
+    defaultVisible: true,
+  },
+  {
     id: 'overdue-alerts',
     label: 'Overdue Return Alerts',
     description: 'Active rentals that have passed their scheduled return time',
