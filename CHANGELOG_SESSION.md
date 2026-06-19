@@ -5,6 +5,42 @@
 
 ---
 
+## 2026-06-19 — Email redesign: premium, concise, fully brand-token-driven (Annie's + JD Coastal)
+
+**Goal:** revamp all transactional/notification emails for both brands to a "$50M company" standard — beautiful, concise, sharp messaging, no over-saturation. Each brand renders in its own palette automatically.
+
+**Key insight:** the email chrome already read `brand.colors`, but CTA buttons, the accent bar, and link colors **hardcoded Annie's gold `#D4AF37`** — so JD Coastal never actually rendered its navy/orange. Fixing this is what made JD's emails feel current. All four email files were byte-identical across the two repos, so the redesign was authored once and mirrored.
+
+**Changed (backend, both `/Applications/Annies` and `/Applications/JDCoastal`):**
+- `utils/emailShell.js` — rebuilt chrome: hidden preheader (inbox preview), refined dark header (`brand.colors.secondary`) with uppercase brand eyebrow (`brand.colors.primary`) + serif headline, accent hairline (`primary→accent` gradient), soft shadow, refined footer + sub-footer. **Fully table-based** (Outlook-safe), inline styles, system fonts. Added optional 3rd `preheader` arg (defaults to subject — backward compatible with both existing callers).
+- `services/emailService.js` — components now **token-driven + table-based**: `detailRow`/new `codeRow`/`detailCard` use `<tr>`/`<table>` (was `display:flex`, which Outlook ignores). `ctaButton` style `'accent'` (alias `'gold'`) = brand accent fill + dark brand text (AA contrast, on-brand); `'primary'` = dark fill + white. `statusBanner` left-rule style; **signature changed** `(emoji,text,color)` → `(text,color)` (all 4 internal call sites updated). Tightened all 4 hardcoded emails (booking confirmation, continue-booking, payment-declined, counter-sign).
+- `services/notifyService.js` — `buildCtaHtml`, `renderPickupNextStepsHtml` gold button, and the auto-link color now derive from `brand.colors` (no hardcoded gold); CTA is table-based.
+- `services/fallbackTemplates.js` — rewrote all 16 stages: dropped ASCII-divider walls and decorative emoji, removed redundant inline CTA links (button is auto-added), made delivery copy white-label-generic (no hardcoded cities/prices), added a clean bordered details card (single flat `<table>`, safe for `wrapInBrandedHTML`'s block extractor).
+
+### API/Data Impact
+- None from the code changes — no API functions, signatures (exported), or DB schema changed. DB `email_templates` rows still take priority over the fallbacks; the design (shell/colors/CTA) applies to DB-driven emails automatically.
+
+### DB copy sync (drafted, NOT applied)
+- **`backend/db/seeds/redesign_email_copy.mjs`** — generator holding concise per-stage copy parameterized by `brand.js`; exports `TEMPLATES`, emits SQL only when run as main. Mirrored to JD repo.
+- **`backend/db/seeds/redesign_email_copy.annies.sql`** and **`…jdcoastal.sql`** — idempotent `INSERT … ON CONFLICT (stage) DO UPDATE` for **24 customer-facing stages** in one `BEGIN/COMMIT`. **No `DELETE`** (unlike the original `seed_templates.sql`) — only the 24 listed stages are refreshed; everything else is left intact. Brand name/phone/address baked in per brand; one clean support line replaces the old 3-staff-cell-number block; old hardcoded delivery pricing/cities removed.
+- Verified: all 24 render clean through `interpolateTemplate`+`wrapInBrandedHTML` (no `${{}}`/`{{}}`/JS-interp leaks); apostrophes escaped (`''`); money preserved as `${{…}}`; `{{#if}}` intact; correct per-brand values with no cross-brand leakage.
+- **Behavior note:** `payment_confirmed` channel changed `email` → `both` (adds a payment-confirmation SMS) and gained an `sms_body`. Adjust that one row's `channel` back to `email` if an SMS on payment is unwanted.
+- **To apply (per brand, against that brand's OWN Supabase project — verify `SUPABASE_URL` first; the Supabase MCP points at a different project):** run the matching `.sql` in the Supabase SQL editor or via `psql "$DATABASE_URL" -f db/seeds/redesign_email_copy.<brand>.sql`. Back up first: `SELECT * FROM email_templates;`. Reversible by re-running the prior seed.
+
+### Verification
+- `node --check` passes on all 4 files in both repos; files verified byte-identical across repos.
+- Render harness: all 16 fallback stages interpolate + wrap with **zero merge-field/`${{}}`/`[object Object]` leaks** in both Annie's and JD env.
+- Confirmed token swap: Annie's → stone header / gold accent; JD Coastal → navy `#13294B` header / sunset-orange `#E79B3C` accent.
+- Caught + fixed during testing: money fields in backtick template bodies/SMS needed `\$` escaping (else module-load `ReferenceError`); SMS `${ADDR}` const (not `{{ADDR}}` merge field).
+
+### Build Status
+- [x] Backend is plain Node ESM (no build step); `node --check` + render tests green.
+
+### Committed
+- [ ] Pending
+
+---
+
 ## 2026-06-17 — Customer portal accounts (Phase 1 — auth backend) + recurring-rental schema
 
 **Goal:** rebuild the basic code+email customer portal into an account-first, Turo-like mobile app. Admin provisions accounts (username = FirstName+LastInitial, deduped; password = phone#, `must_change_password` forces a first-login reset). Long-term private rentals become true recurring subscriptions with auto-charge or self-pay (reusable Square link) collection. This commit is **backend auth only** — no UI yet.
@@ -72,7 +108,72 @@ Customer build + new-file typecheck clean; 56/56 backend tests pass. Live card a
 
 Customer build + typecheck clean; 56/56 backend tests pass.
 
-**NOT done here:** apply `008_customer_accounts.sql`. Next: (4c) recurring rentals — admin create plan + reusable Square Payment Links + auto-charge cron; (5) native trip extension + check-in + messaging.
+**Working-tree recovery (mid-session):** a branch round-trip (`feat/dashboard-mobile-ux` → `integration/unify-all-functionality` → back) deleted the prior session's Square files, which were *untracked* here but *committed* on integration (switching back removed them). Restored from `integration/unify-all-functionality` per user: `backend/{utils/square.js, utils/paymentProvider.js, routes/square.js, services/squareService.js, services/squareCardOnFileService.js, migrations/007_square.sql}`, `src/components/booking/confirm-booking/{squareClient.ts, SquareCheckoutForm.tsx}`, `dashboard/src/components/bookings/SquareCardCharge.jsx`. (Untracked `backend/preview-agreement.mjs` not restored — dev-only, unused by builds.) Backend route tree + both frontends build clean again.
+
+**Phase 4c (recurring rentals — backend engine):**
+- `backend/services/recurringRentalService.js` (NEW) — create/list/pause/resume/cancel plans; `createPaymentLink` (Square `checkout.paymentLinks.create` quick-pay, reusable, for `send_link`); `processDueRecurringCharges` cron worker: per-plan idempotent `recurring_charges` row (unique (plan, period_start)), auto_charge off-session via `square.payments.create` with retries → `past_due` + admin alert on exhaustion, send_link opens the cycle + emails the link, advances `next_charge_date` by interval. `getRecurringForPortal` for the customer view.
+- `backend/routes/recurring.js` (NEW, admin) — `GET /recurring/customer/:id`, `POST /recurring`, `POST /recurring/:id/{pause,resume,cancel}`.
+- `backend/routes/account.js` — `GET /account/plan` (portal: active plan + recent charges).
+- `backend/routes/cron.js` — `GET /cron/process-recurring-charges`; `backend/vercel.json` — daily cron `0 7 * * *`.
+- Mounted `/api/v1/recurring` in `api/index.js` + `server.js`.
+
+Full app route tree imports clean; recurring service exports verified; 56/56 backend tests pass; customer + dashboard builds clean.
+
+**Phase 4c-UI (recurring rentals — admin + portal, completes Phase 4):**
+- `backend/routes/recurring.js` — `GET /recurring/customer/:id/cards` (admin: list a customer's saved cards to pick the auto-charge card; returns [] for non-Square so the UI falls back to send_link).
+- `dashboard/src/api/bookingApi.js` — `getCustomerRecurring`, `getCustomerSavedCards`, `createRecurring`, `pause/resume/cancelRecurring` (kept out of `api/client.js`).
+- `dashboard/src/pages/CustomerDetailPage.jsx` — new **Recurring Rentals** section: lists plans (amount/cadence, status badge, next charge, copy-link for send_link, pause/resume/cancel) + `NewPlanForm` (amount, interval, auto-charge-card-vs-reusable-link, saved-card picker, start date, note). Auto-charge disabled with a hint when the customer has no saved card.
+- `src/components/portal/account/portalClient.ts` — `RecurringPlan` + `getPlan`.
+- `screens/WalletScreen.tsx` — **PlanCard** at the top: amount/cadence, next-charge or due date, past-due flag, "Pay now" (opens the reusable Square link) for send_link plans, and the last few charges.
+
+Customer + dashboard builds clean; portal typecheck clean; 56/56 backend tests pass. **Phase 4 (payments) complete.**
+
+**Phase 5a (native trip extension):**
+- `backend/services/squarePortalCardsService.js` — `quoteExtension` (extra days × the booking's `daily_rate` + proportional tax; runs `checkAvailability(vehicle, oldReturn→newReturn, excludeSelf)` — respects the ghost-block invariant; charges nothing) + `chargeExtension` (charges a saved card or one-time token, then bumps `return_date`/`rental_days`/`subtotal`/`tax_amount`/`total_cost` and records an `extension` payments row; **leaves status untouched — no transitionBooking**). Extracted a shared `resolveChargeSource` helper.
+- `backend/routes/account.js` — `GET /account/trips/:id/extension-quote?return_date=`, `POST /account/trips/:id/extend`.
+- `src/components/portal/account/portalClient.ts` — `ExtensionQuote` + `getExtensionQuote`/`extendTrip`.
+- `screens/ExtendSheet.tsx` (NEW) — date picker (min = day after current return) → live quote (extra days, price, availability) → saved/new-card source picker → Extend & pay. Unavailable dates are blocked with a call-us hint.
+- `screens/TripDetailScreen.tsx` — "Extend trip" CTA (extendable statuses) opens the sheet; refetches trip + balance on success. Added `reloadTrip` helper.
+
+Customer build + portal typecheck clean; 56/56 backend tests pass.
+
+**Phase 5b (native check-in / check-out):**
+- `backend/services/portalAuthService.js` — extracted `issuePortalToken({bookingId,bookingCode,customerId,email})` (verifyPortalAccess now reuses it).
+- `backend/routes/account.js` — `POST /account/trips/:id/portal-session`: ownership-gated mint of a booking-scoped portal token, bridging the account session into the existing `/portal/*` + `/uploads/checkin-photos` flow (all `requirePortalAuth`).
+- `src/components/portal/account/portalClient.ts` — `createPortalSession`, `submitCheckin`, `submitCheckout`.
+- `screens/CheckInOutScreen.tsx` (NEW) — one component for both modes: reuses the proven `SlotPhotoUploader` (4 required photos, uploads with the bridged token) + odometer + fuel selector + condition/key confirm → `/portal/checkin|checkout`. Check-in success reveals the lockbox code; check-out shows a return confirmation.
+- `screens/TripDetailScreen.tsx` — the ready_for_pickup / active CTAs now open the **native** screen (full-view takeover) instead of deep-linking to `/portal?code=`. The legacy code+email portal remains only as the `?code=` fallback for notification-email links.
+
+Customer build + portal typecheck clean; 56/56 backend tests pass.
+
+**Phase 5c (in-portal messaging — completes Phase 5):**
+- `backend/routes/account.js` — `GET /account/messages` + `POST /account/messages` reusing the existing `messages` table via `getLocalMessages`/`storeLocalMessage` (inbound = from customer, channel `portal`). The admin sees + replies from the existing Conversations inbox — no parallel store.
+- `src/components/portal/account/portalClient.ts` — `PortalMessage` + `getMessages`/`sendMessage`.
+- `screens/MessagesScreen.tsx` (NEW) — chat thread (inbound bubbles right/gold, outbound left/card), optimistic send with rollback, Enter-to-send composer, autoscroll.
+- `PortalApp.tsx` — 4th bottom-nav tab **Messages** (MessageSquare).
+
+Customer build + portal typecheck clean; 56/56 backend tests pass. **Phase 5 complete.**
+
+**Phase 6 (docs — completes the customer-portal build):**
+- `PROJECT_MAP.md` — new **Customer Account Portal (added 2026-06-17)** section: migration 008 schema, auth model, all new backend services/routes, the `src/components/portal/account/` subtree, dashboard additions, the `avatars` bucket + cron, and outstanding items.
+- **Did NOT delete the legacy `CustomerPortal.tsx`** — retirement is explicitly gated on production verification, and `008` isn't applied yet, so it remains the `/portal?code=` fallback.
+
+Customer-portal feature (Phases 1–6) is code-complete: account auth → admin provisioning → Trips/Wallet/Messages/Profile shell → cards + self-pay + recurring rentals (auto-charge/link + cron) → native extend + check-in/out → messaging → docs. Every phase built clean with 56/56 backend tests.
+
+**Deploy / follow-ups (no code left):** (1) apply `008_customer_accounts.sql` to Supabase project `yrerxvuyeglrypeufjpy` (gates all live use); (2) ensure `PAYMENT_PROVIDER=square` + Square creds for wallet/recurring; (3) retire legacy `CustomerPortal.tsx` after prod verification.
+
+---
+
+## 2026-06-18 — Recurring rentals: admin payment reconciliation
+
+Closes the `send_link` loop the safe way. Reusable Square **quickPay** links don't carry a plan reference onto each payment, and switching to order-based links (to get that reference) would make the link single-use — breaking "pay anytime." So fully-automatic webhook matching isn't reliable without live Square verification and risks the production payment path. Instead: **admin manual reconciliation** — correct, idempotent, no webhook-path risk.
+
+- **`backend/services/recurringRentalService.js`** — `markChargePaid(chargeId, { squarePaymentId? })`: marks a `recurring_charges` row paid, writes a `payments` ledger row when the plan is booking-linked, and recovers a `past_due` plan once it has no remaining unpaid cycles. Idempotent.
+- **`backend/routes/recurring.js`** — `POST /recurring/charges/:chargeId/mark-paid` (owner/admin).
+- **`dashboard/src/api/bookingApi.js`** — `markRecurringChargePaid`.
+- **`dashboard/src/pages/CustomerDetailPage.jsx`** — plan card now lists unpaid cycles with a **Mark paid** button.
+
+Dashboard build clean; 56/56 backend tests pass. **Still open:** fully-automatic webhook reconciliation for `send_link` (needs live Square verification of order/payment reference propagation for reusable links).
 
 ---
 
