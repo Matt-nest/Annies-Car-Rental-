@@ -269,3 +269,44 @@ export async function listCustomerVisibleCharges(bookingId) {
     .order('created_at', { ascending: false });
   return data || [];
 }
+
+/**
+ * Admin: list ALL overage charges for a booking (every status, no feature-flag
+ * gate) so staff can see + manage them from the dashboard. Returns [] if the
+ * table hasn't been migrated.
+ */
+export async function listChargesForBookingAdmin(bookingId) {
+  const { data, error } = await supabase
+    .from('pending_overage_charges')
+    .select('id, booking_id, amount_cents, description, line_items, scheduled_for, status, dispute_message, payment_intent_id, failure_reason, created_at, processed_at')
+    .eq('booking_id', bookingId)
+    .order('created_at', { ascending: false });
+  if (error) return [];
+  return data || [];
+}
+
+/**
+ * Admin: cancel a scheduled overage charge before it fires. Only 'pending' or
+ * 'disputed' charges can be cancelled — anything already processing/succeeded
+ * is out of the customer's/admin's hands.
+ */
+export async function cancelPendingCharge(chargeId, actor = 'admin') {
+  const { data: charge } = await supabase
+    .from('pending_overage_charges')
+    .select('id, status')
+    .eq('id', chargeId)
+    .single();
+
+  if (!charge) throw Object.assign(new Error('Charge not found'), { status: 404 });
+  if (!['pending', 'disputed'].includes(charge.status)) {
+    throw Object.assign(new Error(`This charge can no longer be cancelled (status: ${charge.status})`), { status: 400 });
+  }
+
+  await supabase
+    .from('pending_overage_charges')
+    .update({ status: 'cancelled', processed_at: new Date().toISOString() })
+    .eq('id', chargeId);
+
+  await logChargeEvent(chargeId, 'cancelled', {}, actor);
+  return { ok: true, status: 'cancelled' };
+}

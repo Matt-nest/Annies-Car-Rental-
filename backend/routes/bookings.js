@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { supabase } from '../db/supabase.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
 import { verifyRecaptcha } from '../middleware/recaptcha.js';
 import brand from '../config/brand.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
@@ -67,11 +67,40 @@ router.get('/:id/timeline', requireAuth, asyncHandler(async (req, res) => {
   res.json(data);
 }));
 
-/** GET /bookings/:id/extensions — customer-initiated extension history (admin) */
+/** GET /bookings/:id/extensions — extension history (admin) */
 router.get('/:id/extensions', requireAuth, asyncHandler(async (req, res) => {
   const { listExtensions } = await import('../services/extensionService.js');
   const rows = await listExtensions(req.params.id);
   res.json(rows);
+}));
+
+/** POST /bookings/:id/extension-quote — price an admin extension (admin) */
+router.post('/:id/extension-quote', requireAuth, asyncHandler(async (req, res) => {
+  try {
+    const { quoteExtension } = await import('../services/extensionService.js');
+    const quote = await quoteExtension(req.params.id, req.body?.newReturnDate);
+    const { _booking, ...safe } = quote;
+    res.json(safe);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message, conflicts: err.conflicts });
+  }
+}));
+
+/** POST /bookings/:id/extend — admin-initiated extension (owner/admin only) */
+router.post('/:id/extend', requireAuth, requireRole('owner', 'admin'), asyncHandler(async (req, res) => {
+  try {
+    const { adminExtendBooking } = await import('../services/extensionService.js');
+    const result = await adminExtendBooking(req.params.id, {
+      newReturnDate: req.body?.newReturnDate,
+      collectPayment: req.body?.collectPayment !== false,
+      method: req.body?.method || 'cash',
+      reference: req.body?.reference || null,
+      actorId: req.user?.id || null,
+    });
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message, conflicts: err.conflicts });
+  }
 }));
 
 /** GET /bookings/status/:bookingCode — public status lookup by code */

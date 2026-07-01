@@ -64,6 +64,25 @@ router.post('/bookings/:bookingId/payments', requireAuth, asyncHandler(async (re
   res.status(201).json(data);
 }));
 
+/** GET /bookings/:bookingId/overage-charges — admin view of scheduled/auto charges */
+router.get('/bookings/:bookingId/overage-charges', requireAuth, asyncHandler(async (req, res) => {
+  const { listChargesForBookingAdmin } = await import('../services/cardOnFileService.js');
+  const rows = await listChargesForBookingAdmin(req.params.bookingId);
+  res.json(rows);
+}));
+
+/** POST /overage-charges/:id/cancel — admin cancels a scheduled overage charge */
+router.post('/overage-charges/:id/cancel', requireAuth, requireRole('owner', 'admin'), asyncHandler(async (req, res) => {
+  try {
+    const { cancelPendingCharge } = await import('../services/cardOnFileService.js');
+    const actor = `admin:${req.user?.id || 'unknown'}`;
+    const result = await cancelPendingCharge(req.params.id, actor);
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+}));
+
 /** PATCH /payments/:id */
 router.patch('/:id', requireAuth, asyncHandler(async (req, res) => {
   const { data, error } = await supabase
