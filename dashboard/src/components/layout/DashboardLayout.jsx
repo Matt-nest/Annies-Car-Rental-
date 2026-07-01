@@ -275,7 +275,13 @@ function DashboardLayoutInner() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[999990] flex items-center justify-center p-4"
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[999990] flex items-center justify-center"
+              style={{
+                paddingTop: 'max(1rem, env(safe-area-inset-top))',
+                paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
+                paddingLeft: 'max(1rem, env(safe-area-inset-left))',
+                paddingRight: 'max(1rem, env(safe-area-inset-right))',
+              }}
               onClick={() => { setActiveAlertModal(false); acknowledgeActive(); setTimeout(() => setCashRainActive(true), 320); }}
             >
               <motion.div

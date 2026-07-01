@@ -98,7 +98,13 @@ export default function QuickActionModal({ notification, onClose }) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/55 backdrop-blur-sm z-[999991] flex items-center justify-center p-4"
+        className="fixed inset-0 bg-black/55 backdrop-blur-sm z-[999991] flex items-center justify-center"
+        style={{
+          paddingTop: 'max(1rem, env(safe-area-inset-top))',
+          paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
+          paddingLeft: 'max(1rem, env(safe-area-inset-left))',
+          paddingRight: 'max(1rem, env(safe-area-inset-right))',
+        }}
         onClick={onClose}
       >
         <motion.div

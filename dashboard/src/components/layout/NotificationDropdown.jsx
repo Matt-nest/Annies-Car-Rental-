@@ -134,7 +134,10 @@ export default function NotificationDropdown() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.96 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 mt-2 w-[380px] max-h-[480px] rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-gray-800 dark:bg-gray-900 z-[99999] flex flex-col overflow-hidden"
+            /* Width clamps to the viewport (minus a 12px gutter each side) so the
+               right-anchored panel never bleeds off-screen on 320–390px phones,
+               then caps at the 380px design width from `sm` up. */
+            className="absolute right-0 mt-2 w-[calc(100vw-1.5rem)] max-w-[380px] sm:w-[380px] max-h-[min(480px,70vh)] rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-gray-800 dark:bg-gray-900 z-[99999] flex flex-col overflow-hidden"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100 dark:border-gray-800">

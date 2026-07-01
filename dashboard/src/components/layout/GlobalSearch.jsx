@@ -327,7 +327,14 @@ export default function GlobalSearch() {
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[999999] bg-white dark:bg-gray-900 flex flex-col"
           >
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+            <div
+              className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-800"
+              style={{
+                paddingTop: 'max(0.75rem, env(safe-area-inset-top))',
+                paddingLeft: 'max(1rem, env(safe-area-inset-left))',
+                paddingRight: 'max(1rem, env(safe-area-inset-right))',
+              }}
+            >
               <Search size={20} className="text-gray-400 shrink-0" />
               <input
                 autoFocus
@@ -345,7 +352,10 @@ export default function GlobalSearch() {
                 <X size={20} />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto">
+            <div
+              className="flex-1 overflow-y-auto"
+              style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+            >
               {renderDropdownContent()}
             </div>
           </motion.div>
