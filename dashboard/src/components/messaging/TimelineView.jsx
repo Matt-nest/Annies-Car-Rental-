@@ -55,6 +55,8 @@ export default function TimelineView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selected, setSelected] = useState(null);
+  // null = unknown (don't warn); false = flag off (edits won't drive sends yet).
+  const [timingLive, setTimingLive] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -69,6 +71,16 @@ export default function TimelineView() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Best-effort: find out whether cron actually reads DB timing yet. If we
+  // can't tell, stay silent (timingLive === null) rather than warn incorrectly.
+  useEffect(() => {
+    let cancelled = false;
+    api.getSystemHealth()
+      .then(h => { if (!cancelled) setTimingLive(!!h?.checks?.integrations?.timeline_timing); })
+      .catch(() => { /* unknown — no banner */ });
+    return () => { cancelled = true; };
+  }, []);
 
   // Group templates by lifecycle_position; sort each column by visual_order
   // (fallback to stage alpha so the order is deterministic when visual_order
@@ -129,6 +141,18 @@ export default function TimelineView() {
         }}>
           <AlertCircle size={14} style={{ color: '#ef4444', flexShrink: 0, marginTop: 2 }} />
           <p style={{ fontSize: 12, color: 'var(--text-primary)' }}>{error}</p>
+        </div>
+      )}
+
+      {timingLive === false && (
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px', marginBottom: 14,
+          background: 'rgba(245,158,11,0.09)', border: '1px solid rgba(245,158,11,0.28)', borderRadius: 12,
+        }}>
+          <Clock size={14} style={{ color: '#b45309', flexShrink: 0, marginTop: 2 }} />
+          <p style={{ fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.5 }}>
+            <strong>Timing edits are saved but not live yet.</strong> Copy, channel, and active-state changes take effect immediately, but the <em>send timing</em> you set here won't change when reminders actually fire until scheduled-timing is enabled on the server (<code>FEATURE_TIMELINE_TIMING</code>).
+          </p>
         </div>
       )}
 

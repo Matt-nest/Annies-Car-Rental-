@@ -333,7 +333,8 @@ export default function FleetPage() {
       )}
 
       {/* Add Vehicle Modal */}
-      <Modal open={addModal} onClose={() => setAddModal(false)} title="Add Vehicle" maxWidth="max-w-xl">
+      <Modal open={addModal} onClose={() => setAddModal(false)} title="Add Vehicle" maxWidth="max-w-xl"
+        isDirty={!!imageFile || JSON.stringify(addForm) !== JSON.stringify(EMPTY_VEHICLE)}>
         <div className="space-y-4">
           <div className="grid sm:grid-cols-3 gap-3">
             <div>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Phone, Mail, Car, MapPin, CheckCircle, XCircle, Package, RotateCcw, Flag, DollarSign, FileText, Shield, CreditCard, User, ClipboardCheck, Receipt, Navigation, RefreshCw, AlertCircle, Loader2, FolderOpen, Download } from 'lucide-react';
 import { api } from '../api/client';
@@ -226,7 +226,18 @@ export default function BookingDetailPage() {
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'overview');
   const [checkinRecords, setCheckinRecords] = useState([]);
+  const tabNavRef = useRef(null);
   const { refresh: refreshAlerts } = useAlerts();
+
+  // Mobile sticky action bar → route to the same tab flows the desktop uses,
+  // instead of the legacy pickup/return modals (and the never-built 'complete'
+  // modal). Approve/decline/cancel still use the confirmation modals.
+  function handleMobileAction(action) {
+    if (action === 'pickup') setActiveTab('checkin');
+    else if (action === 'return' || action === 'complete') setActiveTab('checkout');
+    else { setModal(action); return; }
+    requestAnimationFrame(() => tabNavRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  }
 
   // Insurance review state
   const [insuranceActioning, setInsuranceActioning] = useState(false);
@@ -493,7 +504,7 @@ export default function BookingDetailPage() {
           (Material Design tab pattern). Desktop = original horizontal scroll
           with icon-left-of-label. .tap-target ensures every tab is 44+ px
           tall on touch. */}
-      <div className="grid grid-cols-4 md:flex md:gap-1 md:overflow-x-auto pb-0 md:pb-1 border-b border-[var(--border-subtle)]">
+      <div ref={tabNavRef} className="grid grid-cols-4 md:flex md:gap-1 md:overflow-x-auto pb-0 md:pb-1 border-b border-[var(--border-subtle)]">
         {TABS.map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -576,7 +587,7 @@ export default function BookingDetailPage() {
           remain the source of truth. Hidden at md+. */}
       <BookingActionBar
         status={status}
-        onAction={(action) => setModal(action)}
+        onAction={handleMobileAction}
         disabled={actioning}
       />
 

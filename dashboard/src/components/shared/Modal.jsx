@@ -24,10 +24,18 @@ import { EASE_OUT_EXPO } from '../../lib/animation';
  * dismiss in the sheet variant. The desktop variant keeps the existing manual
  * body-scroll lock and explicit close button.
  */
-export default function Modal({ open, onClose, title, children, maxWidth = 'max-w-lg' }) {
+export default function Modal({ open, onClose, title, children, maxWidth = 'max-w-lg', isDirty = false }) {
   // Track whether we're on a mobile-width viewport. Defer the initial read
   // to useEffect so SSR / hydration is happy (matchMedia is window-only).
   const [isMobile, setIsMobile] = useState(false);
+
+  // When `isDirty`, guard accidental dismissal so a half-filled form isn't
+  // lost to a stray backdrop click / Escape. Opt-in — default preserves the
+  // original unconditional close behavior for all existing consumers.
+  const requestClose = () => {
+    if (isDirty && !window.confirm('Discard your unsaved changes?')) return;
+    onClose?.();
+  };
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 767px)');
@@ -49,16 +57,17 @@ export default function Modal({ open, onClose, title, children, maxWidth = 'max-
   // Desktop Escape-to-close (Vaul already handles ESC in the mobile sheet).
   useEffect(() => {
     if (isMobile || !open) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    const onKey = (e) => { if (e.key === 'Escape') requestClose(); };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [open, isMobile, onClose]);
+  }, [open, isMobile, onClose, isDirty]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Mobile: native-feeling bottom sheet via Vaul ───────────────────── */
   if (isMobile) {
     return (
       <Drawer.Root
         open={open}
+        dismissible={!isDirty}
         onOpenChange={(next) => { if (!next) onClose?.(); }}
         /* `shouldScaleBackground` shrinks the page behind the sheet to ~0.94×
            with a subtle blur — iOS's signature affordance when a sheet rises.
@@ -125,7 +134,7 @@ export default function Modal({ open, onClose, title, children, maxWidth = 'max-
               backdropFilter: 'blur(6px)',
               WebkitBackdropFilter: 'blur(6px)',
             }}
-            onClick={onClose}
+            onClick={requestClose}
           />
 
           <motion.div
@@ -152,7 +161,7 @@ export default function Modal({ open, onClose, title, children, maxWidth = 'max-
                 {title}
               </h2>
               <button
-                onClick={onClose}
+                onClick={requestClose}
                 className="flex items-center justify-center rounded-lg transition-all duration-200"
                 style={{ width: 32, height: 32, color: 'var(--text-tertiary)' }}
                 onMouseEnter={e => {

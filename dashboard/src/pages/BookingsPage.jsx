@@ -270,7 +270,7 @@ export default function BookingsPage() {
       </Modal>
 
       {/* Decline modal */}
-      <Modal open={actionModal?.type === 'decline'} onClose={() => { setActionModal(null); setActionError(''); }} title="Decline Booking">
+      <Modal open={actionModal?.type === 'decline'} onClose={() => { setActionModal(null); setActionError(''); }} title="Decline Booking" isDirty={!!declineReason.trim()}>
         <div className="space-y-4">
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
             Declining <span className="font-medium">{actionModal?.booking?.booking_code}</span> for{' '}

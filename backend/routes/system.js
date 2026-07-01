@@ -37,6 +37,9 @@ router.get('/health', async (req, res) => {
     crisp:        !!process.env.CRISP_WEBHOOK_SECRET,
     cron:         !!process.env.CRON_SECRET,
     portal_auth:  !!process.env.PORTAL_JWT_SECRET,
+    // Feature flags (read-only presence — surfaced so the dashboard can tell the
+    // operator whether Timeline timing edits actually drive cron sends yet).
+    timeline_timing: process.env.FEATURE_TIMELINE_TIMING === 'true',
   };
 
   // 3. Stripe API reachability (lightweight — just check balance)

@@ -5,6 +5,26 @@
 
 ---
 
+## 2026-07-01 — Dashboard audit Batch 4 (structural): mobile CTAs, global pills, modal dirty-guard, timeline banner
+
+**Why:** The previously-deferred structural items from the audit. Same branch.
+
+### Changes
+- **`pages/BookingDetailPage.jsx`** — Mobile sticky action bar CTAs were dead/legacy: "Mark Pickup" opened a legacy paste-photo-URL modal and "Complete Booking" (returned) opened a modal that never existed. New `handleMobileAction` routes pickup→Check-In tab and return/complete→Check-Out tab (matching desktop), scrolling the tab into view; approve/decline/cancel still use the confirmation modals. The legacy pickup/return modals are now unreachable (left in place, not deleted).
+- **`components/layout/DashboardLayout.jsx`** — Mounted a global mobile `AlertPillBar` (strip variant) at the top of the scroll area on every route except `/` (home renders its own), so Approve/Counter-Sign/Check-In/Inspect alerts follow the operator off the dashboard home. Reuses the existing `dashboard:open-active-modal` event.
+- **`components/shared/Modal.jsx`** — Added opt-in `isDirty` prop: when true, desktop backdrop-click / X / Escape prompt "Discard your unsaved changes?" and the mobile Vaul sheet becomes non-dismissible-by-gesture (`dismissible={!isDirty}`). Default false = unchanged behavior for all existing consumers. Wired into the **decline-booking** modal (`BookingsPage`, dirty when a reason is typed) and **Add Vehicle** modal (`FleetPage`, dirty when the form differs from empty / an image is selected).
+- **`components/messaging/TimelineView.jsx`** + **`backend/routes/system.js`** — Exposed `timeline_timing` (from `FEATURE_TIMELINE_TIMING`) on `/system/health` (additive) and added a Timeline banner that appears only when the flag is confirmed **off**: "Timing edits are saved but not live yet." Stays silent if the flag can't be determined (no false alarms).
+
+### Build Status
+- [x] `cd dashboard && npm run build` — clean.
+- [x] `node --check backend/routes/system.js` — pass.
+
+### Notes / still deferred
+- Legacy pickup/return modals in `BookingModals.jsx` are now unreachable; safe to delete in a later cleanup once verified in production.
+- `FEATURE_TIMELINE_TIMING` must be redeployed on the backend for the `/system/health` field (and thus the accurate banner) to reflect reality.
+
+---
+
 ## 2026-07-01 — Dashboard audit Batch 3/4: messaging/checkout/modal reliability
 
 **Why:** Highest-value, low-risk items from the mobile-ops and polish batches. Structural rewiring (mobile action-bar CTA unification, global alert-pill mount, check-in path unification) is intentionally deferred until it can be manually tested against a running dashboard. Same branch.

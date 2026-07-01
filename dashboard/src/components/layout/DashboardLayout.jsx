@@ -4,6 +4,7 @@ import { Sun, Moon, User, Settings, LogOut, ChevronDown, ThumbsUp } from 'lucide
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from './Sidebar';
 import BottomNav from './BottomNav';
+import AlertPillBar from './AlertPillBar';
 import GlobalSearch from './GlobalSearch';
 import NotificationDropdown from './NotificationDropdown';
 import CashRainOverlay from '../shared/CashRainOverlay';
@@ -321,6 +322,17 @@ function DashboardLayoutInner() {
               exit→enter on every navigation. Use route-key (split on /:id) so
               detail pages don't re-mount when the row id changes during back-nav. */}
           <main ref={mainScrollRef} className="flex-1 overflow-y-auto glass-scroll pb-[calc(84px+env(safe-area-inset-bottom))] lg:pb-0">
+            {/* Global mobile alert strip — makes the Approve/Counter-Sign/Check-In/
+                Inspect pills follow the operator on every page (not just the
+                dashboard home, which renders its own). Hidden at lg+ and on '/'. */}
+            {location.pathname !== '/' && (
+              <div className="lg:hidden px-6 pt-3">
+                <AlertPillBar
+                  variant="strip"
+                  onActiveAlertClick={() => window.dispatchEvent(new CustomEvent('dashboard:open-active-modal'))}
+                />
+              </div>
+            )}
             <AnimatePresence mode="wait" initial={false} custom={navType}>
               <motion.div
                 key={location.pathname.split('/').slice(0, 2).join('/') || '/'}
