@@ -5,6 +5,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { format, subDays } from 'date-fns';
+import { useReducedMotion } from 'framer-motion';
 import { api } from '../../../api/client';
 import { cachedQuery } from '../../../lib/queryCache';
 import WidgetWrapper from '../WidgetWrapper';
@@ -21,15 +22,22 @@ function GlassTooltip({ active, payload, label }) {
   );
 }
 
-/* Animated glowing dot that pulses at the latest data point */
+/* Animated glowing dot that pulses at the latest data point.
+   The infinite SMIL <animate> loop is SVG-native, so it bypasses both
+   Framer's MotionConfig and the CSS reduced-motion block — we gate it
+   manually with `reduce` and fall back to a static ring. */
 function PulsingDot(props) {
-  const { cx, cy, index, dataLength } = props;
+  const { cx, cy, index, dataLength, reduce } = props;
   if (index !== dataLength - 1 || !cx || !cy) return null;
   return (
     <g>
       <circle cx={cx} cy={cy} r={6} fill="#22c55e" opacity={0.25}>
-        <animate attributeName="r" values="6;14;6" dur="2s" repeatCount="indefinite" />
-        <animate attributeName="opacity" values="0.35;0.08;0.35" dur="2s" repeatCount="indefinite" />
+        {!reduce && (
+          <>
+            <animate attributeName="r" values="6;14;6" dur="2s" repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0.35;0.08;0.35" dur="2s" repeatCount="indefinite" />
+          </>
+        )}
       </circle>
       <circle cx={cx} cy={cy} r={4} fill="#22c55e" stroke="var(--bg-primary)" strokeWidth={2} />
     </g>
@@ -43,6 +51,7 @@ export default function RevenueTrendWidget() {
   const [mounted, setMounted] = useState(false);
   const navigate = useNavigate();
   const timerRef = useRef(null);
+  const reduce = useReducedMotion();
 
   const load = useCallback(() => {
     setLoading(true);
@@ -168,11 +177,11 @@ export default function RevenueTrendWidget() {
                 strokeWidth={2.5}
                 fill="url(#revTrendGrad)"
                 filter="url(#glowLine)"
-                isAnimationActive={true}
+                isAnimationActive={!reduce}
                 animationDuration={1800}
                 animationBegin={0}
                 animationEasing="ease-out"
-                dot={(props) => <PulsingDot {...props} dataLength={data.length} />}
+                dot={(props) => <PulsingDot {...props} dataLength={data.length} reduce={reduce} />}
                 activeDot={{ r: 5, fill: '#22c55e', stroke: 'var(--bg-primary)', strokeWidth: 2 }}
               />
             </AreaChart>

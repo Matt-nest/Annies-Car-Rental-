@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Download, DollarSign, TrendingUp, CreditCard, Calendar, Car } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { api } from '../api/client';
 import { SkeletonKpi, SkeletonChartCard, SkeletonTable } from '../components/shared/Skeleton';
 import EmptyState from '../components/shared/EmptyState';
@@ -84,6 +84,7 @@ export default function RevenuePage() {
   const [revenue, setRevenue] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeRange, setActiveRange] = useState(4); // All time
+  const reduce = useReducedMotion();
 
   const fetchRevenue = useCallback(async (rangeIndex) => {
     setLoading(true);
@@ -214,7 +215,7 @@ export default function RevenuePage() {
               <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Monthly Lead Funnel</h2>
               <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{total} total inquiries</span>
             </div>
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {steps.map(s => (
                 <div key={s.key} className="text-center p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)' }}>
                   <p className="text-2xl font-bold tabular-nums" style={{ color: s.color }}>{f[s.key] || 0}</p>
@@ -263,7 +264,7 @@ export default function RevenuePage() {
                   strokeWidth={2.5}
                   fill="url(#revMonthGrad)"
                   filter="url(#glowMonth)"
-                  isAnimationActive={true}
+                  isAnimationActive={!reduce}
                   animationDuration={1800}
                   animationBegin={200}
                   animationEasing="ease-out"
@@ -273,8 +274,12 @@ export default function RevenuePage() {
                     return (
                       <g key={`pulse-${index}`}>
                         <circle cx={cx} cy={cy} r={6} fill="#22c55e" opacity={0.25}>
-                          <animate attributeName="r" values="6;14;6" dur="2s" repeatCount="indefinite" />
-                          <animate attributeName="opacity" values="0.35;0.08;0.35" dur="2s" repeatCount="indefinite" />
+                          {!reduce && (
+                            <>
+                              <animate attributeName="r" values="6;14;6" dur="2s" repeatCount="indefinite" />
+                              <animate attributeName="opacity" values="0.35;0.08;0.35" dur="2s" repeatCount="indefinite" />
+                            </>
+                          )}
                         </circle>
                         <circle cx={cx} cy={cy} r={4} fill="#22c55e" stroke="var(--bg-primary)" strokeWidth={2} />
                       </g>
@@ -306,7 +311,7 @@ export default function RevenuePage() {
                 <div className="flex items-center h-full">
                   <ResponsiveContainer width="55%" height="100%">
                     <PieChart>
-                      <Pie data={rateData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={4} isAnimationActive animationDuration={1000} animationBegin={200} animationEasing="ease-out">
+                      <Pie data={rateData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={4} isAnimationActive={!reduce} animationDuration={1000} animationBegin={200} animationEasing="ease-out">
                         {rateData.map((entry, i) => (
                           <Cell key={i} fill={RATE_COLORS[entry.key] || PIE_COLORS[i]} stroke="none" />
                         ))}
@@ -352,7 +357,7 @@ export default function RevenuePage() {
                     <XAxis dataKey="days" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-tertiary)', fontSize: 10 }} />
                     <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-tertiary)', fontSize: 10 }} allowDecimals={false} />
                     <Tooltip content={<GlassTooltip />} />
-                    <Bar dataKey="count" name="Bookings" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={1000} animationBegin={200} animationEasing="ease-out">
+                    <Bar dataKey="count" name="Bookings" radius={[4, 4, 0, 0]} isAnimationActive={!reduce} animationDuration={1000} animationBegin={200} animationEasing="ease-out">
                       {barData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
                     </Bar>
                   </BarChart>
@@ -379,7 +384,7 @@ export default function RevenuePage() {
                   <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-tertiary)', fontSize: 10 }} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
                   <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} width={130} />
                   <Tooltip content={<GlassTooltip prefix="$" />} />
-                  <Bar dataKey="total" fill="#818cf8" radius={[0, 6, 6, 0]} barSize={20} name="Revenue" isAnimationActive={true} animationDuration={1200} animationBegin={300} animationEasing="ease-out" />
+                  <Bar dataKey="total" fill="#818cf8" radius={[0, 6, 6, 0]} barSize={20} name="Revenue" isAnimationActive={!reduce} animationDuration={1200} animationBegin={300} animationEasing="ease-out" />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -398,7 +403,7 @@ export default function RevenuePage() {
               <div className="flex items-center h-full">
                 <ResponsiveContainer width="55%" height="100%">
                   <PieChart>
-                    <Pie data={categoryData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={4} isAnimationActive={true} animationDuration={1000} animationBegin={200} animationEasing="ease-out">
+                    <Pie data={categoryData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={4} isAnimationActive={!reduce} animationDuration={1000} animationBegin={200} animationEasing="ease-out">
                       {categoryData.map((entry, i) => (
                         <Cell key={i} fill={CATEGORY_COLORS[entry.name] || PIE_COLORS[i % PIE_COLORS.length]} stroke="none" />
                       ))}
@@ -433,7 +438,7 @@ export default function RevenuePage() {
             <div className="flex items-center h-full">
               <ResponsiveContainer width="55%" height="100%">
                 <PieChart>
-                  <Pie data={sourceData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={5} isAnimationActive={true} animationDuration={1000} animationBegin={200} animationEasing="ease-out">
+                  <Pie data={sourceData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={5} isAnimationActive={!reduce} animationDuration={1000} animationBegin={200} animationEasing="ease-out">
                     {sourceData.map((_, i) => (
                       <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} stroke="none" />
                     ))}
