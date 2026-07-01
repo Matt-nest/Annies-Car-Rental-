@@ -166,7 +166,7 @@ export default function FleetPage() {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: EASE }}
-        className="flex items-center justify-between"
+        className="flex flex-wrap items-center justify-between gap-3"
       >
         <div>
           <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Fleet</h1>
@@ -307,9 +307,14 @@ export default function FleetPage() {
                       {v.status === 'available' && (
                         <button
                           onClick={e => openLinkModal(v, e)}
-                          className="p-1.5 rounded-lg transition-all duration-200 opacity-0 group-hover:opacity-100"
+                          /* On hover-capable devices the action reveals on card
+                             hover; on touch (no hover) it stays visible so it's
+                             actually reachable — otherwise it was invisible and
+                             unusable on phones. */
+                          className="p-1.5 rounded-lg transition-all duration-200 opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
                           style={{ color: 'var(--accent-color)', backgroundColor: 'var(--accent-glow)' }}
                           title="Send booking link"
+                          aria-label="Send booking link"
                         >
                           <Send size={13} />
                         </button>

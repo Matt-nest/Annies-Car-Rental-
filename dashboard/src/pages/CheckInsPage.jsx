@@ -70,10 +70,10 @@ export default function CheckInsPage() {
             <span className="text-sm font-semibold text-[var(--text-primary)] truncate">{vehicleName}</span>
             <StatusBadge status={booking.status} size="xs" />
           </div>
-          <div className="flex items-center gap-3 text-xs text-[var(--text-tertiary)]">
-            <span>{customerName}</span>
-            <span>·</span>
-            <span className="font-mono">{booking.booking_code}</span>
+          <div className="flex items-center gap-3 text-xs text-[var(--text-tertiary)] min-w-0">
+            <span className="truncate">{customerName}</span>
+            <span className="shrink-0">·</span>
+            <span className="font-mono shrink-0">{booking.booking_code}</span>
           </div>
         </div>
 

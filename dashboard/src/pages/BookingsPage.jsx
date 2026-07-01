@@ -125,7 +125,7 @@ export default function BookingsPage() {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: EASE }}
-        className="flex items-center justify-between"
+        className="flex flex-wrap items-center justify-between gap-3"
       >
         <div>
           <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Bookings</h1>
@@ -212,13 +212,13 @@ export default function BookingsPage() {
                 <div className="flex gap-2 pt-1" onClick={e => e.stopPropagation()}>
                   <button
                     onClick={() => setActionModal({ type: 'approve', booking: b })}
-                    className="flex-1 h-10 rounded-lg flex items-center justify-center gap-1.5 text-xs font-semibold text-white bg-emerald-500 active:bg-emerald-600"
+                    className="flex-1 h-11 rounded-lg flex items-center justify-center gap-1.5 text-xs font-semibold text-white bg-emerald-500 active:bg-emerald-600 active:scale-[0.98] transition-transform"
                   >
                     <CheckCircle size={14} /> Approve
                   </button>
                   <button
                     onClick={() => setActionModal({ type: 'decline', booking: b })}
-                    className="flex-1 h-10 rounded-lg flex items-center justify-center gap-1.5 text-xs font-semibold text-white bg-red-500 active:bg-red-600"
+                    className="flex-1 h-11 rounded-lg flex items-center justify-center gap-1.5 text-xs font-semibold text-white bg-red-500 active:bg-red-600 active:scale-[0.98] transition-transform"
                   >
                     <XCircle size={14} /> Decline
                   </button>

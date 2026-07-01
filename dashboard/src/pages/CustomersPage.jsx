@@ -95,8 +95,8 @@ export default function CustomersPage() {
                       {c.first_name} {c.last_name}
                     </p>
                     <div className="flex items-center gap-2.5 mt-1.5 flex-wrap">
-                      <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                        <Mail size={10} />{c.email}
+                      <span className="flex items-center gap-1 text-xs min-w-0 max-w-full" style={{ color: 'var(--text-tertiary)' }}>
+                        <Mail size={10} className="shrink-0" /><span className="truncate">{c.email}</span>
                       </span>
                     </div>
                     {c.phone && (
