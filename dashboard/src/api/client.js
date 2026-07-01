@@ -55,6 +55,10 @@ export const api = {
   completeBooking: (id) => request(`/bookings/${id}/complete`, { method: 'POST' }),
   getBookingTimeline: (id) => request(`/bookings/${id}/timeline`),
   getBookingExtensions: (id) => request(`/bookings/${id}/extensions`),
+  quoteExtension: (id, newReturnDate) => request(`/bookings/${id}/extension-quote`, { method: 'POST', body: JSON.stringify({ newReturnDate }) }),
+  extendBooking: (id, body) => request(`/bookings/${id}/extend`, { method: 'POST', body: JSON.stringify(body) }),
+  getOverageCharges: (id) => request(`/bookings/${id}/overage-charges`),
+  cancelOverageCharge: (chargeId) => request(`/overage-charges/${chargeId}/cancel`, { method: 'POST' }),
   approveInsurance: (bookingId) => request(`/bookings/${bookingId}/approve-insurance`, { method: 'POST', body: JSON.stringify({ action: 'approve' }) }),
   rejectInsurance: (bookingId, reason) => request(`/bookings/${bookingId}/approve-insurance`, { method: 'POST', body: JSON.stringify({ action: 'reject', reason }) }),
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Phone, Mail, Car, MapPin, CheckCircle, XCircle, Package, RotateCcw, Flag, DollarSign, FileText, Shield, CreditCard, User, ClipboardCheck, Receipt, Navigation, RefreshCw, AlertCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, Car, MapPin, CheckCircle, XCircle, Package, RotateCcw, Flag, DollarSign, FileText, Shield, CreditCard, User, ClipboardCheck, Receipt, Navigation, RefreshCw, AlertCircle, Loader2, CalendarPlus, Clock } from 'lucide-react';
 import { api } from '../api/client';
 import { bonzahApi } from '../api/bonzah';
 import { supabase } from '../auth/supabaseClient';
@@ -258,6 +258,219 @@ function RentalExtensionsSection({ bookingId }) {
 }
 
 /* ────────────────────────────────────────────────────────
+   Overage Charges — admin view of scheduled/auto card-on-file charges.
+   Self-contained; hidden unless the booking has any. Supports cancelling a
+   pending/disputed charge before it fires.
+   ──────────────────────────────────────────────────────── */
+function OverageChargesSection({ bookingId }) {
+  const [rows, setRows] = useState([]);
+  const [busyId, setBusyId] = useState(null);
+  const [error, setError] = useState('');
+
+  const reload = async () => {
+    try {
+      const data = await api.getOverageCharges(bookingId);
+      setRows(Array.isArray(data) ? data : []);
+    } catch { /* table may not be migrated — stay hidden */ }
+  };
+  useEffect(() => { reload(); }, [bookingId]);
+
+  if (rows.length === 0) return null;
+
+  const statusColor = (s) => (
+    s === 'succeeded' ? 'text-[#22c55e]'
+    : s === 'failed' ? 'text-[var(--danger-color)]'
+    : s === 'cancelled' ? 'text-[var(--text-tertiary)]'
+    : s === 'disputed' ? 'text-[#63b3ed]'
+    : 'text-amber-500'
+  );
+
+  const handleCancel = async (id) => {
+    if (!window.confirm('Cancel this scheduled overage charge? It will not be charged to the customer.')) return;
+    setBusyId(id);
+    setError('');
+    try {
+      await api.cancelOverageCharge(id);
+      await reload();
+    } catch (e) {
+      setError(e.message);
+    }
+    setBusyId(null);
+  };
+
+  return (
+    <Section title="Overage Charges">
+      {error && (
+        <div className="rounded-lg p-2 text-xs mb-2 bg-[rgba(239,68,68,0.07)] border border-[rgba(239,68,68,0.2)] text-[#ef4444]">{error}</div>
+      )}
+      <div className="space-y-2">
+        {rows.map(x => {
+          const scheduled = x.scheduled_for ? new Date(x.scheduled_for) : null;
+          const canCancel = ['pending', 'disputed'].includes(x.status);
+          return (
+            <div key={x.id} className="flex justify-between items-start gap-3 text-sm py-1.5 border-b border-[var(--border-subtle)] last:border-0">
+              <div className="min-w-0">
+                <p className="font-medium text-[var(--text-primary)]">{x.description}</p>
+                <div className="flex items-center flex-wrap gap-x-2 text-xs text-[var(--text-tertiary)]">
+                  <span className={`capitalize font-medium ${statusColor(x.status)}`}>{x.status}</span>
+                  {scheduled && x.status === 'pending' && (
+                    <><span>·</span><span className="flex items-center gap-1"><Clock size={11} /> fires {scheduled.toLocaleString()}</span></>
+                  )}
+                  {x.failure_reason && <><span>·</span><span>{x.failure_reason}</span></>}
+                </div>
+                {x.dispute_message && (
+                  <p className="text-xs italic text-[var(--text-tertiary)] mt-0.5">Disputed: “{x.dispute_message}”</p>
+                )}
+              </div>
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <span className="font-semibold tabular-nums text-[var(--text-primary)]">
+                  ${(Number(x.amount_cents || 0) / 100).toFixed(2)}
+                </span>
+                {canCancel && (
+                  <button
+                    onClick={() => handleCancel(x.id)}
+                    disabled={busyId === x.id}
+                    className="text-[11px] font-medium text-[var(--danger-color)] hover:underline disabled:opacity-50 flex items-center gap-1"
+                  >
+                    {busyId === x.id ? <Loader2 size={11} className="animate-spin" /> : <XCircle size={11} />} Cancel
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Section>
+  );
+}
+
+/* ────────────────────────────────────────────────────────
+   Extend Rental Modal — admin-initiated extension.
+   Quote → confirm; optionally record a manual payment or waive.
+   ──────────────────────────────────────────────────────── */
+function ExtendRentalModal({ booking, onClose, onDone }) {
+  const currentReturn = String(booking.return_date).slice(0, 10);
+  const minDate = (() => {
+    const d = new Date(currentReturn + 'T12:00:00');
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().slice(0, 10);
+  })();
+
+  const [newDate, setNewDate] = useState(minDate);
+  const [quote, setQuote] = useState(null);
+  const [collectPayment, setCollectPayment] = useState(true);
+  const [method, setMethod] = useState('cash');
+  const [reference, setReference] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const getQuote = async () => {
+    setLoading(true); setError(''); setQuote(null);
+    try {
+      const q = await api.quoteExtension(booking.id, newDate);
+      setQuote(q);
+    } catch (e) {
+      setError(e.data?.error || e.message);
+    }
+    setLoading(false);
+  };
+
+  const confirm = async () => {
+    setSaving(true); setError('');
+    try {
+      await api.extendBooking(booking.id, {
+        newReturnDate: quote.newReturnDate,
+        collectPayment,
+        method: collectPayment ? method : undefined,
+        reference: collectPayment && reference ? reference : undefined,
+      });
+      onDone();
+    } catch (e) {
+      setError(e.data?.error || e.message);
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="w-full max-w-md rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)] p-6 space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-2">
+          <CalendarPlus size={18} className="text-[var(--accent-color)]" />
+          <h3 className="text-base font-semibold text-[var(--text-primary)]">Extend Rental</h3>
+        </div>
+        <p className="text-xs text-[var(--text-tertiary)]">
+          Currently due {format(new Date(currentReturn), 'MMM d, yyyy')}. Pick a later return date — extra days are priced at this booking's rate ({booking.rate_type || 'daily'}).
+        </p>
+
+        <div>
+          <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">New return date</label>
+          <input
+            type="date"
+            className="input text-sm"
+            value={newDate}
+            min={minDate}
+            onChange={e => { setNewDate(e.target.value); setQuote(null); }}
+          />
+        </div>
+
+        {error && (
+          <div className="rounded-lg p-2 text-xs bg-[rgba(239,68,68,0.07)] border border-[rgba(239,68,68,0.2)] text-[#ef4444]">{error}</div>
+        )}
+
+        {quote && (
+          <div className="rounded-xl p-3 space-y-1.5 bg-[var(--bg-card)] border border-[var(--border-subtle)] text-sm">
+            {quote.lineItems.map((li, i) => (
+              <div key={i} className="flex justify-between text-[var(--text-secondary)]">
+                <span>{li.label}</span>
+                <span className="tabular-nums">${Number(li.amount).toFixed(2)}</span>
+              </div>
+            ))}
+            <div className="flex justify-between font-semibold pt-1.5 border-t border-[var(--border-subtle)] text-[var(--text-primary)]">
+              <span>Extension total</span>
+              <span className="tabular-nums">${Number(quote.total).toFixed(2)}</span>
+            </div>
+          </div>
+        )}
+
+        {quote && (
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+              <input type="checkbox" checked={collectPayment} onChange={e => setCollectPayment(e.target.checked)} />
+              Record payment now
+            </label>
+            {collectPayment ? (
+              <div className="grid grid-cols-2 gap-2">
+                <select className="input text-sm" value={method} onChange={e => setMethod(e.target.value)}>
+                  {['cash', 'zelle', 'venmo', 'paypal', 'card', 'stripe'].map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+                <input className="input text-sm" placeholder="Reference (optional)" value={reference} onChange={e => setReference(e.target.value)} />
+              </div>
+            ) : (
+              <p className="text-xs text-[var(--text-tertiary)]">No payment will be recorded — the dates and pricing will still be updated (comp/waive).</p>
+            )}
+          </div>
+        )}
+
+        <div className="flex gap-2 justify-end pt-2">
+          <button onClick={onClose} className="btn-ghost">Cancel</button>
+          {!quote ? (
+            <button onClick={getQuote} disabled={loading || !newDate} className="btn-primary">
+              {loading ? <Loader2 size={14} className="animate-spin" /> : <DollarSign size={14} />} Get quote
+            </button>
+          ) : (
+            <button onClick={confirm} disabled={saving} className="btn-primary">
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+              {collectPayment ? `Extend & record $${Number(quote.total).toFixed(2)}` : 'Extend (no charge)'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────────────────
    Main Component
    ──────────────────────────────────────────────────────── */
 export default function BookingDetailPage() {
@@ -275,6 +488,7 @@ export default function BookingDetailPage() {
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'overview');
   const [checkinRecords, setCheckinRecords] = useState([]);
+  const [showExtend, setShowExtend] = useState(false);
   const { refresh: refreshAlerts } = useAlerts();
 
   // Insurance review state
@@ -392,9 +606,14 @@ export default function BookingDetailPage() {
             </button>
           )}
           {status === 'active' && (
-            <button onClick={() => setActiveTab('checkout')} className="btn-primary">
-              <RotateCcw size={15} /> Go to Check-Out
-            </button>
+            <>
+              <button onClick={() => setShowExtend(true)} className="btn-secondary">
+                <CalendarPlus size={15} /> Extend
+              </button>
+              <button onClick={() => setActiveTab('checkout')} className="btn-primary">
+                <RotateCcw size={15} /> Go to Check-Out
+              </button>
+            </>
           )}
           {status === 'returned' && (
             <button onClick={() => setActiveTab('checkout')} className="btn-primary">
@@ -590,6 +809,15 @@ export default function BookingDetailPage() {
         paymentForm={paymentForm} setPaymentForm={setPaymentForm}
         actioning={actioning} doAction={doAction}
       />
+
+      {/* Extend Rental modal */}
+      {showExtend && (
+        <ExtendRentalModal
+          booking={booking}
+          onClose={() => setShowExtend(false)}
+          onDone={async () => { setShowExtend(false); await Promise.all([load(), refreshAlerts()]); }}
+        />
+      )}
 
       {/* Photo Lightbox */}
       {lightboxUrl && (
@@ -863,8 +1091,11 @@ function OverviewTab({ booking, c, v, id, load, setModal, setPaymentForm, setLig
         </div>
       </Section>
 
-      {/* Rental Extensions (customer-initiated) — hidden unless any exist */}
+      {/* Rental Extensions (customer- or admin-initiated) — hidden unless any exist */}
       <RentalExtensionsSection bookingId={id} />
+
+      {/* Overage Charges (auto card-on-file) — hidden unless any exist */}
+      <OverageChargesSection bookingId={id} />
 
       {/* Vehicle Condition */}
       {(booking.pickup_mileage || booking.return_mileage) && (
