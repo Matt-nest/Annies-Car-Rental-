@@ -59,6 +59,10 @@ export const api = {
   extendBooking: (id, body) => request(`/bookings/${id}/extend`, { method: 'POST', body: JSON.stringify(body) }),
   getOverageCharges: (id) => request(`/bookings/${id}/overage-charges`),
   cancelOverageCharge: (chargeId) => request(`/overage-charges/${chargeId}/cancel`, { method: 'POST' }),
+  getPaymentPlan: (id) => request(`/bookings/${id}/payment-plan`),
+  createPaymentPlan: (id, body) => request(`/bookings/${id}/payment-plan`, { method: 'POST', body: JSON.stringify(body) }),
+  cancelPaymentPlan: (planId) => request(`/payment-plans/${planId}/cancel`, { method: 'POST' }),
+  chargeInstallment: (installmentId) => request(`/installments/${installmentId}/charge`, { method: 'POST' }),
   approveInsurance: (bookingId) => request(`/bookings/${bookingId}/approve-insurance`, { method: 'POST', body: JSON.stringify({ action: 'approve' }) }),
   rejectInsurance: (bookingId, reason) => request(`/bookings/${bookingId}/approve-insurance`, { method: 'POST', body: JSON.stringify({ action: 'reject', reason }) }),
 

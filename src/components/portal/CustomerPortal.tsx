@@ -17,6 +17,7 @@ import CrispWidget, { openCrispChat } from './CrispWidget';
 import ExtendRentalCard from './ExtendRentalCard';
 import PaymentMethodCard from './PaymentMethodCard';
 import BalanceDueCard from './BalanceDueCard';
+import PaymentPlanCard from './PaymentPlanCard';
 
 /* Persisted portal session — keeps long-term renters signed in across refreshes. */
 const SESSION_KEY = 'portal_session';
@@ -234,6 +235,9 @@ export default function CustomerPortal() {
   const [disputeSubmitting, setDisputeSubmitting] = useState(false);
   const [disputeSuccess, setDisputeSuccess] = useState(false);
 
+  // Installment plan (recurring billing)
+  const [plan, setPlan] = useState<any>(null);
+
   // Pending overage charges (scheduled with 48h dispute window)
   const [pendingCharges, setPendingCharges] = useState<any[]>([]);
   const [overageDisputeMsg, setOverageDisputeMsg] = useState<Record<string, string>>({});
@@ -336,6 +340,18 @@ export default function CustomerPortal() {
       if (!res.ok) throw new Error(data.error);
       setBooking(data);
       refreshSessionIfNeeded(token);
+
+      // Load any installment plan (drives the plan card / hides the balance card)
+      if (['confirmed', 'ready_for_pickup', 'active', 'returned'].includes(data.status)) {
+        try {
+          const p = await fetch(`${API_URL}/portal/payment-plan`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }).then(r => r.ok ? r.json() : null);
+          setPlan(p && p.plan ? p : null);
+        } catch { setPlan(null); }
+      } else {
+        setPlan(null);
+      }
 
       // Load lockbox only when check-in is complete (active status)
       // Lockbox is gated behind check-in - not available during ready_for_pickup
@@ -863,10 +879,15 @@ export default function CustomerPortal() {
           </motion.div>
 
 
-          {/* ── Balance due (any non-terminal status with an outstanding
-              rental balance). Self-hides when nothing is owed. ── */}
-          {token && ['confirmed', 'ready_for_pickup', 'active', 'returned'].includes(status) && (
-            <BalanceDueCard token={token} theme={theme} onPaid={loadBooking} />
+          {/* ── Payment plan (installments) if one exists, otherwise the
+              balance-due card. A plan bills automatically, so we don't also
+              nag for the full balance. Both self-hide when not applicable. ── */}
+          {token && plan?.plan?.status === 'active' ? (
+            <PaymentPlanCard data={plan} />
+          ) : (
+            token && ['confirmed', 'ready_for_pickup', 'active', 'returned'].includes(status) && (
+              <BalanceDueCard token={token} theme={theme} onPaid={loadBooking} />
+            )
           )}
 
           {/* ── Pickup Guide (ready_for_pickup only) ──────────── */}
