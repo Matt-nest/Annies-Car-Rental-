@@ -14,6 +14,7 @@ import Footer from '../layout/Footer';
 import PhotoUploader from './PhotoUploader';
 import SlotPhotoUploader, { type PhotoSlots } from './SlotPhotoUploader';
 import CrispWidget, { openCrispChat } from './CrispWidget';
+import ExtendRentalCard from './ExtendRentalCard';
 
 /* ── Helpers ────────────────────────────────────────────── */
 const fmt = (d: string) => {
@@ -1220,6 +1221,17 @@ export default function CustomerPortal() {
                 )}
               </div>
             </motion.div>
+          )}
+
+          {/* ── Extend Rental (active only): pick a later return date, get an
+              instant quote for the extra days, and pay inline via Stripe. ── */}
+          {status === 'active' && token && (
+            <ExtendRentalCard
+              booking={booking}
+              token={token}
+              theme={theme}
+              onExtended={loadBooking}
+            />
           )}
 
           {/* ── Customer Check-In Record (under Return Vehicle, active only) ── */}
