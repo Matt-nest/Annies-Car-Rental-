@@ -5,6 +5,31 @@
 
 ---
 
+## 2026-07-01 — Include ready-for-pickup bookings in dashboard pickup stats
+
+### Changes Made
+- **`backend/routes/stats.js`**: Added `ready_for_pickup` to the pickup status filters for `/stats/overview` and `/stats/upcoming` so prepped bookings still appear in dashboard pickup counts and schedule widgets before customer check-in.
+
+### API/Data Impact
+- No response shape or schema changes. Existing stats endpoints now include the full pickup-eligible status set (`approved`, `confirmed`, `ready_for_pickup`).
+
+### Files That Need Verification
+- `backend/routes/stats.js` — verify syntax and existing backend tests.
+- Dashboard widgets that read `api.getOverview()` / `api.getUpcoming()` should now include ready-for-pickup bookings in pickup lists.
+
+### Build Status
+- [ ] `node --check backend/routes/stats.js`
+- [ ] `cd backend && npm test`
+- [ ] `cd dashboard && npm run build`
+
+### Committed
+- [ ] Pending
+
+### Known Issues / Follow-up
+- None.
+
+---
+
 ## 2026-06-14 — Port JD Coastal booking-flow upgrades (dedicated Scan step + summary redesign)
 
 Ports the full set from JD Coastal (verified there first): dedicated live-camera ID **Scan step**, Rental Summary redesign, redundant-scanner removal, draft versioning, and skip-when-scanned.
