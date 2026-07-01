@@ -362,6 +362,15 @@ export async function handleWebhookEvent(event) {
         break;
       }
 
+      // Portal "pay balance" charges record a rental payment — route them too.
+      if (pi.metadata?.kind === 'balance') {
+        const { confirmBalancePayment } = await import('./balanceService.js');
+        await confirmBalancePayment(pi.id).catch(e =>
+          console.error('[Balance] webhook confirm failed:', e.message)
+        );
+        break;
+      }
+
       // Split the payment into rental + deposit using metadata
       const depositCents = Number(pi.metadata.deposit_cents) || 0;
       const rentalCents = Number(pi.metadata.rental_cents) || pi.amount;

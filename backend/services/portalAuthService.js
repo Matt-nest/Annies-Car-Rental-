@@ -2,7 +2,8 @@ import jwt from 'jsonwebtoken';
 import { supabase } from '../db/supabase.js';
 
 const PORTAL_SECRET = process.env.PORTAL_JWT_SECRET;
-const TOKEN_EXPIRY = '4h';
+// Longer default TTL keeps long-term renters signed in; still overridable.
+const TOKEN_EXPIRY = process.env.PORTAL_JWT_TTL || '12h';
 
 /**
  * Verify customer identity by booking code + email.
@@ -53,6 +54,44 @@ export async function verifyPortalAccess(bookingCode, email) {
       customerName: `${booking.customers.first_name} ${booking.customers.last_name}`,
     },
   };
+}
+
+/**
+ * Issue a fresh portal token from an already-verified session. Re-checks that
+ * the booking is still portal-eligible so a cancelled booking can't keep a
+ * session alive. Used by the /portal/refresh endpoint to keep long sessions
+ * (long-term rentals) logged in without re-entering code + email.
+ */
+export async function refreshPortalToken(decoded) {
+  if (!PORTAL_SECRET) {
+    throw Object.assign(new Error('Portal authentication not configured'), { status: 500 });
+  }
+
+  const { data: booking, error } = await supabase
+    .from('bookings')
+    .select('id, booking_code, customer_id, status, customers(email)')
+    .eq('id', decoded.bookingId)
+    .single();
+
+  if (error || !booking) {
+    throw Object.assign(new Error('Booking not found'), { status: 404 });
+  }
+  if (['declined', 'cancelled'].includes(booking.status)) {
+    throw Object.assign(new Error('This booking is no longer active'), { status: 403 });
+  }
+
+  const token = jwt.sign(
+    {
+      bookingId: booking.id,
+      bookingCode: booking.booking_code,
+      customerId: booking.customer_id,
+      email: booking.customers?.email || decoded.email,
+    },
+    PORTAL_SECRET,
+    { expiresIn: TOKEN_EXPIRY }
+  );
+
+  return { token };
 }
 
 /**

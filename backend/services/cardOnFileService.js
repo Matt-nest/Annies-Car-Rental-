@@ -46,6 +46,93 @@ export async function ensureStripeCustomer(customer) {
 }
 
 /**
+ * Get-or-create a Stripe Customer regardless of the overage feature flag.
+ * Used when the customer explicitly manages a card on file from the portal.
+ */
+export async function getOrCreateStripeCustomer(customerId) {
+  const { data: customer, error } = await supabase
+    .from('customers')
+    .select('id, first_name, last_name, email, phone, stripe_customer_id')
+    .eq('id', customerId)
+    .single();
+  if (error || !customer) throw Object.assign(new Error('Customer not found'), { status: 404 });
+
+  if (customer.stripe_customer_id) return customer.stripe_customer_id;
+
+  const sc = await stripe.customers.create({
+    email: customer.email || undefined,
+    name: [customer.first_name, customer.last_name].filter(Boolean).join(' ') || undefined,
+    phone: customer.phone || undefined,
+    metadata: { internal_customer_id: customer.id },
+  });
+  await supabase.from('customers').update({ stripe_customer_id: sc.id }).eq('id', customer.id);
+  return sc.id;
+}
+
+/** Return the card on file for a booking, or null. */
+export async function getCardOnFile(bookingId) {
+  const { data: b } = await supabase
+    .from('bookings')
+    .select('card_brand, card_last4, stripe_payment_method_id')
+    .eq('id', bookingId)
+    .maybeSingle();
+  if (!b?.stripe_payment_method_id) return null;
+  return { brand: b.card_brand || 'card', last4: b.card_last4 || '' };
+}
+
+/**
+ * Create a SetupIntent so the customer can add/update the card on file from the
+ * portal (used for extension autopay + post-inspection overage charges).
+ */
+export async function createCardSetupIntent(bookingId) {
+  const { data: b } = await supabase
+    .from('bookings')
+    .select('customer_id')
+    .eq('id', bookingId)
+    .single();
+  if (!b) throw Object.assign(new Error('Booking not found'), { status: 404 });
+
+  const customerId = await getOrCreateStripeCustomer(b.customer_id);
+  const si = await stripe.setupIntents.create({
+    customer: customerId,
+    usage: 'off_session',
+    automatic_payment_methods: { enabled: true },
+    metadata: { booking_id: bookingId },
+  });
+  return { clientSecret: si.client_secret, setupIntentId: si.id };
+}
+
+/**
+ * Persist the payment method from a succeeded SetupIntent to the booking and
+ * make it the customer's default. Returns the saved card summary.
+ */
+export async function saveCardFromSetupIntent(bookingId, setupIntentId) {
+  const si = await stripe.setupIntents.retrieve(setupIntentId);
+  if (si.status !== 'succeeded') {
+    throw Object.assign(new Error(`Card setup not complete (status: ${si.status})`), { status: 400 });
+  }
+  const pmId = typeof si.payment_method === 'string' ? si.payment_method : si.payment_method?.id;
+  if (!pmId) throw Object.assign(new Error('No payment method on the setup intent'), { status: 400 });
+
+  const pm = await stripe.paymentMethods.retrieve(pmId);
+  if (si.customer) {
+    await stripe.customers.update(si.customer, {
+      invoice_settings: { default_payment_method: pmId },
+    }).catch(() => {});
+  }
+  await supabase
+    .from('bookings')
+    .update({
+      stripe_payment_method_id: pmId,
+      card_brand: pm.card?.brand || null,
+      card_last4: pm.card?.last4 || null,
+    })
+    .eq('id', bookingId);
+
+  return { brand: pm.card?.brand || 'card', last4: pm.card?.last4 || '' };
+}
+
+/**
  * Persist the payment_method used on a succeeded PI to the booking row so the
  * inspection-finalize step can charge it later off-session.
  */
