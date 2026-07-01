@@ -398,6 +398,9 @@ export default function CheckOutTab({ booking, onReload }) {
   const [customerCheckout, setCustomerCheckout] = useState(null);
   const [checkinRecords, setCheckinRecords] = useState([]);
   const [hydrated, setHydrated] = useState(false);
+  // Bumped by the trip gate's "Refresh trip status" so we re-pull check-in
+  // records (e.g. after the renter self-checks-out) instead of staying locked.
+  const [recordsKey, setRecordsKey] = useState(0);
 
   /* ── Mileage + fuel intelligence ──────────────────────────────────────
      Mirrors backend `calculateMileageOverageFromInputs` (200 free mi/day,
@@ -465,7 +468,10 @@ export default function CheckOutTab({ booking, onReload }) {
         }
       } catch (e) { console.error(e); }
     })();
-  }, [booking.id, hydrated]);
+  }, [booking.id, hydrated, recordsKey]);
+
+  // Trip gate refresh: re-pull check-in records AND reload the parent booking.
+  const handleGateRefresh = () => { setRecordsKey(k => k + 1); onReload?.(); };
 
   async function loadIncidentals() {
     try {
@@ -652,7 +658,7 @@ export default function CheckOutTab({ booking, onReload }) {
       <CheckoutTripGate
         booking={booking}
         vehicleName={vehicleName}
-        onUnlocked={onReload}
+        onUnlocked={handleGateRefresh}
       />
     );
   }

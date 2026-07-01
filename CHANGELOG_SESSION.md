@@ -5,6 +5,26 @@
 
 ---
 
+## 2026-07-01 — Dashboard audit Batch 3/4: messaging/checkout/modal reliability
+
+**Why:** Highest-value, low-risk items from the mobile-ops and polish batches. Structural rewiring (mobile action-bar CTA unification, global alert-pill mount, check-in path unification) is intentionally deferred until it can be manually tested against a running dashboard. Same branch.
+
+### Changes
+- **`components/messaging/ChatPanel.jsx`** — Send failures were swallowed (console + haptic only) so the operator believed a message sent. Now surfaces an inline error banner with Retry above the composer; the typed body/subject are preserved on failure.
+- **`components/shared/Modal.jsx`** — Desktop dialog claimed ESC-to-close in its docs but had no handler. Added an Escape keydown listener (mobile Vaul sheet already handled it).
+- **`components/booking-tabs/CheckOutTab.jsx`** — The trip gate's "Refresh trip status" reloaded only the parent booking, not the check-in records (effect was keyed on `hydrated`), so after a renter self-checked-out the admin stayed locked until a full page refresh. Added a `recordsKey` that re-pulls `getCheckinRecords` on refresh.
+
+### Deferred (need manual testing on a live dashboard)
+- Mobile booking action-bar dead CTAs / legacy pickup modal unification.
+- Mounting `AlertPillBar` globally (mobile) so alerts follow the operator off the home page.
+- Modal dirty-guard on backdrop click (needs per-consumer `isDirty`).
+- Notification Timeline "timing not live" banner (frontend can't reliably read `FEATURE_TIMELINE_TIMING`).
+
+### Build Status
+- [x] `cd dashboard && npm run build` — clean.
+
+---
+
 ## 2026-07-01 — Dashboard audit Batch 2: kill silent failures (error/retry everywhere)
 
 **Why:** The audit's biggest systemic issue — dozens of loaders did `catch(console.error)` then rendered an empty state, so when the API/network was down the operator saw "no data / all clear" instead of a failure. This batch normalizes API errors and surfaces load/action failures with retry across the daily surfaces. Same branch as Batch 1.

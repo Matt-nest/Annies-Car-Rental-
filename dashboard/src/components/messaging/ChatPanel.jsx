@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
-  MessageSquare, Mail, Send, FileText, ChevronRight, ArrowDown, CheckCheck,
+  MessageSquare, Mail, Send, FileText, ChevronRight, ArrowDown, CheckCheck, AlertCircle,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../../api/client';
@@ -17,6 +17,7 @@ export default function ChatPanel({ customerId, conversations, hideIdentity = fa
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState('');
   const [channel, setChannel] = useState('all');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
@@ -66,6 +67,7 @@ export default function ChatPanel({ customerId, conversations, hideIdentity = fa
     if (!body.trim()) return;
     haptic('tap');
     setSending(true);
+    setSendError('');
     try {
       // Use 'email' as default when 'all' is selected for composing
       const sendChannel = channel === 'all' ? 'email' : channel;
@@ -79,7 +81,9 @@ export default function ChatPanel({ customerId, conversations, hideIdentity = fa
       setBody('');
       setSubject('');
     } catch (err) {
-      console.error('Send failed:', err);
+      // Surface the failure — the message did NOT send. Body is preserved so the
+      // operator can retry without retyping.
+      setSendError(err.message || 'Message failed to send. Please try again.');
       haptic('edge');  // failure — distinct from success
     }
     setSending(false);
@@ -454,6 +458,17 @@ export default function ChatPanel({ customerId, conversations, hideIdentity = fa
         background: 'var(--bg-elevated)',
         transition: 'padding-bottom 0.15s ease-out',
       }}>
+        {sendError && (
+          <div style={{
+            marginBottom: 8, padding: '8px 12px', borderRadius: 10, fontSize: '12px',
+            background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
+            color: 'var(--danger-color, #ef4444)', display: 'flex', alignItems: 'center', gap: 8,
+          }}>
+            <AlertCircle size={13} style={{ flexShrink: 0 }} />
+            <span style={{ flex: 1 }}>{sendError}</span>
+            <button onClick={handleSend} disabled={sending} style={{ fontWeight: 600, color: 'inherit', background: 'none', border: 'none', cursor: 'pointer' }}>Retry</button>
+          </div>
+        )}
         {(channel === 'email' || channel === 'all') && (
           <motion.input
             initial={{ opacity: 0, height: 0 }}

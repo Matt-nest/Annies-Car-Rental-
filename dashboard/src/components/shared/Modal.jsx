@@ -46,6 +46,14 @@ export default function Modal({ open, onClose, title, children, maxWidth = 'max-
     return () => { document.body.style.overflow = ''; };
   }, [open, isMobile]);
 
+  // Desktop Escape-to-close (Vaul already handles ESC in the mobile sheet).
+  useEffect(() => {
+    if (isMobile || !open) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open, isMobile, onClose]);
+
   /* ── Mobile: native-feeling bottom sheet via Vaul ───────────────────── */
   if (isMobile) {
     return (
