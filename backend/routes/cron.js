@@ -327,6 +327,15 @@ router.get('/daily', async (req, res) => {
       results.overageCharges = { error: e.message };
     }
 
+    // Charge any installment plans that are due today.
+    try {
+      const { processDueInstallments } = await import('../services/installmentService.js');
+      results.installments = await processDueInstallments();
+    } catch (e) {
+      console.error('[CRON/daily] processDueInstallments failed:', e.message);
+      results.installments = { error: e.message };
+    }
+
     console.log('[CRON/daily]', results);
     res.json({ ok: true, ...results });
   } catch (err) {
@@ -376,6 +385,22 @@ router.get('/morning', async (req, res) => {
     res.json({ ok: true, ...results });
   } catch (err) {
     console.error('[CRON/morning] Error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /cron/process-installments — charge installment plans that are due.
+ * Safe to run daily (or more often); each installment is claimed before charge
+ * so overlapping runs won't double-charge.
+ */
+router.get('/process-installments', async (req, res) => {
+  try {
+    const { processDueInstallments } = await import('../services/installmentService.js');
+    const result = await processDueInstallments();
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    console.error('[CRON/installments] Error:', err);
     res.status(500).json({ error: err.message });
   }
 });

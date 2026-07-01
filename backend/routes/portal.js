@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { supabase } from '../db/supabase.js';
-import { verifyPortalAccess, requirePortalAuth } from '../services/portalAuthService.js';
+import { verifyPortalAccess, requirePortalAuth, refreshPortalToken } from '../services/portalAuthService.js';
 import { transitionBooking, getBookingDetail } from '../services/bookingService.js';
 
 const router = Router();
@@ -26,6 +26,19 @@ router.post('/verify', portalRateLimit, async (req, res) => {
     }
 
     const result = await verifyPortalAccess(bookingCode, email);
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /portal/refresh — Issue a fresh portal token from a valid session.
+ * Keeps long-lived (long-term rental) sessions alive without re-verifying.
+ */
+router.post('/refresh', requirePortalAuth, async (req, res) => {
+  try {
+    const result = await refreshPortalToken(req.portal);
     res.json(result);
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
@@ -462,6 +475,171 @@ router.post('/dispute', requirePortalAuth, async (req, res) => {
       .eq('id', invoice.id);
 
     res.status(201).json(data);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /portal/extension/quote — Price an extension to a new return date.
+ * Body: { newReturnDate: 'YYYY-MM-DD' }
+ * Returns a quote (no charge, no DB write).
+ */
+router.post('/extension/quote', requirePortalAuth, async (req, res) => {
+  try {
+    const { quoteExtension } = await import('../services/extensionService.js');
+    const quote = await quoteExtension(req.portal.bookingId, req.body?.newReturnDate);
+    const { _booking, ...safe } = quote;
+    res.json(safe);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message, conflicts: err.conflicts });
+  }
+});
+
+/**
+ * POST /portal/extension/create-payment — Create a Stripe PaymentIntent for an
+ * extension. Body: { newReturnDate, expectedTotalCents? }
+ * Returns { clientSecret, quote, extensionId }.
+ */
+router.post('/extension/create-payment', requirePortalAuth, async (req, res) => {
+  try {
+    const { createExtensionPaymentIntent } = await import('../services/extensionService.js');
+    const result = await createExtensionPaymentIntent(
+      req.portal.bookingId,
+      req.body?.newReturnDate,
+      { expectedTotalCents: req.body?.expectedTotalCents }
+    );
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message, conflicts: err.conflicts });
+  }
+});
+
+/**
+ * POST /portal/extension/confirm — Confirm a succeeded extension payment and
+ * apply it to the booking. Idempotent. Body: { payment_intent_id }
+ */
+router.post('/extension/confirm', requirePortalAuth, async (req, res) => {
+  try {
+    const { payment_intent_id } = req.body || {};
+    if (!payment_intent_id) return res.status(400).json({ error: 'payment_intent_id is required' });
+
+    const { confirmExtensionPayment } = await import('../services/extensionService.js');
+
+    // Verify the PaymentIntent actually belongs to this customer's booking
+    // before mutating anything.
+    const { getStripe } = await import('../utils/stripe.js');
+    const pi = await getStripe().paymentIntents.retrieve(payment_intent_id);
+    if (pi.metadata?.booking_id !== req.portal.bookingId) {
+      return res.status(403).json({ error: 'This payment does not belong to your booking' });
+    }
+
+    const result = await confirmExtensionPayment(payment_intent_id);
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /portal/extensions — List this booking's extension history.
+ */
+router.get('/extensions', requirePortalAuth, async (req, res) => {
+  try {
+    const { listExtensions } = await import('../services/extensionService.js');
+    const rows = await listExtensions(req.portal.bookingId);
+    res.json(rows);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+/* ── Payment method on file ──────────────────────────────────────────────── */
+
+/** GET /portal/payment-method — the card currently on file (or null). */
+router.get('/payment-method', requirePortalAuth, async (req, res) => {
+  try {
+    const { getCardOnFile } = await import('../services/cardOnFileService.js');
+    const card = await getCardOnFile(req.portal.bookingId);
+    res.json({ card });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+/** POST /portal/payment-method/setup — SetupIntent to add/update a card. */
+router.post('/payment-method/setup', requirePortalAuth, async (req, res) => {
+  try {
+    const { createCardSetupIntent } = await import('../services/cardOnFileService.js');
+    const result = await createCardSetupIntent(req.portal.bookingId);
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+/** POST /portal/payment-method/confirm — persist the saved card. Body: { setup_intent_id } */
+router.post('/payment-method/confirm', requirePortalAuth, async (req, res) => {
+  try {
+    const { setup_intent_id } = req.body || {};
+    if (!setup_intent_id) return res.status(400).json({ error: 'setup_intent_id is required' });
+    const { saveCardFromSetupIntent } = await import('../services/cardOnFileService.js');
+    const card = await saveCardFromSetupIntent(req.portal.bookingId, setup_intent_id);
+    res.json({ card });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+/** GET /portal/payment-plan — the customer's installment schedule (read-only). */
+router.get('/payment-plan', requirePortalAuth, async (req, res) => {
+  try {
+    const { getPlan } = await import('../services/installmentService.js');
+    const plan = await getPlan(req.portal.bookingId);
+    res.json(plan);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+/* ── Balance / pay now ───────────────────────────────────────────────────── */
+
+/** GET /portal/balance — outstanding rental balance. */
+router.get('/balance', requirePortalAuth, async (req, res) => {
+  try {
+    const { computeBalance } = await import('../services/balanceService.js');
+    const balance = await computeBalance(req.portal.bookingId);
+    res.json(balance);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+/** POST /portal/balance/create-payment — PaymentIntent for the balance. Body: { expectedCents? } */
+router.post('/balance/create-payment', requirePortalAuth, async (req, res) => {
+  try {
+    const { createBalancePaymentIntent } = await import('../services/balanceService.js');
+    const result = await createBalancePaymentIntent(req.portal.bookingId, { expectedCents: req.body?.expectedCents });
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+/** POST /portal/balance/confirm — record a succeeded balance payment. Body: { payment_intent_id } */
+router.post('/balance/confirm', requirePortalAuth, async (req, res) => {
+  try {
+    const { payment_intent_id } = req.body || {};
+    if (!payment_intent_id) return res.status(400).json({ error: 'payment_intent_id is required' });
+
+    const { getStripe } = await import('../utils/stripe.js');
+    const pi = await getStripe().paymentIntents.retrieve(payment_intent_id);
+    if (pi.metadata?.booking_id !== req.portal.bookingId) {
+      return res.status(403).json({ error: 'This payment does not belong to your booking' });
+    }
+    const { confirmBalancePayment } = await import('../services/balanceService.js');
+    const result = await confirmBalancePayment(payment_intent_id);
+    res.json(result);
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }

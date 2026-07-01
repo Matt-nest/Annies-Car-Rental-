@@ -14,6 +14,19 @@ import Footer from '../layout/Footer';
 import PhotoUploader from './PhotoUploader';
 import SlotPhotoUploader, { type PhotoSlots } from './SlotPhotoUploader';
 import CrispWidget, { openCrispChat } from './CrispWidget';
+import ExtendRentalCard from './ExtendRentalCard';
+import PaymentMethodCard from './PaymentMethodCard';
+import BalanceDueCard from './BalanceDueCard';
+import PaymentPlanCard from './PaymentPlanCard';
+
+/* Persisted portal session — keeps long-term renters signed in across refreshes. */
+const SESSION_KEY = 'portal_session';
+function saveSession(token: string, bookingCode: string, email: string) {
+  try { localStorage.setItem(SESSION_KEY, JSON.stringify({ token, bookingCode, email })); } catch { /* ignore */ }
+}
+function clearSession() {
+  try { localStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
+}
 
 /* ── Helpers ────────────────────────────────────────────── */
 const fmt = (d: string) => {
@@ -222,6 +235,9 @@ export default function CustomerPortal() {
   const [disputeSubmitting, setDisputeSubmitting] = useState(false);
   const [disputeSuccess, setDisputeSuccess] = useState(false);
 
+  // Installment plan (recurring billing)
+  const [plan, setPlan] = useState<any>(null);
+
   // Pending overage charges (scheduled with 48h dispute window)
   const [pendingCharges, setPendingCharges] = useState<any[]>([]);
   const [overageDisputeMsg, setOverageDisputeMsg] = useState<Record<string, string>>({});
@@ -253,11 +269,58 @@ export default function CustomerPortal() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Verification failed');
       setToken(data.token);
+      saveSession(data.token, bookingCode, email);
       setView('dashboard');
     } catch (err: any) {
       setError(err.message);
     }
     setLoading(false);
+  };
+
+  /* Rehydrate a stored session on mount so a refresh doesn't kick the customer
+     back to the login screen. */
+  useEffect(() => {
+    if (token) return;
+    try {
+      const raw = localStorage.getItem(SESSION_KEY);
+      if (!raw) return;
+      const s = JSON.parse(raw);
+      if (s?.token && !isTokenExpired(s.token)) {
+        setToken(s.token);
+        if (s.bookingCode) setBookingCode(s.bookingCode);
+        if (s.email) setEmail(s.email);
+        setView('dashboard');
+      } else {
+        clearSession();
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  /* Proactively refresh the token when it's within ~2h of expiring, so long
+     sessions (long-term rentals) don't drop mid-visit. */
+  const refreshSessionIfNeeded = useCallback(async (tok: string) => {
+    try {
+      const payload = JSON.parse(atob(tok.split('.')[1]));
+      const msLeft = (payload.exp || 0) * 1000 - Date.now();
+      if (msLeft > 2 * 60 * 60 * 1000) return;
+      const res = await fetch(`${API_URL}/portal/refresh`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${tok}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.token) {
+        setToken(data.token);
+        saveSession(data.token, bookingCode, email);
+      }
+    } catch { /* ignore */ }
+  }, [bookingCode, email]);
+
+  const handleSignOut = () => {
+    clearSession();
+    setToken(null);
+    setBooking(null);
+    setView('login');
   };
 
   /* ── Load Booking ── */
@@ -276,6 +339,19 @@ export default function CustomerPortal() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setBooking(data);
+      refreshSessionIfNeeded(token);
+
+      // Load any installment plan (drives the plan card / hides the balance card)
+      if (['confirmed', 'ready_for_pickup', 'active', 'returned'].includes(data.status)) {
+        try {
+          const p = await fetch(`${API_URL}/portal/payment-plan`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }).then(r => r.ok ? r.json() : null);
+          setPlan(p && p.plan ? p : null);
+        } catch { setPlan(null); }
+      } else {
+        setPlan(null);
+      }
 
       // Load lockbox only when check-in is complete (active status)
       // Lockbox is gated behind check-in - not available during ready_for_pickup
@@ -803,6 +879,17 @@ export default function CustomerPortal() {
           </motion.div>
 
 
+          {/* ── Payment plan (installments) if one exists, otherwise the
+              balance-due card. A plan bills automatically, so we don't also
+              nag for the full balance. Both self-hide when not applicable. ── */}
+          {token && plan?.plan?.status === 'active' ? (
+            <PaymentPlanCard data={plan} />
+          ) : (
+            token && ['confirmed', 'ready_for_pickup', 'active', 'returned'].includes(status) && (
+              <BalanceDueCard token={token} theme={theme} onPaid={loadBooking} />
+            )
+          )}
+
           {/* ── Pickup Guide (ready_for_pickup only) ──────────── */}
           {status === 'ready_for_pickup' && (
             <motion.div
@@ -1220,6 +1307,23 @@ export default function CustomerPortal() {
                 )}
               </div>
             </motion.div>
+          )}
+
+          {/* ── Extend Rental (active only): pick a later return date, get an
+              instant quote for the extra days, and pay inline via Stripe. ── */}
+          {status === 'active' && token && (
+            <ExtendRentalCard
+              booking={booking}
+              token={token}
+              theme={theme}
+              onExtended={loadBooking}
+            />
+          )}
+
+          {/* ── Payment method on file (pickup-ready + active): add/update the
+              card used for extensions and post-return charges. ── */}
+          {['ready_for_pickup', 'active'].includes(status) && token && (
+            <PaymentMethodCard token={token} theme={theme} />
           )}
 
           {/* ── Customer Check-In Record (under Return Vehicle, active only) ── */}
@@ -1755,6 +1859,13 @@ export default function CustomerPortal() {
             <span>
               Or call <a href={`tel:${brand.phone.replace(/[^\d+]/g, '')}`} style={{ color: 'var(--accent-color)' }}>{brand.phone}</a>
             </span>
+            <button
+              onClick={handleSignOut}
+              className="mt-1 text-xs underline transition-colors hover:text-[var(--text-secondary)]"
+              style={{ color: 'var(--text-tertiary)' }}
+            >
+              Sign out
+            </button>
           </div>
         </div>
       </main>

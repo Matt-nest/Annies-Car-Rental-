@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Phone, Mail, Car, MapPin, CheckCircle, XCircle, Package, RotateCcw, Flag, DollarSign, FileText, Shield, CreditCard, User, ClipboardCheck, Receipt, Navigation, RefreshCw, AlertCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, Car, MapPin, CheckCircle, XCircle, Package, RotateCcw, Flag, DollarSign, FileText, Shield, CreditCard, User, ClipboardCheck, Receipt, Navigation, RefreshCw, AlertCircle, Loader2, CalendarPlus, Clock } from 'lucide-react';
 import { api } from '../api/client';
 import { bonzahApi } from '../api/bonzah';
 import { supabase } from '../auth/supabaseClient';
@@ -205,6 +205,436 @@ function ConditionPhotosSection({ records, onView }) {
 }
 
 /* ────────────────────────────────────────────────────────
+   Rental Extensions — customer-initiated, self-contained fetch.
+   Renders nothing until at least one extension exists, so it stays
+   invisible on the vast majority of bookings.
+   ──────────────────────────────────────────────────────── */
+function RentalExtensionsSection({ bookingId }) {
+  const [rows, setRows] = useState([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await api.getBookingExtensions(bookingId);
+        if (!cancelled) setRows(Array.isArray(data) ? data : []);
+      } catch { /* table may not be migrated yet — stay hidden */ }
+    })();
+    return () => { cancelled = true; };
+  }, [bookingId]);
+
+  if (rows.length === 0) return null;
+
+  const statusColor = (s) => (
+    s === 'paid' ? 'text-[#22c55e]'
+    : s === 'failed' ? 'text-[var(--danger-color)]'
+    : s === 'cancelled' ? 'text-[var(--text-tertiary)]'
+    : 'text-amber-500'
+  );
+
+  return (
+    <Section title="Rental Extensions">
+      <div className="space-y-2">
+        {rows.map(x => (
+          <div key={x.id} className="flex justify-between items-start text-sm py-1.5 border-b border-[var(--border-subtle)] last:border-0">
+            <div>
+              <p className="font-medium text-[var(--text-primary)]">
+                +{x.additional_days} day{x.additional_days === 1 ? '' : 's'} · {format(new Date(x.previous_return_date), 'MMM d')} → {format(new Date(x.new_return_date), 'MMM d, yyyy')}
+              </p>
+              <div className="flex items-center gap-2 text-xs text-[var(--text-tertiary)]">
+                <span className={`capitalize font-medium ${statusColor(x.status)}`}>{x.status.replace('_', ' ')}</span>
+                <span>·</span>
+                <span className="capitalize">{(x.created_by || 'customer').split(':')[0]}</span>
+                {x.created_at && <><span>·</span><span>{new Date(x.created_at).toLocaleDateString()}</span></>}
+              </div>
+            </div>
+            <span className="font-semibold tabular-nums text-[#22c55e]">
+              +${(Number(x.amount_cents || 0) / 100).toFixed(2)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+/* ────────────────────────────────────────────────────────
+   Overage Charges — admin view of scheduled/auto card-on-file charges.
+   Self-contained; hidden unless the booking has any. Supports cancelling a
+   pending/disputed charge before it fires.
+   ──────────────────────────────────────────────────────── */
+function OverageChargesSection({ bookingId }) {
+  const [rows, setRows] = useState([]);
+  const [busyId, setBusyId] = useState(null);
+  const [error, setError] = useState('');
+
+  const reload = async () => {
+    try {
+      const data = await api.getOverageCharges(bookingId);
+      setRows(Array.isArray(data) ? data : []);
+    } catch { /* table may not be migrated — stay hidden */ }
+  };
+  useEffect(() => { reload(); }, [bookingId]);
+
+  if (rows.length === 0) return null;
+
+  const statusColor = (s) => (
+    s === 'succeeded' ? 'text-[#22c55e]'
+    : s === 'failed' ? 'text-[var(--danger-color)]'
+    : s === 'cancelled' ? 'text-[var(--text-tertiary)]'
+    : s === 'disputed' ? 'text-[#63b3ed]'
+    : 'text-amber-500'
+  );
+
+  const handleCancel = async (id) => {
+    if (!window.confirm('Cancel this scheduled overage charge? It will not be charged to the customer.')) return;
+    setBusyId(id);
+    setError('');
+    try {
+      await api.cancelOverageCharge(id);
+      await reload();
+    } catch (e) {
+      setError(e.message);
+    }
+    setBusyId(null);
+  };
+
+  return (
+    <Section title="Overage Charges">
+      {error && (
+        <div className="rounded-lg p-2 text-xs mb-2 bg-[rgba(239,68,68,0.07)] border border-[rgba(239,68,68,0.2)] text-[#ef4444]">{error}</div>
+      )}
+      <div className="space-y-2">
+        {rows.map(x => {
+          const scheduled = x.scheduled_for ? new Date(x.scheduled_for) : null;
+          const canCancel = ['pending', 'disputed'].includes(x.status);
+          return (
+            <div key={x.id} className="flex justify-between items-start gap-3 text-sm py-1.5 border-b border-[var(--border-subtle)] last:border-0">
+              <div className="min-w-0">
+                <p className="font-medium text-[var(--text-primary)]">{x.description}</p>
+                <div className="flex items-center flex-wrap gap-x-2 text-xs text-[var(--text-tertiary)]">
+                  <span className={`capitalize font-medium ${statusColor(x.status)}`}>{x.status}</span>
+                  {scheduled && x.status === 'pending' && (
+                    <><span>·</span><span className="flex items-center gap-1"><Clock size={11} /> fires {scheduled.toLocaleString()}</span></>
+                  )}
+                  {x.failure_reason && <><span>·</span><span>{x.failure_reason}</span></>}
+                </div>
+                {x.dispute_message && (
+                  <p className="text-xs italic text-[var(--text-tertiary)] mt-0.5">Disputed: “{x.dispute_message}”</p>
+                )}
+              </div>
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <span className="font-semibold tabular-nums text-[var(--text-primary)]">
+                  ${(Number(x.amount_cents || 0) / 100).toFixed(2)}
+                </span>
+                {canCancel && (
+                  <button
+                    onClick={() => handleCancel(x.id)}
+                    disabled={busyId === x.id}
+                    className="text-[11px] font-medium text-[var(--danger-color)] hover:underline disabled:opacity-50 flex items-center gap-1"
+                  >
+                    {busyId === x.id ? <Loader2 size={11} className="animate-spin" /> : <XCircle size={11} />} Cancel
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Section>
+  );
+}
+
+/* ────────────────────────────────────────────────────────
+   Payment Plan — recurring/installment billing (admin).
+   Shows an existing plan (with per-installment "charge now" + cancel), or a
+   create form when the booking is billable and has no active plan.
+   ──────────────────────────────────────────────────────── */
+function PaymentPlanSection({ booking }) {
+  const bookingId = booking.id;
+  const [data, setData] = useState(null);
+  const [loaded, setLoaded] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [busyInst, setBusyInst] = useState(null);
+  const [error, setError] = useState('');
+  const [form, setForm] = useState({
+    interval: 'monthly',
+    installmentCount: 3,
+    startDate: new Date().toISOString().slice(0, 10),
+  });
+
+  const reload = async () => {
+    try {
+      const d = await api.getPaymentPlan(bookingId);
+      setData(d);
+    } catch { /* tables may not be migrated — stay hidden */ }
+    setLoaded(true);
+  };
+  useEffect(() => { reload(); }, [bookingId]);
+
+  const money = (cents) => `$${(Number(cents || 0) / 100).toFixed(2)}`;
+  const plan = data?.plan;
+  const activePlan = plan && plan.status === 'active';
+  const canCreate = ['confirmed', 'ready_for_pickup', 'active'].includes(booking.status) && !activePlan;
+
+  if (!loaded) return null;
+  if (!plan && !canCreate) return null;
+
+  const statusColor = (s) => (
+    s === 'paid' ? 'text-[#22c55e]'
+    : s === 'failed' ? 'text-[var(--danger-color)]'
+    : s === 'cancelled' ? 'text-[var(--text-tertiary)]'
+    : s === 'processing' ? 'text-[#63b3ed]'
+    : 'text-amber-500'
+  );
+
+  const doCreate = async () => {
+    setBusy(true); setError('');
+    try {
+      await api.createPaymentPlan(bookingId, {
+        interval: form.interval,
+        installmentCount: Number(form.installmentCount),
+        startDate: form.startDate,
+      });
+      setCreating(false);
+      await reload();
+    } catch (e) { setError(e.data?.error || e.message); }
+    setBusy(false);
+  };
+
+  const doCancel = async () => {
+    if (!window.confirm('Cancel this payment plan? Remaining installments will be cancelled.')) return;
+    setBusy(true); setError('');
+    try { await api.cancelPaymentPlan(plan.id); await reload(); }
+    catch (e) { setError(e.data?.error || e.message); }
+    setBusy(false);
+  };
+
+  const chargeNow = async (id) => {
+    setBusyInst(id); setError('');
+    try { await api.chargeInstallment(id); await reload(); }
+    catch (e) { setError(e.data?.error || e.message); }
+    setBusyInst(null);
+  };
+
+  return (
+    <Section title="Payment Plan">
+      {error && (
+        <div className="rounded-lg p-2 text-xs mb-2 bg-[rgba(239,68,68,0.07)] border border-[rgba(239,68,68,0.2)] text-[#ef4444]">{error}</div>
+      )}
+
+      {plan && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-[var(--text-secondary)]">
+              <span className="capitalize font-medium text-[var(--text-primary)]">{plan.interval}</span> · {data.summary.count} installments · <span className="capitalize">{plan.status}</span>
+            </div>
+            {activePlan && (
+              <button onClick={doCancel} disabled={busy} className="text-[11px] font-medium text-[var(--danger-color)] hover:underline disabled:opacity-50">
+                Cancel plan
+              </button>
+            )}
+          </div>
+          <div className="text-xs text-[var(--text-tertiary)]">
+            {money(data.summary.paidCents)} of {money(data.summary.totalCents)} paid
+            {data.summary.nextDueDate && ` · next ${money(data.summary.nextAmountCents)} on ${format(new Date(data.summary.nextDueDate), 'MMM d, yyyy')}`}
+          </div>
+          <div className="space-y-1.5">
+            {data.installments.map(inst => {
+              const chargeable = ['scheduled', 'failed'].includes(inst.status);
+              return (
+                <div key={inst.id} className="flex justify-between items-center text-sm py-1.5 border-b border-[var(--border-subtle)] last:border-0">
+                  <div>
+                    <span className="text-[var(--text-primary)]">#{inst.sequence} · {format(new Date(inst.due_date), 'MMM d, yyyy')}</span>
+                    <div className="text-xs">
+                      <span className={`capitalize font-medium ${statusColor(inst.status)}`}>{inst.status}</span>
+                      {inst.last_error && <span className="text-[var(--text-tertiary)]"> · {inst.last_error}</span>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="tabular-nums text-[var(--text-primary)]">{money(inst.amount_cents)}</span>
+                    {chargeable && activePlan && (
+                      <button onClick={() => chargeNow(inst.id)} disabled={busyInst === inst.id}
+                        className="text-[11px] font-medium text-[var(--accent-color)] hover:underline disabled:opacity-50 flex items-center gap-1">
+                        {busyInst === inst.id ? <Loader2 size={11} className="animate-spin" /> : null} Charge now
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {canCreate && !creating && (
+        <button onClick={() => setCreating(true)} className="btn-secondary mt-2">
+          <CalendarPlus size={14} /> Set up payment plan
+        </button>
+      )}
+
+      {canCreate && creating && (
+        <div className="mt-2 space-y-3 rounded-xl p-3 bg-[var(--bg-card)] border border-[var(--border-subtle)]">
+          <p className="text-xs text-[var(--text-tertiary)]">Splits the current outstanding balance into installments charged to the card on file.</p>
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">Cadence</label>
+              <select className="input text-sm" value={form.interval} onChange={e => setForm(f => ({ ...f, interval: e.target.value }))}>
+                <option value="weekly">Weekly</option>
+                <option value="biweekly">Biweekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]"># Payments</label>
+              <input type="number" min="1" max="60" className="input text-sm" value={form.installmentCount}
+                onChange={e => setForm(f => ({ ...f, installmentCount: e.target.value }))} />
+            </div>
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">First due</label>
+              <input type="date" className="input text-sm" value={form.startDate}
+                onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))} />
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button onClick={() => setCreating(false)} className="btn-ghost">Cancel</button>
+            <button onClick={doCreate} disabled={busy} className="btn-primary">
+              {busy ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />} Create plan
+            </button>
+          </div>
+        </div>
+      )}
+    </Section>
+  );
+}
+
+/* ────────────────────────────────────────────────────────
+   Extend Rental Modal — admin-initiated extension.
+   Quote → confirm; optionally record a manual payment or waive.
+   ──────────────────────────────────────────────────────── */
+function ExtendRentalModal({ booking, onClose, onDone }) {
+  const currentReturn = String(booking.return_date).slice(0, 10);
+  const minDate = (() => {
+    const d = new Date(currentReturn + 'T12:00:00');
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().slice(0, 10);
+  })();
+
+  const [newDate, setNewDate] = useState(minDate);
+  const [quote, setQuote] = useState(null);
+  const [collectPayment, setCollectPayment] = useState(true);
+  const [method, setMethod] = useState('cash');
+  const [reference, setReference] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const getQuote = async () => {
+    setLoading(true); setError(''); setQuote(null);
+    try {
+      const q = await api.quoteExtension(booking.id, newDate);
+      setQuote(q);
+    } catch (e) {
+      setError(e.data?.error || e.message);
+    }
+    setLoading(false);
+  };
+
+  const confirm = async () => {
+    setSaving(true); setError('');
+    try {
+      await api.extendBooking(booking.id, {
+        newReturnDate: quote.newReturnDate,
+        collectPayment,
+        method: collectPayment ? method : undefined,
+        reference: collectPayment && reference ? reference : undefined,
+      });
+      onDone();
+    } catch (e) {
+      setError(e.data?.error || e.message);
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="w-full max-w-md rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)] p-6 space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-2">
+          <CalendarPlus size={18} className="text-[var(--accent-color)]" />
+          <h3 className="text-base font-semibold text-[var(--text-primary)]">Extend Rental</h3>
+        </div>
+        <p className="text-xs text-[var(--text-tertiary)]">
+          Currently due {format(new Date(currentReturn), 'MMM d, yyyy')}. Pick a later return date — extra days are priced at this booking's rate ({booking.rate_type || 'daily'}).
+        </p>
+
+        <div>
+          <label className="text-xs font-semibold text-[var(--text-secondary)] block mb-1">New return date</label>
+          <input
+            type="date"
+            className="input text-sm"
+            value={newDate}
+            min={minDate}
+            onChange={e => { setNewDate(e.target.value); setQuote(null); }}
+          />
+        </div>
+
+        {error && (
+          <div className="rounded-lg p-2 text-xs bg-[rgba(239,68,68,0.07)] border border-[rgba(239,68,68,0.2)] text-[#ef4444]">{error}</div>
+        )}
+
+        {quote && (
+          <div className="rounded-xl p-3 space-y-1.5 bg-[var(--bg-card)] border border-[var(--border-subtle)] text-sm">
+            {quote.lineItems.map((li, i) => (
+              <div key={i} className="flex justify-between text-[var(--text-secondary)]">
+                <span>{li.label}</span>
+                <span className="tabular-nums">${Number(li.amount).toFixed(2)}</span>
+              </div>
+            ))}
+            <div className="flex justify-between font-semibold pt-1.5 border-t border-[var(--border-subtle)] text-[var(--text-primary)]">
+              <span>Extension total</span>
+              <span className="tabular-nums">${Number(quote.total).toFixed(2)}</span>
+            </div>
+          </div>
+        )}
+
+        {quote && (
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+              <input type="checkbox" checked={collectPayment} onChange={e => setCollectPayment(e.target.checked)} />
+              Record payment now
+            </label>
+            {collectPayment ? (
+              <div className="grid grid-cols-2 gap-2">
+                <select className="input text-sm" value={method} onChange={e => setMethod(e.target.value)}>
+                  {['cash', 'zelle', 'venmo', 'paypal', 'card', 'stripe'].map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+                <input className="input text-sm" placeholder="Reference (optional)" value={reference} onChange={e => setReference(e.target.value)} />
+              </div>
+            ) : (
+              <p className="text-xs text-[var(--text-tertiary)]">No payment will be recorded — the dates and pricing will still be updated (comp/waive).</p>
+            )}
+          </div>
+        )}
+
+        <div className="flex gap-2 justify-end pt-2">
+          <button onClick={onClose} className="btn-ghost">Cancel</button>
+          {!quote ? (
+            <button onClick={getQuote} disabled={loading || !newDate} className="btn-primary">
+              {loading ? <Loader2 size={14} className="animate-spin" /> : <DollarSign size={14} />} Get quote
+            </button>
+          ) : (
+            <button onClick={confirm} disabled={saving} className="btn-primary">
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+              {collectPayment ? `Extend & record $${Number(quote.total).toFixed(2)}` : 'Extend (no charge)'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────────────────
    Main Component
    ──────────────────────────────────────────────────────── */
 export default function BookingDetailPage() {
@@ -222,6 +652,7 @@ export default function BookingDetailPage() {
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'overview');
   const [checkinRecords, setCheckinRecords] = useState([]);
+  const [showExtend, setShowExtend] = useState(false);
   const { refresh: refreshAlerts } = useAlerts();
 
   // Insurance review state
@@ -339,9 +770,14 @@ export default function BookingDetailPage() {
             </button>
           )}
           {status === 'active' && (
-            <button onClick={() => setActiveTab('checkout')} className="btn-primary">
-              <RotateCcw size={15} /> Go to Check-Out
-            </button>
+            <>
+              <button onClick={() => setShowExtend(true)} className="btn-secondary">
+                <CalendarPlus size={15} /> Extend
+              </button>
+              <button onClick={() => setActiveTab('checkout')} className="btn-primary">
+                <RotateCcw size={15} /> Go to Check-Out
+              </button>
+            </>
           )}
           {status === 'returned' && (
             <button onClick={() => setActiveTab('checkout')} className="btn-primary">
@@ -537,6 +973,15 @@ export default function BookingDetailPage() {
         paymentForm={paymentForm} setPaymentForm={setPaymentForm}
         actioning={actioning} doAction={doAction}
       />
+
+      {/* Extend Rental modal */}
+      {showExtend && (
+        <ExtendRentalModal
+          booking={booking}
+          onClose={() => setShowExtend(false)}
+          onDone={async () => { setShowExtend(false); await Promise.all([load(), refreshAlerts()]); }}
+        />
+      )}
 
       {/* Photo Lightbox */}
       {lightboxUrl && (
@@ -809,6 +1254,15 @@ function OverviewTab({ booking, c, v, id, load, setModal, setPaymentForm, setLig
           </button>
         </div>
       </Section>
+
+      {/* Rental Extensions (customer- or admin-initiated) — hidden unless any exist */}
+      <RentalExtensionsSection bookingId={id} />
+
+      {/* Overage Charges (auto card-on-file) — hidden unless any exist */}
+      <OverageChargesSection bookingId={id} />
+
+      {/* Payment Plan (installments) — create/manage recurring billing */}
+      <PaymentPlanSection booking={booking} />
 
       {/* Vehicle Condition */}
       {(booking.pickup_mileage || booking.return_mileage) && (

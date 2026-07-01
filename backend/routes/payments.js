@@ -64,6 +64,47 @@ router.post('/bookings/:bookingId/payments', requireAuth, asyncHandler(async (re
   res.status(201).json(data);
 }));
 
+/** GET /bookings/:bookingId/overage-charges — admin view of scheduled/auto charges */
+router.get('/bookings/:bookingId/overage-charges', requireAuth, asyncHandler(async (req, res) => {
+  const { listChargesForBookingAdmin } = await import('../services/cardOnFileService.js');
+  const rows = await listChargesForBookingAdmin(req.params.bookingId);
+  res.json(rows);
+}));
+
+/** POST /overage-charges/:id/cancel — admin cancels a scheduled overage charge */
+router.post('/overage-charges/:id/cancel', requireAuth, requireRole('owner', 'admin'), asyncHandler(async (req, res) => {
+  try {
+    const { cancelPendingCharge } = await import('../services/cardOnFileService.js');
+    const actor = `admin:${req.user?.id || 'unknown'}`;
+    const result = await cancelPendingCharge(req.params.id, actor);
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+}));
+
+/** POST /payment-plans/:planId/cancel — cancel a plan + remaining installments */
+router.post('/payment-plans/:planId/cancel', requireAuth, requireRole('owner', 'admin'), asyncHandler(async (req, res) => {
+  try {
+    const { cancelPlan } = await import('../services/installmentService.js');
+    const result = await cancelPlan(req.params.planId, `admin:${req.user?.id || 'unknown'}`);
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+}));
+
+/** POST /installments/:id/charge — charge a single installment now (admin) */
+router.post('/installments/:id/charge', requireAuth, requireRole('owner', 'admin'), asyncHandler(async (req, res) => {
+  try {
+    const { chargeInstallment } = await import('../services/installmentService.js');
+    const result = await chargeInstallment(req.params.id, { actor: `admin:${req.user?.id || 'unknown'}` });
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+}));
+
 /** PATCH /payments/:id */
 router.patch('/:id', requireAuth, asyncHandler(async (req, res) => {
   const { data, error } = await supabase
