@@ -39,6 +39,7 @@ export default function SquareCardCharge({ bookingCode, onSuccess }) {
   const [amountCents, setAmountCents] = useState(0);
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [err, setErr] = useState('');
 
   useEffect(() => {
@@ -111,6 +112,7 @@ export default function SquareCardCharge({ bookingCode, onSuccess }) {
     } catch (e) {
       setErr(e.message || 'The card was declined.');
       setBusy(false);
+      setConfirming(false);
     }
   }
 
@@ -132,9 +134,18 @@ export default function SquareCardCharge({ bookingCode, onSuccess }) {
       {err && (
         <p className="text-xs text-[#ef4444] flex items-start gap-1.5"><AlertCircle size={13} className="mt-0.5 shrink-0" />{err}</p>
       )}
-      <button type="button" onClick={charge} disabled={busy || !ready} className="btn-primary w-full">
-        {busy ? <><Loader2 size={14} className="animate-spin" /> Charging…</> : <><Lock size={14} /> Charge {money(amountCents)}</>}
-      </button>
+      {confirming ? (
+        <div className="flex gap-2">
+          <button type="button" onClick={() => setConfirming(false)} disabled={busy} className="btn-secondary flex-1 justify-center">Cancel</button>
+          <button type="button" onClick={charge} disabled={busy || !ready} className="btn-primary flex-1 justify-center">
+            {busy ? <><Loader2 size={14} className="animate-spin" /> Charging…</> : <><Lock size={14} /> Confirm charge {money(amountCents)}</>}
+          </button>
+        </div>
+      ) : (
+        <button type="button" onClick={() => setConfirming(true)} disabled={busy || !ready} className="btn-primary w-full">
+          <Lock size={14} /> Charge {money(amountCents)}
+        </button>
+      )}
       <p className="text-[11px] text-[var(--text-tertiary)] text-center flex items-center justify-center gap-1.5">
         <ShieldCheck size={11} /> Encrypted by Square · enter the card the customer reads to you.
       </p>

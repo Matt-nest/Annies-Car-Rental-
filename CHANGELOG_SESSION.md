@@ -5,6 +5,29 @@
 
 ---
 
+## 2026-07-01 — Dashboard audit Batch 1: money & access critical fixes
+
+**Why:** Full audit of the admin dashboard surfaced several money/access-critical bugs. This batch fixes the ones that block admins or risk mishandled charges. Branch: `cursor/dashboard-critical-fixes-ea62` off `integration/unify-all-functionality`.
+
+### Changes
+- **`dashboard/src/pages/SettingsPage.jsx`** — Password change was impossible for everyone: the "must contain a number" check used `/\\d/` (matches a literal `\d`, never a digit). Fixed to `/\d/`.
+- **`dashboard/src/pages/PaymentsPage.jsx`** — Refund button was gated to Stripe (`method==='stripe' && pi_...`) only, so **Square payments (Annie's default processor) had no in-app refund path** despite the backend already supporting Square refunds (`routes/payments.js` branches Stripe/Square). Introduced `isRefundable` (Stripe `pi_` OR Square with `reference_id`) on both desktop + mobile rows; modal title now "Issue Refund" and the warning names the actual processor.
+- **`dashboard/src/components/bookings/StripeCardCharge.jsx`** — Phone charge swallowed ledger-record failures and always called `onSuccess`, so a charged card could show as recorded when it wasn't. Now: record failure is surfaced as a "Card charged — recording failed" recovery panel (shows PI id, "do not re-charge", Retry recording) so the operator can't double-charge; also added a two-step charge confirmation.
+- **`dashboard/src/components/bookings/SquareCardCharge.jsx`** — Added the same two-step charge confirmation (Square records atomically server-side via `/square/pay`, so no recovery panel needed).
+- **`dashboard/src/pages/BookingsPage.jsx`** — Approve/Decline used `.catch(console.error)` then always closed the modal + refreshed, so a failed action looked successful. Now only closes on success; failures show an inline error in the modal (new `actionError` state).
+
+### API/Data Impact
+- None. Frontend-only; relies on existing backend endpoints (`/payments/:id/refund` already handles Square).
+
+### Build Status
+- [x] `cd dashboard && npm run build` — clean (pre-existing chunk-size warning only).
+
+### Follow-up
+- Batches 2–4 (silent-failure sweep, mobile ops flow, modal a11y/misc) still pending.
+- Port applicable fixes to JD Coastal (separate clone).
+
+---
+
 ## 2026-06-15 — Admin booking generator: feedback round (fixes + Stripe-over-phone + fee receipt)
 
 Iteration on the unified admin booking flow from owner testing:

@@ -114,7 +114,7 @@ function ProfileTab() {
 
   async function handlePasswordChange() {
     if (newPw.length < 8) return setPwMsg('Password must be at least 8 characters');
-    if (!/\\d/.test(newPw)) return setPwMsg('Password must contain at least one number');
+    if (!/\d/.test(newPw)) return setPwMsg('Password must contain at least one number');
     if (!/[!@#$%^&*(),.?":{}|<>]/.test(newPw)) return setPwMsg('Password must contain at least one special character');
     if (newPw !== confirmPw) return setPwMsg('Passwords do not match');
     setPwSaving(true);

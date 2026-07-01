@@ -106,8 +106,11 @@ export default function PaymentsPage() {
               </thead>
               <tbody>
                 {payments.map(payment => {
-                  const isStripe = payment.method === 'stripe' && payment.reference_id?.startsWith('pi_');
                   const isRefund = payment.payment_type === 'refund';
+                  const isRefundable = payment.amount > 0 && (
+                    (payment.method === 'stripe' && payment.reference_id?.startsWith('pi_')) ||
+                    (payment.method === 'square' && !!payment.reference_id)
+                  );
                   const displayAmount = isRefund
                     ? `-$${Math.abs(payment.amount).toFixed(2)}`
                     : `$${parseFloat(payment.amount).toFixed(2)}`;
@@ -157,7 +160,7 @@ export default function PaymentsPage() {
                         {displayAmount}
                       </td>
                       <td className="px-5 py-4 text-right">
-                        {!isRefund && isStripe && payment.amount > 0 && (
+                        {!isRefund && isRefundable && (
                           <button
                             onClick={() => openRefundModal(payment)}
                             className="text-xs font-semibold px-3 py-1.5 rounded-xl transition-all duration-200"
@@ -190,7 +193,10 @@ export default function PaymentsPage() {
           <div className="md:hidden divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
             {payments.map(payment => {
               const isRefund = payment.payment_type === 'refund';
-              const isStripe = payment.method === 'stripe' && payment.reference_id?.startsWith('pi_');
+              const isRefundable = payment.amount > 0 && (
+                (payment.method === 'stripe' && payment.reference_id?.startsWith('pi_')) ||
+                (payment.method === 'square' && !!payment.reference_id)
+              );
               const displayAmount = isRefund
                 ? `-$${Math.abs(payment.amount).toFixed(2)}`
                 : `$${parseFloat(payment.amount).toFixed(2)}`;
@@ -226,7 +232,7 @@ export default function PaymentsPage() {
                       {format(new Date(payment.created_at), 'MM/dd HH:mm')}
                     </span>
                   </div>
-                  {!isRefund && isStripe && payment.amount > 0 && (
+                  {!isRefund && isRefundable && (
                     <button
                       onClick={() => openRefundModal(payment)}
                       className="mt-2 w-full h-10 rounded-lg text-xs font-semibold transition-colors"
@@ -243,7 +249,7 @@ export default function PaymentsPage() {
       )}
 
       {/* Refund Modal */}
-      <Modal open={!!refundData} onClose={closeRefundModal} title="Issue Stripe Refund">
+      <Modal open={!!refundData} onClose={closeRefundModal} title="Issue Refund">
         <form onSubmit={handleRefundSubmit} className="space-y-6">
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
             Booking: <span className="mono-code font-bold px-2 py-0.5 rounded-lg" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)' }}>
@@ -286,7 +292,7 @@ export default function PaymentsPage() {
           <div className="card p-3" style={{ backgroundColor: 'var(--danger-glow)', borderColor: 'rgba(244,63,94,0.15)' }}>
             <p className="text-xs font-bold mb-0.5" style={{ color: 'var(--danger-color)' }}>Warning</p>
             <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-              This will immediately reverse funds on the customer's card via Stripe. This action cannot be undone.
+              This will immediately reverse funds on the customer's card via {refundData?.method === 'square' ? 'Square' : refundData?.method === 'stripe' ? 'Stripe' : 'the original payment method'}. This action cannot be undone.
             </p>
           </div>
 

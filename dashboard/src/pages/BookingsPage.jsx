@@ -23,6 +23,7 @@ export default function BookingsPage() {
   const [actionModal, setActionModal] = useState(null);
   const [declineReason, setDeclineReason] = useState('');
   const [actioning, setActioning] = useState(false);
+  const [actionError, setActionError] = useState('');
   const [newBookingOpen, setNewBookingOpen] = useState(false);
 
   const { refresh: refreshAlerts } = useAlerts();
@@ -46,19 +47,31 @@ export default function BookingsPage() {
 
   async function handleApprove(booking) {
     setActioning(true);
-    await api.approveBooking(booking.id).catch(console.error);
-    setActionModal(null);
-    await Promise.all([fetchBookings(), refreshAlerts()]);
-    setActioning(false);
+    setActionError('');
+    try {
+      await api.approveBooking(booking.id);
+      setActionModal(null);
+      await Promise.all([fetchBookings(), refreshAlerts()]);
+    } catch (e) {
+      setActionError(e.message || 'Failed to approve booking.');
+    } finally {
+      setActioning(false);
+    }
   }
 
   async function handleDecline() {
     setActioning(true);
-    await api.declineBooking(actionModal.booking.id, declineReason).catch(console.error);
-    setActionModal(null);
-    setDeclineReason('');
-    await Promise.all([fetchBookings(), refreshAlerts()]);
-    setActioning(false);
+    setActionError('');
+    try {
+      await api.declineBooking(actionModal.booking.id, declineReason);
+      setActionModal(null);
+      setDeclineReason('');
+      await Promise.all([fetchBookings(), refreshAlerts()]);
+    } catch (e) {
+      setActionError(e.message || 'Failed to decline booking.');
+    } finally {
+      setActioning(false);
+    }
   }
 
   const columns = [
@@ -230,7 +243,7 @@ export default function BookingsPage() {
       </div>
 
       {/* Approve modal */}
-      <Modal open={actionModal?.type === 'approve'} onClose={() => setActionModal(null)} title="Approve Booking">
+      <Modal open={actionModal?.type === 'approve'} onClose={() => { setActionModal(null); setActionError(''); }} title="Approve Booking">
         <div className="space-y-4">
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
             You're about to approve{' '}
@@ -241,8 +254,14 @@ export default function BookingsPage() {
             for {actionModal?.booking?.customers?.first_name} {actionModal?.booking?.customers?.last_name}.
             They'll be notified via SMS/email.
           </p>
+          {actionError && (
+            <div className="card p-3 flex items-start gap-2" style={{ backgroundColor: 'var(--danger-glow)', borderColor: 'rgba(244,63,94,0.2)' }}>
+              <AlertCircle size={15} style={{ color: 'var(--danger-color)' }} className="mt-0.5 shrink-0" />
+              <p className="text-xs" style={{ color: 'var(--danger-color)' }}>{actionError}</p>
+            </div>
+          )}
           <div className="flex gap-3">
-            <button onClick={() => setActionModal(null)} className="btn-secondary flex-1 justify-center">Cancel</button>
+            <button onClick={() => { setActionModal(null); setActionError(''); }} className="btn-secondary flex-1 justify-center">Cancel</button>
             <button onClick={() => handleApprove(actionModal.booking)} disabled={actioning} className="btn-primary flex-1 justify-center">
               {actioning ? 'Approving…' : 'Approve Booking'}
             </button>
@@ -251,7 +270,7 @@ export default function BookingsPage() {
       </Modal>
 
       {/* Decline modal */}
-      <Modal open={actionModal?.type === 'decline'} onClose={() => setActionModal(null)} title="Decline Booking">
+      <Modal open={actionModal?.type === 'decline'} onClose={() => { setActionModal(null); setActionError(''); }} title="Decline Booking">
         <div className="space-y-4">
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
             Declining <span className="font-medium">{actionModal?.booking?.booking_code}</span> for{' '}
@@ -268,8 +287,14 @@ export default function BookingsPage() {
               onChange={e => setDeclineReason(e.target.value)}
             />
           </div>
+          {actionError && (
+            <div className="card p-3 flex items-start gap-2" style={{ backgroundColor: 'var(--danger-glow)', borderColor: 'rgba(244,63,94,0.2)' }}>
+              <AlertCircle size={15} style={{ color: 'var(--danger-color)' }} className="mt-0.5 shrink-0" />
+              <p className="text-xs" style={{ color: 'var(--danger-color)' }}>{actionError}</p>
+            </div>
+          )}
           <div className="flex gap-3">
-            <button onClick={() => setActionModal(null)} className="btn-secondary flex-1 justify-center">Cancel</button>
+            <button onClick={() => { setActionModal(null); setActionError(''); }} className="btn-secondary flex-1 justify-center">Cancel</button>
             <button onClick={handleDecline} disabled={actioning} className="btn-danger flex-1 justify-center">
               {actioning ? 'Declining…' : 'Decline Booking'}
             </button>

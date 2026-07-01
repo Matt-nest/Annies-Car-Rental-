@@ -23,25 +23,56 @@ function ChargeForm({ clientSecret, amountCents, onSuccess }) {
   const stripe = useStripe();
   const elements = useElements();
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [err, setErr] = useState('');
+  // Set when Stripe confirmed the charge but writing it to our ledger failed —
+  // the card IS charged, so we must NOT let the operator charge again.
+  const [chargedPiId, setChargedPiId] = useState(null);
+  const [recordErr, setRecordErr] = useState('');
+
+  async function recordCharge(piId) {
+    // Record into the payments ledger. Surface failures (do not swallow) so the
+    // operator knows the card was charged even if our write failed.
+    try {
+      await bookingApi.confirmPayment(piId);
+      bookingApi.sendStripeReceipt(piId).catch(() => {});
+      onSuccess?.(piId);
+    } catch (e) {
+      setChargedPiId(piId);
+      setRecordErr(e.message || 'Could not record the charge.');
+      setBusy(false);
+    }
+  }
 
   async function charge() {
     if (!stripe || !elements) return;
     setBusy(true); setErr('');
     const { error: submitErr } = await elements.submit();
-    if (submitErr) { setErr(submitErr.message || 'Check the card details.'); setBusy(false); return; }
+    if (submitErr) { setErr(submitErr.message || 'Check the card details.'); setBusy(false); setConfirming(false); return; }
     const { error } = await stripe.confirmPayment({
       elements,
       clientSecret,
       confirmParams: { return_url: window.location.href },
       redirect: 'if_required',
     });
+    setConfirming(false);
     if (error) { setErr(error.message || 'The card was declined.'); setBusy(false); return; }
-    // Record into the payments ledger + fire the receipt (best-effort).
-    const piId = clientSecret.split('_secret_')[0];
-    try { await bookingApi.confirmPayment(piId); } catch { /* charge already succeeded on Stripe */ }
-    bookingApi.sendStripeReceipt(piId).catch(() => {});
-    onSuccess?.(piId);
+    await recordCharge(clientSecret.split('_secret_')[0]);
+  }
+
+  if (chargedPiId) {
+    return (
+      <div className="space-y-3">
+        <div className="rounded-xl p-3 text-xs" style={{ backgroundColor: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', color: 'var(--text-secondary)' }}>
+          <p className="font-bold text-[#b45309] mb-1 flex items-center gap-1.5"><AlertCircle size={13} /> Card charged — recording failed</p>
+          <p>The customer's card was charged {money(amountCents)} successfully, but saving it to the payments ledger failed ({recordErr}). <strong>Do not charge again.</strong> Retry recording below, or use Sync on the Payments page.</p>
+          <p className="mono-code mt-1">{chargedPiId}</p>
+        </div>
+        <button type="button" onClick={() => { setBusy(true); setRecordErr(''); recordCharge(chargedPiId); }} disabled={busy} className="btn-primary w-full">
+          {busy ? <><Loader2 size={14} className="animate-spin" /> Recording…</> : <>Retry recording</>}
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -50,9 +81,18 @@ function ChargeForm({ clientSecret, amountCents, onSuccess }) {
       {err && (
         <p className="text-xs text-[#ef4444] flex items-start gap-1.5"><AlertCircle size={13} className="mt-0.5 shrink-0" />{err}</p>
       )}
-      <button type="button" onClick={charge} disabled={busy || !stripe} className="btn-primary w-full">
-        {busy ? <><Loader2 size={14} className="animate-spin" /> Charging…</> : <><CreditCard size={14} /> Charge {money(amountCents)}</>}
-      </button>
+      {confirming ? (
+        <div className="flex gap-2">
+          <button type="button" onClick={() => setConfirming(false)} disabled={busy} className="btn-secondary flex-1 justify-center">Cancel</button>
+          <button type="button" onClick={charge} disabled={busy || !stripe} className="btn-primary flex-1 justify-center">
+            {busy ? <><Loader2 size={14} className="animate-spin" /> Charging…</> : <>Confirm charge {money(amountCents)}</>}
+          </button>
+        </div>
+      ) : (
+        <button type="button" onClick={() => setConfirming(true)} disabled={!stripe} className="btn-primary w-full">
+          <CreditCard size={14} /> Charge {money(amountCents)}
+        </button>
+      )}
       <p className="text-[11px] text-[var(--text-tertiary)] text-center">Enter the card the customer reads to you. Charges immediately.</p>
     </div>
   );
