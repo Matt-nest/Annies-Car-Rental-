@@ -591,6 +591,17 @@ router.post('/payment-method/confirm', requirePortalAuth, async (req, res) => {
   }
 });
 
+/** GET /portal/payment-plan — the customer's installment schedule (read-only). */
+router.get('/payment-plan', requirePortalAuth, async (req, res) => {
+  try {
+    const { getPlan } = await import('../services/installmentService.js');
+    const plan = await getPlan(req.portal.bookingId);
+    res.json(plan);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
 /* ── Balance / pay now ───────────────────────────────────────────────────── */
 
 /** GET /portal/balance — outstanding rental balance. */

@@ -103,6 +103,29 @@ router.post('/:id/extend', requireAuth, requireRole('owner', 'admin'), asyncHand
   }
 }));
 
+/** GET /bookings/:id/payment-plan — installment plan for a booking (admin) */
+router.get('/:id/payment-plan', requireAuth, asyncHandler(async (req, res) => {
+  const { getPlan } = await import('../services/installmentService.js');
+  const plan = await getPlan(req.params.id);
+  res.json(plan);
+}));
+
+/** POST /bookings/:id/payment-plan — create an installment plan (owner/admin) */
+router.post('/:id/payment-plan', requireAuth, requireRole('owner', 'admin'), asyncHandler(async (req, res) => {
+  try {
+    const { createPlan } = await import('../services/installmentService.js');
+    const plan = await createPlan(req.params.id, {
+      interval: req.body?.interval,
+      installmentCount: req.body?.installmentCount,
+      startDate: req.body?.startDate,
+      actor: `admin:${req.user?.id || 'unknown'}`,
+    });
+    res.status(201).json(plan);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+}));
+
 /** GET /bookings/status/:bookingCode — public status lookup by code */
 router.get('/status/:bookingCode', asyncHandler(async (req, res) => {
   const { data: booking, error } = await supabase

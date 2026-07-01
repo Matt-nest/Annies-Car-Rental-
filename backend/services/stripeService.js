@@ -371,6 +371,15 @@ export async function handleWebhookEvent(event) {
         break;
       }
 
+      // Off-session installment charges — reconcile via the shared confirm.
+      if (pi.metadata?.kind === 'installment') {
+        const { confirmInstallmentPayment } = await import('./installmentService.js');
+        await confirmInstallmentPayment(pi.id).catch(e =>
+          console.error('[Installment] webhook confirm failed:', e.message)
+        );
+        break;
+      }
+
       // Split the payment into rental + deposit using metadata
       const depositCents = Number(pi.metadata.deposit_cents) || 0;
       const rentalCents = Number(pi.metadata.rental_cents) || pi.amount;
