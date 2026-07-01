@@ -351,6 +351,17 @@ export async function handleWebhookEvent(event) {
       const bookingId = pi.metadata.booking_id;
       if (!bookingId) break;
 
+      // Rental extensions have their own reconciliation path (extend dates,
+      // record an 'extension' payment). Route them there and stop — the
+      // rental+deposit logic below must not fire for an extension charge.
+      if (pi.metadata?.kind === 'extension') {
+        const { confirmExtensionPayment } = await import('./extensionService.js');
+        await confirmExtensionPayment(pi.id).catch(e =>
+          console.error('[Extension] webhook confirm failed:', e.message)
+        );
+        break;
+      }
+
       // Split the payment into rental + deposit using metadata
       const depositCents = Number(pi.metadata.deposit_cents) || 0;
       const rentalCents = Number(pi.metadata.rental_cents) || pi.amount;
@@ -458,6 +469,10 @@ export async function handleWebhookEvent(event) {
     case 'payment_intent.payment_failed': {
       const pi = event.data.object;
       console.log(`[Stripe] Payment failed for booking ${pi.metadata?.booking_code}: ${pi.last_payment_error?.message}`);
+      if (pi.metadata?.kind === 'extension') {
+        const { markExtensionFailed } = await import('./extensionService.js');
+        await markExtensionFailed(pi.id).catch(() => {});
+      }
       break;
     }
 

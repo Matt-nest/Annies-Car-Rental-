@@ -468,6 +468,80 @@ router.post('/dispute', requirePortalAuth, async (req, res) => {
 });
 
 /**
+ * POST /portal/extension/quote — Price an extension to a new return date.
+ * Body: { newReturnDate: 'YYYY-MM-DD' }
+ * Returns a quote (no charge, no DB write).
+ */
+router.post('/extension/quote', requirePortalAuth, async (req, res) => {
+  try {
+    const { quoteExtension } = await import('../services/extensionService.js');
+    const quote = await quoteExtension(req.portal.bookingId, req.body?.newReturnDate);
+    const { _booking, ...safe } = quote;
+    res.json(safe);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message, conflicts: err.conflicts });
+  }
+});
+
+/**
+ * POST /portal/extension/create-payment — Create a Stripe PaymentIntent for an
+ * extension. Body: { newReturnDate, expectedTotalCents? }
+ * Returns { clientSecret, quote, extensionId }.
+ */
+router.post('/extension/create-payment', requirePortalAuth, async (req, res) => {
+  try {
+    const { createExtensionPaymentIntent } = await import('../services/extensionService.js');
+    const result = await createExtensionPaymentIntent(
+      req.portal.bookingId,
+      req.body?.newReturnDate,
+      { expectedTotalCents: req.body?.expectedTotalCents }
+    );
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message, conflicts: err.conflicts });
+  }
+});
+
+/**
+ * POST /portal/extension/confirm — Confirm a succeeded extension payment and
+ * apply it to the booking. Idempotent. Body: { payment_intent_id }
+ */
+router.post('/extension/confirm', requirePortalAuth, async (req, res) => {
+  try {
+    const { payment_intent_id } = req.body || {};
+    if (!payment_intent_id) return res.status(400).json({ error: 'payment_intent_id is required' });
+
+    const { confirmExtensionPayment } = await import('../services/extensionService.js');
+
+    // Verify the PaymentIntent actually belongs to this customer's booking
+    // before mutating anything.
+    const { getStripe } = await import('../utils/stripe.js');
+    const pi = await getStripe().paymentIntents.retrieve(payment_intent_id);
+    if (pi.metadata?.booking_id !== req.portal.bookingId) {
+      return res.status(403).json({ error: 'This payment does not belong to your booking' });
+    }
+
+    const result = await confirmExtensionPayment(payment_intent_id);
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /portal/extensions — List this booking's extension history.
+ */
+router.get('/extensions', requirePortalAuth, async (req, res) => {
+  try {
+    const { listExtensions } = await import('../services/extensionService.js');
+    const rows = await listExtensions(req.portal.bookingId);
+    res.json(rows);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+/**
  * GET /portal/pending-charges — List scheduled overage charges for the
  * customer's booking (used by the dispute UI in the customer portal).
  * Returns [] if FEATURE_AUTO_OVERAGE_CHARGES is off.

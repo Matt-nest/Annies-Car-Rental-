@@ -67,6 +67,13 @@ router.get('/:id/timeline', requireAuth, asyncHandler(async (req, res) => {
   res.json(data);
 }));
 
+/** GET /bookings/:id/extensions — customer-initiated extension history (admin) */
+router.get('/:id/extensions', requireAuth, asyncHandler(async (req, res) => {
+  const { listExtensions } = await import('../services/extensionService.js');
+  const rows = await listExtensions(req.params.id);
+  res.json(rows);
+}));
+
 /** GET /bookings/status/:bookingCode — public status lookup by code */
 router.get('/status/:bookingCode', asyncHandler(async (req, res) => {
   const { data: booking, error } = await supabase
