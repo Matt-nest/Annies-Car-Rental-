@@ -10,6 +10,8 @@ import { getSquare, getSquareLocationId } from '../utils/square.js';
 import { IS_SQUARE } from '../utils/paymentProvider.js';
 import { supabase } from '../db/supabase.js';
 import brand from '../config/brand.js';
+import { calcRentalDays } from './pricingService.js';
+import { checkAvailability } from './availabilityService.js';
 
 const square = getSquare();
 
@@ -227,4 +229,130 @@ export async function chargeTripBalance(customerId, bookingId, { savedCardId, so
     .eq('id', balance.invoice_id);
 
   return { ok: true, payment_id: payment.id, amount_cents: balance.amount_cents };
+}
+
+// ── Trip extension ───────────────────────────────────────────────────────────
+const EXTENDABLE_STATUSES = new Set(['approved', 'confirmed', 'ready_for_pickup', 'active']);
+
+/** Resolve a Square charge source (saved card or one-time token) for a customer. */
+async function resolveChargeSource(customerId, { savedCardId, sourceId }) {
+  if (savedCardId) {
+    const owned = await listCards(customerId);
+    if (!owned.some((c) => c.id === savedCardId)) {
+      throw Object.assign(new Error('Card not found on this account'), { status: 404 });
+    }
+    const customer = await getCustomerRow(customerId);
+    return { source: savedCardId, squareCustomerId: customer.square_customer_id };
+  }
+  if (sourceId) return { source: sourceId, squareCustomerId: undefined };
+  throw Object.assign(new Error('Select a card to pay with'), { status: 400 });
+}
+
+/**
+ * Quote extending a trip's return date. Computes extra days × the booking's
+ * daily rate (+ proportional tax) and checks the vehicle is free for the new
+ * window. Does NOT charge. Returns { available, extra_days, amount_cents, ... }.
+ */
+export async function quoteExtension(customerId, bookingId, newReturnDate) {
+  const { data: booking } = await supabase
+    .from('bookings')
+    .select('id, customer_id, vehicle_id, status, return_date, daily_rate, subtotal, tax_amount')
+    .eq('id', bookingId)
+    .single();
+  if (!booking || booking.customer_id !== customerId) {
+    throw Object.assign(new Error('Trip not found'), { status: 404 });
+  }
+  if (!EXTENDABLE_STATUSES.has(booking.status)) {
+    throw Object.assign(new Error('This trip can no longer be extended'), { status: 400 });
+  }
+  if (!newReturnDate || newReturnDate <= booking.return_date) {
+    throw Object.assign(new Error('Choose a return date later than the current one'), { status: 400 });
+  }
+  const dailyRate = Number(booking.daily_rate);
+  if (!dailyRate || dailyRate <= 0) {
+    throw Object.assign(new Error('This trip has no daily rate set — please call us to extend'), { status: 400 });
+  }
+
+  const extraDays = calcRentalDays(booking.return_date, newReturnDate);
+  if (extraDays <= 0) throw Object.assign(new Error('Choose a later return date'), { status: 400 });
+
+  const { available, conflicts } = await checkAvailability(
+    booking.vehicle_id, booking.return_date, newReturnDate, bookingId
+  );
+
+  const baseCents = Math.round(extraDays * dailyRate * 100);
+  const taxRate = Number(booking.subtotal) > 0 ? Number(booking.tax_amount || 0) / Number(booking.subtotal) : 0;
+  const taxCents = Math.round(baseCents * taxRate);
+
+  return {
+    available,
+    conflicts: available ? [] : conflicts,
+    extra_days: extraDays,
+    new_return_date: newReturnDate,
+    base_cents: baseCents,
+    tax_cents: taxCents,
+    amount_cents: baseCents + taxCents,
+  };
+}
+
+/**
+ * Charge for and apply a trip extension: charges the extra cost to a saved card
+ * or one-time token, then moves the booking's return_date forward and bumps its
+ * day/price totals. Status is left untouched (no transitionBooking → ghost-block
+ * invariant unaffected).
+ */
+export async function chargeExtension(customerId, bookingId, { newReturnDate, savedCardId, sourceId } = {}) {
+  assertSquare();
+  const quote = await quoteExtension(customerId, bookingId, newReturnDate);
+  if (!quote.available) {
+    throw Object.assign(new Error('The vehicle is not available for those dates'), { status: 409 });
+  }
+  if (quote.amount_cents <= 0) {
+    throw Object.assign(new Error('Nothing to charge for this extension'), { status: 400 });
+  }
+
+  const { data: booking } = await supabase
+    .from('bookings')
+    .select('id, booking_code, rental_days, subtotal, tax_amount, total_cost')
+    .eq('id', bookingId)
+    .single();
+
+  const { source, squareCustomerId } = await resolveChargeSource(customerId, { savedCardId, sourceId });
+
+  const resp = await square.payments.create({
+    idempotencyKey: crypto.randomUUID(),
+    sourceId: source,
+    customerId: squareCustomerId || undefined,
+    amountMoney: { amount: BigInt(quote.amount_cents), currency: 'USD' },
+    autocomplete: true,
+    locationId: getSquareLocationId() || undefined,
+    referenceId: booking.booking_code,
+    note: `${brand.name} — ${booking.booking_code} extension (+${quote.extra_days}d)`.slice(0, 500),
+  });
+  const payment = resp.payment;
+  if (!payment?.id) throw Object.assign(new Error('Payment did not complete'), { status: 502 });
+
+  await supabase.from('payments').insert({
+    booking_id: bookingId,
+    amount: quote.amount_cents / 100,
+    payment_type: 'extension',
+    method: 'square',
+    reference_id: payment.id,
+    status: 'completed',
+    paid_at: new Date().toISOString(),
+    notes: `Trip extension — +${quote.extra_days} day(s) to ${newReturnDate}`,
+  });
+
+  await supabase
+    .from('bookings')
+    .update({
+      return_date: newReturnDate,
+      rental_days: (booking.rental_days || 0) + quote.extra_days,
+      subtotal: Number(booking.subtotal || 0) + quote.base_cents / 100,
+      tax_amount: Number(booking.tax_amount || 0) + quote.tax_cents / 100,
+      total_cost: Number(booking.total_cost || 0) + quote.amount_cents / 100,
+    })
+    .eq('id', bookingId);
+
+  return { ok: true, payment_id: payment.id, new_return_date: newReturnDate, amount_cents: quote.amount_cents };
 }

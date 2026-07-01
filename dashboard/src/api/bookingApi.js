@@ -131,6 +131,19 @@ export const bookingApi = {
 
   /** Reset the account's password back to the customer's phone#. Returns { tempPassword }. */
   resetCustomerAccountPassword: async (customerId) => jsonPost(`/customers/${customerId}/account/reset-password`, {}),
+
+  // ── Recurring rentals (long-term private rentals) — Phase 4c, migration 008 ──
+  /** A customer's recurring plans (each with its charge ledger). */
+  getCustomerRecurring: async (customerId) => jsonGet(`/recurring/customer/${customerId}`),
+  /** The customer's saved cards — to pick which one an auto-charge plan bills. */
+  getCustomerSavedCards: async (customerId) => jsonGet(`/recurring/customer/${customerId}/cards`),
+  /** Create a plan. body: { customerId, amount, interval, intervalCount, collectionMethod, squareCardId?, startDate?, notes? }. */
+  createRecurring: async (body) => jsonPost(`/recurring`, body),
+  pauseRecurring: async (id) => jsonPost(`/recurring/${id}/pause`, {}),
+  resumeRecurring: async (id) => jsonPost(`/recurring/${id}/resume`, {}),
+  cancelRecurring: async (id) => jsonPost(`/recurring/${id}/cancel`, {}),
+  /** Manually settle a recurring cycle (e.g. a send_link payment confirmed in Square). */
+  markRecurringChargePaid: async (chargeId) => jsonPost(`/recurring/charges/${chargeId}/mark-paid`, {}),
 };
 
 async function jsonGet(path) {

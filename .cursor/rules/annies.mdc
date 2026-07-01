@@ -1,0 +1,66 @@
+---
+description: Annie's Car Rental — core rules, architecture, and hard constraints. Read before any code change.
+globs:
+alwaysApply: true
+---
+
+# Annie's Car Rental — Agent Rules
+
+You are working on **Annie's Car Rental** (Port St. Lucie, FL). This is one of a
+white-label clone family — **JD Coastal is a separate clone with a separate database**.
+Never assume a change here applies there; port fixes explicitly.
+
+## Required reading before ANY code change
+1. `PROJECT_MAP.md` — every file, import, API fn, Supabase table, danger zones, blast radius.
+2. `CHANGE_PROTOCOL.md` — before/during/after checklist.
+3. `CHANGELOG_SESSION.md` — prior sessions; add an entry for everything you build.
+Also: `CURSOR_HANDOVER.md` (access/credentials/onboarding), `DEPLOY.md`, `NEW_CLIENT.md`.
+
+## Hard rules (override everything)
+- **`dashboard/src/api/client.js`** — NEVER modify. 25 consumers = whole-app blast radius.
+- **`auth/`** — NEVER modify. Break auth = nothing works.
+- **Supabase schema** — NEVER change without explicit user instruction.
+- **Notifications** — don't touch `notifyService.js` / `emailService.js` templates without
+  tracing all 19 notification stages. Email copy lives in the DB (`email_templates`).
+- **CSS variables** — never rename a `--variable` without searching all usages first.
+- **Widget IDs** in `widgetConfig.js` must exactly match `WIDGET_COMPONENTS` keys in
+  `DashboardLayoutEngine.jsx`.
+- Work autonomously — don't pause to ask for approval. Make the change, verify it, keep going.
+- For a large blast radius (> 3 files), proceed but note the touched files and your reasoning
+  in `CHANGELOG_SESSION.md` so the change is auditable.
+- Make the smallest change that achieves the goal. `npm run build` must pass with zero errors.
+
+## Architecture
+| Layer | Tech | Location | Deploys to |
+|-------|------|----------|-----------|
+| Customer site | React 19 + Vite 6 + Tailwind v4 | `/` (`src/`) | Vercel customer-site project |
+| Admin dashboard | React 18 + Vite 5 + Tailwind v3 | `/dashboard` | Vercel `*-dashboard` project |
+| Backend API | Node + Express (serverless) | `/backend` | **same Vercel project as dashboard** |
+| Database | Supabase (Postgres) | hosted | — |
+
+- **2 Vercel projects per clone**, not 3. Backend env vars go on the **dashboard** project.
+- Prod deploys from branch `integration/unify-all-functionality` (via Vercel branch switch),
+  NOT `main`. `main` is stale. Confirm before assuming.
+
+## Annie's specifics
+- **Payments = Square** (behind `PAYMENT_PROVIDER` flag), NOT Stripe. No `clientSecret`;
+  receipt lock lives in the DB. See `007_square.sql` columns.
+- **Supabase project = `yrerxvuyeglrypeufjpy`** (backend `SUPABASE_URL`). Before ANY Supabase
+  MCP migration, run `get_project_url` and confirm it matches this. `.mcp.json` must point here.
+- Stripe/Square webhooks need the **raw body** — don't let `api/index.js`'s global JSON parser
+  eat it (has broken card-on-file in prod before).
+
+## Design language — "Premium Fleet Command"
+- Fonts: Inter (body) + JetBrains Mono (numbers/code).
+- Dashboard accent `#465FFF` (indigo); customer-site accent gold `#D4AF37`.
+- All colors via CSS variable tokens (`var(--bg-card)`, `var(--border-subtle)`, …).
+- **Never hardcode palette hex** — drive from `brand.colors`. Only accent + danger-red are literal.
+- Design reference data: `.claude/skills/ui-ux-pro-max/` (colors, typography, UX guidelines,
+  per-stack patterns for react/tailwind/shadcn).
+
+## Dev
+```bash
+npm run dev                 # customer site
+cd dashboard && npm run dev # dashboard
+cd backend && npm run dev   # API
+```

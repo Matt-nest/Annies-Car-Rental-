@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Phone, Mail, User, Calendar, DollarSign, FileText, CreditCard, MapPin, Home, ShieldCheck, Zap, FolderOpen, KeyRound, Copy, Check } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, User, Calendar, DollarSign, FileText, CreditCard, MapPin, Home, ShieldCheck, Zap, FolderOpen, KeyRound, Copy, Check, Repeat, Link2, Pause, Play, X, Plus } from 'lucide-react';
 import { api } from '../api/client';
 import { bookingApi } from '../api/bookingApi';
 import StatusBadge from '../components/shared/StatusBadge';
@@ -300,6 +300,244 @@ function CustomerPortalAccount({ customer }) {
   );
 }
 
+/**
+ * Recurring rentals (Phase 4c — migration 008). Admin creates a long-term plan
+ * that auto-charges a saved card or hands the renter a reusable Square link.
+ */
+const INTERVAL_NOUN = { weekly: 'week', biweekly: '2 weeks', monthly: 'month' };
+const PLAN_STATUS_COLOR = {
+  active: '#22c55e', paused: '#f59e0b', past_due: '#ef4444', cancelled: '#6b7280',
+};
+
+function CustomerRecurringRentals({ customerId }) {
+  const [plans, setPlans] = useState(null);
+  const [cards, setCards] = useState([]);
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState('');
+
+  async function load() {
+    try {
+      const [p, c] = await Promise.all([
+        bookingApi.getCustomerRecurring(customerId),
+        bookingApi.getCustomerSavedCards(customerId).catch(() => []),
+      ]);
+      setPlans(p || []);
+      setCards(c || []);
+    } catch (e) {
+      setError(e?.message || 'Failed to load plans');
+      setPlans([]);
+    }
+  }
+  useEffect(() => { load(); }, [customerId]);
+
+  async function run(fn) {
+    setError('');
+    try { await fn(); load(); } catch (e) { setError(e?.message || 'Action failed'); }
+  }
+
+  if (plans === null) return <p className="text-sm text-[var(--text-tertiary)] animate-pulse">Loading plans…</p>;
+
+  return (
+    <div className="space-y-3">
+      {plans.length === 0 && !creating && (
+        <p className="text-sm text-[var(--text-tertiary)]">No recurring plans yet.</p>
+      )}
+
+      {plans.map((p) => (
+        <div key={p.id} className="rounded-xl border border-[var(--border-subtle)] p-4 space-y-2">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-[var(--text-primary)]">
+                ${Number(p.amount).toLocaleString()} / {INTERVAL_NOUN[p.interval] || p.interval}
+                {p.interval_count > 1 ? ` ×${p.interval_count}` : ''}
+              </p>
+              <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
+                {p.collection_method === 'auto_charge' ? 'Auto-charges saved card' : 'Reusable payment link'}
+                {p.next_charge_date && ` · next ${p.next_charge_date}`}
+              </p>
+            </div>
+            <span className="badge shrink-0" style={{ background: `${PLAN_STATUS_COLOR[p.status]}1a`, color: PLAN_STATUS_COLOR[p.status] }}>
+              {p.status.replace('_', ' ')}
+            </span>
+          </div>
+
+          {p.collection_method === 'send_link' && p.square_payment_link_url && (
+            <button
+              type="button"
+              onClick={() => navigator.clipboard?.writeText(p.square_payment_link_url)}
+              className="flex items-center gap-1.5 text-xs text-[var(--accent-color)]"
+              title="Copy payment link"
+            >
+              <Link2 size={13} /> Copy payment link
+            </button>
+          )}
+
+          {/* Unpaid cycles — admin reconciliation (mainly send_link / past-due) */}
+          {(p.charges || []).filter((c) => c.status !== 'paid' && c.status !== 'skipped').slice(0, 4).map((c) => (
+            <div key={c.id} className="flex items-center justify-between gap-2 text-xs pt-1">
+              <span className="text-[var(--text-tertiary)]">
+                {c.period_start} · ${Number(c.amount).toLocaleString()} · {c.status}
+              </span>
+              <button
+                onClick={() => run(() => bookingApi.markRecurringChargePaid(c.id))}
+                className="btn-ghost text-[11px] flex items-center gap-1 text-[#22c55e]"
+                title="Mark this cycle paid"
+              >
+                <Check size={12} /> Mark paid
+              </button>
+            </div>
+          ))}
+
+          {p.status !== 'cancelled' && (
+            <div className="flex gap-2 pt-1">
+              {p.status === 'paused' ? (
+                <button onClick={() => run(() => bookingApi.resumeRecurring(p.id))} className="btn-ghost text-xs flex items-center gap-1">
+                  <Play size={12} /> Resume
+                </button>
+              ) : (
+                <button onClick={() => run(() => bookingApi.pauseRecurring(p.id))} className="btn-ghost text-xs flex items-center gap-1">
+                  <Pause size={12} /> Pause
+                </button>
+              )}
+              <button onClick={() => { if (window.confirm('Cancel this plan? This cannot be undone.')) run(() => bookingApi.cancelRecurring(p.id)); }} className="btn-ghost text-xs text-[#ef4444]">
+                Cancel
+              </button>
+            </div>
+          )}
+        </div>
+      ))}
+
+      {error && <p className="text-xs text-[#ef4444]">{error}</p>}
+
+      {creating ? (
+        <NewPlanForm
+          customerId={customerId}
+          cards={cards}
+          onCancel={() => setCreating(false)}
+          onCreated={() => { setCreating(false); load(); }}
+        />
+      ) : (
+        <button onClick={() => setCreating(true)} className="btn-primary text-xs flex items-center gap-1.5">
+          <Plus size={14} /> New recurring plan
+        </button>
+      )}
+    </div>
+  );
+}
+
+function NewPlanForm({ customerId, cards, onCancel, onCreated }) {
+  const [amount, setAmount] = useState('');
+  const [interval, setInterval] = useState('monthly');
+  const [intervalCount, setIntervalCount] = useState(1);
+  const [collectionMethod, setCollectionMethod] = useState(cards.length ? 'auto_charge' : 'send_link');
+  const [squareCardId, setSquareCardId] = useState(cards[0]?.id || '');
+  const [startDate, setStartDate] = useState('');
+  const [notes, setNotes] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  async function submit() {
+    setError('');
+    if (!Number(amount) || Number(amount) <= 0) { setError('Enter an amount'); return; }
+    if (collectionMethod === 'auto_charge' && !squareCardId) { setError('Pick a saved card or use a payment link'); return; }
+    setBusy(true);
+    try {
+      await bookingApi.createRecurring({
+        customerId,
+        amount: Number(amount),
+        interval,
+        intervalCount: Number(intervalCount) || 1,
+        collectionMethod,
+        squareCardId: collectionMethod === 'auto_charge' ? squareCardId : undefined,
+        startDate: startDate || undefined,
+        notes: notes || undefined,
+      });
+      onCreated();
+    } catch (e) {
+      setError(e?.message || 'Could not create plan');
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-[var(--border-subtle)] p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold text-[var(--text-primary)]">New recurring plan</p>
+        <button onClick={onCancel}><X size={16} className="text-[var(--text-tertiary)]" /></button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-[11px] text-[var(--text-tertiary)] block mb-1">Amount ($)</label>
+          <input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className="input text-sm w-full" placeholder="1200" />
+        </div>
+        <div>
+          <label className="text-[11px] text-[var(--text-tertiary)] block mb-1">Every</label>
+          <select value={interval} onChange={(e) => setInterval(e.target.value)} className="input text-sm w-full">
+            <option value="weekly">Week</option>
+            <option value="biweekly">2 weeks</option>
+            <option value="monthly">Month</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label className="text-[11px] text-[var(--text-tertiary)] block mb-1">Billing</label>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setCollectionMethod('auto_charge')}
+            disabled={!cards.length}
+            className={`flex-1 text-xs py-2 rounded-lg border ${collectionMethod === 'auto_charge' ? 'border-[var(--accent-color)] text-[var(--text-primary)]' : 'border-[var(--border-subtle)] text-[var(--text-secondary)]'}`}
+            style={{ opacity: cards.length ? 1 : 0.5 }}
+          >
+            Auto-charge card
+          </button>
+          <button
+            type="button"
+            onClick={() => setCollectionMethod('send_link')}
+            className={`flex-1 text-xs py-2 rounded-lg border ${collectionMethod === 'send_link' ? 'border-[var(--accent-color)] text-[var(--text-primary)]' : 'border-[var(--border-subtle)] text-[var(--text-secondary)]'}`}
+          >
+            Reusable link
+          </button>
+        </div>
+        {!cards.length && (
+          <p className="text-[11px] text-[var(--text-tertiary)] mt-1">No saved cards — the customer can add one in their portal to enable auto-charge.</p>
+        )}
+      </div>
+
+      {collectionMethod === 'auto_charge' && cards.length > 0 && (
+        <div>
+          <label className="text-[11px] text-[var(--text-tertiary)] block mb-1">Card to charge</label>
+          <select value={squareCardId} onChange={(e) => setSquareCardId(e.target.value)} className="input text-sm w-full">
+            {cards.map((c) => <option key={c.id} value={c.id}>{c.brand} •••• {c.last4}</option>)}
+          </select>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-[11px] text-[var(--text-tertiary)] block mb-1">Start date (optional)</label>
+          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="input text-sm w-full" />
+        </div>
+        <div>
+          <label className="text-[11px] text-[var(--text-tertiary)] block mb-1">Note (optional)</label>
+          <input type="text" value={notes} onChange={(e) => setNotes(e.target.value)} className="input text-sm w-full" placeholder="e.g. Camry monthly" />
+        </div>
+      </div>
+
+      {error && <p className="text-xs text-[#ef4444]">{error}</p>}
+
+      <div className="flex justify-end gap-2">
+        <button onClick={onCancel} className="btn-ghost text-xs">Cancel</button>
+        <button onClick={submit} disabled={busy} className="btn-primary text-xs" style={{ opacity: busy ? 0.5 : 1 }}>
+          {busy ? 'Creating…' : 'Create plan'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function CustomerIdPhoto({ url, onView }) {
   const [resolvedUrl, setResolvedUrl] = useState(null);
 
@@ -507,6 +745,11 @@ export default function CustomerDetailPage() {
           <CustomerPortalAccount customer={customer} />
         </Section>
       </div>
+
+      {/* Recurring rentals — long-term private rentals (Phase 4c) */}
+      <Section title="Recurring Rentals" icon={Repeat}>
+        <CustomerRecurringRentals customerId={id} />
+      </Section>
 
       {/* Documents — every contract + invoice ever generated for this customer */}
       <Section title="Documents" icon={FolderOpen}>

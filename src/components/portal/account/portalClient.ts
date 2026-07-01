@@ -122,7 +122,6 @@ export interface TripSummary {
   pickup_time?: string;
   return_time?: string;
   pickup_location?: string | null;
-  delivery_type?: string;
   total_cost?: number;
   deposit_amount?: number;
   deposit_status?: string;
@@ -178,11 +177,91 @@ export interface TripBalance {
 export const getTripBalance = (token: string, id: string) =>
   authGet<TripBalance>(`/account/trips/${id}/balance`, token);
 
+export interface ExtensionQuote {
+  available: boolean;
+  conflicts: any[];
+  extra_days: number;
+  new_return_date: string;
+  base_cents: number;
+  tax_cents: number;
+  amount_cents: number;
+}
+
+/** Mint a booking-scoped portal token to reuse the /portal/* check-in/out flow. */
+export const createPortalSession = (token: string, id: string) =>
+  authSend<{ token: string }>(`/account/trips/${id}/portal-session`, token, {});
+
+/** Submit native check-in with a booking-scoped portal token. Returns { lockbox_code? }. */
+export async function submitCheckin(portalToken: string, body: unknown): Promise<any> {
+  const res = await fetch(`${API_URL}/portal/checkin`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${portalToken}` },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw await parseError(res);
+  return res.json();
+}
+
+/** Submit native check-out with a booking-scoped portal token. */
+export async function submitCheckout(portalToken: string, body: unknown): Promise<any> {
+  const res = await fetch(`${API_URL}/portal/checkout`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${portalToken}` },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw await parseError(res);
+  return res.json();
+}
+
+export const getExtensionQuote = (token: string, id: string, returnDate: string) =>
+  authGet<ExtensionQuote>(`/account/trips/${id}/extension-quote?return_date=${encodeURIComponent(returnDate)}`, token);
+
+export const extendTrip = (
+  token: string,
+  id: string,
+  body: { return_date: string; savedCardId?: string; sourceId?: string },
+) => authSend<{ ok: boolean; payment_id: string; new_return_date: string; amount_cents: number }>(`/account/trips/${id}/extend`, token, body);
+
 export const payTripBalance = (
   token: string,
   id: string,
   source: { savedCardId?: string; sourceId?: string },
 ) => authSend<{ ok: boolean; payment_id: string; amount_cents: number }>(`/account/trips/${id}/pay`, token, source);
+
+// ── Recurring plan (long-term rental) ────────────────────────────────────────
+export interface PlanCharge {
+  period_start: string;
+  amount: number;
+  status: string;
+  paid_at: string | null;
+}
+export interface RecurringPlan {
+  id: string;
+  status: string;
+  amount: number;
+  interval: string;
+  interval_count: number;
+  collection_method: 'auto_charge' | 'send_link';
+  next_charge_date: string;
+  payment_link_url: string | null;
+  charges: PlanCharge[];
+}
+
+export const getPlan = (token: string) => authGet<RecurringPlan | null>('/account/plan', token);
+
+// ── Messaging ────────────────────────────────────────────────────────────────
+export interface PortalMessage {
+  id: string;
+  direction: 'inbound' | 'outbound';
+  channel: string;
+  body: string;
+  created_at: string;
+}
+
+export const getMessages = (token: string) => authGet<PortalMessage[]>('/account/messages', token);
+
+export const sendMessage = (token: string, body: string) =>
+  authSend<PortalMessage>('/account/messages', token, { body });
 
 export const getCards = (token: string) => authGet<SavedCard[]>('/account/cards', token);
 

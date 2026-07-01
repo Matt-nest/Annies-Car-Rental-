@@ -5,9 +5,9 @@
  * Customer via POST /account/cards.
  */
 import { useEffect, useRef, useState } from 'react';
-import { CreditCard, Plus, Trash2, Loader2, X, ShieldCheck } from 'lucide-react';
+import { CreditCard, Plus, Trash2, Loader2, X, ShieldCheck, Repeat, ExternalLink } from 'lucide-react';
 import { useAccountAuth } from '../AccountAuthContext';
-import { getCards, addCard, removeCard, type SavedCard } from '../portalClient';
+import { getCards, addCard, removeCard, getPlan, type SavedCard, type RecurringPlan } from '../portalClient';
 import { API_URL } from '../../../../config';
 import { getSquarePayments, mountCard } from '../../../booking/confirm-booking/squareClient';
 import { brand } from '../../../../config/brand';
@@ -16,6 +16,7 @@ export default function WalletScreen() {
   const { token } = useAccountAuth();
   const [cards, setCards] = useState<SavedCard[] | null>(null);
   const [provider, setProvider] = useState<string>('');
+  const [plan, setPlan] = useState<RecurringPlan | null>(null);
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState('');
 
@@ -35,6 +36,7 @@ export default function WalletScreen() {
       .then((r) => r.json())
       .then((c) => setProvider(c.provider || ''))
       .catch(() => {});
+    getPlan(token).then(setPlan).catch(() => {});
     load();
   }, [token]);
 
@@ -57,6 +59,8 @@ export default function WalletScreen() {
       <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>
         Your saved payment methods.
       </p>
+
+      {plan && <PlanCard plan={plan} />}
 
       {error && <p className="text-sm mb-4" style={{ color: '#ef4444' }}>{error}</p>}
 
@@ -129,6 +133,63 @@ export default function WalletScreen() {
           Cards are stored securely by Square. {brand.name} never sees full card numbers.
         </p>
       </div>
+    </div>
+  );
+}
+
+const INTERVAL_NOUN: Record<string, string> = { weekly: 'week', biweekly: '2 weeks', monthly: 'month' };
+const money = (n: number) => `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+function PlanCard({ plan }: { plan: RecurringPlan }) {
+  const accent = brand.colors.accent;
+  const pastDue = plan.status === 'past_due';
+  return (
+    <div
+      className="rounded-2xl p-4 mb-5"
+      style={{ background: `${accent}12`, border: `1px solid ${pastDue ? '#ef4444' : accent}55` }}
+    >
+      <div className="flex items-center gap-2 mb-2">
+        <Repeat size={16} style={{ color: accent }} />
+        <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Recurring rental</h2>
+        {pastDue && (
+          <span className="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>
+            Payment due
+          </span>
+        )}
+      </div>
+      <p className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+        {money(plan.amount)}<span className="text-sm font-normal" style={{ color: 'var(--text-secondary)' }}> / {INTERVAL_NOUN[plan.interval] || plan.interval}</span>
+      </p>
+      <p className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
+        {plan.collection_method === 'auto_charge'
+          ? `Auto-charged${plan.next_charge_date ? ` · next ${plan.next_charge_date}` : ''}`
+          : `Pay anytime${plan.next_charge_date ? ` · due ${plan.next_charge_date}` : ''}`}
+      </p>
+
+      {plan.collection_method === 'send_link' && plan.payment_link_url && (
+        <a
+          href={plan.payment_link_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold"
+          style={{ background: accent, color: '#0a0a0a' }}
+        >
+          Pay now <ExternalLink size={14} />
+        </a>
+      )}
+
+      {plan.charges?.length > 0 && (
+        <div className="mt-3 pt-3 space-y-1.5" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+          {plan.charges.slice(0, 3).map((c) => (
+            <div key={c.period_start} className="flex items-center justify-between text-xs">
+              <span style={{ color: 'var(--text-tertiary)' }}>{c.period_start}</span>
+              <span style={{ color: c.status === 'paid' ? '#22c55e' : 'var(--text-secondary)' }}>
+                {money(c.amount)} · {c.status}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

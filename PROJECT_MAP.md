@@ -557,6 +557,64 @@ POST   /api/v1/bookings/admin-create  {fulfillment, custom_daily_rate, custom_de
 
 ---
 
+## Customer Account Portal (added 2026-06-17)
+
+Account-first, mobile-first ("Turo-style") rebuild of the customer portal at `/portal`. Admin provisions a login per customer; renters manage trips, payment methods, recurring long-term rentals, check-in/out, and messaging. **Square-only** payment features (gated by `PAYMENT_PROVIDER=square`). Built across Phases 1–5; the legacy code+email `CustomerPortal.tsx` is kept as the `/portal?code=` fallback for notification-email links until the account portal is prod-verified.
+
+### Schema — migration `008_customer_accounts.sql` (NOT yet applied to Supabase)
+- **`customer_accounts`** — one login/customer: `username` (unique, FirstName+LastInitial deduped), `password_hash` (scrypt `scrypt$salt$derived`), `must_change_password`, `status`, `last_login_at`.
+- **`customers.avatar_url`**; **`invoices.paid_at`**; **`bookings.rental_type`** (`standard`|`long_term`).
+- **`recurring_rentals`** — subscription: `amount`, `interval`(weekly|biweekly|monthly), `interval_count`, `collection_method`(`auto_charge`|`send_link`), `square_card_id`, `square_payment_link_{id,url}`, `next_charge_date`, `status`(active|paused|past_due|cancelled), `max_charge_attempts`.
+- **`recurring_charges`** — per-cycle ledger; unique `(recurring_rental_id, period_start)` makes the cron idempotent.
+
+### Auth model
+Customer accounts are **separate from admin Supabase Auth** and from the 4h booking-code portal token. They reuse `PORTAL_JWT_SECRET` but issue a distinct `type:'account'` JWT (30d), persisted in localStorage (`annie_portal_account_token`). Passwords use Node `crypto.scrypt` (no bcrypt dep).
+
+### Backend
+
+| File | Description |
+|------|-------------|
+| `services/customerAccountService.js` (NEW) | provision/reset/login/setPassword/getAccountCustomer + `requireAccountAuth`/`verifyAccountToken` (scrypt hashing, username dedup). |
+| `services/squarePortalCardsService.js` (NEW) | Wallet (list/add/remove cards), `getTripBalance`/`chargeTripBalance` (self-pay invoice), `quoteExtension`/`chargeExtension` (trip extension — respects ghost-block: availability-checked, no transitionBooking). Square source of truth; independent of `FEATURE_AUTO_OVERAGE_CHARGES`. |
+| `services/recurringRentalService.js` (NEW) | create/pause/resume/cancel plans; `createPaymentLink` (Square `checkout.paymentLinks.create`); `processDueRecurringCharges` cron worker (auto_charge off-session w/ retries→past_due+admin alert; send_link opens cycle + emails link); `getRecurringForPortal`. |
+| `services/portalAuthService.js` | Added `issuePortalToken(...)` — bridges the account session into the per-booking `/portal/*` check-in/out flow. |
+| `routes/account.js` (NEW, `/api/v1/account`) | login, set-password, me, profile (PUT), avatar (multipart→public `avatars` bucket); trips list/detail/balance/pay/extend/extension-quote/portal-session; cards CRUD; payments-config; plan; messages GET/POST. All `requireAccountAuth` except login. |
+| `routes/recurring.js` (NEW, `/api/v1/recurring`, admin) | `GET /customer/:id`, `GET /customer/:id/cards`, `POST /`, `POST /:id/{pause,resume,cancel}`. |
+| `routes/customers.js` | Admin provisioning: `GET/POST /customers/:id/account`, `POST /customers/:id/account/reset-password`. |
+| `routes/cron.js` + `vercel.json` | `GET /cron/process-recurring-charges` (daily `0 7 * * *`). |
+
+### Customer site — `src/components/portal/account/` (NEW subtree)
+
+| File | Description |
+|------|-------------|
+| `PortalApp.tsx` | Entry at `/portal` (App.tsx lazy import swapped here). Gates loading→login→forced-reset→tabbed app. Renders legacy `CustomerPortal` for `?code=` deep links. Bottom nav: Trips / Wallet / Messages / Profile. |
+| `AccountAuthContext.tsx` | Session provider (auto-restores token via `/account/me`). |
+| `portalClient.ts` | All `/account/*` calls + token store; reuses `booking/confirm-booking/squareClient` for card tokenization. |
+| `LoginScreen.tsx`, `SetPasswordScreen.tsx` | Login + forced first-login reset. |
+| `screens/TripsScreen.tsx` + `tripStatus.ts` | Current/Upcoming/Past grouped list. |
+| `screens/TripDetailScreen.tsx` | Vehicle hero, lockbox (active), charges, deposit; Pay-balance / Extend / native check-in-out CTAs. |
+| `screens/PaySheet.tsx`, `ExtendSheet.tsx` | Self-pay + extend (saved or new card via Square iframe). |
+| `screens/CheckInOutScreen.tsx` | Native check-in/out — bridges to a portal token, reuses `SlotPhotoUploader` + `/portal/checkin|checkout`. |
+| `screens/WalletScreen.tsx` | Saved cards (add/remove) + recurring **PlanCard**. |
+| `screens/MessagesScreen.tsx` | Chat thread over the `messages` table. |
+| `screens/ProfileScreen.tsx` | Avatar upload, inline detail edit, change password, sign out. |
+
+### Dashboard (admin)
+
+| File | Description |
+|------|-------------|
+| `api/bookingApi.js` | Account provisioning + recurring CRUD + saved-cards (kept out of `api/client.js`). |
+| `pages/CustomerDetailPage.jsx` | **Portal Login** section (provision/reset, copyable creds) + **Recurring Rentals** section (list + create plan: amount/cadence/auto-charge-vs-link/card picker). |
+
+### Storage / Env
+- New public bucket **`avatars`** (auto-created) for profile photos.
+- No new env vars — reuses `PORTAL_JWT_SECRET` + the existing Square config.
+
+### Outstanding
+Apply `008_customer_accounts.sql` (gates live use); `send_link` payment→`recurring_charges` reconciliation (Square webhook) is a follow-up; retire legacy `CustomerPortal.tsx` internals after prod verification.
+
+---
+
 ## Supabase Auth Flow
 
 ```

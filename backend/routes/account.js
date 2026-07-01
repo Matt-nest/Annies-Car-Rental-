@@ -194,6 +194,45 @@ router.delete('/cards/:cardId', requireAccountAuth, async (req, res) => {
   }
 });
 
+// ── Messaging ────────────────────────────────────────────────────────────────
+/** GET /account/messages — the customer's conversation thread. */
+router.get('/messages', requireAccountAuth, async (req, res) => {
+  try {
+    const { getLocalMessages } = await import('../services/messagingService.js');
+    const all = await getLocalMessages(req.account.customerId);
+    // Only expose fields the portal needs.
+    res.json((all || []).map((m) => ({
+      id: m.id,
+      direction: m.direction,
+      channel: m.channel,
+      body: m.body,
+      created_at: m.created_at,
+    })));
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+/** POST /account/messages — customer sends a message to the business. Body: { body }. */
+router.post('/messages', requireAccountAuth, async (req, res) => {
+  try {
+    const body = String(req.body?.body || '').trim();
+    if (!body) return res.status(400).json({ error: 'Message cannot be empty' });
+    if (body.length > 4000) return res.status(400).json({ error: 'Message is too long' });
+
+    const { storeLocalMessage } = await import('../services/messagingService.js');
+    const row = await storeLocalMessage({
+      customerId: req.account.customerId,
+      direction: 'inbound', // received from the customer
+      channel: 'portal',
+      body,
+    });
+    res.status(201).json(row ? { id: row.id, direction: row.direction, channel: row.channel, body: row.body, created_at: row.created_at } : { ok: true });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
 /** GET /account/plan — the customer's active recurring rental + upcoming charges. */
 router.get('/plan', requireAccountAuth, async (req, res) => {
   try {
@@ -208,7 +247,7 @@ router.get('/plan', requireAccountAuth, async (req, res) => {
 // Booking summary columns safe to return to the customer (no internal_notes).
 const TRIP_LIST_COLUMNS =
   'id, booking_code, status, rental_type, pickup_date, return_date, pickup_time, return_time, ' +
-  'pickup_location, delivery_type, total_cost, deposit_amount, deposit_status, ' +
+  'pickup_location, total_cost, deposit_amount, deposit_status, ' +
   'vehicles(year, make, model, vehicle_code, thumbnail_url)';
 
 /**
@@ -229,11 +268,67 @@ router.get('/trips', requireAccountAuth, async (req, res) => {
   }
 });
 
+/**
+ * POST /account/trips/:id/portal-session — mint a booking-scoped portal token
+ * for a trip this account owns, so the native check-in/out flow can reuse the
+ * existing /portal/* + /uploads/checkin-photos endpoints (requirePortalAuth).
+ */
+router.post('/trips/:id/portal-session', requireAccountAuth, async (req, res) => {
+  try {
+    const { data: booking } = await supabase
+      .from('bookings')
+      .select('id, booking_code, customer_id, customers(email)')
+      .eq('id', req.params.id)
+      .single();
+    if (!booking || booking.customer_id !== req.account.customerId) {
+      return res.status(404).json({ error: 'Trip not found' });
+    }
+    const { issuePortalToken } = await import('../services/portalAuthService.js');
+    const token = issuePortalToken({
+      bookingId: booking.id,
+      bookingCode: booking.booking_code,
+      customerId: booking.customer_id,
+      email: booking.customers?.email,
+    });
+    res.json({ token });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
 /** GET /account/trips/:id/balance — server-authoritative outstanding balance. */
 router.get('/trips/:id/balance', requireAccountAuth, async (req, res) => {
   try {
     const { getTripBalance } = await import('../services/squarePortalCardsService.js');
     res.json(await getTripBalance(req.account.customerId, req.params.id));
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+/** GET /account/trips/:id/extension-quote?return_date=YYYY-MM-DD — price + availability, no charge. */
+router.get('/trips/:id/extension-quote', requireAccountAuth, async (req, res) => {
+  try {
+    const { quoteExtension } = await import('../services/squarePortalCardsService.js');
+    res.json(await quoteExtension(req.account.customerId, req.params.id, req.query.return_date));
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /account/trips/:id/extend — charge for and apply an extension.
+ * Body: { return_date, savedCardId | sourceId }.
+ */
+router.post('/trips/:id/extend', requireAccountAuth, async (req, res) => {
+  try {
+    const { chargeExtension } = await import('../services/squarePortalCardsService.js');
+    const result = await chargeExtension(req.account.customerId, req.params.id, {
+      newReturnDate: req.body?.return_date,
+      savedCardId: req.body?.savedCardId,
+      sourceId: req.body?.sourceId,
+    });
+    res.json(result);
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }

@@ -177,6 +177,71 @@ export const pauseRecurring = (id) => setStatus(id, 'paused');
 export const resumeRecurring = (id) => setStatus(id, 'active');
 export const cancelRecurring = (id) => setStatus(id, 'cancelled', { cancelled_at: new Date().toISOString() });
 
+/**
+ * Manually mark a recurring charge paid (admin reconciliation for send_link
+ * cycles the renter paid via the reusable link, or any cycle settled out-of-band).
+ * Records a ledger row when the plan is booking-linked and recovers a past_due
+ * plan once it has no remaining unpaid cycles. Idempotent.
+ */
+export async function markChargePaid(chargeId, { squarePaymentId = null } = {}) {
+  const { data: charge } = await supabase
+    .from('recurring_charges')
+    .select('*')
+    .eq('id', chargeId)
+    .single();
+  if (!charge) throw Object.assign(new Error('Charge not found'), { status: 404 });
+  if (charge.status === 'paid') return charge;
+
+  const { data: updated, error } = await supabase
+    .from('recurring_charges')
+    .update({
+      status: 'paid',
+      paid_at: new Date().toISOString(),
+      square_payment_id: squarePaymentId || charge.square_payment_id,
+    })
+    .eq('id', chargeId)
+    .select()
+    .single();
+  if (error) throw error;
+
+  const { data: plan } = await supabase
+    .from('recurring_rentals')
+    .select('id, booking_id, status')
+    .eq('id', charge.recurring_rental_id)
+    .single();
+
+  if (plan?.booking_id) {
+    await supabase.from('payments').insert({
+      booking_id: plan.booking_id,
+      amount: charge.amount,
+      payment_type: 'recurring',
+      method: 'square',
+      reference_id: squarePaymentId || `manual-${chargeId}`,
+      status: 'completed',
+      paid_at: new Date().toISOString(),
+      notes: `Recurring payment reconciled — ${charge.period_start}`,
+    });
+  }
+
+  // Recover a past-due plan once nothing is outstanding.
+  if (plan?.status === 'past_due') {
+    const { data: unpaid } = await supabase
+      .from('recurring_charges')
+      .select('id')
+      .eq('recurring_rental_id', plan.id)
+      .in('status', ['scheduled', 'failed', 'past_due'])
+      .limit(1);
+    if (!unpaid?.length) {
+      await supabase
+        .from('recurring_rentals')
+        .update({ status: 'active', updated_at: new Date().toISOString() })
+        .eq('id', plan.id);
+    }
+  }
+
+  return updated;
+}
+
 // ── Cron: process due cycles ─────────────────────────────────────────────────
 /** Charge/open every active|past_due plan whose next_charge_date has arrived. */
 export async function processDueRecurringCharges() {

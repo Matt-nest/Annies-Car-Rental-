@@ -11,7 +11,11 @@ import { useAccountAuth } from '../AccountAuthContext';
 import { getTrip, getTripBalance, type TripDetail, type TripBalance } from '../portalClient';
 import { statusMeta, vehicleName, fmtDate } from './tripStatus';
 import PaySheet from './PaySheet';
+import ExtendSheet from './ExtendSheet';
+import CheckInOutScreen from './CheckInOutScreen';
 import { brand } from '../../../../config/brand';
+
+const EXTENDABLE = new Set(['approved', 'confirmed', 'ready_for_pickup', 'active']);
 
 const money = (n?: number) => `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtTime = (t?: string) => {
@@ -25,7 +29,14 @@ export default function TripDetailScreen({ tripId, onBack }: { tripId: string; o
   const [trip, setTrip] = useState<TripDetail | null>(null);
   const [balance, setBalance] = useState<TripBalance | null>(null);
   const [paying, setPaying] = useState(false);
+  const [extending, setExtending] = useState(false);
+  const [checkMode, setCheckMode] = useState<'checkin' | 'checkout' | null>(null);
   const [error, setError] = useState('');
+
+  async function reloadTrip() {
+    if (!token) return;
+    try { setTrip(await getTrip(token, tripId)); } catch { /* keep current */ }
+  }
 
   async function loadBalance() {
     if (!token) return;
@@ -48,6 +59,18 @@ export default function TripDetailScreen({ tripId, onBack }: { tripId: string; o
   }, [token, tripId]);
 
   const accent = brand.colors.accent;
+
+  // Native check-in/out takes over the whole view.
+  if (checkMode && trip) {
+    return (
+      <CheckInOutScreen
+        tripId={tripId}
+        mode={checkMode}
+        onBack={() => setCheckMode(null)}
+        onDone={async () => { setCheckMode(null); await reloadTrip(); }}
+      />
+    );
+  }
 
   return (
     <div className="px-5 pt-5">
@@ -147,15 +170,35 @@ export default function TripDetailScreen({ tripId, onBack }: { tripId: string; o
             </button>
           )}
 
-          {/* Action CTA — bridges to the proven per-booking flow */}
-          {(trip.status === 'ready_for_pickup' || trip.status === 'active') && (
-            <a
-              href={`/portal?code=${encodeURIComponent(trip.booking_code)}`}
+          {/* Extend trip — for active/upcoming rentals */}
+          {EXTENDABLE.has(trip.status) && (
+            <button
+              onClick={() => setExtending(true)}
+              className="w-full py-3 rounded-xl text-sm font-semibold mt-2"
+              style={{ border: `1px solid ${accent}`, color: accent, background: 'transparent' }}
+            >
+              Extend trip
+            </button>
+          )}
+
+          {/* Native check-in / return */}
+          {trip.status === 'ready_for_pickup' && (
+            <button
+              onClick={() => setCheckMode('checkin')}
               className="block w-full text-center py-3 rounded-xl text-sm font-semibold mt-2"
               style={{ background: accent, color: '#0a0a0a' }}
             >
-              {trip.status === 'ready_for_pickup' ? 'Start check-in' : 'Return vehicle'}
-            </a>
+              Start check-in
+            </button>
+          )}
+          {trip.status === 'active' && (
+            <button
+              onClick={() => setCheckMode('checkout')}
+              className="block w-full text-center py-3 rounded-xl text-sm font-semibold mt-2"
+              style={{ background: accent, color: '#0a0a0a' }}
+            >
+              Return vehicle
+            </button>
           )}
 
           <p className="text-xs text-center mt-6 mb-2" style={{ color: 'var(--text-tertiary)' }}>
@@ -170,7 +213,20 @@ export default function TripDetailScreen({ tripId, onBack }: { tripId: string; o
               onPaid={async () => {
                 setPaying(false);
                 await loadBalance();
-                try { const t = await getTrip(token!, tripId); setTrip(t); } catch { /* keep current */ }
+                await reloadTrip();
+              }}
+            />
+          )}
+
+          {extending && (
+            <ExtendSheet
+              tripId={tripId}
+              currentReturnDate={trip.return_date}
+              onClose={() => setExtending(false)}
+              onExtended={async () => {
+                setExtending(false);
+                await reloadTrip();
+                await loadBalance();
               }}
             />
           )}

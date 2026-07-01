@@ -33,16 +33,12 @@ export async function verifyPortalAccess(bookingCode, email) {
     throw Object.assign(new Error('This booking is no longer active'), { status: 403 });
   }
 
-  const token = jwt.sign(
-    {
-      bookingId: booking.id,
-      bookingCode: booking.booking_code,
-      customerId: booking.customer_id,
-      email: booking.customers.email,
-    },
-    PORTAL_SECRET,
-    { expiresIn: TOKEN_EXPIRY }
-  );
+  const token = issuePortalToken({
+    bookingId: booking.id,
+    bookingCode: booking.booking_code,
+    customerId: booking.customer_id,
+    email: booking.customers.email,
+  });
 
   return {
     token,
@@ -53,6 +49,22 @@ export async function verifyPortalAccess(bookingCode, email) {
       customerName: `${booking.customers.first_name} ${booking.customers.last_name}`,
     },
   };
+}
+
+/**
+ * Issue a booking-scoped portal JWT (the token requirePortalAuth accepts).
+ * Used by verifyPortalAccess (code+email) and by the account portal to bridge a
+ * logged-in account session into the existing per-booking check-in/out flow.
+ */
+export function issuePortalToken({ bookingId, bookingCode, customerId, email }) {
+  if (!PORTAL_SECRET) {
+    throw Object.assign(new Error('Portal authentication not configured'), { status: 500 });
+  }
+  return jwt.sign(
+    { bookingId, bookingCode, customerId, email },
+    PORTAL_SECRET,
+    { expiresIn: TOKEN_EXPIRY }
+  );
 }
 
 /**

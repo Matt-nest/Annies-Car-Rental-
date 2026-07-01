@@ -11,22 +11,24 @@
  */
 import { lazy, Suspense, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Car, User, CreditCard, Loader2 } from 'lucide-react';
+import { Car, User, CreditCard, MessageSquare, Loader2 } from 'lucide-react';
 import { AccountAuthProvider, useAccountAuth } from './AccountAuthContext';
 import LoginScreen from './LoginScreen';
 import SetPasswordScreen from './SetPasswordScreen';
 import TripsScreen from './screens/TripsScreen';
 import TripDetailScreen from './screens/TripDetailScreen';
 import WalletScreen from './screens/WalletScreen';
+import MessagesScreen from './screens/MessagesScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import { brand } from '../../../config/brand';
 
 const LegacyPortal = lazy(() => import('../CustomerPortal'));
 
-type TabKey = 'trips' | 'wallet' | 'profile';
+type TabKey = 'trips' | 'wallet' | 'messages' | 'profile';
 const TABS: { key: TabKey; label: string; icon: any }[] = [
   { key: 'trips', label: 'Trips', icon: Car },
   { key: 'wallet', label: 'Wallet', icon: CreditCard },
+  { key: 'messages', label: 'Messages', icon: MessageSquare },
   { key: 'profile', label: 'Profile', icon: User },
 ];
 
@@ -73,6 +75,8 @@ function AuthedShell() {
               <TripsScreen onOpenTrip={setOpenTripId} />
             ) : tab === 'wallet' ? (
               <WalletScreen />
+            ) : tab === 'messages' ? (
+              <MessagesScreen />
             ) : (
               <ProfileScreen />
             )}

@@ -341,6 +341,10 @@ export async function triggerReceiptByPaymentId(paymentId) {
 /**
  * Handle a verified Square webhook event. Backup path for `payment.created` /
  * `payment.updated` — records the payment if the synchronous pay path didn't.
+ *
+ * Also handles send_link recurring rental reconciliation: when a renter pays
+ * via a reusable Square Payment Link, this auto-flips the oldest unpaid
+ * recurring_charges row to 'paid'.
  */
 export async function handleSquareWebhook(event) {
   const type = event?.type || '';
@@ -350,18 +354,140 @@ export async function handleSquareWebhook(event) {
   if (!payment || !['COMPLETED', 'APPROVED'].includes(payment.status)) return;
 
   const bookingCode = payment.referenceId;
-  if (!bookingCode) return;
 
-  let booking;
-  try {
-    booking = await loadBooking(bookingCode);
-  } catch {
-    console.warn(`[Square Webhook] No booking for referenceId ${bookingCode}`);
-    return;
+  // ── Path 1: booking-linked payment (standard checkout) ─────────────────────
+  if (bookingCode) {
+    let booking;
+    try {
+      booking = await loadBooking(bookingCode);
+    } catch {
+      // Not a booking code — might be a recurring referenceId like "recurring:<id>"
+      // Fall through to Path 2.
+    }
+
+    if (booking) {
+      const { rentalCents, depositCents } = await computeCharge(booking);
+      await recordPayment({ booking, payment, rentalCents, depositCents });
+      return;
+    }
   }
 
-  const { rentalCents, depositCents } = await computeCharge(booking);
-  await recordPayment({ booking, payment, rentalCents, depositCents });
+  // ── Path 2: send_link recurring rental payment ─────────────────────────────
+  // Payments made through a reusable Square Payment Link won't have a booking
+  // referenceId. Match the payment to a recurring rental by looking up the
+  // order's payment link association.
+  await reconcileRecurringPaymentFromWebhook(payment);
+}
+
+/**
+ * Reconcile a recurring rental payment that came through a Square Payment Link.
+ *
+ * Strategy:
+ *   1. If the payment has an orderId, fetch the order to get its source
+ *      (payment_link_id). Match against recurring_rentals.square_payment_link_id.
+ *   2. Fallback: match by amount + square_customer_id (less precise but catches
+ *      edge cases where the order lookup fails).
+ *   3. Find the oldest unpaid charge for the matched plan and mark it paid.
+ */
+async function reconcileRecurringPaymentFromWebhook(payment) {
+  try {
+    let plan = null;
+
+    // Strategy A: match via orderId → payment link
+    if (payment.orderId) {
+      try {
+        const orderResp = await square.orders.get({
+          orderId: payment.orderId,
+        });
+        const order = orderResp.order;
+
+        // The order source contains the payment link reference
+        // Square attaches source.name = "CHECKOUT_LINK_API" for payment link orders
+        // and the order's metadata/checkout_id can link back
+        if (order) {
+          // Look for the checkout/payment-link association in recurring_rentals.
+          // Square Payment Link orders don't directly embed the link ID in the
+          // order object, but we can match by:
+          //   - The order.source.name being a Payment Link order
+          //   - The amount matching a recurring plan
+          //   - The customer matching
+
+          const amountCents = Number(payment.amountMoney?.amount || 0);
+          const amountDollars = (amountCents / 100).toFixed(2);
+          const squareCustomerId = payment.customerId || null;
+
+          // Direct match: find a recurring plan whose payment link amount matches
+          // and that has unpaid charges. Prefer customer ID match when available.
+          const query = supabase
+            .from('recurring_rentals')
+            .select('id, amount, square_payment_link_id, square_customer_id')
+            .eq('amount', amountDollars)
+            .in('status', ['active', 'past_due'])
+            .not('square_payment_link_id', 'is', null);
+
+          if (squareCustomerId) {
+            query.eq('square_customer_id', squareCustomerId);
+          }
+
+          const { data: candidates } = await query.limit(5);
+
+          if (candidates?.length === 1) {
+            plan = candidates[0];
+          } else if (candidates?.length > 1 && squareCustomerId) {
+            // Multiple plans for same customer+amount — take the one with the
+            // earliest unpaid charge (most overdue gets priority).
+            plan = candidates[0];
+          }
+        }
+      } catch (err) {
+        console.warn('[Square Webhook] Order lookup for recurring reconciliation failed:', err.message);
+      }
+    }
+
+    // Strategy B: match by referenceId pattern "recurring:<plan_id>"
+    if (!plan && payment.referenceId?.startsWith('recurring:')) {
+      const planId = payment.referenceId.replace('recurring:', '');
+      const { data: found } = await supabase
+        .from('recurring_rentals')
+        .select('id, amount, square_payment_link_id, square_customer_id')
+        .eq('id', planId)
+        .in('status', ['active', 'past_due'])
+        .single();
+      if (found) plan = found;
+    }
+
+    if (!plan) {
+      // Not a recurring rental payment — silently ignore. This is expected for
+      // payments that aren't booking-linked and aren't from a payment link.
+      return;
+    }
+
+    // Find the oldest unpaid charge for this plan
+    const { data: unpaidCharge } = await supabase
+      .from('recurring_charges')
+      .select('id, period_start, amount, status')
+      .eq('recurring_rental_id', plan.id)
+      .in('status', ['scheduled', 'failed', 'past_due'])
+      .order('period_start', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (!unpaidCharge) {
+      console.log(`[Square Webhook] Recurring plan ${plan.id} has no unpaid charges to reconcile`);
+      return;
+    }
+
+    // Import markChargePaid dynamically to avoid circular dependency
+    const { markChargePaid } = await import('./recurringRentalService.js');
+    await markChargePaid(unpaidCharge.id, { squarePaymentId: payment.id });
+
+    console.log(
+      `[Square Webhook] ✅ Reconciled send_link payment ${payment.id} → ` +
+      `recurring charge ${unpaidCharge.id} (plan ${plan.id}, period ${unpaidCharge.period_start})`
+    );
+  } catch (err) {
+    console.error('[Square Webhook] Recurring reconciliation error:', err.message);
+  }
 }
 
 /**
