@@ -3,6 +3,7 @@ import { Crown, Star, Award, Medal, Users, TrendingUp, ChevronRight } from 'luci
 import { supabase } from '../auth/supabaseClient';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import DataError from '../components/shared/DataError';
 
 const BASE = import.meta.env.VITE_API_URL || '/api/v1';
 
@@ -11,7 +12,10 @@ async function authFetch(path) {
   const res = await fetch(`${BASE}${path}`, {
     headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
   });
-  if (!res.ok) throw new Error('Request failed');
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || err.message || err.detail || 'Request failed');
+  }
   return res.json();
 }
 
@@ -48,13 +52,16 @@ export default function LoyaltyPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterTier, setFilterTier] = useState('all');
+  const [error, setError] = useState('');
 
   const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
     try {
       const res = await authFetch('/loyalty/customers');
       setData(res);
     } catch (e) {
-      console.error('[Loyalty]', e);
+      setError(e.message || 'Failed to load loyalty data.');
     } finally {
       setLoading(false);
     }
@@ -104,8 +111,10 @@ export default function LoyaltyPage() {
         <p className="text-sm text-[var(--text-tertiary)] mt-0.5">Repeat customers receive automatic discounts at booking</p>
       </div>
 
+      <DataError error={error} onRetry={load} />
+
       {/* Tier stats */}
-      <div className="flex gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {Object.entries(TIER_META).map(([key]) => (
           <StatCard key={key} tier={key} count={breakdown[key] || 0} />
         ))}

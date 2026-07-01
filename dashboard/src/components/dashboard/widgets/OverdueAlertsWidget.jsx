@@ -51,6 +51,7 @@ export default function OverdueAlertsWidget() {
   // booking (still 'active') re-derives and the alert reappears every refresh.
   const [dismissed, setDismissed] = useState(loadDismissed);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const dismiss = useCallback((id) => {
     setDismissed((prev) => {
@@ -62,6 +63,7 @@ export default function OverdueAlertsWidget() {
 
   const load = useCallback(() => {
     setLoading(true);
+    setError('');
     api.getBookings({ status: 'active', limit: 100 })
       .then((res) => {
         const list = Array.isArray(res) ? res : (res?.data || []);
@@ -72,13 +74,24 @@ export default function OverdueAlertsWidget() {
         });
         setOverdueBookings(overdue);
       })
-      .catch(console.error)
+      .catch((e) => setError(e.message || 'Failed to load overdue returns.'))
       .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
   const visible = overdueBookings.filter((b) => !dismissed.has(b.id));
+
+  // Surface load failures instead of silently hiding the widget.
+  if (!loading && visible.length === 0 && error) {
+    return (
+      <div className="rounded-xl px-5 py-3.5 flex items-center gap-2.5" style={{ backgroundColor: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
+        <AlertTriangle size={14} style={{ color: '#ef4444' }} />
+        <span className="text-xs flex-1" style={{ color: 'var(--text-secondary)' }}>Couldn't load overdue returns — {error}</span>
+        <button onClick={load} className="text-xs font-semibold hover:opacity-70" style={{ color: '#ef4444' }}>Retry</button>
+      </div>
+    );
+  }
 
   // Don't render the widget at all when there's nothing to show
   if (!loading && visible.length === 0) return null;

@@ -135,9 +135,12 @@ export default function KPICardsWidget() {
   const [overview, setOverview] = useState(null);
   const [dailyRev, setDailyRev] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError('');
     Promise.all([
       cachedQuery('overview', () => api.getOverview()),
       cachedQuery('revenue-daily-14', () => api.getRevenue({ period: 'daily', days: 14 }).catch(() => [])),
@@ -148,9 +151,11 @@ export default function KPICardsWidget() {
           setDailyRev(rev.map((r) => ({ v: Number(r.total || r.amount || 0), date: r.date })));
         }
       })
-      .catch(console.error)
+      .catch((e) => setError(e.message || 'Failed to load overview.'))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   if (loading) {
     return (
@@ -163,6 +168,16 @@ export default function KPICardsWidget() {
             <div className="h-7 w-24 rounded skeleton" />
           </div>
         ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-2xl px-5 py-4 flex items-center gap-3"
+        style={{ backgroundColor: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
+        <span className="text-sm flex-1" style={{ color: 'var(--text-secondary)' }}>Couldn't load today's stats — {error}</span>
+        <button onClick={load} className="text-xs font-semibold hover:opacity-70" style={{ color: 'var(--danger-color, #ef4444)' }}>Retry</button>
       </div>
     );
   }

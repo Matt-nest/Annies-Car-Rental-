@@ -348,6 +348,24 @@ export default function PendingApprovalsWidget() {
     );
   }
 
+  if (error) {
+    return (
+      <div data-widget="pending-approvals" style={{
+        background: 'var(--bg-card, #fff)', borderRadius: 16, padding: '16px 20px',
+        border: '1px solid rgba(239,68,68,0.25)', display: 'flex', alignItems: 'center', gap: 10,
+      }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>Couldn't load pending approvals</p>
+          <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', margin: 0 }}>{error.message || 'Please try again.'}</p>
+        </div>
+        <button onClick={load} style={{
+          padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border-subtle)',
+          background: 'var(--bg-card)', color: 'var(--text-secondary)', fontSize: '11px', fontWeight: 600, cursor: 'pointer',
+        }}>Retry</button>
+      </div>
+    );
+  }
+
   return (
     <>
       <motion.div

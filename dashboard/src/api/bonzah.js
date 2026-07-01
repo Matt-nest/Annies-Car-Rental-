@@ -20,7 +20,7 @@ async function request(path, options = {}) {
   const res = await fetch(`${BASE}${path}`, { ...options, headers });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw Object.assign(new Error(err.error || 'Request failed'), { status: res.status, data: err });
+    throw Object.assign(new Error(err.error || err.message || err.detail || 'Request failed'), { status: res.status, data: err });
   }
   return res.json();
 }

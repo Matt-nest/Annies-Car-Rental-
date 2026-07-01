@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Plus, Trash2, ToggleLeft, ToggleRight, Percent, CalendarRange, X } from 'lucide-react';
 import { supabase } from '../auth/supabaseClient';
 import { motion, AnimatePresence } from 'framer-motion';
+import DataError from '../components/shared/DataError';
 
 const BASE = import.meta.env.VITE_API_URL || '/api/v1';
 
@@ -17,7 +18,7 @@ async function authFetch(path, options = {}) {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || 'Request failed');
+    throw new Error(err.error || err.message || err.detail || 'Request failed');
   }
   return res.json();
 }
@@ -156,13 +157,17 @@ export default function PricingRulesPage() {
   const [modal, setModal] = useState(null); // null | { mode: 'create' } | { mode: 'edit', rule }
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
 
   const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
     try {
       const data = await authFetch('/pricing-rules');
       setRules(data);
     } catch (e) {
-      console.error('[PricingRules]', e);
+      setError(e.message || 'Failed to load pricing rules.');
     } finally {
       setLoading(false);
     }
@@ -172,6 +177,7 @@ export default function PricingRulesPage() {
 
   const handleSave = async (form) => {
     setSaving(true);
+    setActionError('');
     try {
       if (modal?.mode === 'edit') {
         const updated = await authFetch(`/pricing-rules/${modal.rule.id}`, {
@@ -186,30 +192,32 @@ export default function PricingRulesPage() {
       }
       setModal(null);
     } catch (e) {
-      console.error('[PricingRules] save:', e);
+      setActionError(e.message || 'Failed to save pricing rule.');
     } finally {
       setSaving(false);
     }
   };
 
   const toggleActive = async (rule) => {
+    setActionError('');
     try {
       const updated = await authFetch(`/pricing-rules/${rule.id}`, {
         method: 'PATCH', body: JSON.stringify({ active: !rule.active }),
       });
       setRules(prev => prev.map(r => r.id === updated.id ? updated : r));
     } catch (e) {
-      console.error('[PricingRules] toggle:', e);
+      setActionError(e.message || 'Failed to toggle pricing rule.');
     }
   };
 
   const handleDelete = async (id) => {
     setDeletingId(id);
+    setActionError('');
     try {
       await authFetch(`/pricing-rules/${id}`, { method: 'DELETE' });
       setRules(prev => prev.filter(r => r.id !== id));
     } catch (e) {
-      console.error('[PricingRules] delete:', e);
+      setActionError(e.message || 'Failed to delete pricing rule.');
     } finally {
       setDeletingId(null);
     }
@@ -313,6 +321,9 @@ export default function PricingRulesPage() {
         </button>
       </div>
 
+      <DataError error={error} onRetry={load} />
+      <DataError error={actionError} />
+
       {/* Active banner */}
       {activeNow.length > 0 && (
         <div className="rounded-xl px-4 py-3 border border-amber-500/30 bg-amber-500/10 text-sm text-amber-500">
@@ -324,7 +335,7 @@ export default function PricingRulesPage() {
 
       {loading ? (
         <div className="text-sm text-[var(--text-tertiary)] py-8 text-center">Loading…</div>
-      ) : rules.length === 0 ? (
+      ) : (rules.length === 0 && error) ? null : rules.length === 0 ? (
         <div className="rounded-xl border border-dashed border-[var(--border-subtle)] py-16 text-center">
           <Percent size={32} className="mx-auto mb-3 text-[var(--text-tertiary)] opacity-40" />
           <p className="text-sm font-medium text-[var(--text-secondary)]">No pricing rules yet</p>

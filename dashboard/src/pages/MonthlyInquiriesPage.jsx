@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react';
 import { Phone, Mail, Car, Calendar, Clock, CheckCircle2, XCircle, MessageSquare } from 'lucide-react';
 import { api } from '../api/client';
 import { SkeletonDashboard } from '../components/shared/Skeleton';
+import DataError from '../components/shared/DataError';
 import { format, parseISO } from 'date-fns';
 
 const STATUS_OPTIONS = ['new', 'contacted', 'converted', 'closed'];
 const STATUS_COLORS = {
   new:       { bg: 'rgba(212,175,55,0.12)',  text: '#D4AF37',  border: 'rgba(212,175,55,0.3)' },
   contacted: { bg: 'rgba(99,179,237,0.08)',  text: '#63b3ed',  border: 'rgba(99,179,237,0.2)' },
-  booked:    { bg: 'rgba(34,197,94,0.08)',   text: '#22c55e',  border: 'rgba(34,197,94,0.2)'  },
+  converted: { bg: 'rgba(34,197,94,0.08)',   text: '#22c55e',  border: 'rgba(34,197,94,0.2)'  },
   closed:    { bg: 'rgba(148,163,184,0.08)', text: '#94a3b8',  border: 'rgba(148,163,184,0.2)' },
 };
 
@@ -31,15 +32,18 @@ export default function MonthlyInquiriesPage() {
   const [updatingId, setUpdatingId] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
   const [noteInputs, setNoteInputs] = useState({});
+  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
 
   async function load() {
     setLoading(true);
+    setError('');
     try {
       const params = statusFilter !== 'all' ? { status: statusFilter } : {};
       const data = await api.getMonthlyInquiries(params);
       setInquiries(data || []);
     } catch (e) {
-      console.error(e);
+      setError(e.message || 'Failed to load inquiries.');
     }
     setLoading(false);
   }
@@ -48,21 +52,23 @@ export default function MonthlyInquiriesPage() {
 
   async function updateStatus(id, newStatus) {
     setUpdatingId(id);
+    setActionError('');
     try {
       await api.updateMonthlyInquiry(id, { status: newStatus });
       setInquiries(prev => prev.map(i => i.id === id ? { ...i, status: newStatus } : i));
-    } catch (e) { console.error(e); }
+    } catch (e) { setActionError(e.message || 'Failed to update status.'); }
     setUpdatingId(null);
   }
 
   async function saveNotes(id) {
     const notes = noteInputs[id] ?? '';
     setUpdatingId(id);
+    setActionError('');
     try {
       await api.updateMonthlyInquiry(id, { notes });
       setInquiries(prev => prev.map(i => i.id === id ? { ...i, notes } : i));
       setExpandedId(null);
-    } catch (e) { console.error(e); }
+    } catch (e) { setActionError(e.message || 'Failed to save notes.'); }
     setUpdatingId(null);
   }
 
@@ -89,6 +95,9 @@ export default function MonthlyInquiriesPage() {
         </div>
         <button onClick={load} className="btn-ghost text-xs py-1.5 px-3">Refresh</button>
       </div>
+
+      <DataError error={error} onRetry={load} />
+      <DataError error={actionError} />
 
       {/* Status filter */}
       <div className="flex gap-2 flex-wrap">

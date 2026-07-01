@@ -2,14 +2,15 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import StatusBadge from '../components/shared/StatusBadge';
-import { ArrowUpFromLine, ArrowDownToLine, Car, Calendar, Clock, ChevronRight, Search } from 'lucide-react';
+import DataError from '../components/shared/DataError';
+import { ArrowUpFromLine, ArrowDownToLine, Car, Calendar, Clock, ChevronRight, Search, AlertTriangle } from 'lucide-react';
 import { format, isToday, isTomorrow, isYesterday, parseISO } from 'date-fns';
 
 export default function CheckInsPage() {
   const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('today'); // 'today' | 'upcoming' | 'past'
+  const [error, setError] = useState('');
 
   useEffect(() => {
     loadBookings();
@@ -17,11 +18,12 @@ export default function CheckInsPage() {
 
   async function loadBookings() {
     setLoading(true);
+    setError('');
     try {
       const result = await api.getBookings({ limit: 200 });
       // API returns { data: [...], total, limit, offset }
       setBookings(Array.isArray(result) ? result : (result?.data || []));
-    } catch (e) { console.error(e); }
+    } catch (e) { setError(e.message || 'Failed to load bookings.'); }
     setLoading(false);
   }
 
@@ -30,6 +32,10 @@ export default function CheckInsPage() {
   // Categorize bookings
   const pickups = bookings.filter(b => b.pickup_date && ['confirmed', 'ready_for_pickup', 'approved'].includes(b.status));
   const returns = bookings.filter(b => b.return_date && ['active'].includes(b.status));
+
+  // Overdue = handoffs/returns whose date has already passed but status hasn't advanced.
+  const overduePickups = pickups.filter(b => b.pickup_date < today);
+  const overdueReturns = returns.filter(b => b.return_date < today);
 
   const todayPickups = pickups.filter(b => b.pickup_date === today);
   const todayReturns = returns.filter(b => b.return_date === today);
@@ -105,6 +111,25 @@ export default function CheckInsPage() {
         <h1 className="text-2xl font-bold text-[var(--text-primary)]">Check-Ins & Check-Outs</h1>
         <p className="text-sm text-[var(--text-tertiary)] mt-1">Manage today's vehicle handoffs and returns</p>
       </div>
+
+      <DataError error={error} onRetry={loadBookings} />
+
+      {/* Overdue — missed handoffs/returns that fell off the schedule */}
+      {(overduePickups.length > 0 || overdueReturns.length > 0) && (
+        <section>
+          <div className="flex items-center gap-2 mb-4">
+            <AlertTriangle size={16} className="text-red-500" />
+            <h2 className="text-lg font-semibold text-red-500">Overdue</h2>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/10 text-red-500 font-semibold">
+              {overduePickups.length + overdueReturns.length}
+            </span>
+          </div>
+          <div className="space-y-3">
+            {overduePickups.map(b => <BookingRow key={`op-${b.id}`} booking={b} type="pickup" />)}
+            {overdueReturns.map(b => <BookingRow key={`or-${b.id}`} booking={b} type="return" />)}
+          </div>
+        </section>
+      )}
 
       {/* Today's Activity */}
       <section>

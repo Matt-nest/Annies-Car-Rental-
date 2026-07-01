@@ -5,6 +5,36 @@
 
 ---
 
+## 2026-07-01 — Dashboard audit Batch 2: kill silent failures (error/retry everywhere)
+
+**Why:** The audit's biggest systemic issue — dozens of loaders did `catch(console.error)` then rendered an empty state, so when the API/network was down the operator saw "no data / all clear" instead of a failure. This batch normalizes API errors and surfaces load/action failures with retry across the daily surfaces. Same branch as Batch 1.
+
+### Foundation
+- **`dashboard/src/components/shared/DataError.jsx`** — now accepts an optional `onRetry` (renders a Retry button) and tolerates an Error object or string. Backward compatible with existing string-only usages.
+- **`api/client.js`, `api/brands.js`, `api/bonzah.js`, `api/bouncie.js`** — error extraction widened from `err.error` to `err.error || err.message || err.detail || 'Request failed'` so backends returning `{message}`/`{detail}` surface real text instead of a generic "Request failed".
+
+### Widgets (were hiding / showing zeros on error)
+- **PendingCounterSignWidget** — added load `error` (compact error+Retry card instead of `return null`) and surfaced counter-sign submit failures in the modal.
+- **PendingApprovalsWidget** — renders its already-tracked `error` as an error+Retry card instead of an empty approvals shell.
+- **OverdueAlertsWidget** — load failures show an error+Retry strip instead of silently hiding overdue returns.
+- **KPICardsWidget**, **MorningBriefingWidget** — load failures show an error+Retry banner instead of $0/zeros.
+
+### Pages (were showing false "empty" states on load failure)
+- **CheckInsPage** — load error+Retry; also added an **Overdue** section (missed handoffs/returns whose date passed but status hasn't advanced) — previously invisible. Removed dead `filter` state.
+- **ReviewsPage**, **MonthlyInquiriesPage** — load error + action error surfacing. Monthly Inquiries also fixes a status-color mismatch (`booked` → `converted`, matching the option list).
+- **WebhookFailuresPage** — load error+Retry instead of "No webhook failures recorded" on failure.
+- **PricingRulesPage**, **LoyaltyPage** — improved their local `authFetch` error extraction; load + action error surfacing. Loyalty stat cards now use a responsive grid (were overflowing on mobile).
+- **CustomersPage**, **FleetPage**, **CalendarPage** — load error+Retry; empty state suppressed on error. Fleet add/quick-status failures surfaced. Calendar `STATUS_COLORS` extended (ready_for_pickup/declined/cancelled/no_show).
+- **VehicleDetailPage** — fixed invalid `rented` status-dot Tailwind class (`bg-[rgba(...)]0` → `bg-[#63b3ed]`).
+
+### Build Status
+- [x] `cd dashboard && npm run build` — clean.
+
+### Follow-up
+- Batches 3 (mobile ops flow: dead CTAs, unify check-in, global alert pills, checkout refresh) and 4 (modal a11y/dirty guard, insurance retry, messaging feedback) still pending.
+
+---
+
 ## 2026-07-01 — Dashboard audit Batch 1: money & access critical fixes
 
 **Why:** Full audit of the admin dashboard surfaced several money/access-critical bugs. This batch fixes the ones that block admins or risk mishandled charges. Branch: `cursor/dashboard-critical-fixes-ea62` off `integration/unify-all-functionality`.

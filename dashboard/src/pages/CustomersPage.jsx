@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { api } from '../api/client';
 import { SkeletonTable } from '../components/shared/Skeleton';
 import EmptyState from '../components/shared/EmptyState';
+import DataError from '../components/shared/DataError';
 import { format } from 'date-fns';
 
 const EASE = [0.25, 1, 0.5, 1];
@@ -12,20 +13,23 @@ const EASE = [0.25, 1, 0.5, 1];
 export default function CustomersPage() {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [q, setQ] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
     const timeout = setTimeout(async () => {
       setLoading(true);
+      setError('');
       try {
         const data = await api.getCustomers({ q });
         setCustomers(data);
-      } catch (e) { console.error(e); }
+      } catch (e) { setError(e.message || 'Failed to load customers.'); }
       setLoading(false);
     }, 300);
     return () => clearTimeout(timeout);
-  }, [q]);
+  }, [q, reloadKey]);
 
   return (
     <div className="p-6 lg:p-8 space-y-6">
@@ -54,10 +58,12 @@ export default function CustomersPage() {
         />
       </div>
 
+      <DataError error={error} onRetry={() => setReloadKey(k => k + 1)} />
+
       {/* Grid */}
       {loading ? (
         <SkeletonTable rows={6} cols={4} />
-      ) : customers.length === 0 ? (
+      ) : error ? null : customers.length === 0 ? (
         <EmptyState
           icon={Users}
           title="No customers found"

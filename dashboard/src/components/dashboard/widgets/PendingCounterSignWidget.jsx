@@ -98,17 +98,20 @@ function SignaturePad({ sigRef }) {
 export default function PendingCounterSignWidget() {
   const [pending, setPending] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [signingId, setSigningId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [signError, setSignError] = useState('');
   const [signedId, setSignedId] = useState(null);
   const sigRef = useRef(null);
   const navigate = useNavigate();
   const { refresh: refreshAlerts } = useAlerts();
 
   const loadPending = useCallback(() => {
+    setError('');
     api.getPendingCounterSign()
       .then(data => setPending(data || []))
-      .catch(() => {})
+      .catch((e) => setError(e.message || 'Failed to load agreements.'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -117,6 +120,7 @@ export default function PendingCounterSignWidget() {
   const handleSign = async (bookingId) => {
     if (!sigRef.current || sigRef.current.isEmpty()) return;
     setSubmitting(true);
+    setSignError('');
     try {
       await api.counterSignAgreement(bookingId, sigRef.current.toDataURL('image/png'));
       setSignedId(bookingId);
@@ -127,7 +131,7 @@ export default function PendingCounterSignWidget() {
         loadPending();
       }, 2000);
     } catch (e) {
-      console.error('Counter-sign failed:', e);
+      setSignError(e.message || 'Counter-sign failed. Please try again.');
     }
     setSubmitting(false);
   };
@@ -140,6 +144,25 @@ export default function PendingCounterSignWidget() {
         minHeight: 120, display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
         <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Loading agreements...</div>
+      </div>
+    );
+  }
+
+  if (pending.length === 0 && error) {
+    return (
+      <div style={{
+        background: 'var(--bg-card, #fff)', borderRadius: 16, padding: '16px 20px',
+        border: '1px solid rgba(239,68,68,0.25)', display: 'flex', alignItems: 'center', gap: 10,
+      }}>
+        <PenLine size={15} style={{ color: 'var(--danger-color, #ef4444)' }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>Couldn't load agreements to counter-sign</p>
+          <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', margin: 0 }}>{error}</p>
+        </div>
+        <button onClick={loadPending} style={{
+          padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border-subtle)',
+          background: 'var(--bg-card)', color: 'var(--text-secondary)', fontSize: '11px', fontWeight: 600, cursor: 'pointer',
+        }}>Retry</button>
       </div>
     );
   }
@@ -238,7 +261,7 @@ export default function PendingCounterSignWidget() {
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      onClick={(e) => { e.stopPropagation(); setSigningId(ag.booking_id); }}
+                      onClick={(e) => { e.stopPropagation(); setSignError(''); setSigningId(ag.booking_id); }}
                       style={{
                         padding: '6px 14px', borderRadius: 8, border: 'none',
                         background: 'linear-gradient(135deg, #465FFF 0%, #465FFF 100%)',
@@ -338,6 +361,9 @@ export default function PendingCounterSignWidget() {
                   }}>
                     <SignaturePad sigRef={sigRef} />
                   </div>
+                  {signError && (
+                    <p style={{ fontSize: '12px', color: 'var(--danger-color, #ef4444)', marginBottom: 12 }}>{signError}</p>
+                  )}
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button
                       onClick={() => sigRef.current?.clear()}

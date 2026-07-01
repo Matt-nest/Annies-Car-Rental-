@@ -2,18 +2,21 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { api } from '../api/client';
 import { SkeletonDashboard } from '../components/shared/Skeleton';
+import DataError from '../components/shared/DataError';
 import { format, formatDistanceToNow } from 'date-fns';
 
 export default function WebhookFailuresPage() {
   const [failures, setFailures] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   async function load() {
     setLoading(true);
+    setError('');
     try {
       const data = await api.getWebhookFailures(100);
       setFailures(data);
-    } catch (e) { console.error(e); }
+    } catch (e) { setError(e.message || 'Failed to load webhook failures.'); }
     setLoading(false);
   }
 
@@ -33,7 +36,9 @@ export default function WebhookFailuresPage() {
         </button>
       </div>
 
-      {failures.length === 0 ? (
+      <DataError error={error} onRetry={load} />
+
+      {error ? null : failures.length === 0 ? (
         <div className="card p-10 text-center">
           <AlertTriangle size={28} className="text-[var(--text-tertiary)] mx-auto mb-3" />
           <p className="text-[var(--text-secondary)] text-sm">No webhook failures recorded</p>

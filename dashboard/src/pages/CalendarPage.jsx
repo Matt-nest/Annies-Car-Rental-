@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { api } from '../api/client';
 import { SkeletonChartCard } from '../components/shared/Skeleton';
 import EmptyState from '../components/shared/EmptyState';
+import DataError from '../components/shared/DataError';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, isToday, isSameMonth, isSameDay } from 'date-fns';
 
 const EASE = [0.25, 1, 0.5, 1];
@@ -12,10 +13,14 @@ const EASE = [0.25, 1, 0.5, 1];
 const STATUS_COLORS = {
   pending_approval: '#f59e0b',
   approved:         '#63b3ed',
+  ready_for_pickup: '#0ea5e9',
   confirmed:        '#22c55e',
   active:           '#22c55e',
   returned:         '#a78bfa',
   completed:        '#a8a29e',
+  declined:         '#ef4444',
+  cancelled:        '#ef4444',
+  no_show:          '#ef4444',
   blocked:          '#737373',
 };
 
@@ -26,6 +31,8 @@ export default function CalendarPage() {
   const [month, setMonth] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(new Date());
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
   const navigate = useNavigate();
 
   // Keep the mobile day-agenda's selected day inside the displayed month:
@@ -37,6 +44,7 @@ export default function CalendarPage() {
   useEffect(() => {
     async function load() {
       setLoading(true);
+      setError('');
       try {
         const [vs, bs] = await Promise.all([
           api.getVehicles(),
@@ -50,11 +58,11 @@ export default function CalendarPage() {
         setBookings(bs.data || bs);
         const blockedResults = await Promise.all(vs.map(v => api.getBlockedDates(v.id).catch(() => [])));
         setBlocked(blockedResults.flat());
-      } catch (e) { console.error(e); }
+      } catch (e) { setError(e.message || 'Failed to load calendar.'); }
       setLoading(false);
     }
     load();
-  }, [month]);
+  }, [month, reloadKey]);
 
   const days = eachDayOfInterval({ start: startOfMonth(month), end: endOfMonth(month) });
 
@@ -137,10 +145,12 @@ export default function CalendarPage() {
         </div>
       </div>
 
+      <DataError error={error} onRetry={() => setReloadKey(k => k + 1)} />
+
       {/* Gantt */}
       {loading ? (
         <SkeletonChartCard height={400} />
-      ) : vehicles.length === 0 ? (
+      ) : error ? null : vehicles.length === 0 ? (
         <EmptyState icon={Calendar} title="No vehicles" description="Add vehicles to see the fleet calendar." />
       ) : (
         <>

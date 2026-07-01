@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Sun, Sunset, Moon, ArrowUpFromLine, ArrowDownToLine,
@@ -37,24 +37,42 @@ export default function MorningBriefingWidget() {
   const [overview, setOverview] = useState(null);
   const [upcoming, setUpcoming] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
   const { label: greeting, Icon: TimeIcon, phase } = getTimeContext();
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError('');
     Promise.all([
       cachedQuery('overview', () => api.getOverview()),
       cachedQuery('upcoming', () => api.getUpcoming()),
     ])
       .then(([ov, up]) => { setOverview(ov); setUpcoming(up); })
-      .catch(console.error)
+      .catch((e) => setError(e.message || 'Failed to load your briefing.'))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   if (loading) {
     return (
       <div className="liquid-glass p-5 space-y-3 animate-pulse" style={{ minHeight: 80 }}>
         <div className="h-5 w-48 rounded-lg" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }} />
         <div className="h-4 w-64 rounded-lg" style={{ backgroundColor: 'rgba(255,255,255,0.04)' }} />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="liquid-glass p-5 flex items-center gap-3" style={{ minHeight: 80 }}>
+        <TimeIcon size={20} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{greeting}</p>
+          <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Couldn't load today's numbers — {error}</p>
+        </div>
+        <button onClick={load} className="text-xs font-semibold hover:opacity-70 shrink-0" style={{ color: 'var(--accent-color)' }}>Retry</button>
       </div>
     );
   }

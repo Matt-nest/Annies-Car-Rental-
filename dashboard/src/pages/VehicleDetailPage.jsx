@@ -20,7 +20,7 @@ function resolveThumb(url) {
 const STATUS_OPTIONS = ['available', 'turo', 'maintenance', 'retired'];
 const STATUS_COLORS = {
   available:   'bg-green-500',
-  rented:      'bg-[rgba(99,179,237,0.07)]0',
+  rented:      'bg-[#63b3ed]',
   turo:        'bg-indigo-500',
   maintenance: 'bg-amber-500',
   retired:     'bg-stone-400',

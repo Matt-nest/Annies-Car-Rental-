@@ -6,6 +6,7 @@ import { api } from '../api/client';
 import StatusBadge from '../components/shared/StatusBadge';
 import { SkeletonFleetGrid, SkeletonKpi } from '../components/shared/Skeleton';
 import EmptyState from '../components/shared/EmptyState';
+import DataError from '../components/shared/DataError';
 import Modal from '../components/shared/Modal';
 import DamageSummaryWidget from '../components/dashboard/widgets/DamageSummaryWidget';
 import brand from '../config/brand';
@@ -28,6 +29,8 @@ const EMPTY_VEHICLE = {
 export default function FleetPage() {
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
   const [filter, setFilter] = useState({ status: '', q: '' });
   const [addModal, setAddModal] = useState(false);
   const [addForm, setAddForm] = useState({ ...EMPTY_VEHICLE });
@@ -54,8 +57,9 @@ export default function FleetPage() {
 
   async function loadVehicles() {
     setLoading(true);
+    setError('');
     try { setVehicles(await api.getVehicles()); }
-    catch (e) { console.error(e); }
+    catch (e) { setError(e.message || 'Failed to load fleet.'); }
     setLoading(false);
   }
 
@@ -93,7 +97,7 @@ export default function FleetPage() {
       clearImageFile();
       setImageMode('upload');
       await loadVehicles();
-    } catch (e) { console.error(e); }
+    } catch (e) { setActionError(e.message || 'Failed to add vehicle.'); }
     setAdding(false);
     setUploading(false);
   }
@@ -101,10 +105,11 @@ export default function FleetPage() {
   async function handleQuickStatus(vehicleId, newStatus, e) {
     e.stopPropagation();
     setStatusDropdown(null);
+    setActionError('');
     try {
       await api.updateVehicleStatus(vehicleId, newStatus);
       setVehicles(vs => vs.map(v => v.id === vehicleId ? { ...v, status: newStatus } : v));
-    } catch (err) { console.error(err); }
+    } catch (err) { setActionError(err.message || 'Failed to update vehicle status.'); }
   }
 
   const filtered = vehicles.filter(v => {
@@ -204,6 +209,9 @@ export default function FleetPage() {
         </select>
       </div>
 
+      <DataError error={error} onRetry={loadVehicles} />
+      <DataError error={actionError} />
+
       {/* Stats bar */}
       {loading ? (
         <SkeletonKpi count={5} />
@@ -231,7 +239,7 @@ export default function FleetPage() {
       {/* Vehicle grid */}
       {loading ? (
         <SkeletonFleetGrid />
-      ) : filtered.length === 0 ? (
+      ) : error ? null : filtered.length === 0 ? (
         <EmptyState
           icon={Car}
           title="No vehicles found"

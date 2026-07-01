@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Star, CheckCircle2, XCircle, Trash2, Clock } from 'lucide-react';
 import { api } from '../api/client';
 import { SkeletonDashboard } from '../components/shared/Skeleton';
+import DataError from '../components/shared/DataError';
 import { format, parseISO } from 'date-fns';
 
 function StarDisplay({ rating }) {
@@ -26,9 +27,12 @@ export default function ReviewsPage() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('pending');
   const [updatingId, setUpdatingId] = useState(null);
+  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
 
   async function load() {
     setLoading(true);
+    setError('');
     try {
       const [p, a] = await Promise.all([
         api.getReviewsPending(),
@@ -36,7 +40,7 @@ export default function ReviewsPage() {
       ]);
       setPending(p || []);
       setApproved(a || []);
-    } catch (e) { console.error(e); }
+    } catch (e) { setError(e.message || 'Failed to load reviews.'); }
     setLoading(false);
   }
 
@@ -44,30 +48,33 @@ export default function ReviewsPage() {
 
   async function approve(id) {
     setUpdatingId(id);
+    setActionError('');
     try {
       await api.updateReview(id, { approved: true });
       const item = pending.find(r => r.id === id);
       setPending(prev => prev.filter(r => r.id !== id));
       if (item) setApproved(prev => [{ ...item, approved: true }, ...prev]);
-    } catch (e) { console.error(e); }
+    } catch (e) { setActionError(e.message || 'Failed to approve review.'); }
     setUpdatingId(null);
   }
 
   async function reject(id) {
     setUpdatingId(id);
+    setActionError('');
     try {
       await api.deleteReview(id);
       setPending(prev => prev.filter(r => r.id !== id));
-    } catch (e) { console.error(e); }
+    } catch (e) { setActionError(e.message || 'Failed to reject review.'); }
     setUpdatingId(null);
   }
 
   async function remove(id) {
     setUpdatingId(id);
+    setActionError('');
     try {
       await api.deleteReview(id);
       setApproved(prev => prev.filter(r => r.id !== id));
-    } catch (e) { console.error(e); }
+    } catch (e) { setActionError(e.message || 'Failed to remove review.'); }
     setUpdatingId(null);
   }
 
@@ -95,6 +102,9 @@ export default function ReviewsPage() {
         </div>
         <button onClick={load} className="btn-ghost text-xs py-1.5 px-3">Refresh</button>
       </div>
+
+      <DataError error={error} onRetry={load} />
+      <DataError error={actionError} />
 
       {/* Tabs */}
       <div className="flex gap-2">
