@@ -27,7 +27,7 @@ router.get('/overview', requireAuth, asyncHandler(async (req, res) => {
     supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'pending_approval'),
     supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'active'),
     supabase.from('bookings').select('id, booking_code, pickup_time, customers(first_name, last_name), vehicles(year, make, model)')
-      .eq('pickup_date', todayStr).in('status', ['approved', 'confirmed']),
+      .eq('pickup_date', todayStr).in('status', ['approved', 'confirmed', 'ready_for_pickup']),
     supabase.from('bookings').select('id, booking_code, return_time, customers(first_name, last_name), vehicles(year, make, model)')
       .eq('return_date', todayStr).eq('status', 'active'),
     // Revenue from CONFIRMED payments only (not booking estimates)
@@ -265,7 +265,7 @@ router.get('/upcoming', requireAuth, asyncHandler(async (req, res) => {
     supabase.from('bookings')
       .select('*, customers(first_name, last_name, phone), vehicles(year, make, model)')
       .gte('pickup_date', todayStr).lte('pickup_date', in7Days)
-      .in('status', ['approved', 'confirmed'])
+      .in('status', ['approved', 'confirmed', 'ready_for_pickup'])
       .order('pickup_date'),
     supabase.from('bookings')
       .select('*, customers(first_name, last_name, phone), vehicles(year, make, model)')
