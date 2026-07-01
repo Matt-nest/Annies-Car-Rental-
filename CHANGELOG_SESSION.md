@@ -5,6 +5,20 @@
 
 ---
 
+## 2026-07-01 — Dashboard mobile refinement pass (ported from JD Coastal)
+
+Ported the self-contained subset of JD Coastal's mobile refinement pass. Annie's dashboard lacks JD's newer mobile foundation (no `BottomNav`, `useMediaQuery`, `lib/animation`, or safe-area CSS utilities), so foundation-dependent items were **not** ported; everything below is framework-agnostic (Framer + inline `env()` + Tailwind). No API / schema / auth / `globals.css` variable changes. `vite build` clean.
+
+- **Global reduced-motion** — wrapped the app in Framer `<MotionConfig reducedMotion="user">` ([main.jsx](dashboard/src/main.jsx)) so all motion honors the OS "Reduce Motion" toggle. Manually gated the two infinite **SVG SMIL** chart pulses + Recharts entrance animations on `useReducedMotion` in [RevenueTrendWidget](dashboard/src/components/dashboard/widgets/RevenueTrendWidget.jsx) and [RevenuePage](dashboard/src/pages/RevenuePage.jsx).
+- **Overflow fix** — `NotificationDropdown` fixed `380px` → clamps to `100vw − 1.5rem` (max 380, `sm:` restores design width); max-height 70vh. Revenue Monthly Lead Funnel `grid-cols-4` → `grid-cols-2 sm:grid-cols-4`.
+- **Safe-area insets** (inline `env()`, since Annie's globals lacks the `.safe-*` utilities) on `GlobalSearch` mobile overlay, `QuickActionModal`, and the active-rental modal.
+- **Responsive headers** — Bookings/Fleet headers `flex-wrap` so title + buttons never crush at 320px.
+- **Touch reachability** — Fleet "Send booking link" (was `opacity-0 group-hover` only) now revealed on `(hover:none)` devices; Bookings mobile approve/decline bumped 40px → 44px.
+- **Truncation guards** on CheckIns metadata row + Customers email.
+- **Not ported** (needs foundation first): BottomNav, safe-area CSS utilities, page-transition/scroll-restoration layout, per-widget `useMediaQuery` chart density, page-shaped Suspense fallback (Annie's eager-loads pages, so it has no broad lazy-route jank to fix).
+
+---
+
 ## 2026-06-14 — Port JD Coastal booking-flow upgrades (dedicated Scan step + summary redesign)
 
 Ports the full set from JD Coastal (verified there first): dedicated live-camera ID **Scan step**, Rental Summary redesign, redundant-scanner removal, draft versioning, and skip-when-scanned.
