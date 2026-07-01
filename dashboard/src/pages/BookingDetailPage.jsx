@@ -205,6 +205,59 @@ function ConditionPhotosSection({ records, onView }) {
 }
 
 /* ────────────────────────────────────────────────────────
+   Rental Extensions — customer-initiated, self-contained fetch.
+   Renders nothing until at least one extension exists, so it stays
+   invisible on the vast majority of bookings.
+   ──────────────────────────────────────────────────────── */
+function RentalExtensionsSection({ bookingId }) {
+  const [rows, setRows] = useState([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await api.getBookingExtensions(bookingId);
+        if (!cancelled) setRows(Array.isArray(data) ? data : []);
+      } catch { /* table may not be migrated yet — stay hidden */ }
+    })();
+    return () => { cancelled = true; };
+  }, [bookingId]);
+
+  if (rows.length === 0) return null;
+
+  const statusColor = (s) => (
+    s === 'paid' ? 'text-[#22c55e]'
+    : s === 'failed' ? 'text-[var(--danger-color)]'
+    : s === 'cancelled' ? 'text-[var(--text-tertiary)]'
+    : 'text-amber-500'
+  );
+
+  return (
+    <Section title="Rental Extensions">
+      <div className="space-y-2">
+        {rows.map(x => (
+          <div key={x.id} className="flex justify-between items-start text-sm py-1.5 border-b border-[var(--border-subtle)] last:border-0">
+            <div>
+              <p className="font-medium text-[var(--text-primary)]">
+                +{x.additional_days} day{x.additional_days === 1 ? '' : 's'} · {format(new Date(x.previous_return_date), 'MMM d')} → {format(new Date(x.new_return_date), 'MMM d, yyyy')}
+              </p>
+              <div className="flex items-center gap-2 text-xs text-[var(--text-tertiary)]">
+                <span className={`capitalize font-medium ${statusColor(x.status)}`}>{x.status.replace('_', ' ')}</span>
+                <span>·</span>
+                <span className="capitalize">{(x.created_by || 'customer').split(':')[0]}</span>
+                {x.created_at && <><span>·</span><span>{new Date(x.created_at).toLocaleDateString()}</span></>}
+              </div>
+            </div>
+            <span className="font-semibold tabular-nums text-[#22c55e]">
+              +${(Number(x.amount_cents || 0) / 100).toFixed(2)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+/* ────────────────────────────────────────────────────────
    Main Component
    ──────────────────────────────────────────────────────── */
 export default function BookingDetailPage() {
@@ -809,6 +862,9 @@ function OverviewTab({ booking, c, v, id, load, setModal, setPaymentForm, setLig
           </button>
         </div>
       </Section>
+
+      {/* Rental Extensions (customer-initiated) — hidden unless any exist */}
+      <RentalExtensionsSection bookingId={id} />
 
       {/* Vehicle Condition */}
       {(booking.pickup_mileage || booking.return_mileage) && (

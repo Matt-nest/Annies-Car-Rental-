@@ -54,6 +54,7 @@ export const api = {
   recordReturn: (id, body) => request(`/bookings/${id}/return`, { method: 'POST', body: JSON.stringify(body) }),
   completeBooking: (id) => request(`/bookings/${id}/complete`, { method: 'POST' }),
   getBookingTimeline: (id) => request(`/bookings/${id}/timeline`),
+  getBookingExtensions: (id) => request(`/bookings/${id}/extensions`),
   approveInsurance: (bookingId) => request(`/bookings/${bookingId}/approve-insurance`, { method: 'POST', body: JSON.stringify({ action: 'approve' }) }),
   rejectInsurance: (bookingId, reason) => request(`/bookings/${bookingId}/approve-insurance`, { method: 'POST', body: JSON.stringify({ action: 'reject', reason }) }),
 
