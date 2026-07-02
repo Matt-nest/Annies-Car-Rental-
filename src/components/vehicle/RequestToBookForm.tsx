@@ -250,8 +250,12 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
 
       if (response.ok) {
         const result = await response.json();
-        setRefCode(result.booking_code);
-        setIsSuccess(true);
+        // Route the customer straight into the booking wizard (agreement →
+        // insurance → review → payment). It holds at the approval gate, which
+        // shows the "awaiting approval" message with the process — instead of
+        // dead-ending on a "Request Received" screen here.
+        window.location.href = `/confirm?ref=${result.booking_code}`;
+        return;
       } else {
         const errData = await response.json().catch(() => ({}));
         if (response.status === 409) {
