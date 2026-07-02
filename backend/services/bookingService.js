@@ -306,7 +306,10 @@ export async function createBooking(payload) {
   // Guarded by tests/booking-submitted-contract.test.js.
   const fullBooking = { ...booking, customers: customer, vehicles: vehicle };
   if (notify_customer) {
-    sendBookingNotification('booking_submitted', buildBookingPayload(fullBooking));
+    // Awaited so the email→SMS→push fan-out completes inside the request
+    // lifecycle — an un-awaited call gets frozen when the Vercel lambda returns,
+    // which delayed/dropped the admin "new booking" push. Never throws.
+    await sendBookingNotification('booking_submitted', buildBookingPayload(fullBooking));
     sendBookingConfirmation({
       customer,
       booking,
@@ -444,7 +447,9 @@ export async function transitionBooking(bookingId, newStatus, { changedBy = 'own
       handoffRecord = prepRecord;
     }
 
-    sendBookingNotification(stageMap[newStatus], buildBookingPayload(updated, { handoffRecord }));
+    // Awaited so the approval/decline push lands within this request instead of
+    // being frozen with the serverless lambda after the response returns.
+    await sendBookingNotification(stageMap[newStatus], buildBookingPayload(updated, { handoffRecord }));
   }
 
   // Dashboard notification for status changes

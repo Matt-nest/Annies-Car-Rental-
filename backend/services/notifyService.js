@@ -494,6 +494,7 @@ export function buildBookingPayload(booking, { handoffRecord } = {}) {
   const v = booking.vehicles || {};
   return {
     customer_id: booking.customer_id,
+    booking_id: booking.id,
     booking_code: booking.booking_code,
     status: booking.status,
     customer: {
@@ -681,7 +682,17 @@ export async function sendBookingNotification(stage, bookingPayload) {
     // booking submission. The static test in `tests/booking-submitted-contract.test.js`
     // guards against this regression.
     const skipEmail = stage === 'booking_submitted';
+
+    // Dispatch every channel concurrently so the fastest one (web push) isn't
+    // blocked behind Resend/Twilio round-trips. Each task keeps its own
+    // try/catch; Promise.allSettled below is a second safety net so one channel
+    // can never reject the batch. The whole batch is awaited before this
+    // function returns (and awaited at the call site) so the serverless lambda
+    // can't freeze mid-send — the historical cause of late/dropped push.
+    const dispatchTasks = [];
+
     if (!skipEmail && (channel === 'email' || channel === 'both') && customer.email) {
+      dispatchTasks.push((async () => {
       try {
         await sendEmail({
           to: customer.email,
@@ -691,10 +702,12 @@ export async function sendBookingNotification(stage, bookingPayload) {
       } catch (e) {
         console.error(`[Notify] Email send error for "${stage}":`, e.message);
       }
+      })());
     }
 
     // Send SMS
     if ((channel === 'sms' || channel === 'both') && customer.phone && rendered.sms_body) {
+      dispatchTasks.push((async () => {
       try {
         await sendSMS({
           to: customer.phone,
@@ -703,6 +716,7 @@ export async function sendBookingNotification(stage, bookingPayload) {
       } catch (e) {
         console.error(`[Notify] SMS send error for "${stage}":`, e.message);
       }
+      })());
     }
 
     // Sprint 12c: Web Push fan-out — non-blocking, additive to email/SMS.
@@ -725,6 +739,7 @@ export async function sendBookingNotification(stage, bookingPayload) {
     // (network, bad VAPID config, etc.) never affects the email/SMS path
     // already completed above OR the storeSystemMessage call below.
     if (bookingPayload.customer_id) {
+      dispatchTasks.push((async () => {
       try {
         const pushBody =
           rendered.sms_body ||
@@ -751,14 +766,16 @@ export async function sendBookingNotification(stage, bookingPayload) {
       } catch (e) {
         console.error(`[Notify] Push send error for "${stage}":`, e.message);
       }
+      })());
     }
 
     /* Sprint 18: Admin push fan-out — only for stages in ADMIN_PUSH_STAGES.
      * Failure-isolated so admin push errors never affect the customer dispatch
      * paths above or the storeSystemMessage call below. */
     if (ADMIN_PUSH_STAGES.has(stage)) {
+      dispatchTasks.push((async () => {
       try {
-        const customerName = [bookingPayload.first_name, bookingPayload.last_name]
+        const customerName = [bookingPayload.customer?.first_name, bookingPayload.customer?.last_name]
           .filter(Boolean).join(' ') || 'a customer';
         const bookingCode = bookingPayload.booking_code || '';
         const adminBody = `${ADMIN_PUSH_SUMMARIES[stage]} — ${customerName}${bookingCode ? ` (${bookingCode})` : ''}`;
@@ -779,7 +796,12 @@ export async function sendBookingNotification(stage, bookingPayload) {
       } catch (e) {
         console.error(`[Notify] Admin push send error for "${stage}":`, e.message);
       }
+      })());
     }
+
+    // Wait for every channel to finish before returning so the serverless
+    // lambda isn't frozen mid-dispatch. Promise.allSettled never rejects.
+    await Promise.allSettled(dispatchTasks);
 
     // Store local copy in messages table
     await storeSystemMessage(stage, bookingPayload);
