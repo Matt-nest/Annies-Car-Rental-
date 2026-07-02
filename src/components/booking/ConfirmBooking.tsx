@@ -334,6 +334,194 @@ function PaymentForm({
 }
 
 /* ────────────────────────────────────────────────────────
+   Approval gate — persists the signed agreement + insurance choice, then holds
+   the customer at "awaiting approval" until an admin approves the request.
+   Payment (Square or Stripe, via renderReady) only renders once the booking is
+   approved, so no card is charged ahead of approval. Enforced server-side too
+   (the payment endpoints reject pending_approval bookings).
+   ──────────────────────────────────────────────────────── */
+function PaymentGate({
+  refCode,
+  draft,
+  bookingSummary,
+  onBack,
+  renderReady,
+}: {
+  refCode: string;
+  draft: WizardDraft;
+  bookingSummary: any;
+  onBack: () => void;
+  renderReady: () => React.ReactNode;
+}) {
+  // 'persisting' → saving agreement + insurance; 'awaiting' → pending approval;
+  // 'ready' → approved, show payment; 'error' → persist failed / declined.
+  const [phase, setPhase] = useState<'persisting' | 'awaiting' | 'ready' | 'error'>('persisting');
+  const [error, setError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+  const persistedRef = useRef(false);
+
+  const fetchStatus = useCallback(async (): Promise<string | null> => {
+    try {
+      const res = await fetch(`${API_URL}/bookings/status/${refCode}`);
+      if (!res.ok) return null;
+      const json = await res.json();
+      return json.status || null;
+    } catch {
+      return null;
+    }
+  }, [refCode]);
+
+  const persistAndGate = useCallback(async () => {
+    setError(null);
+    setPhase('persisting');
+    try {
+      // 1. Persist the signed agreement (idempotent — backend returns alreadySigned)
+      const agreementPayload = {
+        address_line1: draft.address.line1,
+        city: draft.address.city,
+        state: draft.address.state,
+        zip: draft.address.zip,
+        date_of_birth: draft.dob,
+        driver_license_number: draft.license.number,
+        driver_license_state: draft.license.state,
+        driver_license_expiry: draft.license.expiry,
+        insurance_company: draft.personalInsurance.company || null,
+        insurance_policy_number: draft.personalInsurance.policyNumber || null,
+        insurance_expiry: draft.personalInsurance.expiry || null,
+        insurance_agent_name: draft.personalInsurance.agentName || null,
+        insurance_agent_phone: draft.personalInsurance.agentPhone || null,
+        insurance_vehicle_description: draft.personalInsurance.vehicleDescription || null,
+        signature_data: draft.signature.data,
+        signature_type: draft.signature.mode === 'draw' ? 'drawn' : 'typed',
+        license_photo_paths: draft.licensePhotoPaths?.length ? draft.licensePhotoPaths : undefined,
+      };
+      const agRes = await fetch(`${API_URL}/agreements/${refCode}/sign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(agreementPayload),
+      });
+      const agJson = await agRes.json();
+      if (!agRes.ok && !agJson.alreadySigned) {
+        throw new Error(agJson.error || 'Failed to submit agreement');
+      }
+
+      // 2. Persist the insurance choice
+      const insurancePayload: any = { source: draft.insuranceChoice };
+      if (draft.insuranceChoice === 'bonzah') insurancePayload.tier_id = draft.bonzahTierId;
+      const insRes = await fetch(`${API_URL}/bookings/${refCode}/insurance`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(insurancePayload),
+      });
+      if (!insRes.ok) {
+        const insJson = await insRes.json();
+        throw new Error(insJson.error || 'Failed to record insurance');
+      }
+
+      // 3. Gate on approval status
+      const status = await fetchStatus();
+      setPhase(status === 'approved' ? 'ready' : 'awaiting');
+    } catch (e: any) {
+      setError(e.message || 'Something went wrong');
+      setPhase('error');
+    }
+  }, [draft, refCode, fetchStatus]);
+
+  // Persist once when the gate first mounts
+  useEffect(() => {
+    if (persistedRef.current) return;
+    persistedRef.current = true;
+    persistAndGate();
+  }, [persistAndGate]);
+
+  // Poll for approval while awaiting so the page advances on its own
+  useEffect(() => {
+    if (phase !== 'awaiting') return;
+    const id = window.setInterval(async () => {
+      const status = await fetchStatus();
+      if (status === 'approved') setPhase('ready');
+      else if (status === 'declined' || status === 'cancelled') {
+        setError(`This booking has been ${status}.`);
+        setPhase('error');
+      }
+    }, 12000);
+    return () => window.clearInterval(id);
+  }, [phase, fetchStatus]);
+
+  const handleCheckNow = async () => {
+    setChecking(true);
+    const status = await fetchStatus();
+    setChecking(false);
+    if (status === 'approved') setPhase('ready');
+  };
+
+  // ── Persisting ──
+  if (phase === 'persisting') {
+    return (
+      <div className="rounded-2xl border p-8 text-center space-y-3"
+        style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+        <Loader2 className="animate-spin mx-auto" size={24} style={{ color: 'var(--accent-color)' }} />
+        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Finalizing your request…</p>
+      </div>
+    );
+  }
+
+  // ── Error / declined ──
+  if (phase === 'error') {
+    return (
+      <div className="rounded-2xl border p-6 text-center space-y-4"
+        style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+        <AlertCircle size={36} style={{ color: '#ef4444' }} className="mx-auto" />
+        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{error}</p>
+        <div className="flex gap-3 justify-center">
+          <button type="button" onClick={onBack}
+            className="px-6 py-3 rounded-full font-medium border cursor-pointer"
+            style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)', backgroundColor: 'transparent' }}>Back</button>
+          <button type="button" onClick={persistAndGate}
+            className="px-6 py-3 rounded-full font-medium cursor-pointer"
+            style={{ backgroundColor: 'var(--accent-color)', color: 'var(--accent-fg)' }}>Try again</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Awaiting approval ──
+  if (phase === 'awaiting') {
+    return (
+      <div className="rounded-2xl border p-6 sm:p-8 text-center space-y-4"
+        style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+        <div className="w-14 h-14 rounded-full mx-auto flex items-center justify-center"
+          style={{ backgroundColor: 'color-mix(in srgb, var(--accent-color) 12%, transparent)' }}>
+          <Loader2 className="animate-spin" size={24} style={{ color: 'var(--accent-color)' }} />
+        </div>
+        <h2 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>Awaiting Approval</h2>
+        <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+          We’ve received everything and your request is with our team for approval.
+          As soon as it’s approved we’ll email you a secure link to complete payment
+          and lock in your dates — this page will update automatically too.
+        </p>
+        <div className="rounded-xl border p-3 text-sm"
+          style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
+          Ref <span className="font-mono font-bold">{refCode}</span>
+          {bookingSummary?.vehicle ? <> · {bookingSummary.vehicle}</> : null}
+        </div>
+        <button type="button" onClick={handleCheckNow} disabled={checking}
+          className="px-6 py-3 rounded-full font-medium cursor-pointer inline-flex items-center gap-2 disabled:opacity-60"
+          style={{ backgroundColor: 'var(--accent-color)', color: 'var(--accent-fg)' }}>
+          {checking ? <><Loader2 className="animate-spin" size={16} /> Checking…</> : 'Check again'}
+        </button>
+        <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+          <Phone size={12} className="inline mr-1" /> Questions? Call {PHONE_NUMBER}
+        </p>
+      </div>
+    );
+  }
+
+  // ── Ready: approved → render the active provider's payment UI ──
+  return <>{renderReady()}</>;
+}
+
+/* ────────────────────────────────────────────────────────
    Main Orchestrator
    ──────────────────────────────────────────────────────── */
 export default function ConfirmBooking() {
@@ -644,50 +832,60 @@ export default function ConfirmBooking() {
                 />
               )}
 
-              {/* ═══ Stage 4: Payment ═══ */}
-              {draft.stage === 4 && PAYMENT_PROVIDER === 'square' && (
-                <SquareCheckoutForm
-                  bookingSummary={bookingSummary}
+              {/* ═══ Stage 4: Approval gate → Payment ═══ */}
+              {draft.stage === 4 && (
+                <PaymentGate
+                  refCode={refCode}
                   draft={draft}
-                  depositAmount={depositAmount}
-                  bookingCode={refCode}
+                  bookingSummary={bookingSummary}
                   onBack={() => goToStage(3)}
-                  onSuccess={() => setConfirmed(true)}
-                  theme={theme}
-                />
-              )}
-              {draft.stage === 4 && PAYMENT_PROVIDER === 'stripe' && (
-                (() => {
-                  // Compute amount for Stripe Elements initialization
-                  let insCost = 0;
-                  if (draft.insuranceChoice === 'bonzah' && draft.bonzahQuote) {
-                    insCost = draft.bonzahQuote.total_cents / 100;
-                  }
-                  const totalCents = Math.round(((bookingSummary?.totalCost || af.totalCost || 0) + insCost + depositAmount) * 100);
+                  renderReady={() => (
+                    <>
+                      {PAYMENT_PROVIDER === 'square' && (
+                        <SquareCheckoutForm
+                          bookingSummary={bookingSummary}
+                          draft={draft}
+                          depositAmount={depositAmount}
+                          bookingCode={refCode}
+                          onBack={() => goToStage(3)}
+                          onSuccess={() => setConfirmed(true)}
+                          theme={theme}
+                        />
+                      )}
+                      {PAYMENT_PROVIDER === 'stripe' && (() => {
+                        // Compute amount for Stripe Elements initialization
+                        let insCost = 0;
+                        if (draft.insuranceChoice === 'bonzah' && draft.bonzahQuote) {
+                          insCost = draft.bonzahQuote.total_cents / 100;
+                        }
+                        const totalCents = Math.round(((bookingSummary?.totalCost || af.totalCost || 0) + insCost + depositAmount) * 100);
 
-                  return (
-                    <Elements
-                      stripe={stripePromise}
-                      options={{
-                        mode: 'payment',
-                        amount: totalCents || 50000, // fallback min
-                        currency: 'usd',
-                        appearance: buildStripeAppearance(theme),
-                      }}
-                    >
-                      <PaymentForm
-                        bookingSummary={bookingSummary}
-                        draft={draft}
-                        depositAmount={depositAmount}
-                        bookingCode={refCode}
-                        onUpdate={updateDraft}
-                        onBack={() => goToStage(3)}
-                        onSuccess={() => setConfirmed(true)}
-                        theme={theme}
-                      />
-                    </Elements>
-                  );
-                })()
+                        return (
+                          <Elements
+                            stripe={stripePromise}
+                            options={{
+                              mode: 'payment',
+                              amount: totalCents || 50000, // fallback min
+                              currency: 'usd',
+                              appearance: buildStripeAppearance(theme),
+                            }}
+                          >
+                            <PaymentForm
+                              bookingSummary={bookingSummary}
+                              draft={draft}
+                              depositAmount={depositAmount}
+                              bookingCode={refCode}
+                              onUpdate={updateDraft}
+                              onBack={() => goToStage(3)}
+                              onSuccess={() => setConfirmed(true)}
+                              theme={theme}
+                            />
+                          </Elements>
+                        );
+                      })()}
+                    </>
+                  )}
+                />
               )}
             </motion.div>
           </AnimatePresence>

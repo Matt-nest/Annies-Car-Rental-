@@ -38,6 +38,18 @@ export async function createPaymentIntent(bookingCode, { expected_total_cents } 
     throw Object.assign(new Error('This booking has been ' + booking.status), { status: 400 });
   }
 
+  // Approval gate: block the actual payment until an admin approves. The Pay
+  // action passes expected_total_cents; the wizard's load-time summary fetch
+  // does NOT, so it still returns pricing + status to drive the gated UI.
+  // Website bookings sit at 'pending_approval'; admin-created ones are born
+  // 'approved'. Enforced server-side so a tampered client can't pay early.
+  if (expected_total_cents != null && booking.status === 'pending_approval') {
+    throw Object.assign(
+      new Error('This booking is awaiting owner approval. You’ll receive a secure link to complete payment once it’s approved.'),
+      { status: 403 }
+    );
+  }
+
   // Check if there's already a PaymentIntent for this booking.
   // Step 1: Check our DB first (authoritative after webhook records payment).
   const { data: existingPayment } = await supabase
@@ -428,17 +440,10 @@ export async function handleWebhookEvent(event) {
         { booking_id: bookingId, amount: pi.amount / 100 }
       ).catch(() => {});
 
-      // Check for auto-confirm. Admin-created bookings (created_by_admin=true)
-      // skip the manual approval step — the admin already vetted the request
-      // when they sent the customer the continue-booking link.
-      let booking = await getBookingDetail(bookingId).catch(() => null);
-      if (booking && booking.status === 'pending_approval' && booking.created_by_admin) {
-        await transitionBooking(bookingId, 'approved', {
-          changedBy: 'system',
-          reason: 'Auto-approved on payment success (admin-created booking)',
-        }).catch(e => console.error('[Auto-Approve Error]', e));
-        booking = await getBookingDetail(bookingId).catch(() => booking);
-      }
+      // Auto-confirm: payment only reaches here for already-approved bookings
+      // (the approval gate blocks pending_approval), so a completed payment + a
+      // signed agreement transitions the booking to 'confirmed'.
+      const booking = await getBookingDetail(bookingId).catch(() => null);
       if (booking && booking.status === 'approved') {
         const { data: agreement } = await supabase
           .from('rental_agreements')
