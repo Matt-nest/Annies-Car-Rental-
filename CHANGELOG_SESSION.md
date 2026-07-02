@@ -3416,4 +3416,30 @@ All decisions listed below were verified present in source:
 
 ---
 
+## 2026-07-02 — Approval-before-payment gate (both Annie's + JD Coastal)
+
+### Goal
+Move the admin approve/deny checkpoint to sit **right before payment**: customer completes the full wizard (agreement → insurance → review), the signed request is persisted, then it waits for admin approval; on approval the customer gets the continue-link email and pays. No card is charged before approval.
+
+### Changes Made (Annie's — mirrored to JD Coastal)
+- **`backend/services/bookingService.js`**: Admin-created bookings (`created_by_admin`) are now born `status:'approved'` (with `owner_approved_at`) so walk-ins/phone bookings skip the gate. Removed the trusted-customer auto-approve block — **every** website booking now requires explicit approval.
+- **`backend/services/stripeService.js`**: `createPaymentIntent` rejects (`403`) a `pending_approval` booking **only when `expected_total_cents` is present** (the actual Pay action) — the wizard's load-time summary fetch has no `expected_total_cents` so it still returns pricing + status. Removed the now-dead admin auto-approve-on-payment block from the webhook.
+- **`backend/services/squareService.js`** (Annie's only): `createPayment` rejects (`403`) `pending_approval`. Removed the admin auto-approve-on-payment block.
+- **`backend/routes/cron.js`**: The 48h auto-decline now targets **`approved` + `owner_approved_at`** (the payment deadline / "link sent" moment) instead of `pending_approval` + `created_at`. Added a guard that skips any booking with a completed rental payment. `pending_approval` bookings no longer auto-expire — admin owns clearing them.
+- **Customer site `src/components/booking/ConfirmBooking.tsx`**: New `PaymentGate` at stage 4 — persists the signed agreement + insurance (idempotent), then gates on status: `awaiting` (polls `GET /bookings/status/:code` every 12s + "Check again") until `approved`, then renders the Stripe payment form. Agreement/insurance submission was removed from `handlePayNow` (the gate does it now).
+
+### API/Data Impact
+- No schema change — `owner_approved_at` already existed (set by `transitionBooking` on approve). No new endpoints (reused public `GET /bookings/status/:bookingCode`).
+
+### Build Status
+- [x] Annie's backend + JD backend — `node --check` clean on all edited files
+- [x] Both customer sites — `tsc` clean in ConfirmBooking + `npm run build` succeeds
+- Pre-existing (unrelated) tsc errors in Annie's site `App.tsx`/`ErrorBoundary.tsx` (React 19 typing) — untouched
+
+### Known Issues / Follow-up
+- **Return after approval:** the wizard draft lives in `sessionStorage`, so a customer returning via the approval email in a *new* session re-enters stages 1–3 (nothing is lost server-side — agreement/insurance are already persisted and the backend returns `alreadySigned`). Full server-state hydration on return is a deferred enhancement.
+- Not yet committed. `PAYMENT_PROVIDER=square` is live for Annie's; both provider paths were gated.
+
+---
+
 <!-- Add new sessions above this line, newest first -->

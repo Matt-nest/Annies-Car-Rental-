@@ -80,6 +80,17 @@ export async function createPayment(bookingCode, { sourceToken, verificationToke
     throw Object.assign(new Error('This booking has been ' + booking.status), { status: 400 });
   }
 
+  // Approval gate: payment is blocked until an admin approves the request.
+  // Website bookings sit at 'pending_approval' until then; admin-created
+  // bookings are born 'approved'. Enforced server-side so a tampered client
+  // can't pay ahead of approval.
+  if (booking.status === 'pending_approval') {
+    throw Object.assign(
+      new Error('This booking is awaiting owner approval. You’ll receive a secure link to complete payment once it’s approved.'),
+      { status: 403 }
+    );
+  }
+
   // Idempotency / double-charge guard — provider-agnostic. If a completed rental
   // payment already exists for this booking, don't charge again.
   const { data: existingPayment } = await supabase
@@ -240,15 +251,10 @@ async function recordPayment({ booking, payment, rentalCents, depositCents }) {
     { booking_id: bookingId, amount: totalDollars }
   ).catch(() => {});
 
-  // Auto-confirm (admin-created bookings auto-approve on payment)
-  let fresh = await getBookingDetail(bookingId).catch(() => null);
-  if (fresh && fresh.status === 'pending_approval' && fresh.created_by_admin) {
-    await transitionBooking(bookingId, 'approved', {
-      changedBy: 'system',
-      reason: 'Auto-approved on payment success (admin-created booking)',
-    }).catch(e => console.error('[Auto-Approve Error]', e));
-    fresh = await getBookingDetail(bookingId).catch(() => fresh);
-  }
+  // Auto-confirm: payment only reaches here for already-approved bookings (the
+  // approval gate blocks pending_approval), so a completed payment + a signed
+  // agreement transitions the booking to 'confirmed'.
+  const fresh = await getBookingDetail(bookingId).catch(() => null);
   if (fresh && fresh.status === 'approved') {
     const { data: agreement } = await supabase
       .from('rental_agreements')
