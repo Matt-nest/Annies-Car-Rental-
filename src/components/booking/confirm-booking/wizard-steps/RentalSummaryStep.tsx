@@ -1,6 +1,6 @@
 import React from 'react';
-import { Car, Calendar, DollarSign, MapPin, Truck } from 'lucide-react';
-import { formatCurrency, formatDate, type WizardDraft } from '../constants';
+import { Car } from 'lucide-react';
+import { formatCurrency, formatDate } from '../constants';
 
 interface Props {
   autoFilled: any;

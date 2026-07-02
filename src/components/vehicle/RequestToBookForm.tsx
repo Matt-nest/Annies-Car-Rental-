@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  ArrowRight, ArrowLeft, CheckCircle2, Loader2, AlertCircle, Check,
+  ArrowRight, ArrowLeft, Loader2, AlertCircle, Check,
   Infinity, ChevronLeft, ChevronRight, Calendar as CalendarIcon,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -138,8 +138,6 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [refCode, setRefCode] = useState('');
   const [submitError, setSubmitError] = useState('');
 
   // Wizard navigation state
@@ -395,75 +393,6 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
           </p>
         </div>
       </div>
-    );
-  }
-
-  // ── Cool confirmation UI ────────────────────────────────────────────────────
-  if (isSuccess) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, scale: 0.96 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-        className="relative rounded-3xl border p-8 text-center space-y-6 overflow-hidden"
-        style={glassCard}
-      >
-        <div
-          className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 h-56 w-56 rounded-full blur-3xl"
-          style={{ background: 'radial-gradient(circle, var(--accent-color), transparent 70%)', opacity: isDark ? 0.3 : 0.45 }}
-        />
-        <div className="relative">
-          <motion.div
-            initial={{ scale: 0, rotate: -20 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ type: 'spring', stiffness: 200, damping: 14, delay: 0.1 }}
-            className="w-16 h-16 rounded-full flex items-center justify-center mx-auto"
-            style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)', boxShadow: '0 8px 30px color-mix(in srgb, var(--accent-color) 45%, transparent)' }}
-          >
-            <CheckCircle2 size={32} />
-          </motion.div>
-          <h3 className="text-2xl font-medium mt-6">Request Received</h3>
-          <p className="leading-relaxed max-w-sm mx-auto mt-2" style={{ color: 'var(--text-secondary)' }}>
-            Your booking reference is <strong className="font-mono tracking-wider">{refCode}</strong>. You'll need this to complete your booking. We'll review your request and get back to you shortly.
-          </p>
-          <div
-            className="rounded-xl border p-4 space-y-2 text-sm mt-6 text-left"
-            style={subPanel}
-          >
-            <div className="flex justify-between">
-              <span style={{ color: 'var(--text-tertiary)' }}>Reference</span>
-              <span className="font-mono font-bold tracking-wider">{refCode}</span>
-            </div>
-            <div className="flex justify-between">
-              <span style={{ color: 'var(--text-tertiary)' }}>Vehicle</span>
-              <span className="font-medium">{getVehicleDisplayName(vehicle)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span style={{ color: 'var(--text-tertiary)' }}>Dates</span>
-              <span className="font-medium">{prettyDate(formData.startDate)} – {prettyDate(formData.endDate)}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span style={{ color: 'var(--text-tertiary)' }}>Status</span>
-              <span
-                className="px-3 py-0.5 rounded-full text-[10px] uppercase tracking-widest font-bold"
-                style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)' }}
-              >
-                Under Review
-              </span>
-            </div>
-          </div>
-          <p className="text-xs mt-6" style={{ color: 'var(--text-tertiary)' }}>
-            You'll receive a call or text within a few hours during business hours.
-          </p>
-          <a
-            href={`/booking-status?code=${refCode}`}
-            className="inline-block text-sm underline transition-opacity hover:opacity-70 mt-4"
-            style={{ color: 'var(--text-secondary)' }}
-          >
-            Check booking status anytime →
-          </a>
-        </div>
-      </motion.div>
     );
   }
 

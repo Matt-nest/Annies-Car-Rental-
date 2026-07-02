@@ -6,7 +6,7 @@ import { Vehicle, RateMode } from '../../types';
 import { getVehicleDisplayName } from '../../data/vehicles';
 import { getReviewsForVehicle } from '../../data/reviews';
 import { useTheme } from '../../context/ThemeContext';
-import { EASE, DURATION } from '../../utils/motion';
+import { EASE } from '../../utils/motion';
 import RateToggle from '../home/RateToggle';
 import { brand } from '../../config/brand';
 

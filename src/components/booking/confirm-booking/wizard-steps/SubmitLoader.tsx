@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { Loader2, FileText, Shield, CreditCard, Check, AlertCircle } from 'lucide-react';
 
 interface Props {
@@ -43,7 +43,6 @@ export default function SubmitLoader({ currentStep, error, onRetry, onDismiss }:
               const Icon = step.icon;
               const isActive = idx === currentIdx;
               const isDone = idx < currentIdx;
-              const isPending = idx > currentIdx;
 
               return (
                 <div key={step.key} className="flex items-center gap-3">

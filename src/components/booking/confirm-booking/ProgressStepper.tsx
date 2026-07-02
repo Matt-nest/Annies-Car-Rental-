@@ -21,7 +21,6 @@ export default function ProgressStepper({ currentStage, currentSubStep, complete
           const stageNum = stage.number;
           const isActive = currentStage === stageNum;
           const isCompleted = completedStages.includes(stageNum);
-          const isPending = !isActive && !isCompleted;
           const Icon = stageIcons[idx];
 
           return (

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
 import {
-  FileText, MapPin, Car, Calendar, DollarSign, Shield, PenTool,
+  FileText, MapPin, Car, Shield, PenTool,
   CheckCircle2, AlertCircle, Loader2, ArrowRight, ChevronDown, ChevronUp, Eraser,
 } from 'lucide-react';
 import SignaturePad from 'signature_pad';
