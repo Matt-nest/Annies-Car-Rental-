@@ -266,7 +266,12 @@ export async function createBooking(payload) {
       insurance_provider,
       insurance_status: insurance_status || 'pending',
       bonzah_policy_id,
-      status: 'pending_approval',
+      // Admin-created bookings (walk-ins / phone) skip the approval gate — the
+      // admin is vetting the renter in person — so they're born 'approved' and
+      // can go straight to payment. Public/website submissions require explicit
+      // admin approval before the payment step unlocks.
+      status: created_by_admin ? 'approved' : 'pending_approval',
+      ...(created_by_admin ? { owner_approved_at: new Date().toISOString() } : {}),
       created_by_admin: !!created_by_admin,
       special_requests: [
         delivery_type && delivery_type !== 'pickup' ? `Delivery type: ${delivery_type}` : '',
@@ -284,9 +289,9 @@ export async function createBooking(payload) {
   await supabase.from('booking_status_log').insert({
     booking_id: booking.id,
     from_status: null,
-    to_status: 'pending_approval',
+    to_status: created_by_admin ? 'approved' : 'pending_approval',
     changed_by: 'system',
-    reason: 'Booking submitted via website',
+    reason: created_by_admin ? 'Admin-created booking — auto-approved on creation' : 'Booking submitted via website',
   });
 
   // 8 + 9. Customer-facing confirmation. Skipped when notify_customer === false
@@ -318,25 +323,11 @@ export async function createBooking(payload) {
     { booking_id: booking.id, booking_code }
   ).catch(() => { });
 
-  // 11. Trusted-customer auto-approve (migration 019).
-  // Fires AFTER the welcome email + admin notification so:
-  //   (a) the customer still gets the "we got it" branded confirmation
-  //   (b) the admin still sees the booking land in their feed
-  //   (c) the approval transition then fires booking_approved → "complete agreement" CTA
-  // Wrapped in try/catch so a transition failure (e.g. canTransition gate)
-  // doesn't roll back a valid booking. The admin can approve manually.
-  if (customer.is_trusted) {
-    try {
-      await transitionBooking(booking.id, 'approved', {
-        changedBy: 'system',
-        reason: 'Trusted customer — auto-approved on submission',
-      });
-      booking.status = 'approved';
-      booking.owner_approved_at = new Date().toISOString();
-    } catch (err) {
-      console.error(`[Booking] Trusted auto-approve failed for ${booking_code} (booking left pending):`, err.message);
-    }
-  }
+  // 11. Approval gate: every public/website submission now requires an explicit
+  // admin approve/deny before the payment step unlocks (the customer receives a
+  // continue-link once approved). Trusted-customer auto-approve (migration 019)
+  // was intentionally removed — no bookings bypass the gate except admin-created
+  // ones, which are born 'approved' above.
 
   return booking;
 }
