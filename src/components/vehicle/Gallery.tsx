@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTheme } from '../../context/ThemeContext';
-import { EASE, DURATION } from '../../utils/motion';
+import { EASE } from '../../utils/motion';
 
 interface GalleryProps {
   images: string[];
