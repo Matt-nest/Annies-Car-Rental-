@@ -43,7 +43,10 @@ export default function SquareCheckoutForm({
   const [submitStep, setSubmitStep] = useState<'agreement' | 'insurance' | 'payment' | 'confirming' | 'done'>('agreement');
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  let insuranceCost = 0;
+  // Prefer the draft's live quote; on a return visit (empty draft after
+  // approval) fall back to the server-computed insurance cost so the charged
+  // total still matches what the backend validates.
+  let insuranceCost = bookingSummary?.insuranceCost ?? 0;
   if (draft.insuranceChoice === 'bonzah' && draft.bonzahQuote) {
     insuranceCost = draft.bonzahQuote.total_cents / 100;
   }

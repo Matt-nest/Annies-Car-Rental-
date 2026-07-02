@@ -77,8 +77,10 @@ function PaymentForm({
   const [submitStep, setSubmitStep] = useState<'agreement' | 'insurance' | 'payment' | 'confirming' | 'done'>('agreement');
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Calculate grand total for display — Bonzah quote stored on the draft
-  let insuranceCost = 0;
+  // Grand total for display. Prefer the draft's live Bonzah quote; on a return
+  // visit (empty draft after approval) fall back to the server-computed
+  // insurance cost so the total still matches what the backend will charge.
+  let insuranceCost = bookingSummary?.insuranceCost ?? 0;
   if (draft.insuranceChoice === 'bonzah' && draft.bonzahQuote) {
     insuranceCost = draft.bonzahQuote.total_cents / 100;
   }
@@ -344,12 +346,14 @@ function PaymentGate({
   refCode,
   draft,
   bookingSummary,
+  alreadySigned,
   onBack,
   renderReady,
 }: {
   refCode: string;
   draft: WizardDraft;
   bookingSummary: any;
+  alreadySigned: boolean;
   onBack: () => void;
   renderReady: () => React.ReactNode;
 }) {
@@ -375,6 +379,10 @@ function PaymentGate({
     setError(null);
     setPhase('persisting');
     try {
+      // Persist agreement + insurance on the FIRST pass only. On a return visit
+      // (already signed) they're saved server-side; re-PATCHing insurance from an
+      // empty draft would wipe the customer's choice — so skip straight to the gate.
+      if (!alreadySigned) {
       // 1. Persist the signed agreement (idempotent — backend returns alreadySigned)
       const agreementPayload = {
         address_line1: draft.address.line1,
@@ -417,6 +425,7 @@ function PaymentGate({
         const insJson = await insRes.json();
         throw new Error(insJson.error || 'Failed to record insurance');
       }
+      }
 
       // 3. Gate on approval status
       const status = await fetchStatus();
@@ -425,7 +434,7 @@ function PaymentGate({
       setError(e.message || 'Something went wrong');
       setPhase('error');
     }
-  }, [draft, refCode, fetchStatus]);
+  }, [draft, refCode, fetchStatus, alreadySigned]);
 
   // Persist once when the gate first mounts
   useEffect(() => {
@@ -618,6 +627,14 @@ export default function ConfirmBooking() {
         if (piJson.booking) {
           setBookingSummary(piJson.booking);
           setDepositAmount(piJson.booking.depositAmount || 150);
+        }
+
+        // Returning after approval (or any reload once the wizard is done): the
+        // customer already signed the agreement + chose insurance (saved
+        // server-side). Skip straight to payment instead of making them redo the
+        // whole flow.
+        if (agJson.alreadySigned && !piJson.alreadyPaid) {
+          updateDraft({ stage: 4 });
         }
       } catch (e: any) {
         setError(e.message);
@@ -838,6 +855,7 @@ export default function ConfirmBooking() {
                   refCode={refCode}
                   draft={draft}
                   bookingSummary={bookingSummary}
+                  alreadySigned={!!agreementData?.alreadySigned}
                   onBack={() => goToStage(3)}
                   renderReady={() => (
                     <>
@@ -853,8 +871,9 @@ export default function ConfirmBooking() {
                         />
                       )}
                       {PAYMENT_PROVIDER === 'stripe' && (() => {
-                        // Compute amount for Stripe Elements initialization
-                        let insCost = 0;
+                        // Compute amount for Stripe Elements initialization. Fall
+                        // back to the server insurance cost on a return visit.
+                        let insCost = bookingSummary?.insuranceCost ?? 0;
                         if (draft.insuranceChoice === 'bonzah' && draft.bonzahQuote) {
                           insCost = draft.bonzahQuote.total_cents / 100;
                         }
