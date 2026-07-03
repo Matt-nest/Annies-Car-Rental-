@@ -5,6 +5,26 @@
 
 ---
 
+## 2026-07-03 — Booking hardening: payment-gate before 'active' + insurance-verify button feedback (branch `fix/booking-hardening` off `integration`)
+
+Audit of the booking/payment/reporting flow across both sites (Annie's + JD Coastal). Fixing Annie's first, in approved batches. **Batch A + B:**
+
+- **Batch B — activate-before-payment hole (critical):** an admin could record pickup on an unpaid `approved` booking (vehicle → `rented`) with $0 collected, because `TRANSITIONS.approved` includes `active` and `transitionBooking` only did a structural `canTransition` check. Added `isBookingPaid(booking)` (exported) + a payment gate in `transitionBooking`: `newStatus === 'active'` now throws **402** unless the rental is paid (`deposit_status==='paid'` OR a completed `rental`/`deposit` payment row) **or** an admin passes `overridePaymentGate` (for in-person cash). The bypass is written into `booking_status_log.reason` for audit. Pickup route (`POST /bookings/:id/pickup`) reads `override_payment` + `override_reason` from the body. All other `→active` callers (portal self-check-in `ready_for_pickup→active`) are already post-payment, so they pass unaffected — now with defense-in-depth. Verified: real `isBookingPaid` unit truth-table 7/7.
+- **Batch A — insurance-verify button "loads then does nothing":** `handleInsuranceAction` swallowed all failures to `console.error` with no UI state, so a failed approve/reject left the spinner-then-nothing symptom and the `pending_review` banner stuck. Added `insuranceError` state, surfaced the message in the banner, and moved the spinner-clear into `finally` (mirrors `doAction`).
+- **Override UI:** the Check-In modal now shows a "No payment on file — pick up anyway (logged)" checkbox + reason input, **only when unpaid** (`bookingPaid` mirrors the server check). Wired through `doAction('pickup')`.
+
+**Batch C — approve/decline silent failures (`BookingsPage`):** both handlers did `.catch(console.error)` then closed the modal as if they'd succeeded. Added `actionError` state (cleared on modal open/close), keep the modal open + show the message on failure, clear the spinner in `finally`.
+
+**Batch D — customer status page stale "Awaiting Approval" (`BookingStatusPage.tsx`):** only fetched once on mount. Added a `silentRefresh` (updates result in place, no spinner) that polls every 15s + refetches on tab-focus **while** the booking is still `pending_approval`/`approved`/`awaiting_payment`, then stops. An open tab now flips to the pay CTA live after admin approval.
+
+**Batch E — "Mark Ready" error (`checkin.js`):** the catch matched `'Invalid transition'` but the thrown string is `"Cannot transition from…"`, so even the benign already-ready case surfaced as an error. Now matches the real string and only no-ops when the booking is genuinely `ready_for_pickup`+; a too-early (unpaid/unconfirmed) booking still returns a clean 400 (`errorHandler` honors `err.status`).
+
+**Batch F — customer-wizard ID scan (the "where is the ID scan" gap):** the ID-scan *backend* (`idScanService.js`, `POST /uploads/scan-id`, `id-photos` bucket) and the client utils (`src/utils/{aamva,scanLicenseBarcode,compressImage}.ts`) + `@zxing/browser` already existed on Annie's — only the wizard `ScanStep.tsx` component + wiring were missing (absent on `integration`, `main`, and `feat/*`). Ported JD Coastal's `ScanStep.tsx` verbatim (brand-neutral, CSS-var themed; live rear-camera PDF417 decode on-device → Azure OCR fallback → manual). Wired as Agreement **sub-step 2** (Summary→**Scan**→Address→License→Terms→Acknowledgements→Signature); bumped `constants.ts` stage-1 `subSteps` 6→7; renumbered `PREFILL_SUBSTEP` (address 2→3, license 3→4); nav bound 6→7; Insurance back-target `goToStage(1,6)→(1,7)`. `ProgressStepper` reads `STAGES[0].subSteps` so the dots/counter auto-update. Scan fills `license`/`dob`/`address` in the existing `WizardDraft` (shape already matched) + name-match hint from `af.customerName`. **No auto-skip** (deliberate: after scan the customer reviews the pre-filled Address/License rather than jumping to Terms — safer than JD's skip; can add later).
+
+Files: `backend/services/bookingService.js` (isBookingPaid + gate + audit note), `backend/routes/bookings.js` (pickup override), `backend/routes/checkin.js` (catch fix), `dashboard/src/pages/BookingDetailPage.jsx` (insuranceError + pickupOverride), `dashboard/src/components/shared/BookingModals.jsx` (override affordance), `dashboard/src/pages/BookingsPage.jsx` (actionError), `src/components/booking/BookingStatusPage.tsx` (auto-refresh), `src/components/booking/confirm-booking/wizard-steps/ScanStep.tsx` (NEW), `src/components/booking/ConfirmBooking.tsx` (wiring), `src/components/booking/confirm-booking/constants.ts` (subSteps 6→7). Dashboard + customer-site builds clean; backend `node --check` clean; real `isBookingPaid` truth-table 7/7; ScanStep/ConfirmBooking tsc-clean. **JD Coastal parity done** (Batch G — see JD `CHANGELOG_SESSION.md`, branch `fix/booking-hardening` off `main`). Optional follow-ups: port A/C/D/E niceties to JD; add scan→Terms auto-skip to Annie's.
+
+---
+
 ## 2026-06-15 — Admin booking generator: feedback round (fixes + Stripe-over-phone + fee receipt)
 
 Iteration on the unified admin booking flow from owner testing:

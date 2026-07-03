@@ -22,8 +22,16 @@ function ActionError({ msg }) {
 export default function BookingModals({
   modal, setModal, modalInput, setModalInput,
   conditionForm, setConditionForm, damageForm, setDamageForm,
-  paymentForm, setPaymentForm, actioning, doAction, actionError, booking,
+  paymentForm, setPaymentForm, pickupOverride, setPickupOverride,
+  actioning, doAction, actionError, booking,
 }) {
+  // Mirror of the server's isBookingPaid(): the rental is paid once deposit_status
+  // flips to 'paid' or a completed rental/deposit payment row exists. When unpaid,
+  // the Check-In modal surfaces the payment-override affordance.
+  const bookingPaid = booking?.deposit_status === 'paid'
+    || (Array.isArray(booking?.payments) && booking.payments.some((p) =>
+        String(p?.status || '').toLowerCase() === 'completed'
+        && ['rental', 'deposit'].includes(String(p?.payment_type || '').toLowerCase())));
   return (
     <>
       <Modal open={modal === 'approve'} onClose={() => setModal(null)} title="Approve Booking">
@@ -102,6 +110,30 @@ export default function BookingModals({
             <input className="input text-sm" type="url" placeholder="https://…" value={conditionForm.photoUrl} onChange={e => setConditionForm(f => ({ ...f, photoUrl: e.target.value }))} />
             <p className="text-[10px] text-stone-400 mt-0.5">Paste a link to a photo of the vehicle condition at check-in</p>
           </div>
+          {!bookingPaid && (
+            <div className="rounded-lg p-3 space-y-2" style={{ backgroundColor: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)' }}>
+              <label className="flex items-start gap-2 text-sm cursor-pointer" style={{ color: 'var(--text-primary)' }}>
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={pickupOverride?.enabled || false}
+                  onChange={e => setPickupOverride(o => ({ ...o, enabled: e.target.checked }))}
+                />
+                <span>
+                  <span className="font-semibold text-amber-600 dark:text-amber-400">No payment on file.</span>{' '}
+                  Check to pick up anyway (payment collected in person). This is recorded in the timeline.
+                </span>
+              </label>
+              {pickupOverride?.enabled && (
+                <input
+                  className="input text-sm"
+                  placeholder="Reason (e.g. paid cash at counter)"
+                  value={pickupOverride?.reason || ''}
+                  onChange={e => setPickupOverride(o => ({ ...o, reason: e.target.value }))}
+                />
+              )}
+            </div>
+          )}
           <div className="flex gap-3">
             <button onClick={() => setModal(null)} className="btn-secondary flex-1 justify-center">Cancel</button>
             <button onClick={() => doAction('pickup')} disabled={actioning} className="btn-primary flex-1 justify-center">

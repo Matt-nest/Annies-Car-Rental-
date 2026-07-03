@@ -23,6 +23,7 @@ export default function BookingsPage() {
   const [actionModal, setActionModal] = useState(null);
   const [declineReason, setDeclineReason] = useState('');
   const [actioning, setActioning] = useState(false);
+  const [actionError, setActionError] = useState(null);
   const [newBookingOpen, setNewBookingOpen] = useState(false);
 
   const { refresh: refreshAlerts } = useAlerts();
@@ -43,22 +44,40 @@ export default function BookingsPage() {
   }, [status, q]);
 
   useEffect(() => { fetchBookings(); }, [fetchBookings]);
+  // Clear any stale action error whenever the modal opens/closes.
+  useEffect(() => { setActionError(null); }, [actionModal]);
 
   async function handleApprove(booking) {
     setActioning(true);
-    await api.approveBooking(booking.id).catch(console.error);
-    setActionModal(null);
-    await Promise.all([fetchBookings(), refreshAlerts()]);
-    setActioning(false);
+    setActionError(null);
+    try {
+      await api.approveBooking(booking.id);
+      setActionModal(null);
+      await Promise.all([fetchBookings(), refreshAlerts()]);
+    } catch (e) {
+      // Was `.catch(console.error)` — a failed approve closed the modal as if it
+      // succeeded, with no feedback. Keep the modal open and say what happened.
+      console.error(e);
+      setActionError(e?.data?.error || 'Could not approve this booking. Please try again.');
+    } finally {
+      setActioning(false);
+    }
   }
 
   async function handleDecline() {
     setActioning(true);
-    await api.declineBooking(actionModal.booking.id, declineReason).catch(console.error);
-    setActionModal(null);
-    setDeclineReason('');
-    await Promise.all([fetchBookings(), refreshAlerts()]);
-    setActioning(false);
+    setActionError(null);
+    try {
+      await api.declineBooking(actionModal.booking.id, declineReason);
+      setActionModal(null);
+      setDeclineReason('');
+      await Promise.all([fetchBookings(), refreshAlerts()]);
+    } catch (e) {
+      console.error(e);
+      setActionError(e?.data?.error || 'Could not decline this booking. Please try again.');
+    } finally {
+      setActioning(false);
+    }
   }
 
   const columns = [
@@ -232,6 +251,11 @@ export default function BookingsPage() {
       {/* Approve modal */}
       <Modal open={actionModal?.type === 'approve'} onClose={() => setActionModal(null)} title="Approve Booking">
         <div className="space-y-4">
+          {actionError && (
+            <div role="alert" className="text-sm px-3 py-2 rounded-lg" style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: 'var(--danger-color)' }}>
+              {actionError}
+            </div>
+          )}
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
             You're about to approve{' '}
             <span className="mono-code text-sm font-semibold px-2 py-0.5 rounded-lg"
@@ -253,6 +277,11 @@ export default function BookingsPage() {
       {/* Decline modal */}
       <Modal open={actionModal?.type === 'decline'} onClose={() => setActionModal(null)} title="Decline Booking">
         <div className="space-y-4">
+          {actionError && (
+            <div role="alert" className="text-sm px-3 py-2 rounded-lg" style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: 'var(--danger-color)' }}>
+              {actionError}
+            </div>
+          )}
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
             Declining <span className="font-medium">{actionModal?.booking?.booking_code}</span> for{' '}
             {actionModal?.booking?.customers?.first_name} {actionModal?.booking?.customers?.last_name}.
