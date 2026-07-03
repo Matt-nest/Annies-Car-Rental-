@@ -342,6 +342,24 @@ function PaymentForm({
    approved, so no card is charged ahead of approval. Enforced server-side too
    (the payment endpoints reject pending_approval bookings).
    ──────────────────────────────────────────────────────── */
+
+// Map a booking status to what the payment gate should show.
+//   'awaiting' → hold (still pending approval, or status unknown/unreachable)
+//   'error'    → declined/cancelled, dead end
+//   'ready'    → payment unlocked
+// Payment unlocks on 'approved' AND every later lifecycle state (confirmed,
+// active, returned, …): only unpaid bookings ever reach this gate — the
+// orchestrator sends alreadyPaid bookings to the confirmed screen — so any
+// booking that has moved past pending_approval without being declined/cancelled
+// still owes payment and must not be trapped on "Awaiting Approval". Matching
+// only the exact string 'approved' left the customer stuck forever the moment
+// the booking advanced (e.g. an admin marking pickup flips it to 'active').
+function classifyGateStatus(status: string | null): 'awaiting' | 'ready' | 'error' {
+  if (!status || status === 'pending_approval') return 'awaiting';
+  if (status === 'declined' || status === 'cancelled') return 'error';
+  return 'ready';
+}
+
 function PaymentGate({
   refCode,
   draft,
@@ -429,7 +447,9 @@ function PaymentGate({
 
       // 3. Gate on approval status
       const status = await fetchStatus();
-      setPhase(status === 'approved' ? 'ready' : 'awaiting');
+      const next = classifyGateStatus(status);
+      if (next === 'error') setError(`This booking has been ${status}.`);
+      setPhase(next);
     } catch (e: any) {
       setError(e.message || 'Something went wrong');
       setPhase('error');
@@ -448,8 +468,10 @@ function PaymentGate({
     if (phase !== 'awaiting') return;
     const id = window.setInterval(async () => {
       const status = await fetchStatus();
-      if (status === 'approved') setPhase('ready');
-      else if (status === 'declined' || status === 'cancelled') {
+      if (!status) return; // unreachable/unknown — keep polling
+      const next = classifyGateStatus(status);
+      if (next === 'ready') setPhase('ready');
+      else if (next === 'error') {
         setError(`This booking has been ${status}.`);
         setPhase('error');
       }
@@ -461,7 +483,12 @@ function PaymentGate({
     setChecking(true);
     const status = await fetchStatus();
     setChecking(false);
-    if (status === 'approved') setPhase('ready');
+    const next = classifyGateStatus(status);
+    if (next === 'ready') setPhase('ready');
+    else if (next === 'error') {
+      setError(`This booking has been ${status}.`);
+      setPhase('error');
+    }
   };
 
   // ── Persisting ──
