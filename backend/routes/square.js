@@ -16,9 +16,11 @@ const square = getSquare();
  */
 router.get('/config', (_req, res) => {
   res.json({
-    applicationId: process.env.SQUARE_APPLICATION_ID || '',
+    // .trim() — the client passes these straight into Square.payments(appId,
+    // locationId); a trailing newline from the env var breaks SDK init.
+    applicationId: (process.env.SQUARE_APPLICATION_ID || '').trim(),
     locationId: getSquareLocationId(),
-    environment: String(process.env.SQUARE_ENVIRONMENT || 'sandbox').toLowerCase() === 'production' ? 'production' : 'sandbox',
+    environment: String(process.env.SQUARE_ENVIRONMENT || 'sandbox').trim().toLowerCase() === 'production' ? 'production' : 'sandbox',
   });
 });
 
@@ -69,7 +71,7 @@ router.post('/send-receipt', asyncHandler(async (req, res) => {
  * req.body is the raw Buffer needed for HMAC-SHA256 signature verification.
  */
 router.post('/webhook', async (req, res) => {
-  const signatureKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
+  const signatureKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY?.trim();
   const signature = req.headers['x-square-hmacsha256-signature'];
   const notificationUrl =
     process.env.SQUARE_WEBHOOK_NOTIFICATION_URL ||

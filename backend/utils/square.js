@@ -12,12 +12,15 @@ let _square = null;
 
 export function getSquare() {
   if (!_square) {
-    const token = process.env.SQUARE_ACCESS_TOKEN;
+    // .trim() guards against a trailing newline in the pasted env var — a stray
+    // '\n' on the token breaks auth, and on SQUARE_ENVIRONMENT would silently
+    // drop us to Sandbox (no real charge). Observed live on SQUARE_LOCATION_ID.
+    const token = process.env.SQUARE_ACCESS_TOKEN?.trim();
     if (!token) {
       console.warn('[square] SQUARE_ACCESS_TOKEN not set — payments disabled until configured');
     }
     const environment =
-      String(process.env.SQUARE_ENVIRONMENT || 'sandbox').toLowerCase() === 'production'
+      String(process.env.SQUARE_ENVIRONMENT || 'sandbox').trim().toLowerCase() === 'production'
         ? SquareEnvironment.Production
         : SquareEnvironment.Sandbox;
 
@@ -31,5 +34,7 @@ export function getSquare() {
 
 /** The Square Location all payments/refunds are attributed to. */
 export function getSquareLocationId() {
-  return process.env.SQUARE_LOCATION_ID || '';
+  // .trim() — the live env var had a trailing '\n', which Square rejects as an
+  // invalid location on createPayment and in the Web SDK's payments() init.
+  return (process.env.SQUARE_LOCATION_ID || '').trim();
 }
