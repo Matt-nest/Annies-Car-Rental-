@@ -71,13 +71,29 @@ router.get('/:id/timeline', requireAuth, asyncHandler(async (req, res) => {
 router.get('/status/:bookingCode', asyncHandler(async (req, res) => {
   const { data: booking, error } = await supabase
     .from('bookings')
-    .select('booking_code, status, pickup_date, return_date, pickup_time, return_time, pickup_location, vehicles(year, make, model)')
+    .select('id, booking_code, status, pickup_date, return_date, pickup_time, return_time, pickup_location, vehicles(year, make, model)')
     .eq('booking_code', req.params.bookingCode.toUpperCase())
     .single();
 
   if (error || !booking) {
     return res.status(404).json({ error: 'Booking not found. Check your reference code and try again.' });
   }
+
+  // Has the rental been paid? Both the Stripe and Square payment paths write a
+  // rental payment row with status 'completed'. A booking still owes payment
+  // once it's past approval, not in a terminal/pre-approval state, and no such
+  // row exists — this drives the customer-facing "Complete your booking" CTA so
+  // a booking that advanced past 'approved' (e.g. to 'active') without payment
+  // isn't left with no way to pay.
+  const { data: paidRow } = await supabase
+    .from('payments')
+    .select('id')
+    .eq('booking_id', booking.id)
+    .eq('payment_type', 'rental')
+    .eq('status', 'completed')
+    .maybeSingle();
+  const awaiting_payment =
+    !paidRow && !['pending_approval', 'declined', 'cancelled'].includes(booking.status);
 
   const nextStep = {
     pending_approval: { label: 'Awaiting approval', detail: "We're reviewing your request and will contact you shortly." },
@@ -93,6 +109,7 @@ router.get('/status/:bookingCode', asyncHandler(async (req, res) => {
   res.json({
     booking_code: booking.booking_code,
     status: booking.status,
+    awaiting_payment,
     pickup_date: booking.pickup_date,
     return_date: booking.return_date,
     pickup_time: booking.pickup_time,

@@ -9,6 +9,7 @@ import { brand } from '../../config/brand';
 interface BookingStatus {
   booking_code: string;
   status: string;
+  awaiting_payment?: boolean;
   pickup_date: string;
   return_date: string;
   pickup_time: string;
@@ -202,8 +203,12 @@ export default function BookingStatusPage({ onBack }: Props) {
                   )}
                 </div>
 
-                {/* CTA for approved status */}
-                {result.status === 'approved' && (
+                {/* CTA whenever payment is still owed. `awaiting_payment` (from
+                    the status endpoint) covers bookings that advanced past
+                    'approved' without paying, e.g. 'active'; the status ===
+                    'approved' fallback keeps the CTA working even if the backend
+                    field isn't deployed yet. */}
+                {(result.awaiting_payment || result.status === 'approved') && (
                   <a
                     href={`/confirm?code=${result.booking_code}`}
                     className="block w-full text-center py-3 rounded-xl font-medium text-sm transition-all hover:opacity-90"
