@@ -26,6 +26,21 @@ export function canTransition(from, to) {
   return (TRANSITIONS[from] || []).includes(to);
 }
 
+// A booking counts as "paid" once the rental charge has been collected — either
+// the online payment flow flipped deposit_status to 'paid', or a completed
+// rental/deposit payment row exists on the ledger (covers admin-recorded
+// in-person cash/terminal payments via POST /bookings/:id/payments).
+export function isBookingPaid(booking) {
+  if (!booking) return false;
+  if (booking.deposit_status === 'paid') return true;
+  const rows = Array.isArray(booking.payments) ? booking.payments : [];
+  return rows.some((p) => {
+    const status = String(p?.status || '').toLowerCase();
+    const type = String(p?.payment_type || '').toLowerCase();
+    return status === 'completed' && (type === 'rental' || type === 'deposit');
+  });
+}
+
 /** Full booking detail joined with customer, vehicle, payments, status log */
 export async function getBookingDetail(bookingId) {
   const { data, error } = await supabase
@@ -336,12 +351,24 @@ export async function createBooking(payload) {
 }
 
 /** Transition a booking status with logging and notification hooks */
-export async function transitionBooking(bookingId, newStatus, { changedBy = 'owner', reason, extraFields = {} } = {}) {
+export async function transitionBooking(bookingId, newStatus, { changedBy = 'owner', reason, extraFields = {}, overridePaymentGate = false } = {}) {
   const booking = await getBookingDetail(bookingId);
 
   if (!canTransition(booking.status, newStatus)) {
     const err = new Error(`Cannot transition from '${booking.status}' to '${newStatus}'`);
     err.status = 400;
+    throw err;
+  }
+
+  // Payment gate: a vehicle must never go on the road (status 'active') unless the
+  // rental has been paid. Online bookings reach 'active' only via 'confirmed'
+  // (which requires payment), but 'approved → active' is a structurally legal edge
+  // — so without this guard an admin could pick up a completely unpaid booking.
+  // An admin may bypass with overridePaymentGate (e.g. in-person cash recorded
+  // separately); the bypass is written into the status log below for audit.
+  if (newStatus === 'active' && !isBookingPaid(booking) && !overridePaymentGate) {
+    const err = new Error('Payment has not been collected for this booking. Record the rental payment first, or use the in-person override to pick up.');
+    err.status = 402;
     throw err;
   }
 
@@ -408,9 +435,13 @@ export async function transitionBooking(bookingId, newStatus, { changedBy = 'own
 
   if (updateErr) throw updateErr;
 
-  const loggedReason = autoClampNote
+  let loggedReason = autoClampNote
     ? (reason ? `${reason} (${autoClampNote})` : autoClampNote)
     : reason;
+  if (newStatus === 'active' && overridePaymentGate && !isBookingPaid(booking)) {
+    const note = 'payment gate overridden — activated without a recorded payment';
+    loggedReason = loggedReason ? `${loggedReason} · ${note}` : note;
+  }
 
   await supabase.from('booking_status_log').insert({
     booking_id: bookingId,

@@ -12,6 +12,7 @@ import { brand } from '../../config/brand';
 
 // Wizard steps
 import RentalSummaryStep from './confirm-booking/wizard-steps/RentalSummaryStep';
+import ScanStep from './confirm-booking/wizard-steps/ScanStep';
 import AddressStep from './confirm-booking/wizard-steps/AddressStep';
 import LicenseStep from './confirm-booking/wizard-steps/LicenseStep';
 import TermsStep from './confirm-booking/wizard-steps/TermsStep';
@@ -47,7 +48,8 @@ const stripePromise = PAYMENT_PROVIDER === 'stripe' ? getStripe() : null;
 // Annie's Stage 1: 1 Summary · 2 Address · 3 License · 4 Terms · 5 Acks · 6 Sign.
 // ('scan' has no sub-step here — there's no Scan step on this site — so it's
 // ignored; the license/address fields it carries still pre-fill the draft.)
-const PREFILL_SUBSTEP: Record<string, number> = { address: 2, license: 3 };
+// Sub-step 2 is now the ID Scan; Address/License shifted to 3/4.
+const PREFILL_SUBSTEP: Record<string, number> = { address: 3, license: 4 };
 
 /* ────────────────────────────────────────────────────────
    Inner form (needs Stripe context)
@@ -713,8 +715,8 @@ export default function ConfirmBooking() {
   // Stage 1 sub-step navigation — skips any sub-step the admin pre-filled.
   const nextSubStep = () => {
     let n = draft.subStep + 1;
-    while (n <= 6 && skipSubSteps.has(n)) n++;
-    if (n <= 6) {
+    while (n <= 7 && skipSubSteps.has(n)) n++;
+    if (n <= 7) {
       goToSubStep(n);
     } else {
       // Stage 1 complete → Stage 2
@@ -835,18 +837,21 @@ export default function ConfirmBooking() {
                 <RentalSummaryStep autoFilled={af} theme={theme} onContinue={nextSubStep} />
               )}
               {draft.stage === 1 && draft.subStep === 2 && (
-                <AddressStep draft={draft} onUpdate={updateDraft} onContinue={nextSubStep} onBack={prevSubStep} theme={theme} />
+                <ScanStep draft={draft} onUpdate={updateDraft} onContinue={nextSubStep} onBack={prevSubStep} onEdit={() => goToSubStep(3)} theme={theme} bookingName={af.customerName} />
               )}
               {draft.stage === 1 && draft.subStep === 3 && (
-                <LicenseStep draft={draft} onUpdate={updateDraft} onContinue={nextSubStep} onBack={prevSubStep} theme={theme} />
+                <AddressStep draft={draft} onUpdate={updateDraft} onContinue={nextSubStep} onBack={prevSubStep} theme={theme} />
               )}
               {draft.stage === 1 && draft.subStep === 4 && (
-                <TermsStep draft={draft} onUpdate={updateDraft} onContinue={nextSubStep} onBack={prevSubStep} theme={theme} />
+                <LicenseStep draft={draft} onUpdate={updateDraft} onContinue={nextSubStep} onBack={prevSubStep} theme={theme} />
               )}
               {draft.stage === 1 && draft.subStep === 5 && (
-                <AcknowledgementsStep draft={draft} onUpdate={updateDraft} onContinue={nextSubStep} onBack={prevSubStep} theme={theme} />
+                <TermsStep draft={draft} onUpdate={updateDraft} onContinue={nextSubStep} onBack={prevSubStep} theme={theme} />
               )}
               {draft.stage === 1 && draft.subStep === 6 && (
+                <AcknowledgementsStep draft={draft} onUpdate={updateDraft} onContinue={nextSubStep} onBack={prevSubStep} theme={theme} />
+              )}
+              {draft.stage === 1 && draft.subStep === 7 && (
                 <SignatureStep draft={draft} onUpdate={updateDraft} onContinue={nextSubStep} onBack={prevSubStep} theme={theme} />
               )}
 
@@ -859,7 +864,7 @@ export default function ConfirmBooking() {
                   pickupState={af.pickupState || bookingSummary?.pickupState || af.state}
                   onUpdate={updateDraft}
                   onContinue={() => { completeStage(2); goToStage(3); }}
-                  onBack={() => goToStage(1, 6)}
+                  onBack={() => goToStage(1, 7)}
                   theme={theme}
                 />
               )}

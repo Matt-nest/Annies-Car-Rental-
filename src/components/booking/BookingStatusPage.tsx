@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { ArrowLeft, Search, CheckCircle2, Clock, XCircle, Car, Calendar, MapPin, AlertCircle } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
@@ -74,6 +74,37 @@ export default function BookingStatusPage({ onBack }: Props) {
     }
     setLoading(false);
   }
+
+  // Silent background refresh — updates the result in place (no spinner, no
+  // clearing) so an open tab reflects an admin approval / payment without a
+  // manual re-lookup.
+  const silentRefresh = useCallback(async () => {
+    const c = code.trim().toUpperCase();
+    if (c.length < 4) return;
+    try {
+      const res = await fetch(`${API_URL}/bookings/status/${c}`);
+      if (res.ok) setResult(await res.json());
+    } catch {
+      /* best-effort background refresh — ignore transient failures */
+    }
+  }, [code]);
+
+  // While the booking is still waiting on the customer (pending approval, or
+  // approved-but-unpaid), poll every 15s and refetch when the tab regains focus,
+  // so "Awaiting approval" flips to the pay CTA live. Stops once past that point.
+  const liveStatus = result?.status;
+  const liveAwaitingPayment = result?.awaiting_payment;
+  useEffect(() => {
+    const isLive = liveStatus === 'pending_approval' || liveStatus === 'approved' || !!liveAwaitingPayment;
+    if (!isLive) return;
+    const onVisible = () => { if (document.visibilityState === 'visible') silentRefresh(); };
+    document.addEventListener('visibilitychange', onVisible);
+    const intervalId = window.setInterval(silentRefresh, 15000);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.clearInterval(intervalId);
+    };
+  }, [liveStatus, liveAwaitingPayment, silentRefresh]);
 
   const cfg = result ? (STATUS_CONFIG[result.status] || STATUS_CONFIG.pending_approval) : null;
   const StatusIcon = cfg?.icon || Clock;

@@ -230,7 +230,11 @@ export default function BookingDetailPage() {
 
   // Insurance review state
   const [insuranceActioning, setInsuranceActioning] = useState(false);
+  const [insuranceError, setInsuranceError] = useState(null);
   const [insuranceRejectReason, setInsuranceRejectReason] = useState('');
+  // Admin override for the "can't pick up an unpaid booking" server guard —
+  // used for in-person cash/terminal payments recorded separately.
+  const [pickupOverride, setPickupOverride] = useState({ enabled: false, reason: '' });
 
   const load = async () => {
     setLoading(true);
@@ -270,6 +274,8 @@ export default function BookingDetailPage() {
         fuel_level: conditionForm.fuel,
         condition_notes: conditionForm.notes || undefined,
         photos: conditionForm.photoUrl ? [conditionForm.photoUrl] : [],
+        override_payment: pickupOverride.enabled || undefined,
+        override_reason: pickupOverride.enabled ? (pickupOverride.reason || undefined) : undefined,
       });
       if (action === 'return')   await api.recordReturn(id, {
         mileage: modalInput,
@@ -288,6 +294,7 @@ export default function BookingDetailPage() {
       setModalInput('');
       setConditionForm({ fuel: 'full', notes: '', photoUrl: '' });
       setDamageForm({ description: '', severity: 'minor', estimated_cost: '', photo_url: '' });
+      setPickupOverride({ enabled: false, reason: '' });
     } catch (e) {
       // Keep the modal open and tell the user — previously this swallowed the
       // error and closed the modal as if the action had succeeded.
@@ -300,6 +307,7 @@ export default function BookingDetailPage() {
 
   async function handleInsuranceAction(action) {
     setInsuranceActioning(true);
+    setInsuranceError(null);
     try {
       if (action === 'approve') {
         await api.approveInsurance(id);
@@ -307,11 +315,17 @@ export default function BookingDetailPage() {
         await api.rejectInsurance(id, insuranceRejectReason);
       }
       setInsuranceRejectReason('');
+      // Refetch so the banner reflects the new insurance_status — a successful
+      // approve/reject moves it off 'pending_review' and dismisses this banner.
       await Promise.all([load(), refreshAlerts()]);
     } catch (e) {
+      // Previously this only hit console.error, so a failed request left the
+      // spinner-then-nothing symptom with no on-screen feedback. Surface it.
       console.error(`Insurance ${action} failed:`, e);
+      setInsuranceError(e?.data?.error || `Could not ${action === 'approve' ? 'approve' : 'reject'} insurance. Please try again.`);
+    } finally {
+      setInsuranceActioning(false);
     }
-    setInsuranceActioning(false);
   }
 
   if (loading) return <SkeletonDashboard />;
@@ -484,6 +498,9 @@ export default function BookingDetailPage() {
                 <XCircle size={13} /> Reject
               </button>
             </div>
+            {insuranceError && (
+              <p className="text-xs text-red-500 pl-[52px]">{insuranceError}</p>
+            )}
           </div>
         );
       })()}
@@ -567,6 +584,7 @@ export default function BookingDetailPage() {
         conditionForm={conditionForm} setConditionForm={setConditionForm}
         damageForm={damageForm} setDamageForm={setDamageForm}
         paymentForm={paymentForm} setPaymentForm={setPaymentForm}
+        pickupOverride={pickupOverride} setPickupOverride={setPickupOverride}
         actioning={actioning} doAction={doAction} actionError={actionError}
       />
 

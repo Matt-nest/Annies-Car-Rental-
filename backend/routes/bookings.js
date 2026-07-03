@@ -373,7 +373,7 @@ router.post('/:id/cancel', requireAuth, asyncHandler(async (req, res) => {
 
 /** POST /bookings/:id/pickup */
 router.post('/:id/pickup', requireAuth, asyncHandler(async (req, res) => {
-  const { mileage, fuel_level, condition_notes, photos = [] } = req.body;
+  const { mileage, fuel_level, condition_notes, photos = [], override_payment = false, override_reason } = req.body;
 
   // Get the booking first to know the vehicle_id
   const { data: booking } = await supabase
@@ -384,7 +384,12 @@ router.post('/:id/pickup', requireAuth, asyncHandler(async (req, res) => {
 
   const result = await transitionBooking(req.params.id, 'active', {
     changedBy: req.user?.email || 'owner',
-    reason: 'Vehicle picked up',
+    // Payment gate lives in transitionBooking: an unpaid booking cannot go 'active'
+    // unless an admin explicitly overrides (in-person cash/terminal to be recorded).
+    overridePaymentGate: !!override_payment,
+    reason: override_payment
+      ? `Vehicle picked up — in-person payment override${override_reason ? `: ${override_reason}` : ''}`
+      : 'Vehicle picked up',
     extraFields: {
       pickup_mileage: mileage,
       pickup_fuel_level: fuel_level,

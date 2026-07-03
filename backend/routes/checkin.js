@@ -51,9 +51,20 @@ router.post('/bookings/:id/checkin', requireAuth, asyncHandler(async (req, res) 
         reason: 'Vehicle prepared and marked ready for pickup',
       });
     } catch (transErr) {
-      // If already ready_for_pickup, that's fine — don't fail the whole request
-      if (transErr.message?.includes('Invalid transition')) {
-        console.log(`[CheckIn] Booking ${req.params.id} already past confirmed — skipping transition`);
+      // transitionBooking throws "Cannot transition from '<from>' to '<to>'" — the
+      // previous check for 'Invalid transition' never matched, so even the benign
+      // "already ready" case surfaced as an error. Treat Mark Ready as an
+      // idempotent no-op only when the booking is already ready_for_pickup or
+      // beyond; a too-early booking (e.g. not yet paid/confirmed) still errors.
+      const isTransitionErr = /cannot transition|invalid transition/i.test(transErr.message || '');
+      let alreadyReady = false;
+      if (isTransitionErr) {
+        const { data: cur } = await supabase
+          .from('bookings').select('status').eq('id', req.params.id).single();
+        alreadyReady = ['ready_for_pickup', 'active', 'returned', 'completed'].includes(cur?.status);
+      }
+      if (isTransitionErr && alreadyReady) {
+        console.log(`[CheckIn] Booking ${req.params.id} already ${'ready_for_pickup+'} — skipping transition`);
       } else {
         throw transErr;
       }
