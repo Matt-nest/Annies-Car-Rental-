@@ -1,5 +1,3 @@
-import { loadStripe } from '@stripe/stripe-js';
-
 // Re-export from shared config - single source of truth
 export { API_URL } from '../../../config';
 
@@ -19,10 +17,14 @@ export const STAGES = [
 // Legacy alias for backward compatibility
 export const STEPS = STAGES;
 
-export const STRIPE_CONFIGURED = Boolean(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
-export const stripePromise = STRIPE_CONFIGURED
-  ? loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
-  : Promise.resolve(null);
+export const PAYMENT_PROVIDER = (import.meta.env.VITE_PAYMENT_PROVIDER || 'square').toLowerCase();
+export const STRIPE_CONFIGURED = PAYMENT_PROVIDER === 'stripe' && Boolean(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+export const SQUARE_CONFIGURED = PAYMENT_PROVIDER === 'square' &&
+  Boolean(import.meta.env.VITE_SQUARE_APPLICATION_ID) &&
+  Boolean(import.meta.env.VITE_SQUARE_LOCATION_ID);
+export const SQUARE_APPLICATION_ID = import.meta.env.VITE_SQUARE_APPLICATION_ID || '';
+export const SQUARE_LOCATION_ID = import.meta.env.VITE_SQUARE_LOCATION_ID || '';
+export const SQUARE_ENVIRONMENT = (import.meta.env.VITE_SQUARE_ENVIRONMENT || 'production').toLowerCase();
 
 /* ────────────────────────────────────────────────────────
    Bonzah insurance - runtime config + tier metadata

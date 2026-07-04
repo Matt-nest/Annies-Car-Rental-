@@ -16,6 +16,8 @@ const LAST_UPDATED = 'May 13, 2026';
 
 export default function PrivacyPolicy() {
   useTheme();   // ensures CSS vars are bound
+  const processorName = brand.paymentProvider === 'stripe' ? 'Stripe' : 'Square';
+  const processorLegal = brand.paymentProvider === 'stripe' ? 'Stripe, Inc.' : 'Square, Inc.';
 
   return (
     <div className="min-h-screen">
@@ -57,7 +59,7 @@ export default function PrivacyPolicy() {
             <li><strong>Identity and contact data:</strong> first and last name, email address, phone number, and date of birth.</li>
             <li><strong>Driver verification:</strong> driver's license number, issuing state, expiration date, and an uploaded image of your license.</li>
             <li><strong>Address:</strong> street, city, state, and ZIP for billing and rental agreement records.</li>
-            <li><strong>Payment data:</strong> processed exclusively by <strong>Stripe</strong>. We never see or store your full card number. Stripe returns only a last-4 digit reference and the card brand for our records.</li>
+            <li><strong>Payment data:</strong> processed exclusively by <strong>{processorName}</strong>. We never see or store your full card number. {processorName} returns only processor references and card details needed for our records.</li>
             <li><strong>Rental activity:</strong> booking dates, pickup and return times, vehicle assigned, pricing, mileage, and post-trip inspection notes.</li>
             <li><strong>Communications:</strong> messages you send or receive through our booking confirmation, SMS reminders, email receipts, and in-app chat.</li>
           </ul>
@@ -90,7 +92,7 @@ export default function PrivacyPolicy() {
           <ul>
             <li><strong>Twilio Inc.:</strong> SMS delivery and inbound webhook for opt-out handling. Receives your phone number and the message body.</li>
             <li><strong>Resend:</strong> Transactional email delivery. Receives your email address and message content.</li>
-            <li><strong>Stripe, Inc.:</strong> Payment processing. Receives card details directly from your browser; we never receive them. Receives your name and email for receipt.</li>
+            <li><strong>{processorLegal}:</strong> Payment processing. Receives card details directly from your browser; we never receive them. Receives your name and email for receipt.</li>
             <li><strong>Bonzah (Bonzah Inc.):</strong> Optional rental insurance purchased through the booking flow. Receives your name, address, date of birth, and rental dates only if you elect coverage.</li>
             <li><strong>Bouncie (Bouncie LLC):</strong> Vehicle telematics (GPS and odometer). Receives no customer data, and only operates on our fleet vehicles.</li>
             <li><strong>Supabase:</strong> Database hosting (encrypted at rest) and authentication for our admin staff. Stores all customer data described in Section 2.</li>
@@ -135,7 +137,7 @@ export default function PrivacyPolicy() {
 
         <Section title="8. Security">
           <p>
-            Data in transit is protected by TLS. Data at rest in our Supabase database is encrypted by the database provider. Payment data is handled exclusively by Stripe within their PCI-DSS compliant environment, and we never store full card numbers. Admin access to customer data is restricted to authenticated staff members.
+            Data in transit is protected by TLS. Data at rest in our Supabase database is encrypted by the database provider. Payment data is handled exclusively by {processorName} within their PCI-DSS compliant environment, and we never store full card numbers. Admin access to customer data is restricted to authenticated staff members.
           </p>
         </Section>
 

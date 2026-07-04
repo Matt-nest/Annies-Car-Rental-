@@ -2,8 +2,8 @@ import brand from '../config/brand.js';
 import { supabase } from '../db/supabase.js';
 import { getStripe } from '../utils/stripe.js';
 import { sendBookingNotification, buildBookingPayload } from './notifyService.js';
-
-const stripe = getStripe();
+import { isSquareProvider } from '../config/paymentProvider.js';
+import { refundSquarePayment, getSquareRemainingRefundableDollars } from './squareService.js';
 
 /** Fetch a booking with customer + vehicle joins for notification payloads */
 async function getBookingForNotify(bookingId) {
@@ -16,6 +16,7 @@ async function getBookingForNotify(bookingId) {
 }
 
 async function getStripeRemainingRefundableCents(paymentIntentId) {
+  const stripe = getStripe();
   const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
   if (pi.latest_charge) {
     const charge = await stripe.charges.retrieve(pi.latest_charge);
@@ -27,6 +28,22 @@ async function getStripeRemainingRefundableCents(paymentIntentId) {
 }
 
 async function createDepositRefund(paymentIntentId, amountCents, reason = 'requested_by_customer') {
+  if (isSquareProvider()) {
+    const remainingDollars = await getSquareRemainingRefundableDollars(paymentIntentId);
+    if ((amountCents / 100) > remainingDollars) {
+      throw Object.assign(
+        new Error(`Refund exceeds Square remaining refundable amount ($${remainingDollars.toFixed(2)})`),
+        { status: 400 }
+      );
+    }
+    return refundSquarePayment({
+      paymentId: paymentIntentId,
+      amountDollars: amountCents / 100,
+      reason,
+    });
+  }
+
+  const stripe = getStripe();
   const remaining = await getStripeRemainingRefundableCents(paymentIntentId);
   if (amountCents > remaining) {
     throw Object.assign(
@@ -84,6 +101,13 @@ export async function getVehicleDepositAmount(vehicleId) {
  * This is a SEPARATE charge from the rental payment.
  */
 export async function createDepositCharge(bookingId) {
+  if (isSquareProvider()) {
+    throw Object.assign(
+      new Error('Standalone deposit charges are disabled for Square. Use the customer checkout payment, which includes the refundable deposit.'),
+      { status: 400 }
+    );
+  }
+  const stripe = getStripe();
   const { data: booking, error } = await supabase
     .from('bookings')
     .select('id, booking_code, vehicle_id, customer_id, customers(first_name, last_name, email), vehicles(year, make, model)')
@@ -150,6 +174,7 @@ export async function createDepositCharge(bookingId) {
  * Mark a deposit as "held" after Stripe confirms the charge.
  */
 export async function confirmDepositHeld(bookingId, stripePaymentIntentId) {
+  const stripe = getStripe();
   const pi = await stripe.paymentIntents.retrieve(stripePaymentIntentId);
   if (pi.status !== 'succeeded') {
     throw Object.assign(new Error(`Deposit payment not succeeded (status: ${pi.status})`), { status: 400 });

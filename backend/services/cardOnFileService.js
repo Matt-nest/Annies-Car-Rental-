@@ -10,11 +10,10 @@
 import { getStripe } from '../utils/stripe.js';
 import { supabase } from '../db/supabase.js';
 import brand from '../config/brand.js';
-
-const stripe = getStripe();
+import { isStripeProvider } from '../config/paymentProvider.js';
 
 export const FEATURE_AUTO_OVERAGE_CHARGES =
-  String(process.env.FEATURE_AUTO_OVERAGE_CHARGES || '').toLowerCase() === 'true';
+  isStripeProvider() && String(process.env.FEATURE_AUTO_OVERAGE_CHARGES || '').toLowerCase() === 'true';
 
 /** 48-hour dispute window before a scheduled overage charge fires. */
 export const OVERAGE_DELAY_MS = 48 * 60 * 60 * 1000;
@@ -30,6 +29,7 @@ export async function ensureStripeCustomer(customer) {
 
   if (customer.stripe_customer_id) return customer.stripe_customer_id;
 
+  const stripe = getStripe();
   const stripeCustomer = await stripe.customers.create({
     email: customer.email || undefined,
     name: [customer.first_name, customer.last_name].filter(Boolean).join(' ') || undefined,
@@ -53,6 +53,7 @@ export async function savePaymentMethodFromIntent(pi, bookingId) {
   if (!FEATURE_AUTO_OVERAGE_CHARGES) return;
   if (!pi?.payment_method || !bookingId) return;
   try {
+    const stripe = getStripe();
     const pm = typeof pi.payment_method === 'string'
       ? await stripe.paymentMethods.retrieve(pi.payment_method)
       : pi.payment_method;
@@ -165,6 +166,7 @@ async function processSingleCharge(charge) {
   if (claimErr) return { id: charge.id, status: 'skipped', reason: 'claim_failed' };
 
   try {
+    const stripe = getStripe();
     const pi = await stripe.paymentIntents.create({
       amount: charge.amount_cents,
       currency: 'usd',

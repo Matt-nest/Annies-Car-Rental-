@@ -61,7 +61,7 @@ function statusBanner(emoji, text, color = 'amber') {
 /**
  * Payment Declined — sent when an off-session charge against the saved card
  * fails (incidentals, overage settlement, etc). Asks the customer to update
- * their payment method in the portal so we can retry. Triggered from Stripe
+ * their payment method in the portal so we can retry. Triggered from payment
  * webhook handlers (payment_intent.payment_failed) once card-on-file is wired.
  */
 export async function sendPaymentDeclined({ customer, booking, amountCents, reason }) {

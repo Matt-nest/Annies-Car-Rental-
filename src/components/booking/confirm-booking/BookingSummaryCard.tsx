@@ -7,7 +7,7 @@ interface BookingSummaryCardProps {
 
 /**
  * Displays the booking cost breakdown inside the payment step.
- * Extracted from StripeCheckoutForm for clarity.
+ * Extracted from checkout form for clarity.
  */
 export default function BookingSummaryCard({ bookingSummary, theme }: BookingSummaryCardProps) {
   if (!bookingSummary) return null;
@@ -118,7 +118,7 @@ export default function BookingSummaryCard({ bookingSummary, theme }: BookingSum
           </div>
         )}
 
-        {/* Security Deposit - included in Stripe charge */}
+        {/* Security Deposit - included in the card charge */}
         {bookingSummary.depositAmount > 0 && (
           <>
             <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>

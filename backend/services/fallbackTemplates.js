@@ -528,7 +528,7 @@ ${B.location.city}, ${B.location.state}`,
   insurance_bind_failed: {
     channel: 'email',
     subject: '⚠️ Bonzah bind FAILED — manual reconciliation needed for {{booking_code}}',
-    body: `Bonzah policy could NOT be issued for booking {{booking_code}} after Stripe successfully charged the customer.
+    body: `Bonzah policy could NOT be issued for booking {{booking_code}} after the payment processor successfully charged the customer.
 
 BOOKING
 ───────
@@ -546,7 +546,7 @@ WHAT TO DO
 3. Either retry the bind manually OR refund the insurance portion to the customer
    and switch insurance_provider to 'own'.
 
-The customer's Stripe charge HAS gone through. They are not aware of this failure.
+The customer's payment charge HAS gone through. They are not aware of this failure.
 
 — ${B.name} Internal Alert`,
   },

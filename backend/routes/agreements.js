@@ -70,14 +70,63 @@ router.get('/:bookingCode', asyncHandler(async (req, res) => {
     .select('id, customer_signed_at, owner_signed_at')
     .eq('booking_id', booking.id)
     .maybeSingle();
+  const { data: completedRentalPayment } = await supabase
+    .from('payments')
+    .select('id')
+    .eq('booking_id', booking.id)
+    .eq('payment_type', 'rental')
+    .eq('status', 'completed')
+    .limit(1);
 
   const customer = booking.customers || {};
   const vehicle = booking.vehicles || {};
+  const { data: vehicleDeposit } = await supabase
+    .from('vehicle_deposits')
+    .select('amount')
+    .eq('vehicle_id', booking.vehicle_id)
+    .maybeSingle();
+  const depositAmount = vehicleDeposit?.amount != null
+    ? Number(vehicleDeposit.amount) / 100
+    : 150;
+  const bookingSummary = {
+    bookingCode: booking.booking_code,
+    status: booking.status,
+    customerName: `${customer.first_name || ''} ${customer.last_name || ''}`.trim(),
+    customerEmail: customer.email || '',
+    vehicle: vehicle.year && vehicle.make ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : null,
+    pickupDate: booking.pickup_date,
+    returnDate: booking.return_date,
+    rentalDays: booking.rental_days,
+    dailyRate: Number(booking.daily_rate),
+    subtotal: Number(booking.subtotal),
+    deliveryFee: Number(booking.delivery_fee || 0),
+    discountAmount: Number(booking.discount_amount || 0),
+    mileageAddonFee: Number(booking.mileage_addon_fee || 0),
+    tollAddonFee: Number(booking.toll_addon_fee || 0),
+    taxAmount: Number(booking.tax_amount || 0),
+    totalCost: Number(booking.total_cost),
+    rateType: booking.rate_type || 'daily',
+    lineItems: booking.line_items || null,
+    mileageAllowance: booking.mileage_allowance || null,
+    insuranceSource: booking.insurance_provider || null,
+    insuranceTier: booking.bonzah_tier_id || null,
+    insuranceCost: booking.insurance_provider === 'bonzah'
+      ? (Number(booking.bonzah_premium_cents || 0) + Number(booking.bonzah_markup_cents || 0)) / 100
+      : 0,
+    depositAmount,
+    depositIncludedInCharge: true,
+    totalChargedWithDeposit: Number(booking.total_cost || 0) + depositAmount,
+    hasDelivery: !!booking.delivery_requested,
+    hasUnlimitedMiles: !!booking.unlimited_miles,
+    hasUnlimitedTolls: !!booking.unlimited_tolls,
+  };
 
   res.json({
     alreadySigned: !!existing?.customer_signed_at,
+    alreadyPaid: !!completedRentalPayment?.length,
     ownerCounterSigned: !!existing?.owner_signed_at,
     bookingId: booking.id,
+    bookingSummary,
     autoFilled: {
       customerName: `${customer.first_name || ''} ${customer.last_name || ''}`.trim(),
       phone: customer.phone || '',

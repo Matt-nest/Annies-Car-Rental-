@@ -142,8 +142,9 @@ export default function PaymentsPage() {
               <tbody>
                 {payments.map(payment => {
                   const isStripe = payment.method === 'stripe' && payment.reference_id?.startsWith('pi_');
+                  const isSquare = payment.method === 'square' && !!payment.reference_id;
                   const isRefund = payment.payment_type === 'refund';
-                  const canRefund = !isRefund && isStripe && payment.amount > 0 && payment.payment_type !== 'insurance';
+                  const canRefund = !isRefund && (isStripe || isSquare) && payment.amount > 0 && payment.payment_type !== 'insurance';
                   const displayAmount = isRefund
                     ? `-$${Math.abs(payment.amount).toFixed(2)}`
                     : `$${parseFloat(payment.amount).toFixed(2)}`;
@@ -185,7 +186,7 @@ export default function PaymentsPage() {
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-1.5 capitalize" style={{ color: 'var(--text-secondary)' }}>
-                          {payment.method === 'stripe' ? <CreditCard size={13} style={{ color: '#818cf8' }} /> : <DollarSign size={13} style={{ color: '#22c55e' }} />}
+                          {['stripe', 'square'].includes(payment.method) ? <CreditCard size={13} style={{ color: '#818cf8' }} /> : <DollarSign size={13} style={{ color: '#22c55e' }} />}
                           <span className="text-xs">{payment.method}</span>
                         </div>
                       </td>
@@ -227,7 +228,8 @@ export default function PaymentsPage() {
             {payments.map(payment => {
               const isRefund = payment.payment_type === 'refund';
               const isStripe = payment.method === 'stripe' && payment.reference_id?.startsWith('pi_');
-              const canRefund = !isRefund && isStripe && payment.amount > 0 && payment.payment_type !== 'insurance';
+              const isSquare = payment.method === 'square' && !!payment.reference_id;
+              const canRefund = !isRefund && (isStripe || isSquare) && payment.amount > 0 && payment.payment_type !== 'insurance';
               const displayAmount = isRefund
                 ? `-$${Math.abs(payment.amount).toFixed(2)}`
                 : `$${parseFloat(payment.amount).toFixed(2)}`;
@@ -326,7 +328,7 @@ export default function PaymentsPage() {
           <div className="card p-3" style={{ backgroundColor: 'var(--danger-glow)', borderColor: 'rgba(244,63,94,0.15)' }}>
             <p className="text-xs font-bold mb-0.5" style={{ color: 'var(--danger-color)' }}>Warning</p>
             <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-              This will immediately reverse funds on the customer's card via Stripe. This action cannot be undone.
+              This will immediately reverse funds on the customer's card through the configured payment processor. This action cannot be undone.
               For deposits, the booking deposit tracker is updated after a successful full refund.
             </p>
           </div>

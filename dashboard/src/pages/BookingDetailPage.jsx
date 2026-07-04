@@ -208,6 +208,7 @@ function ConditionPhotosSection({ records, onView }) {
    Main Component
    ──────────────────────────────────────────────────────── */
 export default function BookingDetailPage() {
+  const paymentProvider = (import.meta.env.VITE_PAYMENT_PROVIDER || 'square').toLowerCase();
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -1016,7 +1017,7 @@ function BookingInsuranceSection({ booking, bookingId, reload }) {
           <AlertCircle size={14} className="shrink-0 mt-0.5" />
           <div>
             <p className="font-semibold">Bind failed</p>
-            <p className="opacity-80 mt-0.5">Customer was charged via Stripe but Bonzah did not issue a policy. Manual reconciliation required — check the Settings → Integrations event log for the underlying error.</p>
+            <p className="opacity-80 mt-0.5">Customer was charged via {paymentProvider === 'stripe' ? 'Stripe' : 'Square'} but Bonzah did not issue a policy. Manual reconciliation required — check the Settings → Integrations event log for the underlying error.</p>
           </div>
         </div>
       )}

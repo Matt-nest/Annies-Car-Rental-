@@ -4,6 +4,7 @@ import { requireAuth, requireRole } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { validatePaymentPayload } from '../utils/validators.js';
 import { getStripe } from '../utils/stripe.js';
+import { refundSquarePayment, getSquareRemainingRefundableDollars } from '../services/squareService.js';
 
 const router = Router();
 
@@ -145,6 +146,24 @@ router.post('/payments/:id/refund', requireAuth, requireRole('owner', 'admin'), 
     } catch (e) {
       console.error('[Stripe Refund Error]', e);
       return res.status(500).json({ error: `Stripe Refund Failed: ${e.message}` });
+    }
+  } else if (payment.method === 'square' && payment.reference_id) {
+    try {
+      const squareRemaining = await getSquareRemainingRefundableDollars(payment.reference_id);
+      maxRefundable = Math.min(remaining, squareRemaining);
+      if (refundTarget <= 0 || refundTarget > maxRefundable) {
+        return res.status(400).json({ error: `Invalid refund amount. Maximum available is $${maxRefundable.toFixed(2)}.` });
+      }
+      const squareRefund = await refundSquarePayment({
+        paymentId: payment.reference_id,
+        amountDollars: refundTarget,
+        reason,
+      });
+      finalStripeRefundId = squareRefund?.id;
+      fullNotes += ` (Square Refund: ${squareRefund?.id}; Square Payment: ${payment.reference_id})`;
+    } catch (e) {
+      console.error('[Square Refund Error]', e);
+      return res.status(e.status || 500).json({ error: `Square Refund Failed: ${e.message}` });
     }
   } else if (refundTarget <= 0 || refundTarget > maxRefundable) {
     return res.status(400).json({ error: `Invalid refund amount. Maximum available is $${maxRefundable.toFixed(2)}.` });

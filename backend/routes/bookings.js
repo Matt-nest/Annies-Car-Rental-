@@ -438,7 +438,7 @@ router.post('/:code/insurance/quote', asyncHandler(async (req, res) => {
   }
 
   // Wizard captures DOB + address + license into sessionStorage during the Agreement
-  // stage, but only persists them to the customer record at Stripe-submit time. We
+      // stage, but only persists them to the customer record at payment-submit time. We
   // need those fields here to call Bonzah. Merge the wizard's draft onto the loaded
   // customer for quote-time only — the bind path (post-payment) re-reads the now-
   // persisted customer record, so this can't smuggle bad data into a real policy.
@@ -570,7 +570,7 @@ router.patch('/:code/insurance', asyncHandler(async (req, res) => {
       .from('bookings')
       .update({
         insurance_provider: 'bonzah',
-        insurance_status: 'pending', // flips to 'active' after Stripe webhook binds
+        insurance_status: 'pending', // flips to 'active' after successful payment binds coverage
         bonzah_tier_id: tier_id,
         bonzah_quote_id: quote.quote_id,
         bonzah_premium_cents: premiumCents,

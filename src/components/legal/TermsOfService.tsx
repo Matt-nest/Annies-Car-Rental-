@@ -106,7 +106,7 @@ export default function TermsOfService() {
 
         <Section title="6. Payment terms">
           <p>
-            Payment is processed through Stripe at the time of booking confirmation. A refundable security deposit is authorized at pickup and released or settled within 3 to 5 business days after vehicle return and inspection. Incidentals (cleaning, smoking, pet, late-return, mileage overage, tolls, damage) are charged against the security deposit per the <a href="/rental-agreement" className="underline">Rental Agreement</a>.
+            Payment is processed through {brand.paymentProvider === 'stripe' ? 'Stripe' : 'Square'} at the time of booking confirmation. A refundable security deposit is collected with checkout and released or settled within 3 to 5 business days after vehicle return and inspection. Incidentals (cleaning, smoking, pet, late-return, mileage overage, tolls, damage) are charged against the security deposit per the <a href="/rental-agreement" className="underline">Rental Agreement</a>.
           </p>
         </Section>
 

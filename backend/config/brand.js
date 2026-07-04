@@ -8,7 +8,7 @@
  * │  2. Replace /public/logo.svg with the new brand logo               │
  * │  3. Set the corresponding env vars (SITE_URL, DASHBOARD_URL, etc.) │
  * │  4. Rebuild frontend + dashboard                                   │
- * │  5. Update Stripe, Resend, and Twilio accounts                     │
+ * │  5. Update payment provider, Resend, and Twilio accounts           │
  * └──────────────────────────────────────────────────────────────────────┘
  *
  * Values are read from environment variables where available, falling
@@ -59,8 +59,8 @@ const brand = {
   // ── External Links ────────────────────────────────────────────────────
   reviewLink:  process.env.BRAND_REVIEW_LINK || 'https://g.page/annies-car-rental/review',
 
-  // ── Stripe Payment Descriptions ───────────────────────────────────────
-  /** Template for Stripe PI description. Use {{booking_code}}, {{vehicle}}, etc. */
+  // ── Payment Descriptions ─────────────────────────────────────────────
+  /** Legacy Stripe description prefix kept for JD Coastal compatibility. */
   stripeDescriptionPrefix: process.env.BRAND_STRIPE_PREFIX || "Annie's Car Rental",
 };
 

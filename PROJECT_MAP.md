@@ -267,6 +267,7 @@ AGREEMENTS (→ rental_agreements table)
 | File | Description | Used By |
 |------|-------------|---------|
 | `backend/services/depositService.js` | Stripe deposit charge, refund, settlement | deposit routes |
+| `backend/services/squareService.js` | Square card payment, refund, webhook settlement for Annie deployments | square routes, refund routes |
 | `backend/services/inspectionService.js` | Post-return inspection with auto mileage/late fee calcs | inspection routes, checkin routes |
 | `backend/services/invoiceService.js` | Invoice generation with line items | invoice routes |
 | `backend/services/portalAuthService.js` | JWT auth for customer portal (booking code + email) | portal routes |
@@ -278,6 +279,7 @@ AGREEMENTS (→ rental_agreements table)
 | Route File | Prefix | Endpoints |
 |------------|--------|-----------|
 | `routes/deposits.js` | `/deposits` | GET /:id, POST /charge, POST /refund, POST /settle |
+| `routes/square.js` | `/square` | POST /create-payment, POST /confirm-payment, POST /webhook, GET /status |
 | `routes/addons.js` | `/addons` | GET /booking/:id, POST /booking/:id |
 | `routes/checkin.js` | `/checkin` | GET /booking/:id, POST /booking/:id |
 | `routes/incidentals.js` | `/incidentals` | GET /booking/:id, POST /booking/:id, DELETE /:id |
@@ -300,6 +302,8 @@ AGREEMENTS (→ rental_agreements table)
 | File | Route | Description |
 |------|-------|-------------|
 | `src/components/portal/CustomerPortal.tsx` | `/portal?code=XXXX` | Self-service portal: login, status dashboard, lockbox code, check-in/out forms, deposit/invoice view, dispute submission |
+| `src/components/booking/confirm-booking/SquarePaymentStage.tsx` | `/confirm?code=XXXX` | Square Web Payments SDK card form for Annie checkout |
+| `src/components/booking/confirm-booking/StripePaymentStage.tsx` | `/confirm?code=XXXX` | Stripe Elements card form for JD Coastal checkout |
 
 ### Booking Status Flow
 
@@ -541,6 +545,9 @@ Idempotent. Apply via Supabase SQL editor or `scripts/run_migration_017.js` (not
   - `VITE_SUPABASE_URL`
   - `VITE_SUPABASE_ANON_KEY`
   - `VITE_API_URL` (points to backend Vercel URL, e.g. `https://your-api.vercel.app/api/v1`)
+  - `VITE_PAYMENT_PROVIDER` (`square` for Annie, `stripe` for JD Coastal)
+  - Annie only: `VITE_SQUARE_APPLICATION_ID`, `VITE_SQUARE_LOCATION_ID`, `VITE_SQUARE_ENVIRONMENT`
+  - JD only: `VITE_STRIPE_PUBLISHABLE_KEY`
 
 ### Backend (Express API)
 - **`backend/vercel.json`:** All traffic → `api/index.js` serverless
@@ -548,7 +555,9 @@ Idempotent. Apply via Supabase SQL editor or `scripts/run_migration_017.js` (not
   - Sends approval reminders (24h pending), auto-declines (48h pending), overdue/pickup/return webhooks to GHL
 - **Environment Variables (backend only — never expose to frontend):**
   - `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` (service role)
-  - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
+  - `PAYMENT_PROVIDER` (`square` for Annie, `stripe` for JD Coastal)
+  - Annie only: `SQUARE_ACCESS_TOKEN`, `SQUARE_LOCATION_ID`, `SQUARE_WEBHOOK_SIGNATURE_KEY`, `SQUARE_WEBHOOK_URL`, `SQUARE_ENVIRONMENT`
+  - JD only: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
   - `GHL_WEBHOOK_*` (8 webhook URLs for GoHighLevel automation)
   - `RESEND_API_KEY`, `EMAIL_FROM`, `SITE_URL`
   - `OWNER_NAME`, `OWNER_EMAIL`, `BUSINESS_PHONE`, `DEFAULT_PICKUP_LOCATION`
