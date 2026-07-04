@@ -88,7 +88,7 @@ export default function HowItWorks() {
                     color: 'var(--text-primary)',
                   }}
                 >
-                  {React.cloneElement(step.icon as React.ReactElement, { size: 24 })}
+                  {React.cloneElement(step.icon as React.ReactElement<{ size?: number }>, { size: 24 })}
                 </div>
               </div>
               <h3 className="text-base sm:text-lg font-medium mb-2 sm:mb-3">{step.title}</h3>
