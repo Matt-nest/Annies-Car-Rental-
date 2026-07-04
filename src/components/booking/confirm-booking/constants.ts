@@ -19,10 +19,10 @@ export const STAGES = [
 // Legacy alias for backward compatibility
 export const STEPS = STAGES;
 
-export const stripePromise = loadStripe(
-  import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ||
-  'pk_test_51THqNVBDLBS4aYcfqHPZnNGlwL6E8lGdzFOxYoSmd37DjxD3ofbWe6AsrEkL90LqnHfp8fEFDfAmrqfkDgcNYYqE009CXY3fGT'
-);
+export const STRIPE_CONFIGURED = Boolean(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+export const stripePromise = STRIPE_CONFIGURED
+  ? loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
+  : Promise.resolve(null);
 
 /* ────────────────────────────────────────────────────────
    Bonzah insurance - runtime config + tier metadata

@@ -5,6 +5,40 @@
 
 ---
 
+## 2026-07-04 — Payment hardening, refunds, and admin booking pricing controls
+
+### Changes Made
+- **`backend/services/stripeService.js`**: Reworked successful PaymentIntent handling into one idempotent path shared by webhooks and `confirm-payment`; cancels stale active intents when server amount changes; records rental/deposit/insurance ledger rows once; keeps admin-created bookings auto-finalizing after payment.
+- **`backend/routes/payments.js` / `backend/services/depositService.js`**: Added Stripe remaining-refundable checks before issuing refunds and wrote deposit workflow refunds back into the payments ledger.
+- **`dashboard/src/pages/PaymentsPage.jsx`**: Added live ledger summary cards and clearer deposit-refund actions/copy.
+- **`dashboard/src/components/bookings/NewBookingModal.jsx` / `backend/services/bookingService.js`**: Added admin weekly discount controls, exact rental-total override, and stored override line items for admin-created bookings.
+- **`backend/routes/bookings.js` / `backend/services/emailService.js` / `src/components/booking/ConfirmBooking.tsx` / `src/components/booking/confirm-booking/constants.ts`**: Corrected continue links to `/confirm`, sends admin-created completion SMS, returns server payment totals after insurance selection, and removed the hardcoded Stripe test publishable-key fallback.
+- **`backend/routes/stats.js`**: Fixed weekly discount reporting to calculate dollar savings instead of summing percentage values.
+
+### API/Data Impact
+- Admin-create payload now accepts optional `admin_weekly_discount_percent` and `admin_total_cost_override`.
+- Insurance PATCH responses include `payment_totals` for server-authoritative checkout validation.
+- Payments ledger may now include `payment_type: 'insurance'` rows for Stripe charges that include Bonzah insurance.
+
+### Files That Need Verification
+- Customer `/confirm?code=...` payment flow with own insurance and Bonzah insurance.
+- Dashboard New Booking modal pricing override and weekly discount calculator.
+- Payments ledger refund modal for rental and deposit rows.
+- Booking detail deposit release/settlement flows.
+
+### Build Status
+- [x] Backend `node --check` on modified backend files — pass
+- [ ] `npm run build`
+- [ ] Backend tests
+
+### Committed
+- [ ] Pending
+
+### Known Issues / Follow-up
+- Annie is still Stripe-wired in this repository; Square requires a parallel provider integration and deployment env work rather than a safe inline swap.
+
+---
+
 ## 2026-06-14 — Port JD Coastal booking-flow upgrades (dedicated Scan step + summary redesign)
 
 Ports the full set from JD Coastal (verified there first): dedicated live-camera ID **Scan step**, Rental Summary redesign, redundant-scanner removal, draft versioning, and skip-when-scanned.

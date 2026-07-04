@@ -15,6 +15,46 @@ async function getBookingForNotify(bookingId) {
   return data;
 }
 
+async function getStripeRemainingRefundableCents(paymentIntentId) {
+  const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+  if (pi.latest_charge) {
+    const charge = await stripe.charges.retrieve(pi.latest_charge);
+    return Math.max(0, charge.amount - charge.amount_refunded);
+  }
+  const refunds = await stripe.refunds.list({ payment_intent: paymentIntentId, limit: 100 });
+  const refunded = (refunds.data || []).reduce((sum, refund) => sum + refund.amount, 0);
+  return Math.max(0, pi.amount - refunded);
+}
+
+async function createDepositRefund(paymentIntentId, amountCents, reason = 'requested_by_customer') {
+  const remaining = await getStripeRemainingRefundableCents(paymentIntentId);
+  if (amountCents > remaining) {
+    throw Object.assign(
+      new Error(`Refund exceeds Stripe remaining refundable amount ($${(remaining / 100).toFixed(2)})`),
+      { status: 400 }
+    );
+  }
+  return stripe.refunds.create({
+    payment_intent: paymentIntentId,
+    amount: amountCents,
+    reason,
+  });
+}
+
+async function recordDepositRefundLedger({ bookingId, amountCents, referenceId, paymentIntentId, note }) {
+  if (amountCents <= 0) return;
+  await supabase.from('payments').insert({
+    booking_id: bookingId,
+    payment_type: 'refund',
+    amount: -(amountCents / 100),
+    method: 'stripe',
+    reference_id: referenceId || `deposit_refund_${Date.now()}`,
+    notes: `${note} (PI: ${paymentIntentId})`,
+    status: 'completed',
+    paid_at: new Date().toISOString(),
+  });
+}
+
 /**
  * Get the deposit configuration for a vehicle.
  * Looks up vehicle_deposits table; falls back to vehicle.deposit_amount.
@@ -150,18 +190,30 @@ export async function releaseDeposit(bookingId, { refundedBy = 'system' } = {}) 
     return { alreadyRefunded: true };
   }
 
-  if (deposit.stripe_charge_id) {
-    await stripe.refunds.create({
-      payment_intent: deposit.stripe_charge_id,
-      amount: deposit.amount,
-    });
+  const alreadyRefunded = Number(deposit.refund_amount || 0);
+  const amountToRefund = Math.max(0, Number(deposit.amount || 0) - alreadyRefunded);
+  if (amountToRefund <= 0) {
+    return { alreadyRefunded: true };
   }
+
+  let stripeRefund = null;
+  if (deposit.stripe_charge_id) {
+    stripeRefund = await createDepositRefund(deposit.stripe_charge_id, amountToRefund);
+  }
+
+  await recordDepositRefundLedger({
+    bookingId,
+    amountCents: amountToRefund,
+    referenceId: stripeRefund?.id,
+    paymentIntentId: deposit.stripe_charge_id,
+    note: 'Security deposit released',
+  });
 
   await supabase
     .from('booking_deposits')
     .update({
       status: 'refunded',
-      refund_amount: deposit.amount,
+      refund_amount: alreadyRefunded + amountToRefund,
       applied_amount: 0,
       refunded_at: new Date().toISOString(),
       refunded_by: refundedBy,
@@ -180,7 +232,7 @@ export async function releaseDeposit(bookingId, { refundedBy = 'system' } = {}) 
     if (booking) {
       const payload = buildBookingPayload(booking);
       payload.deposit_amount = (deposit.amount / 100).toFixed(2);
-      payload.refund_amount = (deposit.amount / 100).toFixed(2);
+      payload.refund_amount = (amountToRefund / 100).toFixed(2);
       payload.deposit_status = 'refunded';
       sendBookingNotification('deposit_refunded', payload);
     }
@@ -188,7 +240,7 @@ export async function releaseDeposit(bookingId, { refundedBy = 'system' } = {}) 
     console.error('[Deposit] Failed to send refund notification:', e.message);
   }
 
-  return { success: true, refundedAmount: deposit.amount };
+  return { success: true, refundedAmount: amountToRefund };
 }
 
 /**
@@ -207,17 +259,25 @@ export async function settleDeposit(bookingId, { incidentalTotal = 0, refundedBy
     return { noDeposit: true, amountOwed: incidentalTotal };
   }
 
-  const appliedAmount = Math.min(deposit.amount, incidentalTotal);
-  const refundAmount = Math.max(0, deposit.amount - incidentalTotal);
-  const amountOwed = Math.max(0, incidentalTotal - deposit.amount);
+  const alreadyRefunded = Number(deposit.refund_amount || 0);
+  const refundableDeposit = Math.max(0, Number(deposit.amount || 0) - alreadyRefunded);
+  const appliedAmount = Math.min(refundableDeposit, incidentalTotal);
+  const refundAmount = Math.max(0, refundableDeposit - incidentalTotal);
+  const amountOwed = Math.max(0, incidentalTotal - refundableDeposit);
 
   // Partial refund via Stripe
+  let stripeRefund = null;
   if (refundAmount > 0 && deposit.stripe_charge_id) {
-    await stripe.refunds.create({
-      payment_intent: deposit.stripe_charge_id,
-      amount: refundAmount,
-    });
+    stripeRefund = await createDepositRefund(deposit.stripe_charge_id, refundAmount);
   }
+
+  await recordDepositRefundLedger({
+    bookingId,
+    amountCents: refundAmount,
+    referenceId: stripeRefund?.id,
+    paymentIntentId: deposit.stripe_charge_id,
+    note: 'Security deposit settled',
+  });
 
   const newStatus = refundAmount === deposit.amount ? 'refunded'
     : appliedAmount > 0 ? 'applied'
@@ -228,7 +288,7 @@ export async function settleDeposit(bookingId, { incidentalTotal = 0, refundedBy
     .update({
       status: newStatus,
       applied_amount: appliedAmount,
-      refund_amount: refundAmount,
+      refund_amount: alreadyRefunded + refundAmount,
       refunded_at: new Date().toISOString(),
       refunded_by: refundedBy,
     })

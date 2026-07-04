@@ -7,6 +7,18 @@ import { getStripe } from '../utils/stripe.js';
 
 const router = Router();
 
+async function getStripeRemainingRefundableDollars(stripe, paymentIntentId) {
+  const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+  if (pi.latest_charge) {
+    const charge = await stripe.charges.retrieve(pi.latest_charge);
+    return Math.max(0, (charge.amount - charge.amount_refunded) / 100);
+  }
+
+  const refunds = await stripe.refunds.list({ payment_intent: paymentIntentId, limit: 100 });
+  const refunded = (refunds.data || []).reduce((sum, refund) => sum + refund.amount, 0);
+  return Math.max(0, (pi.amount - refunded) / 100);
+}
+
 /** GET /payments (global list) */
 router.get('/payments', requireAuth, asyncHandler(async (req, res) => {
   let query = supabase
@@ -106,12 +118,9 @@ router.post('/payments/:id/refund', requireAuth, requireRole('owner', 'admin'), 
 
   const totalRefundedSoFar = (childRefunds || []).reduce((acc, curr) => acc + Math.abs(curr.amount), 0);
   const remaining = payment.amount - totalRefundedSoFar;
+  let maxRefundable = remaining;
 
   const refundTarget = Number(amount) || remaining;
-  if (refundTarget <= 0 || refundTarget > remaining) {
-    return res.status(400).json({ error: `Invalid refund amount. Maximum available is $${remaining.toFixed(2)}.` });
-  }
-
   let fullNotes = `Refund for payment ${payment.id}`;
   if (reason) fullNotes += ` - Reason: ${reason}`;
 
@@ -121,17 +130,24 @@ router.post('/payments/:id/refund', requireAuth, requireRole('owner', 'admin'), 
   if (payment.method === 'stripe' && payment.reference_id && payment.reference_id.startsWith('pi_')) {
     const stripe = getStripe();
     try {
+      const stripeRemaining = await getStripeRemainingRefundableDollars(stripe, payment.reference_id);
+      maxRefundable = Math.min(remaining, stripeRemaining);
+      if (refundTarget <= 0 || refundTarget > maxRefundable) {
+        return res.status(400).json({ error: `Invalid refund amount. Maximum available is $${maxRefundable.toFixed(2)}.` });
+      }
       const stripeRefund = await stripe.refunds.create({
         payment_intent: payment.reference_id,
         amount: Math.round(refundTarget * 100), // Stripe expects cents
         reason: reason === 'fraudulent' ? 'fraudulent' : (reason === 'duplicate' ? 'duplicate' : 'requested_by_customer')
       });
       finalStripeRefundId = stripeRefund.id;
-      fullNotes += ` (Stripe Request: ${stripeRefund.id})`;
+      fullNotes += ` (Stripe Request: ${stripeRefund.id}; PI: ${payment.reference_id})`;
     } catch (e) {
       console.error('[Stripe Refund Error]', e);
       return res.status(500).json({ error: `Stripe Refund Failed: ${e.message}` });
     }
+  } else if (refundTarget <= 0 || refundTarget > maxRefundable) {
+    return res.status(400).json({ error: `Invalid refund amount. Maximum available is $${maxRefundable.toFixed(2)}.` });
   }
 
   // 3. Create negative ledger entry
@@ -155,9 +171,21 @@ router.post('/payments/:id/refund', requireAuth, requireRole('owner', 'admin'), 
     return res.status(500).json({ error: 'Gateway hit but database ledger failed.' });
   }
 
-  // 4. If full originally deposit, update booking status IF remaining becomes 0
-  if (payment.payment_type === 'rental' || payment.payment_type === 'deposit') {
-    if (refundTarget === remaining && totalRefundedSoFar + refundTarget === payment.amount) {
+  // 4. Keep deposit tracking in sync only when the refunded ledger row is the deposit.
+  if (payment.payment_type === 'deposit') {
+    const totalRefunded = totalRefundedSoFar + refundTarget;
+    const depositStatus = totalRefunded >= payment.amount ? 'refunded' : 'partial_refund';
+    await supabase
+      .from('booking_deposits')
+      .update({
+        status: depositStatus,
+        refund_amount: Math.round(totalRefunded * 100),
+        refunded_at: new Date().toISOString(),
+        refunded_by: req.user?.email || 'admin',
+      })
+      .eq('booking_id', payment.booking_id);
+
+    if (depositStatus === 'refunded') {
       await supabase
         .from('bookings')
         .update({ deposit_status: 'refunded' })

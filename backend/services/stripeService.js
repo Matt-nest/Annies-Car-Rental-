@@ -14,6 +14,159 @@ import {
 
 const stripe = getStripe();
 
+async function getDepositCentsForVehicle(vehicleId) {
+  let depositCents = 15000;
+  if (vehicleId) {
+    const { data: vd } = await supabase
+      .from('vehicle_deposits')
+      .select('amount')
+      .eq('vehicle_id', vehicleId)
+      .maybeSingle();
+    if (vd) depositCents = Number(vd.amount);
+  }
+  return depositCents;
+}
+
+async function getPaymentRowsByReference(referenceId, paymentType = null) {
+  let query = supabase
+    .from('payments')
+    .select('id')
+    .eq('reference_id', referenceId)
+    .limit(1);
+  if (paymentType) query = query.eq('payment_type', paymentType);
+  const { data } = await query;
+  return data || [];
+}
+
+async function insertPaymentIfMissing(payment) {
+  const existing = await getPaymentRowsByReference(payment.reference_id, payment.payment_type);
+  if (existing.length) return { inserted: false, id: existing[0].id };
+
+  const { data, error } = await supabase
+    .from('payments')
+    .insert(payment)
+    .select('id')
+    .single();
+  if (error) throw error;
+  return { inserted: true, id: data.id };
+}
+
+async function finalizeBookingAfterPayment(bookingId) {
+  let booking = await getBookingDetail(bookingId).catch(() => null);
+  if (booking && booking.status === 'pending_approval' && booking.created_by_admin) {
+    await transitionBooking(bookingId, 'approved', {
+      changedBy: 'system',
+      reason: 'Auto-approved on payment success (admin-created booking)',
+    }).catch(e => console.error('[Auto-Approve Error]', e));
+    booking = await getBookingDetail(bookingId).catch(() => booking);
+  }
+  if (booking && booking.status === 'approved') {
+    const { data: agreement } = await supabase
+      .from('rental_agreements')
+      .select('id')
+      .eq('booking_id', bookingId)
+      .maybeSingle();
+
+    if (agreement) {
+      await transitionBooking(bookingId, 'confirmed', {
+        changedBy: 'system',
+        reason: 'Payment completed and agreement already signed'
+      }).catch(e => console.error('[Auto-Confirm Error]', e));
+    }
+  }
+}
+
+async function recordSuccessfulPaymentIntent(pi, source = 'stripe') {
+  const bookingId = pi.metadata?.booking_id;
+  if (!bookingId) {
+    throw Object.assign(new Error('No booking linked to this payment'), { status: 400 });
+  }
+
+  const depositCents = Number(pi.metadata.deposit_cents) || 0;
+  const rentalCents = Number(pi.metadata.rental_cents) || Math.max(0, pi.amount - depositCents);
+  const insuranceCents = Number(pi.metadata.insurance_cents) || 0;
+  const rentalDollars = rentalCents / 100;
+  const depositDollars = depositCents / 100;
+  const insuranceDollars = insuranceCents / 100;
+  const paidAt = new Date().toISOString();
+
+  const rentalResult = await insertPaymentIfMissing({
+    booking_id: bookingId,
+    amount: rentalDollars,
+    payment_type: 'rental',
+    method: 'stripe',
+    reference_id: pi.id,
+    status: 'completed',
+    paid_at: paidAt,
+    notes: `Stripe payment — ${pi.payment_method_types?.join(', ') || 'card'}`,
+  });
+
+  if (insuranceCents > 0) {
+    await insertPaymentIfMissing({
+      booking_id: bookingId,
+      amount: insuranceDollars,
+      payment_type: 'insurance',
+      method: 'stripe',
+      reference_id: pi.id,
+      status: 'completed',
+      paid_at: paidAt,
+      notes: `Insurance collected with Stripe payment`,
+    });
+  }
+
+  if (depositCents > 0) {
+    await insertPaymentIfMissing({
+      booking_id: bookingId,
+      amount: depositDollars,
+      payment_type: 'deposit',
+      method: 'stripe',
+      reference_id: pi.id,
+      status: 'completed',
+      paid_at: paidAt,
+      notes: `Security deposit — refundable`,
+    });
+
+    await supabase.from('booking_deposits').upsert({
+      booking_id: bookingId,
+      amount: depositCents,
+      stripe_charge_id: pi.id,
+      status: 'held',
+    }, { onConflict: 'booking_id' }).catch(() => {});
+  }
+
+  await supabase
+    .from('bookings')
+    .update({
+      deposit_status: depositCents > 0 ? 'paid' : 'none',
+      deposit_amount: depositDollars,
+    })
+    .eq('id', bookingId);
+
+  await savePaymentMethodFromIntent(pi, bookingId);
+  await bindBonzahAfterPayment(bookingId);
+  await sendPaymentReceipt(bookingId, pi, rentalDollars, depositDollars);
+
+  if (rentalResult.inserted) {
+    createNotification(
+      'payment_received',
+      `Payment received: $${(pi.amount / 100).toFixed(2)}`,
+      `Booking ${pi.metadata.booking_code} — ${pi.metadata.customer_name || ''}`,
+      `/bookings/${bookingId}`,
+      { booking_id: bookingId, amount: pi.amount / 100, source }
+    ).catch(() => {});
+  }
+
+  await finalizeBookingAfterPayment(bookingId);
+
+  return {
+    success: true,
+    alreadyRecorded: !rentalResult.inserted,
+    rentalDollars,
+    depositDollars,
+    insuranceDollars,
+  };
+}
+
 /**
  * Create a PaymentIntent for a booking.
  * Charges total_cost + insurance_cost + security deposit in a single PaymentIntent.
@@ -38,15 +191,39 @@ export async function createPaymentIntent(bookingCode, { expected_total_cents } 
     throw Object.assign(new Error('This booking has been ' + booking.status), { status: 400 });
   }
 
+  // Calculate amount in cents — rental + insurance + security deposit.
+  const rentalCents = Math.round(Number(booking.total_cost) * 100);
+  if (rentalCents <= 0) {
+    throw Object.assign(new Error('Invalid booking total'), { status: 400 });
+  }
+
+  // Insurance cost reads directly from the booking record. The wizard's
+  // insurance PATCH writes bonzah_premium_cents + bonzah_markup_cents first.
+  const insuranceDollars = calcInsuranceCost(booking);
+  const insuranceCents = Math.round(insuranceDollars * 100);
+  const insSource = booking.insurance_provider || null;
+  const insTier = booking.bonzah_tier_id || null;
+  const depositCents = await getDepositCentsForVehicle(booking.vehicle_id);
+  const totalChargeCents = rentalCents + insuranceCents + depositCents;
+
+  // Server-side amount validation: reject if frontend total disagrees by more than 1 cent.
+  if (expected_total_cents != null && Math.abs(totalChargeCents - expected_total_cents) > 1) {
+    throw Object.assign(
+      new Error(`Amount mismatch: server calculated $${(totalChargeCents / 100).toFixed(2)} but frontend expected $${(expected_total_cents / 100).toFixed(2)}. Please refresh and try again.`),
+      { status: 400 }
+    );
+  }
+
   // Check if there's already a PaymentIntent for this booking.
   // Step 1: Check our DB first (authoritative after webhook records payment).
-  const { data: existingPayment } = await supabase
+  const { data: existingPayments } = await supabase
     .from('payments')
     .select('reference_id, status')
     .eq('booking_id', booking.id)
     .eq('payment_type', 'rental')
     .eq('method', 'stripe')
-    .maybeSingle();
+    .limit(1);
+  const existingPayment = existingPayments?.[0];
 
   if (existingPayment?.reference_id?.startsWith('pi_')) {
     // Payment already recorded — check if the PI succeeded
@@ -61,14 +238,20 @@ export async function createPaymentIntent(bookingCode, { expected_total_cents } 
           booking: await formatBookingSummary(booking),
         };
       }
-      // PI exists but not succeeded/canceled — reuse it
+      // PI exists but not succeeded/canceled — reuse only if the amount is still current.
       if (!['canceled', 'succeeded'].includes(pi.status)) {
-        return {
-          clientSecret: pi.client_secret,
-          amount: pi.amount,
-          currency: pi.currency,
-          booking: await formatBookingSummary(booking),
-        };
+        if (pi.amount !== totalChargeCents) {
+          await stripe.paymentIntents.cancel(pi.id).catch(e =>
+            console.warn(`[Stripe] Could not cancel stale PI ${pi.id}:`, e.message)
+          );
+        } else {
+          return {
+            clientSecret: pi.client_secret,
+            amount: pi.amount,
+            currency: pi.currency,
+            booking: await formatBookingSummary(booking),
+          };
+        }
       }
     } catch (e) {
       // PI retrieval failed (deleted, etc.) — fall through to create new
@@ -77,24 +260,35 @@ export async function createPaymentIntent(bookingCode, { expected_total_cents } 
   }
 
   // Step 2: Check if there's a pending PI in Stripe we haven't recorded yet.
-  // Use list with metadata filter (limited to 10 — much cheaper than 100).
-  const recentIntents = await stripe.paymentIntents.list({ limit: 10 });
-  const activeIntent = recentIntents.data.find(
-    pi => pi.metadata?.booking_id === booking.id && !['canceled', 'succeeded'].includes(pi.status)
-  );
-
-  if (activeIntent) {
-    return {
-      clientSecret: activeIntent.client_secret,
-      amount: activeIntent.amount,
-      currency: activeIntent.currency,
-      booking: await formatBookingSummary(booking),
-    };
+  let stripeIntents = [];
+  try {
+    const search = await stripe.paymentIntents.search({
+      query: `metadata['booking_id']:'${booking.id}'`,
+      limit: 10,
+    });
+    stripeIntents = search.data || [];
+  } catch (e) {
+    console.warn('[Stripe] PaymentIntent search unavailable, falling back to recent list:', e.message);
+    const recent = await stripe.paymentIntents.list({ limit: 100 });
+    stripeIntents = (recent.data || []).filter(pi => pi.metadata?.booking_id === booking.id);
   }
 
-  const succeededIntent = recentIntents.data.find(
-    pi => pi.metadata?.booking_id === booking.id && pi.status === 'succeeded'
-  );
+  const activeIntent = stripeIntents.find(pi => !['canceled', 'succeeded'].includes(pi.status));
+  if (activeIntent) {
+    if (activeIntent.amount === totalChargeCents) {
+      return {
+        clientSecret: activeIntent.client_secret,
+        amount: activeIntent.amount,
+        currency: activeIntent.currency,
+        booking: await formatBookingSummary(booking),
+      };
+    }
+    await stripe.paymentIntents.cancel(activeIntent.id).catch(e =>
+      console.warn(`[Stripe] Could not cancel stale PI ${activeIntent.id}:`, e.message)
+    );
+  }
+
+  const succeededIntent = stripeIntents.find(pi => pi.status === 'succeeded');
   if (succeededIntent) {
     return {
       clientSecret: null,
@@ -103,41 +297,6 @@ export async function createPaymentIntent(bookingCode, { expected_total_cents } 
       currency: succeededIntent.currency,
       booking: await formatBookingSummary(booking),
     };
-  }
-
-  // Calculate amount in cents — rental + insurance + security deposit
-  const rentalCents = Math.round(Number(booking.total_cost) * 100);
-  if (rentalCents <= 0) {
-    throw Object.assign(new Error('Invalid booking total'), { status: 400 });
-  }
-
-  // Insurance cost reads directly from the booking record. The wizard's
-  // POST /bookings/:code/insurance/quote already wrote bonzah_premium_cents +
-  // bonzah_markup_cents in advance; we just sum them here.
-  const insuranceDollars = calcInsuranceCost(booking);
-  const insuranceCents = Math.round(insuranceDollars * 100);
-  const insSource = booking.insurance_provider || null;
-  const insTier = booking.bonzah_tier_id || null;
-
-  // Look up vehicle-specific deposit (defaults to $150 / 15000 cents)
-  let depositCents = 15000;
-  if (booking.vehicle_id) {
-    const { data: vd } = await supabase
-      .from('vehicle_deposits')
-      .select('amount')
-      .eq('vehicle_id', booking.vehicle_id)
-      .maybeSingle();
-    if (vd) depositCents = vd.amount;
-  }
-
-  const totalChargeCents = rentalCents + insuranceCents + depositCents;
-
-  // Server-side amount validation: reject if frontend total disagrees by more than 1 cent
-  if (expected_total_cents != null && Math.abs(totalChargeCents - expected_total_cents) > 1) {
-    throw Object.assign(
-      new Error(`Amount mismatch: server calculated $${(totalChargeCents / 100).toFixed(2)} but frontend expected $${(expected_total_cents / 100).toFixed(2)}. Please refresh and try again.`),
-      { status: 400 }
-    );
   }
 
   // When card-on-file is enabled, attach a Stripe Customer + setup_future_usage
@@ -186,7 +345,6 @@ export async function createPaymentIntent(bookingCode, { expected_total_cents } 
     booking: await formatBookingSummary(booking),
   };
 }
-
 /**
  * Build the payment_confirmed payload and send the itemized receipt.
  *
@@ -348,110 +506,13 @@ export async function handleWebhookEvent(event) {
   switch (event.type) {
     case 'payment_intent.succeeded': {
       const pi = event.data.object;
-      const bookingId = pi.metadata.booking_id;
-      if (!bookingId) break;
-
-      // Split the payment into rental + deposit using metadata
-      const depositCents = Number(pi.metadata.deposit_cents) || 0;
-      const rentalCents = Number(pi.metadata.rental_cents) || pi.amount;
-      const rentalDollars = rentalCents / 100;
-      const depositDollars = depositCents / 100;
-
-      // Record the rental payment
-      await supabase.from('payments').insert({
-        booking_id: bookingId,
-        amount: rentalDollars,
-        payment_type: 'rental',
-        method: 'stripe',
-        reference_id: pi.id,
-        status: 'completed',
-        paid_at: new Date().toISOString(),
-        notes: `Stripe payment — ${pi.payment_method_types?.join(', ') || 'card'}`,
-      });
-
-      // Record the deposit payment (separate row for accounting)
-      if (depositCents > 0) {
-        await supabase.from('payments').insert({
-          booking_id: bookingId,
-          amount: depositDollars,
-          payment_type: 'deposit',
-          method: 'stripe',
-          reference_id: pi.id,
-          status: 'completed',
-          paid_at: new Date().toISOString(),
-          notes: `Security deposit — refundable`,
-        });
-      }
-
-      // Update booking deposit status
-      await supabase
-        .from('bookings')
-        .update({
-          deposit_status: 'paid',
-          deposit_amount: depositDollars,
-        })
-        .eq('id', bookingId);
-
-      // Persist payment_method token to the booking so post-inspection overage
-      // charges can fire off-session 48h after inspection. No-op when the
-      // FEATURE_AUTO_OVERAGE_CHARGES flag is off.
-      await savePaymentMethodFromIntent(pi, bookingId);
-
-      // Create booking_deposits record for settlement tracking
-      if (depositCents > 0) {
-        await supabase.from('booking_deposits').upsert({
-          booking_id: bookingId,
-          amount: depositCents,
-          stripe_charge_id: pi.id,
-          status: 'held',
-        }, { onConflict: 'booking_id' }).catch(() => {});
-      }
-
-      console.log(`[Stripe] Payment succeeded for booking ${pi.metadata.booking_code}: $${rentalDollars} rental + $${depositDollars} deposit = $${pi.amount / 100} total`);
-
-      // Bind the Bonzah policy now that we've collected the customer's money.
-      // No-op if customer chose 'own' insurance. Failures mark the booking
-      // insurance_status='bind_failed' and notify admin — Stripe charge stands.
-      await bindBonzahAfterPayment(bookingId);
-
-      // Send itemized receipt to customer
-      await sendPaymentReceipt(bookingId, pi, rentalDollars, depositDollars);
-
-      // Dashboard notification
-      createNotification(
-        'payment_received',
-        `Payment received: $${(pi.amount / 100).toFixed(2)}`,
-        `Booking ${pi.metadata.booking_code} — ${pi.metadata.customer_name || ''}`,
-        `/bookings/${bookingId}`,
-        { booking_id: bookingId, amount: pi.amount / 100 }
-      ).catch(() => {});
-
-      // Check for auto-confirm. Admin-created bookings (created_by_admin=true)
-      // skip the manual approval step — the admin already vetted the request
-      // when they sent the customer the continue-booking link.
-      let booking = await getBookingDetail(bookingId).catch(() => null);
-      if (booking && booking.status === 'pending_approval' && booking.created_by_admin) {
-        await transitionBooking(bookingId, 'approved', {
-          changedBy: 'system',
-          reason: 'Auto-approved on payment success (admin-created booking)',
-        }).catch(e => console.error('[Auto-Approve Error]', e));
-        booking = await getBookingDetail(bookingId).catch(() => booking);
-      }
-      if (booking && booking.status === 'approved') {
-        const { data: agreement } = await supabase
-          .from('rental_agreements')
-          .select('id')
-          .eq('booking_id', bookingId)
-          .maybeSingle();
-
-        if (agreement) {
-          await transitionBooking(bookingId, 'confirmed', {
-            changedBy: 'system',
-            reason: 'Payment completed and agreement already signed'
-          }).catch(e => console.error('[Auto-Confirm Error]', e));
-        }
-      }
-
+      if (!pi.metadata?.booking_id) break;
+      const result = await recordSuccessfulPaymentIntent(pi, 'webhook');
+      console.log(
+        `[Stripe] Payment succeeded for booking ${pi.metadata.booking_code}: ` +
+        `$${result.rentalDollars} rental + $${result.insuranceDollars} insurance + ` +
+        `$${result.depositDollars} deposit = $${pi.amount / 100} total`
+      );
       break;
     }
 
@@ -499,112 +560,9 @@ export async function confirmPayment(paymentIntentId) {
     );
   }
 
-  const bookingId = pi.metadata?.booking_id;
-  if (!bookingId) {
-    throw Object.assign(new Error('No booking linked to this payment'), { status: 400 });
-  }
-
-  // Split into rental + deposit using metadata (used by both idempotent-return
-  // path and fresh-record path — declared here so both branches have access).
-  const depositCents = Number(pi.metadata.deposit_cents) || 0;
-  const rentalCents = Number(pi.metadata.rental_cents) || pi.amount;
-  const rentalDollars = rentalCents / 100;
-  const depositDollars = depositCents / 100;
-
-  // Check if we already recorded this payment (idempotent).
-  const { data: existing } = await supabase
-    .from('payments')
-    .select('id')
-    .eq('reference_id', pi.id)
-    .maybeSingle();
-
-  if (existing) {
-    // Payment already recorded (by webhook). Still ensure the receipt
-    // was dispatched — sendPaymentReceipt is idempotent via PI metadata.
-    await sendPaymentReceipt(bookingId, pi, rentalDollars, depositDollars);
-    return { success: true, alreadyRecorded: true };
-  }
-
-  // Record the rental payment
-  await supabase.from('payments').insert({
-    booking_id: bookingId,
-    amount: rentalDollars,
-    payment_type: 'rental',
-    method: 'stripe',
-    reference_id: pi.id,
-    status: 'completed',
-    paid_at: new Date().toISOString(),
-    notes: `Stripe payment — ${pi.payment_method_types?.join(', ') || 'card'}`,
-  });
-
-  // Record the deposit payment
-  if (depositCents > 0) {
-    await supabase.from('payments').insert({
-      booking_id: bookingId,
-      amount: depositDollars,
-      payment_type: 'deposit',
-      method: 'stripe',
-      reference_id: pi.id,
-      status: 'completed',
-      paid_at: new Date().toISOString(),
-      notes: `Security deposit — refundable`,
-    });
-  }
-
-  // Update booking deposit status
-  await supabase
-    .from('bookings')
-    .update({
-      deposit_status: 'paid',
-      deposit_amount: depositDollars,
-    })
-    .eq('id', bookingId);
-
-  // Create booking_deposits record for settlement tracking
-  if (depositCents > 0) {
-    await supabase.from('booking_deposits').upsert({
-      booking_id: bookingId,
-      amount: depositCents,
-      stripe_charge_id: pi.id,
-      status: 'held',
-    }, { onConflict: 'booking_id' }).catch(() => {});
-  }
-
+  const result = await recordSuccessfulPaymentIntent(pi, 'confirm-payment');
   console.log(`[Stripe] Payment confirmed for booking ${pi.metadata.booking_code}: $${pi.amount / 100}`);
-
-  // Bind Bonzah policy (idempotent — webhook may have already done it)
-  await bindBonzahAfterPayment(bookingId);
-
-  // Send itemized receipt to customer (same logic as webhook handler)
-  await sendPaymentReceipt(bookingId, pi, rentalDollars, depositDollars);
-
-  // Dashboard notification
-  createNotification(
-    'payment_received',
-    `Payment received: $${(pi.amount / 100).toFixed(2)}`,
-    `Booking ${pi.metadata.booking_code} — ${pi.metadata.customer_name || ''}`,
-    `/bookings/${bookingId}`,
-    { booking_id: bookingId, amount: pi.amount / 100 }
-  ).catch(() => {});
-
-  // Check for auto-confirm
-  const booking = await getBookingDetail(bookingId).catch(() => null);
-  if (booking && booking.status === 'approved') {
-    const { data: agreement } = await supabase
-      .from('rental_agreements')
-      .select('id')
-      .eq('booking_id', bookingId)
-      .maybeSingle();
-    
-    if (agreement) {
-      await transitionBooking(bookingId, 'confirmed', {
-        changedBy: 'system',
-        reason: 'Payment completed and agreement already signed'
-      }).catch(e => console.error('[Auto-Confirm Error]', e));
-    }
-  }
-
-  return { success: true };
+  return result;
 }
 
 /**

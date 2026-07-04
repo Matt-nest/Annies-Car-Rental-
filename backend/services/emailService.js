@@ -138,7 +138,7 @@ export async function sendBookingConfirmation({ customer, booking, vehicle }) {
  * customer wizard.
  */
 export async function sendContinueBookingEmail({ customer, booking, vehicle }) {
-  const continueUrl = `${SITE_URL}/booking?code=${booking.booking_code}`;
+  const continueUrl = `${SITE_URL}/confirm?code=${booking.booking_code}`;
 
   const body = `
     <p style="margin:0 0 16px;color:#44403c;font-size:15px;line-height:1.7;">Hi ${esc(customer.first_name)},</p>

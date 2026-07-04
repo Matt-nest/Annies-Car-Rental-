@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Loader2, AlertCircle, CheckCircle, ChevronLeft, ChevronRight, Copy, Send, Car, Calendar, User, Sparkles } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle, ChevronLeft, ChevronRight, Copy, Send, Car, Calendar, User, Sparkles, DollarSign, Percent } from 'lucide-react';
 import { api } from '../../api/client';
 import Modal from '../shared/Modal';
 
@@ -12,10 +12,23 @@ const STEPS = [
 ];
 
 const DELIVERY_OPTIONS = [
-  { value: 'pickup',          label: 'Customer pickup' },
-  { value: 'home_delivery',   label: 'Home delivery' },
-  { value: 'airport_pickup',  label: 'Airport pickup' },
+  { value: 'pickup',               label: 'Customer pickup', fee: 0 },
+  { value: 'psl_delivery',         label: 'Local delivery', fee: 39 },
+  { value: 'surrounding_delivery', label: 'Airport / surrounding delivery', fee: 49 },
 ];
+
+const TAX_RATE = 0.07;
+
+function calcRentalDays(pickupDate, returnDate) {
+  if (!pickupDate || !returnDate || returnDate < pickupDate) return 0;
+  const pickup = new Date(`${pickupDate}T12:00:00Z`);
+  const ret = new Date(`${returnDate}T12:00:00Z`);
+  return Math.max(1, Math.ceil((ret - pickup) / (1000 * 60 * 60 * 24)) + 1);
+}
+
+function money(value) {
+  return Number(value || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+}
 
 function StepperHeader({ step }) {
   return (
@@ -76,6 +89,9 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
   const [deliveryType, setDeliveryType] = useState('pickup');
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [specialRequests, setSpecialRequests] = useState('');
+  const [weeklyDiscountPct, setWeeklyDiscountPct] = useState(15);
+  const [exactPriceEnabled, setExactPriceEnabled] = useState(false);
+  const [exactPrice, setExactPrice] = useState('');
 
   function reset() {
     setStep(0);
@@ -89,6 +105,7 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
     setFirstName(''); setLastName(''); setEmail(''); setPhone('');
     setUnlimitedMiles(false); setUnlimitedTolls(false);
     setDeliveryType('pickup'); setDeliveryAddress(''); setSpecialRequests('');
+    setWeeklyDiscountPct(15); setExactPriceEnabled(false); setExactPrice('');
   }
 
   // Whenever the user enters dates, refetch the available-vehicles list.
@@ -110,10 +127,64 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
     [vehicles, vehicleId]
   );
 
+  useEffect(() => {
+    if (!selectedVehicle) return;
+    setWeeklyDiscountPct(Number(selectedVehicle.weekly_discount_percent ?? selectedVehicle.weeklyDiscountPercent ?? 15));
+    setExactPriceEnabled(false);
+    setExactPrice('');
+  }, [selectedVehicle]);
+
+  const pricingPreview = useMemo(() => {
+    if (!selectedVehicle || !pickupDate || !returnDate || returnDate < pickupDate) return null;
+    const rentalDays = calcRentalDays(pickupDate, returnDate);
+    const dailyRate = Number(selectedVehicle.daily_rate || selectedVehicle.dailyRate || 0);
+    if (!rentalDays || !dailyRate) return null;
+
+    const discountPct = Math.min(50, Math.max(0, Number(weeklyDiscountPct) || 0));
+    const weeklyRate = Number(((dailyRate * 7) * (1 - discountPct / 100)).toFixed(2));
+    const fullWeeks = rentalDays >= 7 ? Math.floor(rentalDays / 7) : 0;
+    const remainderDays = rentalDays >= 7 ? rentalDays % 7 : rentalDays;
+    const weeklySubtotal = rentalDays >= 7
+      ? Number(((fullWeeks * weeklyRate) + (remainderDays * dailyRate)).toFixed(2))
+      : Number((rentalDays * dailyRate).toFixed(2));
+    const deliveryFee = DELIVERY_OPTIONS.find(o => o.value === deliveryType)?.fee || 0;
+    const mileageFee = rentalDays >= 7 ? 0 : (unlimitedMiles ? 100 : 0);
+    const tollFee = unlimitedTolls ? 20 : 0;
+    const taxAmount = Number(((weeklySubtotal + deliveryFee) * TAX_RATE).toFixed(2));
+    const calculatedTotal = Number((weeklySubtotal + deliveryFee + mileageFee + tollFee + taxAmount).toFixed(2));
+    const exactTotal = exactPriceEnabled ? Number(exactPrice) : null;
+    const finalTotal = exactPriceEnabled && Number.isFinite(exactTotal) && exactTotal > 0
+      ? Number(exactTotal.toFixed(2))
+      : calculatedTotal;
+
+    return {
+      rentalDays,
+      dailyRate,
+      discountPct,
+      weeklyRate,
+      fullWeeks,
+      remainderDays,
+      subtotal: weeklySubtotal,
+      deliveryFee,
+      mileageFee,
+      tollFee,
+      taxAmount,
+      calculatedTotal,
+      finalTotal,
+      adjustment: Number((finalTotal - calculatedTotal).toFixed(2)),
+      rateType: rentalDays >= 7 ? (remainderDays ? 'weekly + daily' : 'weekly') : 'daily',
+      savings: rentalDays >= 7 ? Number(((dailyRate * rentalDays) - weeklySubtotal).toFixed(2)) : 0,
+    };
+  }, [selectedVehicle, pickupDate, returnDate, weeklyDiscountPct, deliveryType, unlimitedMiles, unlimitedTolls, exactPriceEnabled, exactPrice]);
+
   function canAdvance() {
     setError('');
     if (step === 0) {
       if (!vehicleId) { setError('Select a vehicle.'); return false; }
+      if (exactPriceEnabled && (!Number(exactPrice) || Number(exactPrice) <= 0)) {
+        setError('Enter a valid exact rental total or turn off the override.');
+        return false;
+      }
     } else if (step === 1) {
       if (!pickupDate || !returnDate) { setError('Pick both pickup and return dates.'); return false; }
       if (returnDate <= pickupDate) { setError('Return must be after pickup.'); return false; }
@@ -153,6 +224,8 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
         delivery_address: deliveryType !== 'pickup' ? deliveryAddress.trim() : undefined,
         unlimited_miles: !!unlimitedMiles,
         unlimited_tolls: !!unlimitedTolls,
+        admin_weekly_discount_percent: Math.min(50, Math.max(0, Number(weeklyDiscountPct) || 0)),
+        admin_total_cost_override: exactPriceEnabled ? Number(exactPrice) : undefined,
         special_requests: specialRequests.trim() || undefined,
       };
       const res = await api.createAdminBooking(payload);
@@ -294,6 +367,88 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
                 })}
               </div>
             )}
+
+            {selectedVehicle && pricingPreview && (
+              <div className="p-3 rounded-xl space-y-3" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Percent size={15} style={{ color: 'var(--accent-color)' }} />
+                    <div>
+                      <p className="text-sm font-semibold text-[var(--text-primary)]">Weekly discount</p>
+                      <p className="text-xs text-[var(--text-tertiary)]">Applies automatically to rentals of 7+ days.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="range"
+                      min="0"
+                      max="50"
+                      value={weeklyDiscountPct}
+                      onChange={e => setWeeklyDiscountPct(e.target.value)}
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      max="50"
+                      className="input w-20 text-right"
+                      value={weeklyDiscountPct}
+                      onChange={e => setWeeklyDiscountPct(e.target.value)}
+                    />
+                    <span className="text-xs text-[var(--text-tertiary)]">%</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--bg-card-hover)' }}>
+                    <span className="text-[var(--text-tertiary)]">Daily rate</span>
+                    <p className="font-bold text-[var(--text-primary)] tabular-nums">{money(pricingPreview.dailyRate)}/day</p>
+                  </div>
+                  <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--bg-card-hover)' }}>
+                    <span className="text-[var(--text-tertiary)]">Weekly rate</span>
+                    <p className="font-bold text-[var(--text-primary)] tabular-nums">{money(pricingPreview.weeklyRate)}/week</p>
+                  </div>
+                  <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--bg-card-hover)' }}>
+                    <span className="text-[var(--text-tertiary)]">Rental length</span>
+                    <p className="font-bold text-[var(--text-primary)]">{pricingPreview.rentalDays} days ({pricingPreview.rateType})</p>
+                  </div>
+                  <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--bg-card-hover)' }}>
+                    <span className="text-[var(--text-tertiary)]">Weekly savings</span>
+                    <p className="font-bold text-emerald-500 tabular-nums">{money(pricingPreview.savings)}</p>
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-3 p-3 rounded-xl cursor-pointer" style={{ backgroundColor: 'var(--bg-card-hover)' }}>
+                  <input type="checkbox" checked={exactPriceEnabled} onChange={e => setExactPriceEnabled(e.target.checked)} />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-[var(--text-primary)]">Set exact rental total</p>
+                    <p className="text-xs text-[var(--text-tertiary)]">Final rental amount before deposit and customer-selected insurance.</p>
+                  </div>
+                </label>
+
+                {exactPriceEnabled && (
+                  <div>
+                    <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-1 block">Exact rental total</label>
+                    <div className="relative">
+                      <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
+                      <input
+                        type="number"
+                        min="1"
+                        step="0.01"
+                        className="input w-full pl-8"
+                        value={exactPrice}
+                        onChange={e => setExactPrice(e.target.value)}
+                        placeholder={pricingPreview.calculatedTotal.toFixed(2)}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between pt-2 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+                  <span className="text-xs text-[var(--text-tertiary)]">Customer checkout rental total</span>
+                  <span className="text-lg font-bold text-[var(--text-primary)] tabular-nums">{money(pricingPreview.finalTotal)}</span>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -408,6 +563,33 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
               <div className="flex justify-between"><span className="text-[var(--text-tertiary)]">Unlimited miles</span><span className="text-[var(--text-secondary)]">{unlimitedMiles ? 'Yes' : 'No'}</span></div>
               <div className="flex justify-between"><span className="text-[var(--text-tertiary)]">Unlimited tolls</span><span className="text-[var(--text-secondary)]">{unlimitedTolls ? 'Yes' : 'No'}</span></div>
             </div>
+            {pricingPreview && (
+              <div className="p-3 rounded-xl space-y-1" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+                <div className="flex justify-between">
+                  <span className="text-[var(--text-tertiary)]">Rental days</span>
+                  <span className="text-[var(--text-secondary)]">{pricingPreview.rentalDays} days ({pricingPreview.rateType})</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[var(--text-tertiary)]">Weekly discount</span>
+                  <span className="text-[var(--text-secondary)]">{pricingPreview.discountPct}% ({money(pricingPreview.weeklyRate)}/week)</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[var(--text-tertiary)]">Calculated total</span>
+                  <span className="text-[var(--text-secondary)] tabular-nums">{money(pricingPreview.calculatedTotal)}</span>
+                </div>
+                {exactPriceEnabled && (
+                  <div className="flex justify-between">
+                    <span className="text-[var(--text-tertiary)]">Exact price adjustment</span>
+                    <span className="text-[var(--text-secondary)] tabular-nums">{pricingPreview.adjustment >= 0 ? '+' : ''}{money(pricingPreview.adjustment)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between pt-2 mt-2 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+                  <span className="font-semibold text-[var(--text-primary)]">Rental total sent to checkout</span>
+                  <span className="font-bold text-[var(--text-primary)] tabular-nums">{money(pricingPreview.finalTotal)}</span>
+                </div>
+                <p className="text-[11px] text-[var(--text-tertiary)]">Deposit and customer-selected insurance are added in the customer checkout wizard.</p>
+              </div>
+            )}
             <p className="text-xs text-[var(--text-tertiary)]">
               The customer will receive an email with a link to add insurance, sign the agreement, and pay.
               Payment will auto-approve and confirm this booking.

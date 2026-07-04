@@ -24,7 +24,7 @@ import SubmitLoader from './confirm-booking/wizard-steps/SubmitLoader';
 
 import {
   API_URL, PHONE_NUMBER,
-  stripePromise, getRefCode,
+  stripePromise, STRIPE_CONFIGURED, getRefCode,
   formatCurrency,
   loadDraft, saveDraft, clearDraft,
   type WizardDraft,
@@ -136,10 +136,11 @@ function PaymentForm({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(insurancePayload),
       });
+      const insJson = await insRes.json().catch(() => ({}));
       if (!insRes.ok) {
-        const insJson = await insRes.json();
         throw new Error(insJson.error || 'Failed to record insurance');
       }
+      const expectedTotalCents = insJson.payment_totals?.total_cents ?? Math.round(grandTotal * 100);
 
       // ── Step 3: Validate card with Stripe Elements ──────
       setSubmitStep('payment');
@@ -156,7 +157,7 @@ function PaymentForm({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           booking_code: bookingCode,
-          expected_total_cents: Math.round(grandTotal * 100),
+          expected_total_cents: expectedTotalCents,
         }),
       });
       const piJson = await piRes.json();
@@ -579,6 +580,25 @@ export default function ConfirmBooking() {
               {/* ═══ Stage 3: Payment ═══ */}
               {draft.stage === 3 && (
                 (() => {
+                  if (!STRIPE_CONFIGURED) {
+                    return (
+                      <div className="rounded-2xl border p-5" style={{
+                        borderColor: 'rgba(239,68,68,0.35)',
+                        backgroundColor: theme === 'dark' ? 'rgba(127,29,29,0.18)' : 'rgba(254,242,242,0.9)',
+                      }}>
+                        <div className="flex items-start gap-3">
+                          <AlertCircle size={20} className="text-red-500 mt-0.5" />
+                          <div>
+                            <h3 className="font-semibold" style={{ color: 'var(--text-primary)' }}>Payment is not configured</h3>
+                            <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+                              This booking cannot take payment until the Stripe publishable key is configured for this site.
+                              Please call {PHONE_NUMBER} and we will finish the booking with you.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
                   // Compute amount for Stripe Elements initialization
                   let insCost = 0;
                   if (draft.insuranceChoice === 'bonzah' && draft.bonzahQuote) {

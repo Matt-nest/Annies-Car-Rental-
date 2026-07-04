@@ -8,11 +8,33 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 import { validateBookingPayload } from '../utils/validators.js';
 import { createBooking, transitionBooking, getBookingDetail, applyCheckoutOverride } from '../services/bookingService.js';
 import { createNotification } from '../services/notificationService.js';
-import { sendBookingNotification, buildBookingPayload } from '../services/notifyService.js';
+import { sendBookingNotification, buildBookingPayload, sendSMS } from '../services/notifyService.js';
 import { computeRentalPricing, DELIVERY_FEES } from '../services/pricingService.js';
 import { getQuote, getSetting, BonzahError } from '../services/bonzahService.js';
 
 const router = Router();
+
+async function getCheckoutPaymentTotals(booking) {
+  const rentalCents = Math.round(Number(booking.total_cost || 0) * 100);
+  const insuranceCents = booking.insurance_provider === 'bonzah'
+    ? Number(booking.bonzah_premium_cents || 0) + Number(booking.bonzah_markup_cents || 0)
+    : 0;
+  let depositCents = 15000;
+  if (booking.vehicle_id) {
+    const { data: depositRow } = await supabase
+      .from('vehicle_deposits')
+      .select('amount')
+      .eq('vehicle_id', booking.vehicle_id)
+      .maybeSingle();
+    if (depositRow?.amount != null) depositCents = Number(depositRow.amount);
+  }
+  return {
+    rental_cents: rentalCents,
+    insurance_cents: insuranceCents,
+    deposit_cents: depositCents,
+    total_cents: rentalCents + insuranceCents + depositCents,
+  };
+}
 
 // Rate limit public booking submissions: 5 per minute per IP
 const bookingRateLimit = rateLimit({
@@ -138,7 +160,23 @@ router.post('/admin-create', requireAuth, asyncHandler(async (req, res) => {
 
   // Build the continue link the admin can copy/paste.
   const siteUrl = brand.siteUrl;
-  const continueUrl = `${siteUrl}/booking?code=${booking.booking_code}`;
+  const continueUrl = `${siteUrl}/confirm?code=${booking.booking_code}`;
+
+  // Admin-created bookings are already vetted by the admin who is sending the
+  // link. Mark approved now so the customer messaging and status are accurate.
+  await supabase
+    .from('bookings')
+    .update({ status: 'approved', owner_approved_at: new Date().toISOString() })
+    .eq('id', booking.id)
+    .eq('status', 'pending_approval');
+  await supabase.from('booking_status_log').insert({
+    booking_id: booking.id,
+    from_status: 'pending_approval',
+    to_status: 'approved',
+    changed_by: req.user?.email || 'admin',
+    reason: 'Admin-created booking approved before sending completion link',
+  });
+  booking.status = 'approved';
 
   // Send the continue-booking email (fire-and-forget so the response isn't blocked).
   try {
@@ -156,6 +194,13 @@ router.post('/admin-create', requireAuth, asyncHandler(async (req, res) => {
     const vehicleLabel = vehicleRow ? `${vehicleRow.year} ${vehicleRow.make} ${vehicleRow.model}` : null;
     sendContinueBookingEmail({ customer, booking, vehicle: vehicleLabel })
       .catch(err => console.error('[Email] Continue-booking email failed:', err));
+    if (customer?.phone) {
+      sendSMS({
+        to: customer.phone,
+        body: `${brand.name}: your booking ${booking.booking_code} is approved. Complete your agreement and payment here: ${continueUrl}`,
+        source: 'manual',
+      }).catch(err => console.error('[SMS] Continue-booking SMS failed:', err));
+    }
   } catch (err) {
     console.error('[admin-create] Continue email setup failed:', err);
   }
@@ -474,7 +519,7 @@ router.patch('/:code/insurance', asyncHandler(async (req, res) => {
   // Look up booking by booking_code (public route — no auth)
   const { data: booking, error } = await supabase
     .from('bookings')
-    .select('id, booking_code, status, bonzah_tier_id, bonzah_quote_id, bonzah_quote_expires_at, bonzah_premium_cents')
+    .select('*')
     .eq('booking_code', req.params.code)
     .single();
 
@@ -536,8 +581,15 @@ router.patch('/:code/insurance', asyncHandler(async (req, res) => {
       .eq('id', booking.id);
     if (updErr) return res.status(500).json({ error: `Failed to record insurance choice: ${updErr.message}` });
 
+    const payment_totals = await getCheckoutPaymentTotals({
+      ...bookingFull,
+      insurance_provider: 'bonzah',
+      bonzah_premium_cents: premiumCents,
+      bonzah_markup_cents: markupCents,
+    });
+
     console.log(`[Booking] Bonzah ${tier_id} locked in for ${booking.booking_code} (premium ${premiumCents}c, markup ${markupCents}c)`);
-    return res.json({ success: true, booking_code: booking.booking_code });
+    return res.json({ success: true, booking_code: booking.booking_code, payment_totals });
   }
 
   if (source === 'own') {
@@ -581,8 +633,15 @@ router.patch('/:code/insurance', asyncHandler(async (req, res) => {
       }
     }
 
+    const payment_totals = await getCheckoutPaymentTotals({
+      ...booking,
+      insurance_provider: 'own',
+      bonzah_premium_cents: null,
+      bonzah_markup_cents: null,
+    });
+
     console.log(`[Booking] Customer has own insurance for ${booking.booking_code} (status: ${insuranceStatus})`);
-    return res.json({ success: true, booking_code: booking.booking_code });
+    return res.json({ success: true, booking_code: booking.booking_code, payment_totals });
   }
 
   if (bonzah_policy_number) {
@@ -596,8 +655,13 @@ router.patch('/:code/insurance', asyncHandler(async (req, res) => {
       .eq('id', booking.id);
     if (updErr) return res.status(500).json({ error: `Failed to record insurance: ${updErr.message}` });
 
+    const payment_totals = await getCheckoutPaymentTotals({
+      ...booking,
+      insurance_provider: 'bonzah',
+    });
+
     console.log(`[Booking] Bonzah insurance manually set for ${booking.booking_code}: ${bonzah_policy_number}`);
-    return res.json({ success: true, booking_code: booking.booking_code });
+    return res.json({ success: true, booking_code: booking.booking_code, payment_totals });
   }
 
   return res.status(400).json({ error: 'Insurance source is required (bonzah with tier_id, or own)' });
