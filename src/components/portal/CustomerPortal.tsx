@@ -1592,7 +1592,11 @@ export default function CustomerPortal() {
               .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
             const paidAt = rentalPayment?.paid_at || depositPayment?.paid_at;
             const methodLabel = rentalPayment
-              ? (rentalPayment.method === 'stripe' ? 'Card via Stripe' : rentalPayment.method)
+              ? (rentalPayment.method === 'stripe'
+                ? 'Card via Stripe'
+                : rentalPayment.method === 'square'
+                  ? 'Card via Square'
+                  : rentalPayment.method)
               : null;
             const totalHint = totalPaid > 0 ? fmtMoney(totalPaid) : fmtMoney(booking.total_cost);
 

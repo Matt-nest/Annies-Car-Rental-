@@ -44,6 +44,9 @@ export const brand = {
   // ── External Links ────────────────────────────────────────────────────────
   reviewLink:  import.meta.env.VITE_BRAND_REVIEW_LINK || "https://g.page/annies-car-rental/review",
 
+  // ── Payments ──────────────────────────────────────────────────────────────
+  paymentProvider: (import.meta.env.VITE_PAYMENT_PROVIDER || "square").toLowerCase(),
+
   // ── Chat Widget (optional - leave empty to disable) ───────────────────────
   chatWidgetId: import.meta.env.VITE_CHAT_WIDGET_ID || "",
 };

@@ -12,7 +12,6 @@ import bookingRoutes from '../routes/bookings.js';
 import customerRoutes from '../routes/customers.js';
 import paymentRoutes from '../routes/payments.js';
 import damageRoutes from '../routes/damageReports.js';
-import stripeRoutes from '../routes/stripe.js';
 import uploadRoutes from '../routes/uploads.js';
 import agreementRoutes from '../routes/agreements.js';
 import statsRoutes from '../routes/stats.js';
@@ -39,6 +38,10 @@ import bouncieRoutes from '../routes/bouncie.js';
 import bouncieWebhookRoutes from '../routes/bouncieWebhooks.js';
 import settingsRoutes from '../routes/settings.js';
 import voiceRoutes from '../routes/voice.js';
+import { isStripeProvider, isSquareProvider } from '../config/paymentProvider.js';
+
+const stripeRoutes = isStripeProvider() ? (await import('../routes/stripe.js')).default : null;
+const squareRoutes = isSquareProvider() ? (await import('../routes/square.js')).default : null;
 
 const app = express();
 
@@ -68,16 +71,16 @@ app.use('/api/v1/messaging/webhook/crisp', express.json({
   verify: (req, _res, buf) => { req.rawBody = buf; },
   limit: '2mb',
 }));
-// Skip JSON parsing for Stripe webhook (needs raw body for HMAC signature verification).
+// Skip JSON parsing for provider webhooks that need raw body for signature verification.
 // Without this guard the global json parser consumes the body before express.raw()
-// (mounted below) can claim it, so Stripe signature verification fails in production.
+// (mounted below) can claim it, so gateway signature verification fails in production.
 app.use((req, res, next) => {
-  if (req.path === '/api/v1/stripe/webhook') return next();
+  if (req.path === '/api/v1/stripe/webhook' || req.path === '/api/v1/square/webhook') return next();
   express.json({ limit: '2mb' })(req, res, next);
 });
 // Twilio webhooks default to application/x-www-form-urlencoded — required for /messaging/webhook/inbound
 app.use((req, res, next) => {
-  if (req.path === '/api/v1/stripe/webhook') return next();
+  if (req.path === '/api/v1/stripe/webhook' || req.path === '/api/v1/square/webhook') return next();
   express.urlencoded({ extended: false, limit: '1mb' })(req, res, next);
 });
 
@@ -93,8 +96,14 @@ app.use('/api/v1/stats',      statsRoutes);
 app.use('/api/v1', paymentRoutes);
 app.use('/api/v1', damageRoutes);
 app.delete('/api/v1/blocked-dates/:id', damageRoutes);
-app.use('/api/v1/stripe/webhook', express.raw({ type: 'application/json' }));
-app.use('/api/v1/stripe', stripeRoutes);
+if (stripeRoutes) {
+  app.use('/api/v1/stripe/webhook', express.raw({ type: 'application/json' }));
+  app.use('/api/v1/stripe', stripeRoutes);
+}
+if (squareRoutes) {
+  app.use('/api/v1/square/webhook', express.raw({ type: 'application/json' }));
+  app.use('/api/v1/square', squareRoutes);
+}
 app.use('/api/v1/uploads', uploadRoutes);
 app.use('/api/v1/agreements', agreementRoutes);
 app.use('/api/v1/cron', cronRoutes);

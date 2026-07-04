@@ -532,6 +532,7 @@ function TeamTab() {
 function SystemTab() {
   const [health, setHealth] = useState(null);
   const [checking, setChecking] = useState(true);
+  const paymentProvider = (import.meta.env.VITE_PAYMENT_PROVIDER || 'square').toLowerCase();
 
   useEffect(() => {
     let mounted = true;
@@ -604,11 +605,26 @@ function SystemTab() {
         </div>
       </Section>
 
-      <Section title="Stripe" description="Payment processing">
+      <Section title={paymentProvider === 'stripe' ? 'Stripe' : 'Square'} description="Payment processing">
         <div className="space-y-0">
-          <EnvRow label="Secret Key" envKey="STRIPE_SECRET_KEY" note="Backend only — never expose to frontend" />
-          <EnvRow label="Webhook Secret" envKey="STRIPE_WEBHOOK_SECRET" note="From Stripe dashboard → Webhooks" />
-          <EnvRow label="Publishable Key" envKey="VITE_STRIPE_PUBLISHABLE_KEY" note="Frontend (customer site)" />
+          <EnvRow label="Payment Provider" envKey="PAYMENT_PROVIDER" note="Set backend to square for Annie, stripe for JD Coastal" />
+          <EnvRow label="Frontend Provider" envKey="VITE_PAYMENT_PROVIDER" note="Set dashboard/customer frontend to match backend" />
+          {paymentProvider === 'stripe' ? (
+            <>
+              <EnvRow label="Secret Key" envKey="STRIPE_SECRET_KEY" note="JD Coastal backend only — never expose to frontend" />
+              <EnvRow label="Webhook Secret" envKey="STRIPE_WEBHOOK_SECRET" note="From Stripe dashboard → Webhooks" />
+              <EnvRow label="Publishable Key" envKey="VITE_STRIPE_PUBLISHABLE_KEY" note="JD Coastal customer site" />
+            </>
+          ) : (
+            <>
+              <EnvRow label="Access Token" envKey="SQUARE_ACCESS_TOKEN" note="Annie backend only — never expose to frontend" />
+              <EnvRow label="Location ID" envKey="SQUARE_LOCATION_ID" />
+              <EnvRow label="Webhook Signature Key" envKey="SQUARE_WEBHOOK_SIGNATURE_KEY" note="From Square Developer Dashboard → Webhooks" />
+              <EnvRow label="Webhook URL" envKey="SQUARE_WEBHOOK_URL" note="Must exactly match Square's configured notification URL" />
+              <EnvRow label="Application ID" envKey="VITE_SQUARE_APPLICATION_ID" note="Annie customer site" />
+              <EnvRow label="Location ID" envKey="VITE_SQUARE_LOCATION_ID" note="Annie customer site" />
+            </>
+          )}
         </div>
       </Section>
 

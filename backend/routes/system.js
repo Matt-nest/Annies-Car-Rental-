@@ -1,6 +1,8 @@
 import express from 'express';
 import { supabase } from '../db/supabase.js';
 import { getStripe } from '../utils/stripe.js';
+import { squareRequest } from '../utils/square.js';
+import { PAYMENT_PROVIDER, isStripeProvider, isSquareProvider } from '../config/paymentProvider.js';
 
 const router = express.Router();
 
@@ -24,6 +26,9 @@ router.get('/health', async (req, res) => {
 
   // 2. Integration presence (configured vs not — no secret values exposed)
   checks.integrations = {
+    payment_provider: PAYMENT_PROVIDER,
+    square:       !!process.env.SQUARE_ACCESS_TOKEN && !!process.env.SQUARE_LOCATION_ID,
+    square_webhook: !!process.env.SQUARE_WEBHOOK_SIGNATURE_KEY,
     stripe:       !!process.env.STRIPE_SECRET_KEY,
     stripe_webhook: !!process.env.STRIPE_WEBHOOK_SECRET,
     supabase:     !!process.env.SUPABASE_URL && !!process.env.SUPABASE_SERVICE_KEY,
@@ -37,21 +42,28 @@ router.get('/health', async (req, res) => {
     portal_auth:  !!process.env.PORTAL_JWT_SECRET,
   };
 
-  // 3. Stripe API reachability (lightweight — just check balance)
-  if (checks.integrations.stripe) {
+  // 3. Payment API reachability
+  if (isStripeProvider() && checks.integrations.stripe) {
     try {
       const stripe = getStripe();
       await stripe.balance.retrieve();
-      checks.stripe = { status: 'ok' };
+      checks.payment_processor = { provider: 'stripe', status: 'ok' };
     } catch (err) {
-      checks.stripe = { status: 'error', error: err.message };
+      checks.payment_processor = { provider: 'stripe', status: 'error', error: err.message };
+    }
+  } else if (isSquareProvider() && checks.integrations.square) {
+    try {
+      await squareRequest('/v2/locations');
+      checks.payment_processor = { provider: 'square', status: 'ok' };
+    } catch (err) {
+      checks.payment_processor = { provider: 'square', status: 'error', error: err.message };
     }
   } else {
-    checks.stripe = { status: 'not_configured' };
+    checks.payment_processor = { provider: PAYMENT_PROVIDER, status: 'not_configured' };
   }
 
   // Overall status
-  const hasError = checks.database?.status === 'error' || checks.stripe?.status === 'error';
+  const hasError = checks.database?.status === 'error' || checks.payment_processor?.status === 'error';
 
   const statusCode = hasError ? 503 : 200;
   res.status(statusCode).json({

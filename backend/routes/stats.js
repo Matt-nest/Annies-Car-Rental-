@@ -78,7 +78,7 @@ router.get('/revenue', requireAuth, asyncHandler(async (req, res) => {
   // Fetch confirmed payments joined with their booking + vehicle data
   let query = supabase
     .from('payments')
-    .select('amount, payment_type, method, reference_id, created_at, paid_at, booking_id, bookings(booking_code, pickup_date, total_cost, tax_amount, source, vehicle_id, rate_type, rental_days, weekly_discount_applied, vehicles(year, make, model, category))')
+    .select('amount, payment_type, method, reference_id, created_at, paid_at, booking_id, bookings(booking_code, pickup_date, total_cost, tax_amount, source, vehicle_id, rate_type, rental_days, daily_rate, subtotal, weekly_discount_applied, vehicles(year, make, model, category))')
     .in('payment_type', ['rental', 'refund']);
 
   if (from) query = query.gte('created_at', `${from}T00:00:00`);
@@ -149,7 +149,9 @@ router.get('/revenue', requireAuth, asyncHandler(async (req, res) => {
       allRentalDays.push(days);
     }
     if (!seenDiscountBkIds.has(p.booking_id) && p.bookings?.weekly_discount_applied) {
-      weeklyDiscountTotal += parseFloat(p.bookings.weekly_discount_applied);
+      const dailyRackRate = Number(p.bookings.daily_rate || 0) * Number(p.bookings.rental_days || 0);
+      const chargedSubtotal = Number(p.bookings.subtotal || 0);
+      weeklyDiscountTotal += Math.max(0, dailyRackRate - chargedSubtotal);
       seenDiscountBkIds.add(p.booking_id);
     }
   }

@@ -89,10 +89,14 @@ export function computeRentalPricing({
   seasonalRuleName = null,
   loyaltyDiscountPct = 0,
   loyaltyTierLabel = null,
+  weeklyDiscountPercentOverride = null,
+  totalCostOverride = null,
+  totalCostOverrideLabel = 'Admin price override',
 }) {
   const rentalDays = calcRentalDays(pickupDate, returnDate);
   const dailyRate = parseFloat(vehicle.daily_rate);
-  const discountPct = vehicle.weekly_discount_percent ?? 15;
+  const requestedDiscountPct = weeklyDiscountPercentOverride ?? vehicle.weekly_discount_percent ?? 15;
+  const discountPct = Math.min(50, Math.max(0, Number(requestedDiscountPct)));
   const weeklyRate = parseFloat(((dailyRate * 7) * (1 - discountPct / 100)).toFixed(2));
   const unlimitedMileageIncluded = vehicle.weekly_unlimited_mileage_enabled !== false;
 
@@ -139,7 +143,7 @@ export function computeRentalPricing({
   const taxableAmount = subtotal - discountAmount - loyaltyDiscountAmount + deliveryFeeAmount;
   const taxAmount = parseFloat((taxableAmount * taxRate).toFixed(2));
   // insurance_cost intentionally excluded — no bookings column; added to PI separately
-  const totalCost = parseFloat((taxableAmount + taxAmount + mileageAddonFee + tollAddonFee).toFixed(2));
+  let totalCost = parseFloat((taxableAmount + taxAmount + mileageAddonFee + tollAddonFee).toFixed(2));
 
   // line_items: financial ledger stored at booking creation, never recomputed
   const line_items = [];
@@ -176,6 +180,17 @@ export function computeRentalPricing({
     line_items.push({ label: 'Toll pass', amount: parseFloat(tollAddonFee.toFixed(2)) });
   }
   line_items.push({ label: `Tax (${Math.round(taxRate * 100)}%)`, amount: taxAmount });
+
+  if (totalCostOverride != null) {
+    const overrideTotal = parseFloat(Number(totalCostOverride).toFixed(2));
+    if (Number.isFinite(overrideTotal) && overrideTotal > 0) {
+      const adjustment = parseFloat((overrideTotal - totalCost).toFixed(2));
+      if (Math.abs(adjustment) >= 0.01) {
+        line_items.push({ label: totalCostOverrideLabel, amount: adjustment });
+      }
+      totalCost = overrideTotal;
+    }
+  }
 
   return {
     // ── DB_FIELDS: spread directly into bookings table insert ─────────────────

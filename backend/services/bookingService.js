@@ -58,9 +58,27 @@ export async function createBooking(payload) {
     unlimited_miles, unlimited_tolls,
     rate_preference,
     created_by_admin = false,
+    admin_weekly_discount_percent,
+    admin_total_cost_override,
   } = payload;
 
   const validRatePref = ['daily', 'weekly', 'monthly'].includes(rate_preference) ? rate_preference : null;
+  const adminWeeklyDiscountPct = created_by_admin && admin_weekly_discount_percent !== undefined
+    ? Math.min(50, Math.max(0, Number(admin_weekly_discount_percent)))
+    : null;
+  const adminTotalCostOverride = created_by_admin && admin_total_cost_override !== undefined && admin_total_cost_override !== ''
+    ? Number(admin_total_cost_override)
+    : null;
+  if (adminWeeklyDiscountPct != null && !Number.isFinite(adminWeeklyDiscountPct)) {
+    const err = new Error('Invalid weekly discount override');
+    err.status = 400;
+    throw err;
+  }
+  if (adminTotalCostOverride != null && (!Number.isFinite(adminTotalCostOverride) || adminTotalCostOverride <= 0)) {
+    const err = new Error('Exact price override must be greater than $0');
+    err.status = 400;
+    throw err;
+  }
 
   const deliveryFeeAmount = DELIVERY_FEES[delivery_type] ?? 0;
   const deliveryRequested = deliveryFeeAmount > 0;
@@ -177,6 +195,9 @@ export async function createBooking(payload) {
     seasonalRuleName,
     loyaltyDiscountPct,
     loyaltyTierLabel,
+    weeklyDiscountPercentOverride: adminWeeklyDiscountPct,
+    totalCostOverride: adminTotalCostOverride,
+    totalCostOverrideLabel: 'Admin exact price override',
   });
 
   // 5. Generate booking code (retry on collision)
@@ -237,6 +258,8 @@ export async function createBooking(payload) {
       special_requests: [
         delivery_type && delivery_type !== 'pickup' ? `Delivery type: ${delivery_type}` : '',
         validRatePref ? `Rate preference: ${validRatePref}` : '',
+        adminWeeklyDiscountPct != null ? `Admin weekly discount: ${adminWeeklyDiscountPct}%` : '',
+        adminTotalCostOverride != null ? `Admin exact rental total: $${adminTotalCostOverride.toFixed(2)}` : '',
         special_requests || '',
       ].filter(Boolean).join(' | ') || null,
       source,
@@ -257,7 +280,9 @@ export async function createBooking(payload) {
 
   // 8. Send booking notification (fire-and-forget)
   const fullBooking = { ...booking, customers: customer, vehicles: vehicle };
-  sendBookingNotification('booking_submitted', buildBookingPayload(fullBooking));
+  if (!created_by_admin) {
+    sendBookingNotification('booking_submitted', buildBookingPayload(fullBooking));
+  }
 
   // 9. Confirmation email to customer (fire-and-forget)
   // ⚠ IMPLICIT CONTRACT (Phase 1 audit F-3):
@@ -265,11 +290,13 @@ export async function createBooking(payload) {
   // stage === 'booking_submitted' on the assumption that this call is firing
   // the branded confirmation. Removing or renaming this call leaves customers
   // with NO email after submission. Guarded by tests/booking-submitted-contract.test.js.
-  sendBookingConfirmation({
-    customer,
-    booking,
-    vehicle: vehicle.year && vehicle.make ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : null,
-  }).catch(err => console.error('[Email] Confirmation email failed:', err));
+  if (!created_by_admin) {
+    sendBookingConfirmation({
+      customer,
+      booking,
+      vehicle: vehicle.year && vehicle.make ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : null,
+    }).catch(err => console.error('[Email] Confirmation email failed:', err));
+  }
 
   // 10. Dashboard notification
   createNotification(

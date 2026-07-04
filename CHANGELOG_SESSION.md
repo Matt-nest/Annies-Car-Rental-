@@ -5,6 +5,81 @@
 
 ---
 
+## 2026-07-04 — Square for Annie, Stripe for JD provider separation
+
+### Changes Made
+- **`backend/config/paymentProvider.js` / `backend/api/index.js` / `backend/server.js`**: Added `PAYMENT_PROVIDER` gating so deployments mount either Square routes or Stripe routes, never both.
+- **`backend/services/squareService.js` / `backend/routes/square.js` / `backend/utils/square.js`**: Added Annie Square CreatePayment, confirm, webhook verification, refund, ledger, deposit tracking, receipt, Bonzah bind, and booking-finalization flow.
+- **`backend/routes/payments.js` / `backend/services/depositService.js` / `backend/services/cardOnFileService.js`**: Added Square refund dispatch and made Stripe card-on-file/overage behavior Stripe-provider only.
+- **`src/components/booking/confirm-booking/SquarePaymentStage.tsx` / `StripePaymentStage.tsx` / `ConfirmBooking.tsx` / `constants.ts`**: Split customer checkout into provider-specific stages selected by `VITE_PAYMENT_PROVIDER`; removed the page-load Stripe PaymentIntent call.
+- **Dashboard/legal/env docs**: Provider-aware Payments refunds, Settings env display, Stripe nav gating, customer legal copy, privacy copy, and env examples.
+- **`PROJECT_MAP.md`**: Documented new Square route/service/components and provider env requirements.
+
+### API/Data Impact
+- New backend provider envs: `PAYMENT_PROVIDER=square|stripe`; Square requires `SQUARE_ACCESS_TOKEN`, `SQUARE_LOCATION_ID`, `SQUARE_WEBHOOK_SIGNATURE_KEY`, `SQUARE_WEBHOOK_URL`, `SQUARE_ENVIRONMENT`.
+- New frontend provider envs: `VITE_PAYMENT_PROVIDER=square|stripe`; Square requires `VITE_SQUARE_APPLICATION_ID`, `VITE_SQUARE_LOCATION_ID`, `VITE_SQUARE_ENVIRONMENT`.
+- New Square endpoints: `POST /api/v1/square/create-payment`, `POST /api/v1/square/confirm-payment`, `POST /api/v1/square/webhook`, `GET /api/v1/square/status`.
+- Square ledger rows use `payments.method='square'` and Square payment/refund IDs in `reference_id`.
+
+### Files That Need Verification
+- Annie: `/confirm?code=...` Square payment, Square webhook, Payments refund, deposit release/settlement.
+- JD Coastal: `/confirm?code=...` Stripe payment, Stripe webhook, Payments refund.
+- Dashboard Settings and Sidebar provider gating for both `VITE_PAYMENT_PROVIDER=square` and `stripe`.
+
+### Build Status
+- [x] Backend `node --check` on modified provider/payment files — pass
+- [x] `PAYMENT_PROVIDER=square SUPABASE_URL=http://localhost SUPABASE_SERVICE_KEY=dummy npm test` — 56 tests pass
+- [x] `PAYMENT_PROVIDER=stripe SUPABASE_URL=http://localhost SUPABASE_SERVICE_KEY=dummy STRIPE_SECRET_KEY=sk_test_dummy npm test` — 56 tests pass
+- [x] `VITE_PAYMENT_PROVIDER=square VITE_SQUARE_APPLICATION_ID=sandbox-app VITE_SQUARE_LOCATION_ID=sandbox-location npm run build` — customer site pass
+- [x] `VITE_PAYMENT_PROVIDER=stripe VITE_STRIPE_PUBLISHABLE_KEY=pk_test_dummy npm run build` — customer site pass
+- [x] `cd dashboard && VITE_PAYMENT_PROVIDER=square VITE_SQUARE_APPLICATION_ID=sandbox-app VITE_SQUARE_LOCATION_ID=sandbox-location VITE_API_URL=https://backend-fawn-phi-13.vercel.app/api/v1 npm run build` — pass
+- [x] `cd dashboard && VITE_PAYMENT_PROVIDER=stripe VITE_STRIPE_PUBLISHABLE_KEY=pk_test_dummy VITE_API_URL=https://backend-fawn-phi-13.vercel.app/api/v1 npm run build` — pass
+
+### Committed
+- [ ] Pending
+
+### Known Issues / Follow-up
+- To go live, Vercel env vars and webhook subscriptions must be updated per provider; code now enforces the split but cannot create external Square/Stripe credentials.
+- Annie/Square deployments must keep `FEATURE_AUTO_OVERAGE_CHARGES` unset/false until a Square card-on-file overage implementation exists.
+
+---
+
+## 2026-07-04 — Payment hardening, refunds, and admin booking pricing controls
+
+### Changes Made
+- **`backend/services/stripeService.js`**: Reworked successful PaymentIntent handling into one idempotent path shared by webhooks and `confirm-payment`; cancels stale active intents when server amount changes; records rental/deposit/insurance ledger rows once; keeps admin-created bookings auto-finalizing after payment.
+- **`backend/routes/payments.js` / `backend/services/depositService.js`**: Added Stripe remaining-refundable checks before issuing refunds and wrote deposit workflow refunds back into the payments ledger.
+- **`dashboard/src/pages/PaymentsPage.jsx`**: Added live ledger summary cards and clearer deposit-refund actions/copy.
+- **`dashboard/src/components/bookings/NewBookingModal.jsx` / `backend/services/bookingService.js`**: Added admin weekly discount controls, exact rental-total override, and stored override line items for admin-created bookings.
+- **`backend/routes/bookings.js` / `backend/services/emailService.js` / `src/components/booking/ConfirmBooking.tsx` / `src/components/booking/confirm-booking/constants.ts`**: Corrected continue links to `/confirm`, sends admin-created completion SMS, returns server payment totals after insurance selection, and removed the hardcoded Stripe test publishable-key fallback.
+- **`backend/routes/stats.js`**: Fixed weekly discount reporting to calculate dollar savings instead of summing percentage values.
+- **`backend/package.json`**: Updated `npm test` to target `tests/*.test.js` so Node 22 runs the actual test files.
+
+### API/Data Impact
+- Admin-create payload now accepts optional `admin_weekly_discount_percent` and `admin_total_cost_override`.
+- Insurance PATCH responses include `payment_totals` for server-authoritative checkout validation.
+- Payments ledger may now include `payment_type: 'insurance'` rows for Stripe charges that include Bonzah insurance.
+
+### Files That Need Verification
+- Customer `/confirm?code=...` payment flow with own insurance and Bonzah insurance.
+- Dashboard New Booking modal pricing override and weekly discount calculator.
+- Payments ledger refund modal for rental and deposit rows.
+- Booking detail deposit release/settlement flows.
+
+### Build Status
+- [x] Backend `node --check` on modified backend files — pass
+- [x] `cd dashboard && VITE_API_URL=https://backend-fawn-phi-13.vercel.app/api/v1 npm run build` — pass
+- [x] `npm run build` — customer site pass
+- [x] `cd backend && SUPABASE_URL=http://localhost SUPABASE_SERVICE_KEY=dummy npm test` — 56 tests pass
+
+### Committed
+- [x] Yes — `8e1631b` plus follow-up test-script/changelog commit
+
+### Known Issues / Follow-up
+- Annie is still Stripe-wired in this repository; Square requires a parallel provider integration and deployment env work rather than a safe inline swap.
+
+---
+
 ## 2026-06-14 — Port JD Coastal booking-flow upgrades (dedicated Scan step + summary redesign)
 
 Ports the full set from JD Coastal (verified there first): dedicated live-camera ID **Scan step**, Rental Summary redesign, redundant-scanner removal, draft versioning, and skip-when-scanned.

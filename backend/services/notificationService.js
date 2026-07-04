@@ -47,14 +47,14 @@ export const NOTIFICATION_TYPES = {
  *  (a) email the customer with a portal CTA to update their payment method
  *  (b) create an admin dashboard notification linked to the booking
  *
- * Call this from Stripe webhook handlers (e.g. payment_intent.payment_failed)
+ * Call this from payment webhook handlers (e.g. gateway payment failure)
  * once card-on-file is wired up.
  *
  * @param {object} ctx
  * @param {object} ctx.customer       — { first_name, email }
  * @param {object} ctx.booking        — { id, booking_code }
  * @param {number} ctx.amountCents    — declined charge amount in cents
- * @param {string} [ctx.reason]       — Stripe decline_code or message
+ * @param {string} [ctx.reason]       — processor decline code or message
  */
 export async function notifyPaymentDeclined({ customer, booking, amountCents, reason }) {
   // Customer email — fire-and-forget; logged on failure
