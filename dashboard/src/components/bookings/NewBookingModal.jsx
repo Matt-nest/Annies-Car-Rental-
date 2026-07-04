@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Loader2, AlertCircle, CheckCircle, ChevronLeft, ChevronRight, Copy, Send, Car, Calendar, User, Sparkles } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle, ChevronLeft, ChevronRight, Copy, Send, Car, Calendar, User, Sparkles, ExternalLink } from 'lucide-react';
 import { api } from '../../api/client';
 import Modal from '../shared/Modal';
 
 const STEPS = [
-  { key: 'vehicle',   label: 'Vehicle',   icon: Car },
   { key: 'dates',     label: 'Dates',     icon: Calendar },
+  { key: 'vehicle',   label: 'Vehicle',   icon: Car },
   { key: 'customer',  label: 'Customer',  icon: User },
   { key: 'addons',    label: 'Add-ons',   icon: Sparkles },
   { key: 'review',    label: 'Review',    icon: CheckCircle },
@@ -58,6 +58,7 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null); // { booking_code, continue_url } once created
   const [copied, setCopied] = useState(false);
+  const [completionMode, setCompletionMode] = useState('send_link');
 
   // Form state
   const [pickupDate, setPickupDate] = useState('');
@@ -83,12 +84,23 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
     setSubmitting(false);
     setResult(null);
     setCopied(false);
+    setCompletionMode('send_link');
     setPickupDate(''); setReturnDate('');
     setPickupTime('10:00'); setReturnTime('10:00');
     setVehicles([]); setVehicleId('');
     setFirstName(''); setLastName(''); setEmail(''); setPhone('');
     setUnlimitedMiles(false); setUnlimitedTolls(false);
     setDeliveryType('pickup'); setDeliveryAddress(''); setSpecialRequests('');
+  }
+
+  function handlePickupDateChange(value) {
+    setPickupDate(value);
+    setVehicleId('');
+  }
+
+  function handleReturnDateChange(value) {
+    setReturnDate(value);
+    setVehicleId('');
   }
 
   // Whenever the user enters dates, refetch the available-vehicles list.
@@ -105,6 +117,12 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
     return () => { cancelled = true; };
   }, [open, pickupDate, returnDate]);
 
+  useEffect(() => {
+    if (vehicleId && vehicles.length > 0 && !vehicles.some(v => v.id === vehicleId)) {
+      setVehicleId('');
+    }
+  }, [vehicles, vehicleId]);
+
   const selectedVehicle = useMemo(
     () => vehicles.find(v => v.id === vehicleId) || null,
     [vehicles, vehicleId]
@@ -113,11 +131,11 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
   function canAdvance() {
     setError('');
     if (step === 0) {
-      if (!vehicleId) { setError('Select a vehicle.'); return false; }
-    } else if (step === 1) {
       if (!pickupDate || !returnDate) { setError('Pick both pickup and return dates.'); return false; }
       if (returnDate <= pickupDate) { setError('Return must be after pickup.'); return false; }
       if (!pickupTime || !returnTime) { setError('Pick both pickup and return times.'); return false; }
+    } else if (step === 1) {
+      if (!selectedVehicle) { setError('Select an available vehicle for those dates.'); return false; }
     } else if (step === 2) {
       if (!firstName || !lastName) { setError('First and last name required.'); return false; }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError('Valid email required.'); return false; }
@@ -130,12 +148,12 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
     return true;
   }
 
-  // Note the order of steps in this UI: Dates is step 1, Vehicle is step 0.
-  // Vehicle list depends on dates, so step 0 prompts the user to pick dates first.
-  // We hide the vehicle list when dates aren't valid yet.
-
   async function handleSubmit() {
     if (!canAdvance()) return;
+    if (!selectedVehicle) {
+      setError('Select an available vehicle for those dates.');
+      return;
+    }
     setSubmitting(true);
     setError('');
     try {
@@ -144,7 +162,7 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
         last_name:  lastName.trim(),
         email:      email.trim(),
         phone:      phone.trim(),
-        vehicle_code: selectedVehicle?.vehicle_code || vehicleId,
+        vehicle_code: selectedVehicle.vehicle_code,
         pickup_date: pickupDate,
         return_date: returnDate,
         pickup_time: pickupTime,
@@ -154,6 +172,7 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
         unlimited_miles: !!unlimitedMiles,
         unlimited_tolls: !!unlimitedTolls,
         special_requests: specialRequests.trim() || undefined,
+        completion_mode: completionMode,
       };
       const res = await api.createAdminBooking(payload);
       setResult(res);
@@ -180,6 +199,7 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
 
   /* ── Success screen ── */
   if (result) {
+    const isInPerson = result.completion_mode === 'in_person';
     return (
       <Modal open={open} onClose={handleClose} title="Booking Created">
         <div className="space-y-4">
@@ -188,13 +208,17 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
             <CheckCircle size={20} className="text-emerald-500 shrink-0" />
             <div className="text-sm">
               <p className="font-semibold text-[var(--text-primary)]">Booking <span className="font-mono">{result.booking_code}</span> created.</p>
-              <p className="text-[var(--text-secondary)] mt-0.5">An email with the continue-booking link has been sent to {email}.</p>
+              <p className="text-[var(--text-secondary)] mt-0.5">
+                {isInPerson
+                  ? 'Open the completion link on a customer-facing device to finish agreement, insurance, and payment in person.'
+                  : `A text message and email with the completion link have been sent to ${email}.`}
+              </p>
             </div>
           </div>
 
           <div>
             <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-1 block">
-              Continue-booking link (does not expire)
+              Completion link (does not expire)
             </label>
             <div className="flex gap-2">
               <input
@@ -210,7 +234,17 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
             </div>
           </div>
 
-          <div className="flex justify-end pt-2">
+          <div className="flex justify-end gap-2 pt-2">
+            {isInPerson && (
+              <a
+                href={result.continue_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-secondary"
+              >
+                <ExternalLink size={14} /> Open Completion
+              </a>
+            )}
             <button type="button" onClick={handleClose} className="btn-primary">Done</button>
           </div>
         </div>
@@ -232,27 +266,43 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
           </div>
         )}
 
-        {/* Step 0 — Vehicle */}
+        {/* Step 0 — Dates / times */}
         {step === 0 && (
           <div className="space-y-3">
             <p className="text-sm text-[var(--text-secondary)]">
-              Pick a vehicle. The list reflects availability for the dates entered in the next step — set those first if you need to filter.
+              Set the rental window first so the vehicle list only shows available cars.
             </p>
-            <div className="grid grid-cols-2 gap-2 mb-2">
+            <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-1 block">Pickup date</label>
-                <input type="date" className="input w-full" value={pickupDate} onChange={e => setPickupDate(e.target.value)} />
+                <input type="date" className="input w-full" value={pickupDate} onChange={e => handlePickupDateChange(e.target.value)} />
               </div>
               <div>
                 <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-1 block">Return date</label>
-                <input type="date" className="input w-full" value={returnDate} onChange={e => setReturnDate(e.target.value)} />
+                <input type="date" className="input w-full" value={returnDate} onChange={e => handleReturnDateChange(e.target.value)} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-1 block">Pickup time</label>
+                <input type="time" className="input w-full" value={pickupTime} onChange={e => setPickupTime(e.target.value)} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-1 block">Return time</label>
+                <input type="time" className="input w-full" value={returnTime} onChange={e => setReturnTime(e.target.value)} />
               </div>
             </div>
+          </div>
+        )}
 
+        {/* Step 1 — Vehicle */}
+        {step === 1 && (
+          <div className="space-y-3">
+            <p className="text-sm text-[var(--text-secondary)]">
+              Pick from vehicles available for {pickupDate || 'the pickup date'} through {returnDate || 'the return date'}.
+            </p>
             {(!pickupDate || !returnDate || returnDate <= pickupDate) ? (
               <div className="text-xs text-[var(--text-tertiary)] italic p-3 rounded-xl"
                 style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px dashed var(--border-subtle)' }}>
-                Enter valid pickup &amp; return dates to see available vehicles.
+                Go back and enter valid pickup &amp; return dates to see available vehicles.
               </div>
             ) : vehiclesLoading ? (
               <div className="flex items-center gap-2 text-sm text-[var(--text-tertiary)]">
@@ -293,35 +343,6 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
                   );
                 })}
               </div>
-            )}
-          </div>
-        )}
-
-        {/* Step 1 — Dates / times */}
-        {step === 1 && (
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-1 block">Pickup date</label>
-                <input type="date" className="input w-full" value={pickupDate} onChange={e => setPickupDate(e.target.value)} />
-              </div>
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-1 block">Return date</label>
-                <input type="date" className="input w-full" value={returnDate} onChange={e => setReturnDate(e.target.value)} />
-              </div>
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-1 block">Pickup time</label>
-                <input type="time" className="input w-full" value={pickupTime} onChange={e => setPickupTime(e.target.value)} />
-              </div>
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-1 block">Return time</label>
-                <input type="time" className="input w-full" value={returnTime} onChange={e => setReturnTime(e.target.value)} />
-              </div>
-            </div>
-            {selectedVehicle && (
-              <p className="text-xs text-[var(--text-tertiary)]">
-                Selected: <span className="font-semibold text-[var(--text-secondary)]">{selectedVehicle.year} {selectedVehicle.make} {selectedVehicle.model}</span>
-              </p>
             )}
           </div>
         )}
@@ -397,6 +418,32 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
         {/* Step 4 — Review */}
         {step === 4 && (
           <div className="space-y-3 text-sm">
+            <div className="grid sm:grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setCompletionMode('send_link')}
+                className="text-left p-3 rounded-xl transition-all"
+                style={{
+                  backgroundColor: completionMode === 'send_link' ? 'var(--accent-glow)' : 'var(--bg-card)',
+                  border: completionMode === 'send_link' ? '2px solid var(--accent-color)' : '1px solid var(--border-subtle)',
+                }}
+              >
+                <p className="font-semibold text-[var(--text-primary)]">Send link</p>
+                <p className="text-xs text-[var(--text-tertiary)] mt-1">Text and email the approved completion link to the customer.</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setCompletionMode('in_person')}
+                className="text-left p-3 rounded-xl transition-all"
+                style={{
+                  backgroundColor: completionMode === 'in_person' ? 'var(--accent-glow)' : 'var(--bg-card)',
+                  border: completionMode === 'in_person' ? '2px solid var(--accent-color)' : '1px solid var(--border-subtle)',
+                }}
+              >
+                <p className="font-semibold text-[var(--text-primary)]">In-person completion</p>
+                <p className="text-xs text-[var(--text-tertiary)] mt-1">Create the approved booking and open the same completion wizard on a device.</p>
+              </button>
+            </div>
             <div className="p-3 rounded-xl space-y-1" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
               <div className="flex justify-between"><span className="text-[var(--text-tertiary)]">Vehicle</span><span className="font-semibold text-[var(--text-primary)]">{selectedVehicle ? `${selectedVehicle.year} ${selectedVehicle.make} ${selectedVehicle.model}` : '—'}</span></div>
               <div className="flex justify-between"><span className="text-[var(--text-tertiary)]">Pickup</span><span className="text-[var(--text-secondary)] tabular-nums">{pickupDate} {pickupTime}</span></div>
@@ -409,8 +456,10 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
               <div className="flex justify-between"><span className="text-[var(--text-tertiary)]">Unlimited tolls</span><span className="text-[var(--text-secondary)]">{unlimitedTolls ? 'Yes' : 'No'}</span></div>
             </div>
             <p className="text-xs text-[var(--text-tertiary)]">
-              The customer will receive an email with a link to add insurance, sign the agreement, and pay.
-              Payment will auto-approve and confirm this booking.
+              {completionMode === 'send_link'
+                ? 'The customer will receive a text and email with a link to add insurance, sign the agreement, and pay.'
+                : 'Use the returned link in person so the customer completes insurance, agreement, and payment through the standard wizard.'}
+              Payment will confirm this booking after completion.
             </p>
           </div>
         )}
@@ -441,7 +490,9 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
               disabled={submitting}
               className="btn-primary"
             >
-              {submitting ? <><Loader2 size={14} className="animate-spin" /> Creating…</> : <><Send size={14} /> Create &amp; send link</>}
+              {submitting
+                ? <><Loader2 size={14} className="animate-spin" /> Creating…</>
+                : <><Send size={14} /> {completionMode === 'send_link' ? 'Create & send link' : 'Create in-person booking'}</>}
             </button>
           )}
         </div>

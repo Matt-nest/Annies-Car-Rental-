@@ -5,6 +5,19 @@
 
 ---
 
+## 2026-07-04 — Dashboard booking modal send-link + in-person flow hardening
+
+Fixed the new dashboard booking modal and admin-created booking lifecycle so staff can safely create approved bookings without confusing public request notifications.
+- **`backend/routes/bookings.js`** — admin-create now returns `/confirm?code=...`, suppresses the public request-received flow, approves the booking before returning, sends send-link customers a direct SMS + email completion link, and supports `completion_mode='in_person'` by returning the same completion link without texting/emailing it.
+- **`backend/services/bookingService.js`** — added internal `suppress_initial_notifications` and `suppressNotification` controls so admin-created bookings can avoid duplicate public/approval notifications while preserving normal public booking behavior.
+- **`backend/services/emailService.js`** — continue-booking email now targets the active `/confirm` wizard and accepts the route-built URL.
+- **`dashboard/src/components/bookings/NewBookingModal.jsx`** — streamlined wizard order to Dates → Vehicle → Customer → Add-ons → Review, clears stale vehicle selection when dates change, requires a currently available vehicle on submit, and adds Send Link vs In-Person Completion choices.
+- **`dashboard/src/pages/FleetPage.jsx`** — updated older generate-link success copy to reflect email + text delivery.
+
+Verification: `node --check` on changed backend files, `VITE_API_URL=https://backend-fawn-phi-13.vercel.app/api/v1 npm run build` in `dashboard/`, and `SUPABASE_URL=http://localhost SUPABASE_SERVICE_KEY=dummy node --test tests/*.js` in `backend/` all pass.
+
+---
+
 ## 2026-06-14 — Port JD Coastal booking-flow upgrades (dedicated Scan step + summary redesign)
 
 Ports the full set from JD Coastal (verified there first): dedicated live-camera ID **Scan step**, Rental Summary redesign, redundant-scanner removal, draft versioning, and skip-when-scanned.

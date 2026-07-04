@@ -58,6 +58,7 @@ export async function createBooking(payload) {
     unlimited_miles, unlimited_tolls,
     rate_preference,
     created_by_admin = false,
+    suppress_initial_notifications = false,
   } = payload;
 
   const validRatePref = ['daily', 'weekly', 'monthly'].includes(rate_preference) ? rate_preference : null;
@@ -252,12 +253,14 @@ export async function createBooking(payload) {
     from_status: null,
     to_status: 'pending_approval',
     changed_by: 'system',
-    reason: 'Booking submitted via website',
+    reason: created_by_admin ? 'Booking created via dashboard' : 'Booking submitted via website',
   });
 
   // 8. Send booking notification (fire-and-forget)
   const fullBooking = { ...booking, customers: customer, vehicles: vehicle };
-  sendBookingNotification('booking_submitted', buildBookingPayload(fullBooking));
+  if (!suppress_initial_notifications) {
+    sendBookingNotification('booking_submitted', buildBookingPayload(fullBooking));
+  }
 
   // 9. Confirmation email to customer (fire-and-forget)
   // ⚠ IMPLICIT CONTRACT (Phase 1 audit F-3):
@@ -265,11 +268,13 @@ export async function createBooking(payload) {
   // stage === 'booking_submitted' on the assumption that this call is firing
   // the branded confirmation. Removing or renaming this call leaves customers
   // with NO email after submission. Guarded by tests/booking-submitted-contract.test.js.
-  sendBookingConfirmation({
-    customer,
-    booking,
-    vehicle: vehicle.year && vehicle.make ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : null,
-  }).catch(err => console.error('[Email] Confirmation email failed:', err));
+  if (!suppress_initial_notifications) {
+    sendBookingConfirmation({
+      customer,
+      booking,
+      vehicle: vehicle.year && vehicle.make ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : null,
+    }).catch(err => console.error('[Email] Confirmation email failed:', err));
+  }
 
   // 10. Dashboard notification
   createNotification(
@@ -304,7 +309,7 @@ export async function createBooking(payload) {
 }
 
 /** Transition a booking status with logging and notification hooks */
-export async function transitionBooking(bookingId, newStatus, { changedBy = 'owner', reason, extraFields = {} } = {}) {
+export async function transitionBooking(bookingId, newStatus, { changedBy = 'owner', reason, extraFields = {}, suppressNotification = false } = {}) {
   const booking = await getBookingDetail(bookingId);
 
   if (!canTransition(booking.status, newStatus)) {
@@ -398,7 +403,7 @@ export async function transitionBooking(bookingId, newStatus, { changedBy = 'own
     completed: 'rental_completed',
   };
 
-  if (stageMap[newStatus]) {
+  if (!suppressNotification && stageMap[newStatus]) {
     const updated = await getBookingDetail(bookingId);
 
     // For ready_for_pickup: include admin's handoff record (fuel, odometer, photos)

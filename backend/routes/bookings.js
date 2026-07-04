@@ -8,11 +8,31 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 import { validateBookingPayload } from '../utils/validators.js';
 import { createBooking, transitionBooking, getBookingDetail, applyCheckoutOverride } from '../services/bookingService.js';
 import { createNotification } from '../services/notificationService.js';
-import { sendBookingNotification, buildBookingPayload } from '../services/notifyService.js';
+import { sendBookingNotification, buildBookingPayload, sendSMS } from '../services/notifyService.js';
+import { sendContinueBookingEmail } from '../services/emailService.js';
 import { computeRentalPricing, DELIVERY_FEES } from '../services/pricingService.js';
 import { getQuote, getSetting, BonzahError } from '../services/bonzahService.js';
 
 const router = Router();
+
+function buildContinueUrl(bookingCode) {
+  return `${brand.siteUrl}/confirm?code=${encodeURIComponent(bookingCode)}`;
+}
+
+function buildContinueSms({ customer, booking, vehicle, continueUrl }) {
+  const firstName = customer?.first_name || 'there';
+  const vehicleLine = vehicle ? `\n${vehicle}` : '';
+  return `Great news, ${firstName} - your ${brand.name} booking is approved.${vehicleLine}
+Pickup: ${booking.pickup_date} at ${booking.pickup_time}
+Ref: ${booking.booking_code}
+
+Complete your agreement, insurance, and payment here:
+${continueUrl}
+
+Questions? Call or text ${brand.phone}.
+
+- ${brand.name}`;
+}
 
 // Rate limit public booking submissions: 5 per minute per IP
 const bookingRateLimit = rateLimit({
@@ -119,52 +139,100 @@ router.post('/', bookingRateLimit, verifyRecaptcha, asyncHandler(async (req, res
 }));
 
 /** POST /bookings/admin-create — admin creates a booking on behalf of a customer.
- *  Reuses the public createBooking path but flags created_by_admin and emails a
- *  continue-booking link instead of the standard "request received" flow.
+ *  Reuses the public createBooking path but suppresses the public "request
+ *  received" flow. Send-link mode texts/emails an approved completion link;
+ *  in-person mode returns the same link for staff to open on a customer device.
  *  Body: full createBooking payload (vehicle_code, pickup/return dates, customer
- *  fields, optional add-ons). The admin already vetted the request, so payment
- *  success will auto-approve in stripeService.
+ *  fields, optional add-ons). The admin already vetted the request, so this
+ *  route approves the booking before payment/agreement completion.
  */
 router.post('/admin-create', requireAuth, asyncHandler(async (req, res) => {
   const errors = validateBookingPayload(req.body);
   if (errors.length) return res.status(400).json({ error: 'Validation failed', details: errors });
+
+  const completionMode = req.body.completion_mode === 'in_person' ? 'in_person' : 'send_link';
 
   const booking = await createBooking({
     ...req.body,
     source: 'admin',
     created_by_admin: true,
     insurance_status: 'pending',
+    suppress_initial_notifications: true,
   });
 
-  // Build the continue link the admin can copy/paste.
-  const siteUrl = brand.siteUrl;
-  const continueUrl = `${siteUrl}/booking?code=${booking.booking_code}`;
+  // The admin already vetted this request. Approve it before sharing the
+  // completion link so the customer-facing copy and booking status agree.
+  await transitionBooking(booking.id, 'approved', {
+    changedBy: req.user?.email || 'owner',
+    reason: completionMode === 'in_person'
+      ? 'Admin-created in-person booking'
+      : 'Admin-created send-link booking',
+    suppressNotification: true,
+  });
 
-  // Send the continue-booking email (fire-and-forget so the response isn't blocked).
-  try {
-    const { sendContinueBookingEmail } = await import('../services/emailService.js');
-    const { data: customer } = await supabase
-      .from('customers')
-      .select('first_name, last_name, email, phone')
-      .eq('id', booking.customer_id)
-      .single();
-    const { data: vehicleRow } = await supabase
-      .from('vehicles')
-      .select('year, make, model')
-      .eq('id', booking.vehicle_id)
-      .single();
-    const vehicleLabel = vehicleRow ? `${vehicleRow.year} ${vehicleRow.make} ${vehicleRow.model}` : null;
-    sendContinueBookingEmail({ customer, booking, vehicle: vehicleLabel })
-      .catch(err => console.error('[Email] Continue-booking email failed:', err));
-  } catch (err) {
-    console.error('[admin-create] Continue email setup failed:', err);
+  const continueUrl = buildContinueUrl(booking.booking_code);
+
+  const { data: customerRow } = await supabase
+    .from('customers')
+    .select('first_name, last_name, email, phone')
+    .eq('id', booking.customer_id)
+    .single();
+  const { data: vehicleRow } = await supabase
+    .from('vehicles')
+    .select('year, make, model')
+    .eq('id', booking.vehicle_id)
+    .single();
+
+  const customer = {
+    ...(customerRow || {}),
+    first_name: req.body.first_name || customerRow?.first_name,
+    last_name: req.body.last_name || customerRow?.last_name,
+    email: req.body.email || customerRow?.email,
+    phone: req.body.phone || customerRow?.phone,
+  };
+  const vehicleLabel = vehicleRow ? `${vehicleRow.year} ${vehicleRow.make} ${vehicleRow.model}` : null;
+  const notifications = { email: 'skipped', sms: 'skipped' };
+
+  if (completionMode === 'send_link') {
+    const sends = [];
+
+    if (customer.email) {
+      sends.push(
+        sendContinueBookingEmail({ customer, booking, vehicle: vehicleLabel, continueUrl })
+          .then(() => { notifications.email = 'sent'; })
+          .catch(err => {
+            notifications.email = 'failed';
+            console.error('[Email] Continue-booking email failed:', err);
+          })
+      );
+    }
+
+    if (customer.phone) {
+      sends.push(
+        sendSMS({
+          to: customer.phone,
+          body: buildContinueSms({ customer, booking, vehicle: vehicleLabel, continueUrl }),
+          source: 'manual',
+        }).then(result => {
+          notifications.sms = result?.error ? 'failed' : result?.skipped ? `skipped:${result.skipped}` : 'sent';
+        }).catch(err => {
+          notifications.sms = 'failed';
+          console.error('[SMS] Continue-booking SMS failed:', err);
+        })
+      );
+    }
+
+    await Promise.allSettled(sends);
   }
 
   res.status(201).json({
     success: true,
     booking_id: booking.id,
     booking_code: booking.booking_code,
+    status: 'approved',
+    completion_mode: completionMode,
     continue_url: continueUrl,
+    notifications,
   });
 }));
 

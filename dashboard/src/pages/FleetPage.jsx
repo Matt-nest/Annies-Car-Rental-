@@ -550,7 +550,7 @@ export default function FleetPage() {
             <div>
               <p className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Booking Link Created!</p>
               <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
-                Code: <span className="font-mono font-bold">{linkResult.booking_code}</span> — A continue-booking email has been sent to the customer.
+                Code: <span className="font-mono font-bold">{linkResult.booking_code}</span> — A completion email and text have been sent to the customer.
               </p>
             </div>
 
