@@ -1829,4 +1829,47 @@ All decisions listed below were verified present in source:
 
 ---
 
+## 2026-07-04 — Booking flow hardening for branded deployments
+
+### Changes Made
+- **`src/App.tsx`**: Added `/booking` as a legacy alias for the `/confirm` booking wizard so older continue links still resolve correctly.
+- **`backend/routes/bookings.js`** and **`backend/services/emailService.js`**: Updated admin-created booking continue URLs to the canonical `/confirm?code=...` route.
+- **`backend/services/stripeService.js`**: Split booking-summary loads from real Stripe PaymentIntent creation, blocked public payment attempts before approval, and kept admin-created pending links eligible for checkout.
+- **`src/components/booking/ConfirmBooking.tsx`** and **`src/components/booking/confirm-booking/constants.ts`**: Removed the hardcoded Stripe test publishable key fallback, added a clear missing-payment-config message, and show pending customers a payment-not-ready state.
+- **`backend/services/bookingService.js`**: Auto-confirms an approved booking when a signed agreement and completed rental payment already exist, preventing stuck approved bookings.
+- **`backend/routes/agreements.js`** and **`src/components/booking/confirm-booking/wizard-steps/RentalSummaryStep.tsx`**: Fixed delivery summary display by deriving delivery state from stored booking delivery fields.
+
+### API/Data Impact
+- No schema changes.
+- `POST /api/v1/stripe/create-payment-intent` now returns summary-only data when called without `expected_total_cents`; actual PaymentIntent creation requires an approved booking or an admin-created pending booking.
+- Booking approval can now immediately transition to `confirmed` when payment and customer signature are already complete.
+
+### Files That Need Verification
+- `src/App.tsx`
+- `src/components/booking/ConfirmBooking.tsx`
+- `src/components/booking/confirm-booking/constants.ts`
+- `src/components/booking/confirm-booking/wizard-steps/RentalSummaryStep.tsx`
+- `backend/routes/bookings.js`
+- `backend/routes/agreements.js`
+- `backend/services/emailService.js`
+- `backend/services/stripeService.js`
+- `backend/services/bookingService.js`
+
+### Build Status
+- [ ] `npm run build` — pending
+- [ ] `npm run lint` — pending
+- [ ] `cd dashboard && npm run build` — pending
+- [ ] `cd backend && npm test` — pending
+
+### Committed
+- [ ] Pending
+- [ ] Vercel env vars updated (if needed)
+- [ ] Supabase migration run (if needed)
+
+### Known Issues / Follow-up
+- Annie Square payments are not implemented in this repo; adding Square is a separate provider integration touching frontend checkout, backend routes/services, webhooks, and payment records.
+- JD Coastal is represented as a branded deployment of this white-label app, not a separate app directory in the workspace.
+
+---
+
 <!-- Add new sessions above this line, newest first -->

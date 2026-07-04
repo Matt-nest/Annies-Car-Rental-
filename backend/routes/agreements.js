@@ -73,6 +73,7 @@ router.get('/:bookingCode', asyncHandler(async (req, res) => {
 
   const customer = booking.customers || {};
   const vehicle = booking.vehicles || {};
+  const deliveryType = booking.delivery_requested ? 'delivery' : 'pickup';
 
   res.json({
     alreadySigned: !!existing?.customer_signed_at,
@@ -87,7 +88,7 @@ router.get('/:bookingCode', asyncHandler(async (req, res) => {
       pickupTime: booking.pickup_time,
       returnTime: booking.return_time,
       pickupLocation: booking.pickup_location || '',
-      deliveryType: booking.delivery_type || 'pickup',
+      deliveryType,
       deliveryAddress: booking.delivery_address || '',
       vehicleImage: Array.isArray(vehicle.images) && vehicle.images.length ? vehicle.images[0] : (vehicle.thumbnail_url || ''),
       vehicle: vehicle.year && vehicle.make ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : '',

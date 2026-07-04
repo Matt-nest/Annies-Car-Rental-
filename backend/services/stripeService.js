@@ -14,6 +14,26 @@ import {
 
 const stripe = getStripe();
 
+const COMPLETED_BOOKING_STATUSES = ['confirmed', 'ready_for_pickup', 'active', 'returned', 'completed'];
+
+function canCreatePaymentIntent(booking) {
+  return booking.status === 'approved'
+    || (booking.status === 'pending_approval' && booking.created_by_admin);
+}
+
+function getPaymentBlockMessage(booking) {
+  if (booking.status === 'pending_approval') {
+    return 'This booking is still awaiting approval. We will send the payment link as soon as it is approved.';
+  }
+  if (['declined', 'cancelled', 'no_show'].includes(booking.status)) {
+    return `This booking has been ${booking.status.replace('_', ' ')}.`;
+  }
+  if (COMPLETED_BOOKING_STATUSES.includes(booking.status)) {
+    return 'This booking is already confirmed.';
+  }
+  return `This booking is not ready for payment yet (status: ${booking.status}).`;
+}
+
 /**
  * Create a PaymentIntent for a booking.
  * Charges total_cost + insurance_cost + security deposit in a single PaymentIntent.
@@ -33,9 +53,24 @@ export async function createPaymentIntent(bookingCode, { expected_total_cents } 
     throw Object.assign(new Error('Booking not found'), { status: 404 });
   }
 
-  // Don't allow payment for declined/cancelled bookings
-  if (['declined', 'cancelled'].includes(booking.status)) {
-    throw Object.assign(new Error('This booking has been ' + booking.status), { status: 400 });
+  // First load from the wizard only needs a booking summary for pricing.
+  // Avoid creating/reusing a PaymentIntent until the customer actually pays.
+  if (expected_total_cents == null) {
+    const paymentReady = canCreatePaymentIntent(booking);
+    const alreadyPaid = COMPLETED_BOOKING_STATUSES.includes(booking.status);
+    return {
+      clientSecret: null,
+      summaryOnly: true,
+      paymentBlocked: !paymentReady && !alreadyPaid,
+      blockReason: !paymentReady && !alreadyPaid ? getPaymentBlockMessage(booking) : null,
+      alreadyPaid,
+      booking: await formatBookingSummary(booking),
+    };
+  }
+
+  if (!canCreatePaymentIntent(booking)) {
+    const status = ['declined', 'cancelled', 'no_show'].includes(booking.status) ? 400 : 409;
+    throw Object.assign(new Error(getPaymentBlockMessage(booking)), { status });
   }
 
   // Check if there's already a PaymentIntent for this booking.

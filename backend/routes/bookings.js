@@ -138,7 +138,7 @@ router.post('/admin-create', requireAuth, asyncHandler(async (req, res) => {
 
   // Build the continue link the admin can copy/paste.
   const siteUrl = brand.siteUrl;
-  const continueUrl = `${siteUrl}/booking?code=${booking.booking_code}`;
+  const continueUrl = `${siteUrl}/confirm?code=${booking.booking_code}`;
 
   // Send the continue-booking email (fire-and-forget so the response isn't blocked).
   try {

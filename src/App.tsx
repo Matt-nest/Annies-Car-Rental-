@@ -32,7 +32,7 @@ type Page = 'home' | 'detail' | 'confirm' | 'rental-agreement' | 'booking-status
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>(() => {
     const path = window.location.pathname;
-    if (path === '/confirm') return 'confirm';
+    if (path === '/confirm' || path === '/booking') return 'confirm';
     if (path === '/rental-agreement') return 'rental-agreement';
     if (path === '/booking-status') return 'booking-status';
     if (path === '/portal') return 'portal';
@@ -47,7 +47,7 @@ export default function App() {
   useEffect(() => {
     const handlePop = () => {
       const path = window.location.pathname;
-      if (path === '/confirm') setCurrentPage('confirm');
+      if (path === '/confirm' || path === '/booking') setCurrentPage('confirm');
       else if (path === '/rental-agreement') setCurrentPage('rental-agreement');
       else if (path === '/booking-status') setCurrentPage('booking-status');
       else if (path === '/portal') setCurrentPage('portal');

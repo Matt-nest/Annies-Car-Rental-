@@ -22,7 +22,7 @@ function formatTime(t?: string): string {
 
 export default function RentalSummaryStep({ autoFilled: af, theme, onContinue }: Props) {
   const firstName = (af.customerName || '').trim().split(' ')[0];
-  const isDelivery = af.deliveryType === 'delivery' && !!af.deliveryAddress;
+  const isDelivery = af.deliveryType !== 'pickup' && !!af.deliveryAddress;
   const LocationIcon = isDelivery ? Truck : MapPin;
   const locationLabel = isDelivery ? 'Delivery to' : 'Pickup at';
   const locationValue = isDelivery ? af.deliveryAddress : (af.pickupLocation || brand.location.city);

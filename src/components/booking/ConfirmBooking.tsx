@@ -24,7 +24,7 @@ import SubmitLoader from './confirm-booking/wizard-steps/SubmitLoader';
 
 import {
   API_URL, PHONE_NUMBER,
-  stripePromise, getRefCode,
+  STRIPE_CONFIGURED, stripePromise, getRefCode,
   formatCurrency,
   loadDraft, saveDraft, clearDraft,
   type WizardDraft,
@@ -314,6 +314,7 @@ export default function ConfirmBooking() {
   const [agreementData, setAgreementData] = useState<any>(null);
   const [bookingSummary, setBookingSummary] = useState<any>(null);
   const [depositAmount, setDepositAmount] = useState(150);
+  const [paymentBlockedReason, setPaymentBlockedReason] = useState<string | null>(null);
 
   // Wizard state
   const [draft, setDraft] = useState<WizardDraft>(() => loadDraft(refCode || ''));
@@ -385,6 +386,9 @@ export default function ConfirmBooking() {
         if (piJson.alreadyPaid) {
           setConfirmed(true);
         }
+        setPaymentBlockedReason(piJson.paymentBlocked
+          ? (piJson.blockReason || 'This booking is not ready for payment yet.')
+          : null);
 
         if (piJson.booking) {
           setBookingSummary(piJson.booking);
@@ -499,6 +503,27 @@ export default function ConfirmBooking() {
     );
   }
 
+  if (paymentBlockedReason) {
+    return (
+      <>
+        <Navbar onNavigate={scrollToSection} />
+        <div className="min-h-screen flex items-center justify-center px-4" style={{ paddingTop: '120px' }}>
+          <div className="max-w-md w-full rounded-2xl border p-6 text-center space-y-4"
+            style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+            <AlertCircle size={40} style={{ color: 'var(--accent-color)' }} className="mx-auto" />
+            <h2 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>Payment Not Ready Yet</h2>
+            <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{paymentBlockedReason}</p>
+            <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+              <Phone size={12} className="inline mr-1" />
+              Need help? Call {PHONE_NUMBER}
+            </p>
+          </div>
+        </div>
+        <Footer />
+      </>
+    );
+  }
+
   const af = agreementData?.autoFilled || {};
 
   // ── Wizard ──────────────────────────────────────────────
@@ -579,6 +604,19 @@ export default function ConfirmBooking() {
               {/* ═══ Stage 3: Payment ═══ */}
               {draft.stage === 3 && (
                 (() => {
+                  if (!STRIPE_CONFIGURED) {
+                    return (
+                      <div className="rounded-xl border p-5 text-center space-y-3"
+                        style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+                        <AlertCircle size={28} style={{ color: '#ef4444' }} className="mx-auto" />
+                        <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Payment Setup Needed</h3>
+                        <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                          Online payment is not configured for this booking site yet. Please call {PHONE_NUMBER} and we will finish your booking.
+                        </p>
+                      </div>
+                    );
+                  }
+
                   // Compute amount for Stripe Elements initialization
                   let insCost = 0;
                   if (draft.insuranceChoice === 'bonzah' && draft.bonzahQuote) {

@@ -45,6 +45,28 @@ export async function getBookingDetail(bookingId) {
   return data;
 }
 
+async function hasSignedAgreementAndPayment(bookingId) {
+  const [agreementResult, paymentResult] = await Promise.all([
+    supabase
+      .from('rental_agreements')
+      .select('id')
+      .eq('booking_id', bookingId)
+      .not('customer_signed_at', 'is', null)
+      .limit(1),
+    supabase
+      .from('payments')
+      .select('id')
+      .eq('booking_id', bookingId)
+      .eq('payment_type', 'rental')
+      .eq('status', 'completed')
+      .limit(1),
+  ]);
+
+  if (agreementResult.error) throw agreementResult.error;
+  if (paymentResult.error) throw paymentResult.error;
+  return Boolean(agreementResult.data?.length && paymentResult.data?.length);
+}
+
 /** Create a new booking from a public submission */
 export async function createBooking(payload) {
   const {
@@ -430,6 +452,14 @@ export async function transitionBooking(bookingId, newStatus, { changedBy = 'own
       `/bookings/${bookingId}`,
       { booking_id: bookingId, new_status: newStatus }
     ).catch(() => { });
+  }
+
+  if (newStatus === 'approved' && await hasSignedAgreementAndPayment(bookingId)) {
+    await transitionBooking(bookingId, 'confirmed', {
+      changedBy,
+      reason: 'Booking approved after agreement and payment were already completed',
+    });
+    return { success: true, booking_code: booking.booking_code, new_status: 'confirmed', auto_confirmed: true };
   }
 
   return { success: true, booking_code: booking.booking_code, new_status: newStatus };
