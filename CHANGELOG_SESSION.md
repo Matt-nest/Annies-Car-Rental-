@@ -14,6 +14,7 @@
 - **`dashboard/src/components/bookings/NewBookingModal.jsx` / `backend/services/bookingService.js`**: Added admin weekly discount controls, exact rental-total override, and stored override line items for admin-created bookings.
 - **`backend/routes/bookings.js` / `backend/services/emailService.js` / `src/components/booking/ConfirmBooking.tsx` / `src/components/booking/confirm-booking/constants.ts`**: Corrected continue links to `/confirm`, sends admin-created completion SMS, returns server payment totals after insurance selection, and removed the hardcoded Stripe test publishable-key fallback.
 - **`backend/routes/stats.js`**: Fixed weekly discount reporting to calculate dollar savings instead of summing percentage values.
+- **`backend/package.json`**: Updated `npm test` to target `tests/*.test.js` so Node 22 runs the actual test files.
 
 ### API/Data Impact
 - Admin-create payload now accepts optional `admin_weekly_discount_percent` and `admin_total_cost_override`.
@@ -28,11 +29,12 @@
 
 ### Build Status
 - [x] Backend `node --check` on modified backend files — pass
-- [ ] `npm run build`
-- [ ] Backend tests
+- [x] `cd dashboard && VITE_API_URL=https://backend-fawn-phi-13.vercel.app/api/v1 npm run build` — pass
+- [x] `npm run build` — customer site pass
+- [x] `cd backend && SUPABASE_URL=http://localhost SUPABASE_SERVICE_KEY=dummy npm test` — 56 tests pass
 
 ### Committed
-- [ ] Pending
+- [x] Yes — `8e1631b` plus follow-up test-script/changelog commit
 
 ### Known Issues / Follow-up
 - Annie is still Stripe-wired in this repository; Square requires a parallel provider integration and deployment env work rather than a safe inline swap.
