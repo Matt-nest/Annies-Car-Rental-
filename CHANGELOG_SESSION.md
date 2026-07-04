@@ -1838,6 +1838,9 @@ All decisions listed below were verified present in source:
 - **`src/components/booking/ConfirmBooking.tsx`** and **`src/components/booking/confirm-booking/constants.ts`**: Removed the hardcoded Stripe test publishable key fallback, added a clear missing-payment-config message, and show pending customers a payment-not-ready state.
 - **`backend/services/bookingService.js`**: Auto-confirms an approved booking when a signed agreement and completed rental payment already exist, preventing stuck approved bookings.
 - **`backend/routes/agreements.js`** and **`src/components/booking/confirm-booking/wizard-steps/RentalSummaryStep.tsx`**: Fixed delivery summary display by deriving delivery state from stored booking delivery fields.
+- **`src/components/ErrorBoundary.tsx`**, **`src/components/home/HowItWorks.tsx`**, and **`src/components/home/ReviewsSection.tsx`**: Fixed React 19 type-check issues surfaced by adding root React type packages.
+- **`package.json` / `package-lock.json`**: Added root `@types/react` and `@types/react-dom` dev dependencies for `npm run lint`.
+- **`backend/package.json`**: Fixed `npm test` to run checked-in `tests/*.test.js` files.
 
 ### API/Data Impact
 - No schema changes.
@@ -1856,19 +1859,21 @@ All decisions listed below were verified present in source:
 - `backend/services/bookingService.js`
 
 ### Build Status
-- [ ] `npm run build` — pending
-- [ ] `npm run lint` — pending
-- [ ] `cd dashboard && npm run build` — pending
-- [ ] `cd backend && npm test` — pending
+- [x] `npm run build` — zero errors
+- [x] `npm run lint` — zero errors
+- [x] `cd dashboard && VITE_API_URL=https://backend-fawn-phi-13.vercel.app/api/v1 npm run build` — zero errors; pre-existing chunk-size warning
+- [x] `cd backend && node --check services/stripeService.js && node --check services/bookingService.js && node --check routes/bookings.js && node --check routes/agreements.js && node --check services/emailService.js` — zero errors
+- [x] `cd backend && SUPABASE_URL=http://localhost SUPABASE_SERVICE_KEY=dummy npm test` — 56 passing tests
 
 ### Committed
-- [ ] Pending
-- [ ] Vercel env vars updated (if needed)
-- [ ] Supabase migration run (if needed)
+- [x] Yes / commits: `91ee844`, `b4883e8`, `6701910`, `2964b86`
+- [ ] Vercel env vars updated (not performed in this session)
+- [x] Supabase migration run (not needed)
 
 ### Known Issues / Follow-up
 - Annie Square payments are not implemented in this repo; adding Square is a separate provider integration touching frontend checkout, backend routes/services, webhooks, and payment records.
 - JD Coastal is represented as a branded deployment of this white-label app, not a separate app directory in the workspace.
+- Local `npm ci` reports an existing `@zxing/library` Node engine warning on Node 22 and existing npm audit findings; verification builds/tests still pass.
 
 ---
 
