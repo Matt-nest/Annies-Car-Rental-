@@ -2,7 +2,7 @@ import brand from '../config/brand.js';
 import { supabase } from '../db/supabase.js';
 import { getStripe } from '../utils/stripe.js';
 import { sendBookingNotification, buildBookingPayload } from './notifyService.js';
-import { isSquareProvider } from '../config/paymentProvider.js';
+import { PAYMENT_PROVIDER, isSquareProvider } from '../config/paymentProvider.js';
 import { refundSquarePayment, getSquareRemainingRefundableDollars } from './squareService.js';
 
 /** Fetch a booking with customer + vehicle joins for notification payloads */
@@ -60,13 +60,14 @@ async function createDepositRefund(paymentIntentId, amountCents, reason = 'reque
 
 async function recordDepositRefundLedger({ bookingId, amountCents, referenceId, paymentIntentId, note }) {
   if (amountCents <= 0) return;
+  const provider = isSquareProvider() ? 'square' : PAYMENT_PROVIDER;
   await supabase.from('payments').insert({
     booking_id: bookingId,
     payment_type: 'refund',
     amount: -(amountCents / 100),
-    method: 'stripe',
+    method: provider,
     reference_id: referenceId || `deposit_refund_${Date.now()}`,
-    notes: `${note} (PI: ${paymentIntentId})`,
+    notes: `${note} (${provider === 'square' ? 'Square Payment' : 'PI'}: ${paymentIntentId})`,
     status: 'completed',
     paid_at: new Date().toISOString(),
   });
@@ -290,7 +291,7 @@ export async function settleDeposit(bookingId, { incidentalTotal = 0, refundedBy
   const refundAmount = Math.max(0, refundableDeposit - incidentalTotal);
   const amountOwed = Math.max(0, incidentalTotal - refundableDeposit);
 
-  // Partial refund via Stripe
+  // Partial refund via the active payment provider.
   let stripeRefund = null;
   if (refundAmount > 0 && deposit.stripe_charge_id) {
     stripeRefund = await createDepositRefund(deposit.stripe_charge_id, refundAmount);

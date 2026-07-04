@@ -22,6 +22,9 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
       - run: node --test tests/*.test.js
+        env:
+          SUPABASE_URL: http://localhost
+          SUPABASE_SERVICE_KEY: dummy
 
   # ── Frontend site: type-check + build ───────────────────────
   frontend-build:
@@ -52,3 +55,5 @@ jobs:
           cache-dependency-path: dashboard/package-lock.json
       - run: npm ci
       - run: npm run build
+        env:
+          VITE_API_URL: http://localhost/api/v1

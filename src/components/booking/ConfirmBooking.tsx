@@ -182,7 +182,7 @@ export default function ConfirmBooking() {
 
   // ── Missing ref code ──────────────────────────────────
   if (!refCode) {
-    return <MissingRefScreen scrollToSection={scrollToSection} />;
+    return <MissingRefScreen scrollToSection={scrollToSection} theme={theme} />;
   }
 
   // ── Confirmed ──────────────────────────────────────────

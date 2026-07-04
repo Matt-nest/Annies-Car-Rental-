@@ -780,14 +780,14 @@ function OverviewTab({ booking, c, v, id, load, setModal, setPaymentForm, setLig
             <div className="flex justify-between pt-2 text-sm font-semibold text-[var(--text-primary)]">
               <span>Total Paid</span>
               <span className="tabular-nums">
-                ${booking.payments.reduce((sum, p) => sum + (p.payment_type === 'refund' ? -Number(p.amount) : Number(p.amount)), 0).toFixed(2)}
+                ${booking.payments.reduce((sum, p) => sum + Number(p.amount || 0), 0).toFixed(2)}
               </span>
             </div>
             {booking.total_cost && (
               <div className="flex justify-between text-xs text-[var(--text-tertiary)]">
                 <span>Balance remaining</span>
                 <span className="tabular-nums">
-                  ${(Number(booking.total_cost) - booking.payments.reduce((sum, p) => sum + (p.payment_type === 'refund' ? -Number(p.amount) : Number(p.amount)), 0)).toFixed(2)}
+                  ${(Number(booking.total_cost) - booking.payments.reduce((sum, p) => sum + Number(p.amount || 0), 0)).toFixed(2)}
                 </span>
               </div>
             )}
@@ -802,13 +802,10 @@ function OverviewTab({ booking, c, v, id, load, setModal, setPaymentForm, setLig
           >
             <DollarSign size={14} /> Record Payment
           </button>
-          <button
-            onClick={() => { setPaymentForm(p => ({ ...p, payment_type: 'refund', amount: '' })); setModal('payment'); }}
-            className="btn-ghost flex-1 justify-center text-[var(--danger-color)] hover:bg-[var(--danger-glow)]"
-          >
-            Issue Refund
-          </button>
         </div>
+        <p className="text-xs text-[var(--text-tertiary)] mt-2">
+          Issue gateway-backed refunds from the Payments page so Stripe and Square settlement stays in sync.
+        </p>
       </Section>
 
       {/* Vehicle Condition */}

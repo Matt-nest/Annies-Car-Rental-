@@ -5,6 +5,44 @@
 
 ---
 
+## 2026-07-04 — Cross-brand payment standardization repair pass
+
+### Changes Made
+- **`.github/workflows/ci.yml`**: Added safe dummy Supabase and dashboard API env values for CI-only backend/dashboard checks so provider split PR checks exercise code instead of failing on missing secrets.
+- **`src/App.tsx` / `src/components/booking/ConfirmBooking.tsx`**: Preserved legacy `/booking?code=...` links as an alias for `/confirm` and passed the required theme into the missing-reference screen.
+- **`backend/api/index.js`**: Mounted `/api/v1/brands` in the Vercel serverless entry so production route coverage matches local dev.
+- **`backend/services/depositService.js`**: Recorded deposit refund ledger rows with the active provider (`square` for Annie, `stripe` for JD) instead of hardcoding Stripe.
+- **`dashboard/src/pages/BookingDetailPage.jsx`**: Fixed signed refund math and removed the broken generic "Issue Refund" button in favor of the provider-backed Payments page refund flow.
+- **`src/components/booking/confirm-booking/StripeCheckoutForm.tsx` / `BookingSummaryCard.tsx`**: Removed obsolete checkout components that were no longer imported and could undercharge if reused.
+- **`package.json` / `package-lock.json`**: Added root React type packages so the customer app TypeScript check can run in CI.
+
+### API/Data Impact
+- No schema changes.
+- Existing `/booking?code=...` links now open the same completion wizard as `/confirm?code=...`.
+- Deposit refund `payments.method` now matches the active deployment provider.
+
+### Files That Need Verification
+- Customer `/booking?code=...` and `/confirm?code=...` routing.
+- Annie Square checkout/refund/deposit reporting mode.
+- JD Stripe checkout/refund/deposit reporting mode.
+- Dashboard Booking Detail payment totals and Payments page refund modal.
+
+### Build Status
+- [ ] `npm run lint`
+- [ ] `npm run build`
+- [ ] `PAYMENT_PROVIDER=square cd backend && npm test`
+- [ ] `PAYMENT_PROVIDER=stripe cd backend && npm test`
+- [ ] `cd dashboard && VITE_PAYMENT_PROVIDER=square npm run build`
+- [ ] `cd dashboard && VITE_PAYMENT_PROVIDER=stripe npm run build`
+
+### Committed
+- [ ] Pending
+
+### Known Issues / Follow-up
+- Production live state still depends on merging/promoting the branch and configuring provider-specific Vercel env vars/webhooks per brand.
+
+---
+
 ## 2026-07-04 — Square for Annie, Stripe for JD provider separation
 
 ### Changes Made
