@@ -28,15 +28,16 @@
 - Dashboard Booking Detail payment totals and Payments page refund modal.
 
 ### Build Status
-- [ ] `npm run lint`
-- [ ] `npm run build`
-- [ ] `PAYMENT_PROVIDER=square cd backend && npm test`
-- [ ] `PAYMENT_PROVIDER=stripe cd backend && npm test`
-- [ ] `cd dashboard && VITE_PAYMENT_PROVIDER=square npm run build`
-- [ ] `cd dashboard && VITE_PAYMENT_PROVIDER=stripe npm run build`
+- [x] `npm run lint` — TypeScript pass
+- [x] `VITE_PAYMENT_PROVIDER=square VITE_SQUARE_APPLICATION_ID=sandbox-app VITE_SQUARE_LOCATION_ID=sandbox-location VITE_SQUARE_ENVIRONMENT=sandbox npm run build` — customer site pass
+- [x] `VITE_PAYMENT_PROVIDER=stripe VITE_STRIPE_PUBLISHABLE_KEY=pk_test_dummy npm run build` — customer site pass
+- [x] `cd backend && PAYMENT_PROVIDER=square SUPABASE_URL=http://localhost SUPABASE_SERVICE_KEY=dummy npm test` — 56 tests pass
+- [x] `cd backend && PAYMENT_PROVIDER=stripe SUPABASE_URL=http://localhost SUPABASE_SERVICE_KEY=dummy STRIPE_SECRET_KEY=sk_test_dummy npm test` — 56 tests pass
+- [x] `cd dashboard && VITE_PAYMENT_PROVIDER=square VITE_SQUARE_APPLICATION_ID=sandbox-app VITE_SQUARE_LOCATION_ID=sandbox-location VITE_SQUARE_ENVIRONMENT=sandbox VITE_API_URL=https://backend-fawn-phi-13.vercel.app/api/v1 npm run build` — pass
+- [x] `cd dashboard && VITE_PAYMENT_PROVIDER=stripe VITE_STRIPE_PUBLISHABLE_KEY=pk_test_dummy VITE_API_URL=https://backend-fawn-phi-13.vercel.app/api/v1 npm run build` — pass
 
 ### Committed
-- [ ] Pending
+- [x] Yes — PR branch `cursor/standardize-brand-payments-3b3b`
 
 ### Known Issues / Follow-up
 - Production live state still depends on merging/promoting the branch and configuring provider-specific Vercel env vars/webhooks per brand.

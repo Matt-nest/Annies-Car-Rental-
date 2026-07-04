@@ -67,7 +67,7 @@ export default function ReviewsSection() {
   const sliderRef = useRef<HTMLDivElement>(null);
   const [isPaused, setIsPaused] = useState(false);
   const scrollSpeedRef = useRef(0.6);
-  const rafRef = useRef<number>();
+  const rafRef = useRef<number | undefined>(undefined);
 
   // Pause carousel when section is offscreen (saves mobile CPU)
   const sectionRef = useRef<HTMLElement>(null);
