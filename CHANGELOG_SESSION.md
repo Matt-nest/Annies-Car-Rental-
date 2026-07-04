@@ -18,10 +18,11 @@
 - Request-to-book wizard scroll/step behavior after selecting daily, weekly, or monthly rates.
 
 ### Build Status
-- [ ] `npm run build` — pending after initial commit
+- [x] `npm run lint` — TypeScript pass
+- [x] `npm run build` — customer site pass
 
 ### Committed
-- [ ] Pending
+- [x] Yes — `8e4aeca` plus follow-up verification changelog commit
 
 ### Known Issues / Follow-up
 - JD Coastal is not present as a separate repository or Vercel project in this workspace; this standardizes the Annie/customer codebase available here.
