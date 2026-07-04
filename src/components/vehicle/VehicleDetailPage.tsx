@@ -59,14 +59,41 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
 
   const displayName = getVehicleDisplayName(vehicle);
 
-  const handleRateSelect = (rate: RateMode) => {
-    setSelectedRate(rate);
+  const scrollToBookingForm = () => {
     setTimeout(() => {
       document.getElementById('booking-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 50);
   };
 
+  const handleRateSelect = (rate: RateMode) => {
+    setSelectedRate(rate);
+    scrollToBookingForm();
+  };
+
   const isDark = theme === 'dark';
+
+  const selectedRateMeta = useMemo(() => {
+    if (selectedRate === 'weekly') {
+      return { label: 'Weekly rate', price: `$${Math.round(vehicle.weeklyRate)}`, unit: '/week' };
+    }
+    if (selectedRate === 'monthly') {
+      return {
+        label: 'Monthly rental',
+        price: vehicle.monthlyDisplayPrice ? `$${vehicle.monthlyDisplayPrice.toLocaleString()}` : 'Call',
+        unit: vehicle.monthlyDisplayPrice ? '/month' : '',
+      };
+    }
+    return { label: 'Daily rate', price: `$${Math.round(vehicle.dailyRate)}`, unit: '/day' };
+  }, [selectedRate, vehicle.dailyRate, vehicle.weeklyRate, vehicle.monthlyDisplayPrice]);
+
+  const weeklySavings = Math.max(0, Math.round((vehicle.dailyRate * 7) - vehicle.weeklyRate));
+
+  const mobileHighlights = useMemo(() => [
+    { label: 'Seats', value: vehicle.seats, icon: Users },
+    { label: 'MPG', value: vehicle.mpg, icon: Gauge },
+    { label: 'Weekly save', value: weeklySavings > 0 ? `$${weeklySavings}` : 'Best rate', icon: DollarSign },
+    { label: 'Pickup', value: brand.location.city, icon: MapPin },
+  ], [vehicle.seats, vehicle.mpg, weeklySavings]);
 
   // Compact, floating rate selector that docks directly above the booking card.
   // Dark mode keeps the subtle surface; light mode mirrors the card's frosted glass.
@@ -190,8 +217,34 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
         {/* Gallery */}
         <Gallery images={vehicle.images} alt={displayName} />
 
+        {/* Mobile sticky booking CTA */}
+        <div className="fixed inset-x-0 bottom-0 z-[85] lg:hidden px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pointer-events-none">
+          <div
+            className="pointer-events-auto rounded-2xl border p-3 flex items-center gap-3 shadow-2xl"
+            style={railSurface}
+          >
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: 'var(--text-tertiary)' }}>
+                {selectedRateMeta.label}
+              </p>
+              <p className="text-lg font-semibold leading-tight truncate" style={{ color: 'var(--text-primary)' }}>
+                {selectedRateMeta.price}
+                {selectedRateMeta.unit && <span className="text-xs font-normal ml-1" style={{ color: 'var(--text-tertiary)' }}>{selectedRateMeta.unit}</span>}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={scrollToBookingForm}
+              className="shrink-0 rounded-full px-4 py-3 text-sm font-semibold active:scale-95 transition-transform"
+              style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
+            >
+              Check dates
+            </button>
+          </div>
+        </div>
+
         {/* Main Content */}
-        <main className="max-w-7xl mx-auto px-4 md:px-6 mt-8 md:mt-12 grid grid-cols-1 lg:grid-cols-3 gap-8 md:gap-12 pb-32 lg:pb-16">
+        <main className="max-w-7xl mx-auto px-4 md:px-6 mt-8 md:mt-12 grid grid-cols-1 lg:grid-cols-3 gap-8 md:gap-12 pb-44 lg:pb-16">
           {/* Left Column: Details */}
           <div className="lg:col-span-2 space-y-12">
             {/* Header */}
@@ -219,6 +272,36 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
             >
               {vehicle.description}
             </motion.p>
+
+            {/* Mobile priority booking path: keep availability and pricing above long-form detail. */}
+            <div id="booking-form" className="lg:hidden space-y-5">
+              <div className="grid grid-cols-2 gap-3">
+                {mobileHighlights.map(({ label, value, icon: Icon }) => (
+                  <div
+                    key={label}
+                    className="rounded-2xl border p-3 flex items-center gap-3"
+                    style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}
+                  >
+                    <div
+                      className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: 'var(--bg-card-hover)', color: 'var(--text-primary)' }}
+                    >
+                      <Icon size={16} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{label}</p>
+                      <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{value}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-2.5">
+                {renderRateBar()}
+                <RequestToBookForm vehicle={vehicle} selectedRate={selectedRate} />
+              </div>
+              <InsuranceExplainer />
+            </div>
 
             {/* Pricing tiers now live in the compact floating rate selector
                 docked directly above the booking card (right rail / mobile). */}
@@ -276,15 +359,6 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
                 ))}
               </div>
             </section>
-
-            {/* Mobile-only: Price, Form, Insurance - appears between Included and Reviews */}
-            <div id="booking-form" className="lg:hidden space-y-6">
-              <div className="space-y-2.5">
-                {renderRateBar()}
-                <RequestToBookForm vehicle={vehicle} selectedRate={selectedRate} />
-              </div>
-              <InsuranceExplainer />
-            </div>
 
             {/* Reviews - unified star visualization */}
             <section className="space-y-8 pt-8" style={{ borderTop: '1px solid var(--border-subtle)' }}>

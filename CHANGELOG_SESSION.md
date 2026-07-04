@@ -5,6 +5,29 @@
 
 ---
 
+## 2026-07-04 — Mobile vehicle detail booking UX standardization
+
+### Changes Made
+- **`src/components/vehicle/VehicleDetailPage.tsx`**: Moved the mobile request-to-book path directly under the vehicle intro, added mobile summary chips, and added a sticky mobile "Check dates" CTA so mobile customers can reach pricing and booking controls without scrolling through long-form details first.
+
+### API/Data Impact
+- None — layout-only customer site change. Booking payloads, payment providers, and backend routes are unchanged.
+
+### Files That Need Verification
+- Customer vehicle detail pages on mobile width.
+- Request-to-book wizard scroll/step behavior after selecting daily, weekly, or monthly rates.
+
+### Build Status
+- [ ] `npm run build` — pending after initial commit
+
+### Committed
+- [ ] Pending
+
+### Known Issues / Follow-up
+- JD Coastal is not present as a separate repository or Vercel project in this workspace; this standardizes the Annie/customer codebase available here.
+
+---
+
 ## 2026-07-04 — Cross-brand payment standardization repair pass
 
 ### Changes Made
