@@ -1,12 +1,15 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { CheckCircle2, XCircle, Car, Calendar, DollarSign } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { formatDistanceToNow, format } from 'date-fns';
 import { api } from '../../../api/client';
 import { cachedQuery, invalidateCache } from '../../../lib/queryCache';
 import { useAlerts } from '../../../lib/alertsContext';
+import { haptic } from '../../../lib/haptic';
 import Modal from '../../shared/Modal';
 import WidgetWrapper from '../WidgetWrapper';
+
+const SWIPE_THRESHOLD = 90;
 
 function DeclineModal({ booking, onDecline, onClose }) {
   const [reason, setReason] = useState('');
@@ -94,6 +97,32 @@ function DeclineModal({ booking, onDecline, onClose }) {
 function BookingCard({ booking, onApprove, onDeclineClick, approving }) {
   const vehicle = booking.vehicles;
   const customer = booking.customers;
+  const x = useMotionValue(0);
+  const lastHaptic = useRef(0);
+  const approveOpacity = useTransform(x, [0, SWIPE_THRESHOLD], [0, 1]);
+  const declineOpacity = useTransform(x, [-SWIPE_THRESHOLD, 0], [1, 0]);
+  const approveScale = useTransform(x, [0, SWIPE_THRESHOLD], [0.85, 1.05]);
+  const declineScale = useTransform(x, [-SWIPE_THRESHOLD, 0], [1.05, 0.85]);
+
+  function onDragEnd(_e, info) {
+    if (info.offset.x > SWIPE_THRESHOLD) {
+      haptic('commit');
+      onApprove(booking.id);
+    } else if (info.offset.x < -SWIPE_THRESHOLD) {
+      haptic('commit');
+      onDeclineClick(booking);
+    }
+    x.set(0);
+  }
+
+  function onDrag(_e, info) {
+    const ax = Math.abs(info.offset.x);
+    const crossed = ax > SWIPE_THRESHOLD * 0.9;
+    if (crossed && Date.now() - lastHaptic.current > 250) {
+      haptic('edge');
+      lastHaptic.current = Date.now();
+    }
+  }
 
   return (
     <motion.div
@@ -101,92 +130,145 @@ function BookingCard({ booking, onApprove, onDeclineClick, approving }) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.18 } }}
-      className="px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3"
+      className="relative"
       style={{ borderBottom: '1px solid var(--border-subtle)' }}
     >
-      {/* Avatar */}
-      <div
-        className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 self-start sm:self-center"
-        style={{ backgroundColor: 'var(--accent-glow)', color: 'var(--accent-color)' }}
+      <motion.div
+        className="absolute inset-0 flex items-center justify-start pl-6 pointer-events-none"
+        style={{
+          opacity: approveOpacity,
+          background: 'linear-gradient(90deg, rgba(34,197,94,0.18) 0%, rgba(34,197,94,0.04) 100%)',
+        }}
+        aria-hidden="true"
       >
-        {customer?.first_name?.[0]}{customer?.last_name?.[0]}
-      </div>
-
-      {/* Info */}
-      <div className="flex-1 min-w-0 space-y-0.5">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-            {customer?.first_name} {customer?.last_name}
-          </span>
-          {booking.booking_code && (
-            <span className="mono-code text-[11px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--bg-card-hover)', color: 'var(--text-tertiary)' }}>
-              {booking.booking_code}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-3 flex-wrap text-xs" style={{ color: 'var(--text-tertiary)' }}>
-          {vehicle && (
-            <span className="flex items-center gap-1">
-              <Car size={10} />
-              {vehicle.year} {vehicle.make} {vehicle.model}
-            </span>
-          )}
-          {booking.pickup_date && (
-            <span className="flex items-center gap-1">
-              <Calendar size={10} />
-              {format(new Date(booking.pickup_date), 'MMM d')}
-              {booking.return_date && ` — ${format(new Date(booking.return_date), 'MMM d')}`}
-            </span>
-          )}
-          {booking.total_cost && (
-            <span className="flex items-center gap-1">
-              <DollarSign size={10} />
-              {Number(booking.total_cost).toLocaleString()}
-            </span>
-          )}
-          {booking.created_at && (
-            <span className="opacity-60">
-              {formatDistanceToNow(new Date(booking.created_at), { addSuffix: true })}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div className="flex gap-2 shrink-0 sm:ml-2">
-        <button
-          onClick={() => onDeclineClick(booking)}
-          disabled={approving === booking.id}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all"
+        <motion.div
+          className="flex items-center gap-2 px-3 py-1.5 rounded-full font-bold text-xs"
           style={{
-            backgroundColor: 'rgba(239,68,68,0.08)',
-            border: '1px solid rgba(239,68,68,0.2)',
-            color: '#ef4444',
-            minHeight: 36,
+            scale: approveScale,
+            backgroundColor: '#22c55e',
+            color: '#fff',
+            boxShadow: '0 4px 16px rgba(34,197,94,0.35)',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.14)')}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.08)')}
         >
-          <XCircle size={13} /> Decline
-        </button>
-        <button
-          onClick={() => onApprove(booking.id)}
-          disabled={approving === booking.id}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all"
+          <CheckCircle2 size={14} /> Approve
+        </motion.div>
+      </motion.div>
+      <motion.div
+        className="absolute inset-0 flex items-center justify-end pr-6 pointer-events-none"
+        style={{
+          opacity: declineOpacity,
+          background: 'linear-gradient(270deg, rgba(239,68,68,0.18) 0%, rgba(239,68,68,0.04) 100%)',
+        }}
+        aria-hidden="true"
+      >
+        <motion.div
+          className="flex items-center gap-2 px-3 py-1.5 rounded-full font-bold text-xs"
           style={{
-            backgroundColor: approving === booking.id ? 'rgba(34,197,94,0.05)' : 'rgba(34,197,94,0.1)',
-            border: '1px solid rgba(34,197,94,0.25)',
-            color: '#22c55e',
-            minHeight: 36,
-            opacity: approving === booking.id ? 0.6 : 1,
+            scale: declineScale,
+            backgroundColor: '#ef4444',
+            color: '#fff',
+            boxShadow: '0 4px 16px rgba(239,68,68,0.35)',
           }}
-          onMouseEnter={(e) => { if (approving !== booking.id) e.currentTarget.style.backgroundColor = 'rgba(34,197,94,0.16)'; }}
-          onMouseLeave={(e) => { if (approving !== booking.id) e.currentTarget.style.backgroundColor = 'rgba(34,197,94,0.1)'; }}
         >
-          <CheckCircle2 size={13} />
-          {approving === booking.id ? 'Approving…' : 'Approve'}
-        </button>
-      </div>
+          <XCircle size={14} /> Decline
+        </motion.div>
+      </motion.div>
+
+      <motion.div
+        drag="x"
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={0.5}
+        dragMomentum={false}
+        onDrag={onDrag}
+        onDragEnd={onDragEnd}
+        whileTap={{ cursor: 'grabbing' }}
+        style={{ x, backgroundColor: 'var(--bg-card)', touchAction: 'pan-y' }}
+        className="relative px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3 cursor-grab"
+      >
+        {/* Avatar */}
+        <div
+          className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 self-start sm:self-center"
+          style={{ backgroundColor: 'var(--accent-glow)', color: 'var(--accent-color)' }}
+        >
+          {customer?.first_name?.[0]}{customer?.last_name?.[0]}
+        </div>
+
+        {/* Info */}
+        <div className="flex-1 min-w-0 space-y-0.5">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+              {customer?.first_name} {customer?.last_name}
+            </span>
+            {booking.booking_code && (
+              <span className="mono-code text-[11px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--bg-card-hover)', color: 'var(--text-tertiary)' }}>
+                {booking.booking_code}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3 flex-wrap text-xs" style={{ color: 'var(--text-tertiary)' }}>
+            {vehicle && (
+              <span className="flex items-center gap-1">
+                <Car size={10} />
+                {vehicle.year} {vehicle.make} {vehicle.model}
+              </span>
+            )}
+            {booking.pickup_date && (
+              <span className="flex items-center gap-1">
+                <Calendar size={10} />
+                {format(new Date(booking.pickup_date), 'MMM d')}
+                {booking.return_date && ` — ${format(new Date(booking.return_date), 'MMM d')}`}
+              </span>
+            )}
+            {booking.total_cost && (
+              <span className="flex items-center gap-1">
+                <DollarSign size={10} />
+                {Number(booking.total_cost).toLocaleString()}
+              </span>
+            )}
+            {booking.created_at && (
+              <span className="opacity-60">
+                {formatDistanceToNow(new Date(booking.created_at), { addSuffix: true })}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-2 sm:shrink-0 sm:ml-2">
+          <button
+            onClick={() => onDeclineClick(booking)}
+            disabled={approving === booking.id}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all"
+            style={{
+              backgroundColor: 'rgba(239,68,68,0.08)',
+              border: '1px solid rgba(239,68,68,0.2)',
+              color: '#ef4444',
+              minHeight: 44,
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.14)')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.08)')}
+          >
+            <XCircle size={13} /> Decline
+          </button>
+          <button
+            onClick={() => onApprove(booking.id)}
+            disabled={approving === booking.id}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all"
+            style={{
+              backgroundColor: approving === booking.id ? 'rgba(34,197,94,0.05)' : 'rgba(34,197,94,0.1)',
+              border: '1px solid rgba(34,197,94,0.25)',
+              color: '#22c55e',
+              minHeight: 44,
+              opacity: approving === booking.id ? 0.6 : 1,
+            }}
+            onMouseEnter={(e) => { if (approving !== booking.id) e.currentTarget.style.backgroundColor = 'rgba(34,197,94,0.16)'; }}
+            onMouseLeave={(e) => { if (approving !== booking.id) e.currentTarget.style.backgroundColor = 'rgba(34,197,94,0.1)'; }}
+          >
+            <CheckCircle2 size={13} />
+            {approving === booking.id ? 'Approving…' : 'Approve'}
+          </button>
+        </div>
+      </motion.div>
     </motion.div>
   );
 }
