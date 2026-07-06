@@ -93,8 +93,8 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: payload.body || '',
-    icon: payload.icon || '/pwa-icon-192.svg',
-    badge: payload.badge || '/pwa-icon-192.svg',
+    icon: payload.icon || '/web-app-manifest-192x192.png',
+    badge: payload.badge || '/web-app-manifest-192x192.png',
     tag,
     renotify: true,
     vibrate: [40, 60, 40],

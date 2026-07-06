@@ -76,8 +76,8 @@ interface PushPayload {
 }
 
 const BRAND_NAME = import.meta.env.VITE_BRAND_NAME || "Annie's Car Rental";
-const FALLBACK_ICON = '/brand/annies-wordmark-charcoal.svg';
-const FALLBACK_BADGE = '/brand/annies-wordmark-charcoal.svg';
+const FALLBACK_ICON = '/web-app-manifest-192x192.png';
+const FALLBACK_BADGE = '/web-app-manifest-192x192.png';
 
 self.addEventListener('push', (event: PushEvent) => {
   let payload: PushPayload = {};
