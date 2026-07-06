@@ -1,13 +1,22 @@
 import { useState, useEffect, useRef, createContext, useContext } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import {
+  Outlet,
+  useNavigate,
+  useLocation,
+  useNavigationType,
+} from 'react-router-dom';
 import { Sun, Moon, User, Settings, LogOut, ChevronDown, ThumbsUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from './Sidebar';
+import BottomNav from './BottomNav';
 import GlobalSearch from './GlobalSearch';
 import NotificationDropdown from './NotificationDropdown';
 import CashRainOverlay from '../shared/CashRainOverlay';
+import OfflineBanner from '../shared/OfflineBanner';
 import { useAuth } from '../../auth/AuthProvider';
 import { AlertsProvider, useAlerts } from '../../lib/alertsContext';
+import { useScrollRestoration } from '../../hooks/useScrollRestoration';
+import { SPRING_NATURAL } from '../../lib/animation';
 
 export const ThemeContext = createContext({ dark: false, toggle: () => {} });
 export const useTheme = () => useContext(ThemeContext);
@@ -24,7 +33,41 @@ function DashboardLayoutInner() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const navType = useNavigationType();
   const { alerts, acknowledgeActive } = useAlerts();
+  const mainScrollRef = useRef(null);
+  useScrollRestoration(mainScrollRef);
+
+  // Scroll-reactive bottom nav: shrink the floating pill when scrolling DOWN
+  // (reading mode), restore at full size when scrolling UP or near the top.
+  const [navCompact, setNavCompact] = useState(false);
+  useEffect(() => {
+    const el = mainScrollRef.current;
+    if (!el) return;
+    let lastY = el.scrollTop;
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        const y = el.scrollTop;
+        if (y < 24) setNavCompact(false);
+        else if (y - lastY > 6) setNavCompact(true);
+        else if (lastY - y > 6) setNavCompact(false);
+        lastY = y;
+        ticking = false;
+      });
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const pageVariants = {
+    initial: (direction) => ({ opacity: 0, x: direction === 'POP' ? -24 : 24 }),
+    animate: { opacity: 1, x: 0 },
+    exit: (direction) => ({ opacity: 0, x: direction === 'POP' ? 24 : -24 }),
+  };
   const [profileOpen, setProfileOpen] = useState(false);
   const dropdownRef = useRef(null);
   const [activeAlertModal, setActiveAlertModal] = useState(false);
@@ -95,7 +138,8 @@ function DashboardLayoutInner() {
 
   return (
     <ThemeContext.Provider value={{ dark, toggle: () => setDark(d => !d) }}>
-      <div className="flex h-screen overflow-hidden theme-transition" style={{ backgroundColor: 'var(--bg-primary)' }}>
+      <div className="flex h-dvh overflow-hidden theme-transition" style={{ backgroundColor: 'var(--bg-primary)' }}>
+        <OfflineBanner />
         <Sidebar
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
@@ -107,12 +151,12 @@ function DashboardLayoutInner() {
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
           {/* Header */}
           <header
-            className="sticky top-0 flex w-full z-[99999]"
+            className="sticky top-0 flex w-full z-[99999] safe-top safe-x"
             style={{
               backgroundColor: 'var(--header-bg)',
               borderBottom: '1px solid var(--border-subtle)',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
+              backdropFilter: 'blur(20px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(20px) saturate(180%)',
             }}
           >
             <div className="flex flex-grow items-center gap-3 px-4 py-4 sm:px-6">
@@ -262,10 +306,28 @@ function DashboardLayoutInner() {
           </header>
 
           {/* Page content */}
-          <main className="flex-1 overflow-y-auto glass-scroll">
-            <Outlet />
+          <main
+            ref={mainScrollRef}
+            className="flex-1 overflow-y-auto glass-scroll pb-[calc(84px+env(safe-area-inset-bottom))] lg:pb-0"
+          >
+            <AnimatePresence mode="wait" initial={false} custom={navType}>
+              <motion.div
+                key={location.pathname.split('/').slice(0, 2).join('/') || '/'}
+                custom={navType}
+                variants={pageVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                transition={SPRING_NATURAL}
+                style={{ height: '100%' }}
+              >
+                <Outlet />
+              </motion.div>
+            </AnimatePresence>
           </main>
         </div>
+
+        {!sidebarOpen && <BottomNav onOpenMore={() => setSidebarOpen(true)} compact={navCompact} />}
 
         {/* Active-rental acknowledgement modal — fires when a booking flips to
             active. Pure awareness signal — no required action. Dismiss → cash rain. */}
