@@ -7,6 +7,7 @@ import { getReviewsForVehicle, addReview } from '../../data/reviews';
 import Gallery from './Gallery';
 import RequestToBookForm from './RequestToBookForm';
 import InsuranceExplainer from './InsuranceExplainer';
+import MobileBookingSheet from './MobileBookingSheet';
 import { useTheme } from '../../context/ThemeContext';
 import { EASE, DURATION, STAGGER } from '../../utils/motion';
 import ThemeToggle from '../common/ThemeToggle';
@@ -21,6 +22,7 @@ interface VehicleDetailPageProps {
 export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPageProps) {
   const { theme, toggleTheme } = useTheme();
   const [selectedRate, setSelectedRate] = useState<RateMode>('weekly');
+  const [bookingOpen, setBookingOpen] = useState(false);
   const [showAllReviews, setShowAllReviews] = useState(false);
   const [showAddReviewModal, setShowAddReviewModal] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
@@ -80,7 +82,7 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
         boxShadow: '0 18px 50px -28px rgba(19,41,75,0.28)',
       };
 
-  const renderRateBar = () => {
+  const renderRateBar = (layoutId = 'rateActivePill') => {
     const tiers: { mode: RateMode; label: string; price: string; unit: string }[] = [
       { mode: 'daily',   label: 'Daily',   price: `$${Math.round(vehicle.dailyRate)}`,  unit: '/day' },
       { mode: 'weekly',  label: 'Weekly',  price: `$${Math.round(vehicle.weeklyRate)}`, unit: '/wk' },
@@ -101,7 +103,7 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
               {/* Sliding gold indicator — morphs between tabs (magic motion) */}
               {active && (
                 <motion.div
-                  layoutId="rateActivePill"
+                  layoutId={layoutId}
                   className="absolute inset-0 rounded-xl"
                   style={{ backgroundColor: 'var(--accent)', boxShadow: '0 6px 18px -6px color-mix(in srgb, var(--accent-color) 60%, transparent)' }}
                   transition={{ type: 'spring', stiffness: 380, damping: 32 }}
@@ -277,14 +279,9 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
               </div>
             </section>
 
-            {/* Mobile-only: Price, Form, Insurance - appears between Included and Reviews */}
-            <div id="booking-form" className="lg:hidden space-y-6">
-              <div className="space-y-2.5">
-                {renderRateBar()}
-                <RequestToBookForm vehicle={vehicle} selectedRate={selectedRate} />
-              </div>
-              <InsuranceExplainer />
-            </div>
+            {/* On mobile the booking wizard lives in the MobileBookingSheet,
+                opened from the sticky "Book Now" bar (rendered below). Desktop
+                keeps the inline sticky right-rail card. */}
 
             {/* Reviews - unified star visualization */}
             <section className="space-y-8 pt-8" style={{ borderTop: '1px solid var(--border-subtle)' }}>
@@ -528,7 +525,7 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
           <div className="hidden lg:block lg:col-span-1">
             <div className="sticky top-24 space-y-6">
               <div className="space-y-2.5">
-                {renderRateBar()}
+                {renderRateBar('rateActivePillDesktop')}
                 <RequestToBookForm vehicle={vehicle} selectedRate={selectedRate} />
               </div>
               <InsuranceExplainer />
@@ -536,6 +533,58 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
           </div>
         </main>
       </div>
+
+      {/*
+        Mobile sticky bottom CTA - one-thumb-reach Book Now with live price.
+        Hidden at lg+ because the desktop layout already has the sticky right-rail
+        booking card. Safe-area-inset-bottom protects the iOS home indicator.
+      */}
+      <div
+        className="lg:hidden fixed bottom-0 inset-x-0 z-[90]"
+        style={{
+          backgroundColor: 'var(--bg-elevated)',
+          borderTop: '1px solid var(--border-subtle)',
+          paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
+        }}
+      >
+        <div className="px-4 pt-3 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>
+              {selectedRate === 'monthly' ? 'Monthly' : selectedRate === 'weekly' ? 'Weekly' : 'Daily'}
+            </p>
+            <p className="text-lg font-medium leading-tight truncate" style={{ color: 'var(--text-primary)' }}>
+              {selectedRate === 'monthly' && vehicle.monthlyDisplayPrice
+                ? `$${vehicle.monthlyDisplayPrice.toLocaleString()}`
+                : selectedRate === 'weekly' && vehicle.weeklyRate
+                  ? `$${Math.round(vehicle.weeklyRate).toLocaleString()}`
+                  : `$${Math.round(vehicle.dailyRate)}`}
+              <span className="text-xs ml-1 font-normal" style={{ color: 'var(--text-tertiary)' }}>
+                /{selectedRate === 'monthly' ? 'mo' : selectedRate === 'weekly' ? 'wk' : 'day'}
+              </span>
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setBookingOpen(true)}
+            className="tap-target px-6 py-3 rounded-full font-medium text-sm whitespace-nowrap active:scale-95 transition-transform shadow-lg"
+            style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
+          >
+            Book Now
+            <ArrowRight size={16} className="inline ml-1.5 -mt-0.5" />
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile booking modal — hosts the same wizard as desktop, presented as
+          an app-style bottom sheet from the "Book Now" bar. The rate selector
+          rides along inside the sheet so mobile keeps daily/weekly/monthly choice. */}
+      <MobileBookingSheet open={bookingOpen} onOpenChange={setBookingOpen}>
+        <div className="pb-2 space-y-3">
+          {renderRateBar('rateActivePillSheet')}
+          <RequestToBookForm vehicle={vehicle} selectedRate={selectedRate} />
+          <InsuranceExplainer />
+        </div>
+      </MobileBookingSheet>
     </div>
   );
 }
