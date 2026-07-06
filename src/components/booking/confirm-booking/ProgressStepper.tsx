@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { FileText, Shield, CreditCard, Check } from 'lucide-react';
+import { FileText, Shield, ClipboardCheck, CreditCard, Check } from 'lucide-react';
 import { STAGES } from './constants';
 
 interface Props {
@@ -10,7 +10,7 @@ interface Props {
   theme: string;
 }
 
-const stageIcons = [FileText, Shield, CreditCard];
+const stageIcons = [FileText, Shield, ClipboardCheck, CreditCard];
 
 export default function ProgressStepper({ currentStage, currentSubStep, completedStages, theme }: Props) {
   return (

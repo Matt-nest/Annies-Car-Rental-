@@ -11,7 +11,8 @@ export const PHONE_NUMBER = brand.phone;
 export const STAGES = [
   { number: 1, label: 'Agreement',  sublabel: 'Sign rental contract', subSteps: 7 },
   { number: 2, label: 'Insurance',  sublabel: 'Coverage selection',   subSteps: 1 },
-  { number: 3, label: 'Payment',    sublabel: 'Review & pay',         subSteps: 1 },
+  { number: 3, label: 'Review',     sublabel: 'Confirm details',      subSteps: 1 },
+  { number: 4, label: 'Payment',    sublabel: 'Secure checkout',      subSteps: 1 },
 ] as const;
 
 // Legacy alias for backward compatibility
@@ -122,8 +123,8 @@ export interface WizardDraft {
   completedStages: number[];
 }
 
-// Bump whenever the wizard's step structure changes (added the Scan step → 2).
-export const DRAFT_VERSION = 2;
+// Bump whenever the wizard's step structure changes (Review + Payment split → 4).
+export const DRAFT_VERSION = 4;
 
 export function getDefaultDraft(): WizardDraft {
   return {
