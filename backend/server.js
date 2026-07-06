@@ -34,6 +34,7 @@ import loyaltyRoutes from './routes/loyalty.js';
 import bonzahRoutes from './routes/bonzah.js';
 import bouncieRoutes from './routes/bouncie.js';
 import bouncieWebhookRoutes from './routes/bouncieWebhooks.js';
+import pushRoutes from './routes/push.js';
 import brandRoutes from './routes/brands.js';
 import { isStripeProvider, isSquareProvider } from './config/paymentProvider.js';
 
@@ -134,6 +135,7 @@ app.use('/api/v1/loyalty', loyaltyRoutes);
 app.use('/api/v1/admin/bonzah', bonzahRoutes);
 app.use('/api/v1/admin/bouncie', bouncieRoutes);
 app.use('/api/v1/bouncie', bouncieWebhookRoutes);
+app.use('/api/v1/push', pushRoutes);
 app.use('/api/v1/brands', brandRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────

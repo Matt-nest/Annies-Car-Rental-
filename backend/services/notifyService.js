@@ -13,7 +13,35 @@ import { storeLocalMessage } from './messagingService.js';
 import { sendViaResend } from '../utils/mailTransport.js';
 import { renderBrandedShell, escapeHtml } from '../utils/emailShell.js';
 import FALLBACK_TEMPLATES from './fallbackTemplates.js';
+import { sendToCustomer as sendPushToCustomer, sendToAllAdmins as sendPushToAllAdmins } from './pushService.js';
 import brand from '../config/brand.js';
+
+/**
+ * Stages where the admin team should also receive a push notification
+ * alongside the customer's email/SMS/push. Curated to high-priority,
+ * action-required events — NOT every customer-facing confirmation. These
+ * are the moments where the admin needs to know NOW.
+ *
+ * Keep this list short — a flood of admin pushes is worse than no pushes
+ * at all.
+ */
+const ADMIN_PUSH_STAGES = new Set([
+  'booking_submitted',           // new booking awaiting approval
+  'damage_notification',         // incident filed
+  'late_return_warning',         // customer is 1h late
+  'late_return_escalation',      // customer is 4h+ late — escalate
+  'inspection_charges_scheduled', // potential dispute incoming
+]);
+
+/** Concise human-readable summaries used as the admin push body. Keep
+ *  under 80 chars so the iOS push card doesn't truncate. */
+const ADMIN_PUSH_SUMMARIES = {
+  booking_submitted:            'New booking pending approval',
+  damage_notification:          'Damage report filed',
+  late_return_warning:          'Customer is 1 hour late returning',
+  late_return_escalation:       'Late return — 4+ hours overdue',
+  inspection_charges_scheduled: 'Inspection charges scheduled',
+};
 
 const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN;
@@ -466,6 +494,7 @@ export function buildBookingPayload(booking, { handoffRecord } = {}) {
   const v = booking.vehicles || {};
   return {
     customer_id: booking.customer_id,
+    booking_id: booking.id,
     booking_code: booking.booking_code,
     status: booking.status,
     customer: {
@@ -653,7 +682,16 @@ export async function sendBookingNotification(stage, bookingPayload) {
     // booking submission. The static test in `tests/booking-submitted-contract.test.js`
     // guards against this regression.
     const skipEmail = stage === 'booking_submitted';
+    // Dispatch every channel concurrently so the fastest one (web push) isn't
+    // blocked behind Resend/Twilio round-trips. Each task keeps its own
+    // try/catch; Promise.allSettled below is a second safety net so one channel
+    // can never reject the batch. The whole batch is awaited before this
+    // function returns (and awaited at the call site) so the serverless lambda
+    // can't freeze mid-send — the historical cause of late/dropped push.
+    const dispatchTasks = [];
+
     if (!skipEmail && (channel === 'email' || channel === 'both') && customer.email) {
+      dispatchTasks.push((async () => {
       try {
         await sendEmail({
           to: customer.email,
@@ -663,10 +701,12 @@ export async function sendBookingNotification(stage, bookingPayload) {
       } catch (e) {
         console.error(`[Notify] Email send error for "${stage}":`, e.message);
       }
+      })());
     }
 
     // Send SMS
     if ((channel === 'sms' || channel === 'both') && customer.phone && rendered.sms_body) {
+      dispatchTasks.push((async () => {
       try {
         await sendSMS({
           to: customer.phone,
@@ -675,7 +715,92 @@ export async function sendBookingNotification(stage, bookingPayload) {
       } catch (e) {
         console.error(`[Notify] SMS send error for "${stage}":`, e.message);
       }
+      })());
     }
+
+    // Sprint 12c: Web Push fan-out — non-blocking, additive to email/SMS.
+    //
+    // Push complements (does NOT replace) the existing dispatch. Customers who
+    // opted in via the PushOptInCard (Sprint 12b) get an instant browser
+    // notification alongside their email/SMS. Customers without a subscription,
+    // or installations on browsers without push support, see zero impact —
+    // pushService.sendToCustomer returns { sent: 0, ... } as a no-op.
+    //
+    // Body strategy: reuse rendered.sms_body since it's already terse and
+    // customer-facing. Falls back to subject, then to a generic line so the
+    // notification never displays an empty body.
+    //
+    // Idempotency: covered upstream by the notification_log F-7 check at the
+    // top of this function (line ~601). If we got here, this is the only
+    // dispatch attempt for (booking, stage, day).
+    //
+    // Failure isolation: wrapped in its own try/catch so a push failure
+    // (network, bad VAPID config, etc.) never affects the email/SMS path
+    // already completed above OR the storeSystemMessage call below.
+    if (bookingPayload.customer_id) {
+      dispatchTasks.push((async () => {
+      try {
+        const pushBody =
+          rendered.sms_body ||
+          rendered.subject ||
+          (EVENT_SUMMARIES[stage] || 'You have a new update.');
+        const bookingCodeForUrl = bookingPayload.booking_code
+          ? `?code=${encodeURIComponent(bookingPayload.booking_code)}`
+          : '';
+        await sendPushToCustomer(bookingPayload.customer_id, {
+          title: brand.name,
+          body: pushBody,
+          url: `/portal${bookingCodeForUrl}`,
+          data: {
+            stage,
+            booking_code: bookingPayload.booking_code || null,
+            // SW uses tag for grouping — one per booking so a follow-up
+            // push for the same booking replaces the older one instead of
+            // stacking. Falls back to stage if no booking code.
+            tag: bookingPayload.booking_code
+              ? `booking-${bookingPayload.booking_code}`
+              : `stage-${stage}`,
+          },
+        });
+      } catch (e) {
+        console.error(`[Notify] Push send error for "${stage}":`, e.message);
+      }
+      })());
+    }
+
+    /* Sprint 18: Admin push fan-out — only for stages in ADMIN_PUSH_STAGES.
+     * Failure-isolated so admin push errors never affect the customer dispatch
+     * paths above or the storeSystemMessage call below. */
+    if (ADMIN_PUSH_STAGES.has(stage)) {
+      dispatchTasks.push((async () => {
+      try {
+        const customerName = [bookingPayload.customer?.first_name, bookingPayload.customer?.last_name]
+          .filter(Boolean).join(' ') || 'a customer';
+        const bookingCode = bookingPayload.booking_code || '';
+        const adminBody = `${ADMIN_PUSH_SUMMARIES[stage]} — ${customerName}${bookingCode ? ` (${bookingCode})` : ''}`;
+        const url = bookingPayload.booking_id
+          ? `/bookings/${bookingPayload.booking_id}`
+          : '/bookings';
+        await sendPushToAllAdmins({
+          title: `${brand.name} Dashboard`,
+          body: adminBody,
+          url,
+          data: {
+            stage,
+            booking_id: bookingPayload.booking_id || null,
+            booking_code: bookingCode || null,
+            tag: bookingCode ? `admin-booking-${bookingCode}` : `admin-stage-${stage}`,
+          },
+        });
+      } catch (e) {
+        console.error(`[Notify] Admin push send error for "${stage}":`, e.message);
+      }
+      })());
+    }
+
+    // Wait for every channel to finish before returning so the serverless
+    // lambda isn't frozen mid-dispatch. Promise.allSettled never rejects.
+    await Promise.allSettled(dispatchTasks);
 
     // Store local copy in messages table
     await storeSystemMessage(stage, bookingPayload);
