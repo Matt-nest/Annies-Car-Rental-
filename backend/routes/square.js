@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requireProvider } from '../config/paymentProvider.js';
-import { createSquarePayment, confirmSquarePayment, handleSquareWebhookEvent } from '../services/squareService.js';
+import { createSquarePayment, confirmSquarePayment, handleSquareWebhookEvent, getSquareBookingSummary } from '../services/squareService.js';
 
 const router = Router();
 
@@ -28,6 +28,12 @@ function verifySquareSignature(req) {
   const right = Buffer.from(expected);
   return left.length === right.length && crypto.timingSafeEqual(left, right);
 }
+
+router.get('/booking-summary/:code', asyncHandler(async (req, res) => {
+  requireProvider('square');
+  const result = await getSquareBookingSummary(req.params.code);
+  res.json(result);
+}));
 
 router.post('/create-payment', asyncHandler(async (req, res) => {
   requireProvider('square');

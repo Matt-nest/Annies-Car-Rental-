@@ -18,7 +18,9 @@ import TermsStep from './confirm-booking/wizard-steps/TermsStep';
 import AcknowledgementsStep from './confirm-booking/wizard-steps/AcknowledgementsStep';
 import SignatureStep from './confirm-booking/wizard-steps/SignatureStep';
 import InsuranceStep from './confirm-booking/wizard-steps/InsuranceStep';
+import ReviewStep from './confirm-booking/wizard-steps/ReviewStep';
 import { useKeyboardInset } from '../../hooks/useKeyboardInset';
+import { useTheme } from '../../context/ThemeContext';
 
 import {
   API_URL, PHONE_NUMBER,
@@ -27,9 +29,6 @@ import {
   type WizardDraft,
 } from './confirm-booking/constants';
 
-const StripePaymentStage = PAYMENT_PROVIDER === 'stripe'
-  ? React.lazy(() => import('./confirm-booking/StripePaymentStage'))
-  : null;
 const SquarePaymentStage = PAYMENT_PROVIDER === 'square'
   ? React.lazy(() => import('./confirm-booking/SquarePaymentStage'))
   : null;
@@ -43,9 +42,7 @@ export default function ConfirmBooking() {
   }, []);
 
   const refCode = getRefCode();
-  const [theme, setTheme] = useState(() =>
-    document.documentElement.getAttribute('data-theme') || 'dark'
-  );
+  const { theme } = useTheme();
   // iOS/Android software-keyboard height so the fixed-bottom wizard actions
   // (Continue / pay) stay above the keyboard instead of being occluded.
   const keyboardInset = useKeyboardInset();
@@ -62,7 +59,7 @@ export default function ConfirmBooking() {
   const [confirmed, setConfirmed] = useState(false);
 
   // Debounced save
-  const saveTimerRef = useRef<number | undefined>(undefined);
+  const saveTimerRef = useRef<number>();
   const updateDraft = useCallback((patch: Partial<WizardDraft>) => {
     setDraft(prev => {
       const next = { ...prev, ...patch };
@@ -74,15 +71,6 @@ export default function ConfirmBooking() {
       return next;
     });
   }, [refCode]);
-
-  // Theme observer
-  useEffect(() => {
-    const observer = new MutationObserver(() => {
-      setTheme(document.documentElement.getAttribute('data-theme') || 'dark');
-    });
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-    return () => observer.disconnect();
-  }, []);
 
   // Fetch agreement data + booking summary
   useEffect(() => {
@@ -96,9 +84,6 @@ export default function ConfirmBooking() {
         if (!agRes.ok) throw new Error(agJson.error || 'Failed to load booking data');
 
         setAgreementData(agJson);
-        if (agJson.alreadyPaid) {
-          setConfirmed(true);
-        }
 
         // Pre-fill draft from customer defaults (only if draft is fresh)
         if (agJson.customerDefaults && !draft.address.line1) {
@@ -119,9 +104,27 @@ export default function ConfirmBooking() {
           });
         }
 
-        if (agJson.bookingSummary) {
-          setBookingSummary(agJson.bookingSummary);
-          setDepositAmount(agJson.bookingSummary.depositAmount || 150);
+        if (PAYMENT_PROVIDER === 'square') {
+          const summaryRes = await fetch(`${API_URL}/square/booking-summary/${refCode}`);
+          const summaryJson = await summaryRes.json();
+          if (!summaryRes.ok) throw new Error(summaryJson.error || 'Failed to load booking summary');
+
+          if (summaryJson.alreadyPaid) {
+            setConfirmed(true);
+          }
+
+          if (summaryJson.booking) {
+            setBookingSummary(summaryJson.booking);
+            setDepositAmount(summaryJson.booking.depositAmount || 150);
+          }
+
+          // Returning after approval (or any reload once the wizard is done): the
+          // customer already signed the agreement + chose insurance (saved
+          // server-side). Skip straight to payment instead of making them redo the
+          // whole flow.
+          if (agJson.alreadySigned && !summaryJson.alreadyPaid) {
+            updateDraft({ stage: 4 });
+          }
         }
       } catch (e: any) {
         setError(e.message);
@@ -309,35 +312,30 @@ export default function ConfirmBooking() {
                 />
               )}
 
-              {/* ═══ Stage 3: Payment ═══ */}
+              {/* ═══ Stage 3: Review ═══ */}
               {draft.stage === 3 && (
-                <React.Suspense fallback={
-                  <div className="flex items-center justify-center py-10">
-                    <Loader2 className="animate-spin" size={22} style={{ color: 'var(--accent-color)' }} />
-                  </div>
-                }>
-                  {PAYMENT_PROVIDER === 'stripe' ? (
-                    StripePaymentStage ? <StripePaymentStage
-                      bookingSummary={bookingSummary}
-                      draft={draft}
-                      depositAmount={depositAmount}
-                      bookingCode={refCode}
-                      onBack={() => goToStage(2)}
-                      onSuccess={() => setConfirmed(true)}
-                      theme={theme}
-                    /> : null
-                  ) : (
-                    SquarePaymentStage ? <SquarePaymentStage
-                      bookingSummary={bookingSummary}
-                      draft={draft}
-                      depositAmount={depositAmount}
-                      bookingCode={refCode}
-                      onBack={() => goToStage(2)}
-                      onSuccess={() => setConfirmed(true)}
-                      theme={theme}
-                    /> : null
-                  )}
-                </React.Suspense>
+                <ReviewStep
+                  bookingSummary={bookingSummary}
+                  draft={draft}
+                  depositAmount={depositAmount}
+                  theme={theme}
+                  onContinue={() => { completeStage(3); goToStage(4); }}
+                  onBack={() => goToStage(2)}
+                />
+              )}
+
+              {/* ═══ Stage 4: Approval gate → Payment ═══ */}
+              {draft.stage === 4 && (
+                <PaymentGate
+                  refCode={refCode}
+                  draft={draft}
+                  bookingSummary={bookingSummary}
+                  depositAmount={depositAmount}
+                  theme={theme}
+                  alreadySigned={!!agreementData?.alreadySigned}
+                  onBack={() => goToStage(3)}
+                  onSuccess={() => setConfirmed(true)}
+                />
               )}
             </motion.div>
           </AnimatePresence>
@@ -355,5 +353,219 @@ export default function ConfirmBooking() {
       </div>
       <Footer />
     </>
+  );
+}
+
+function classifyGateStatus(status: string | null): 'awaiting' | 'ready' | 'error' {
+  if (!status || status === 'pending_approval') return 'awaiting';
+  if (status === 'declined' || status === 'cancelled') return 'error';
+  return 'ready';
+}
+
+function PaymentGate({
+  refCode,
+  draft,
+  bookingSummary,
+  depositAmount,
+  theme,
+  alreadySigned,
+  onBack,
+  onSuccess,
+}: {
+  refCode: string;
+  draft: WizardDraft;
+  bookingSummary: any;
+  depositAmount: number;
+  theme: string;
+  alreadySigned: boolean;
+  onBack: () => void;
+  onSuccess: () => void;
+}) {
+  const [phase, setPhase] = useState<'persisting' | 'awaiting' | 'ready' | 'error'>('persisting');
+  const [error, setError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+  const persistedRef = useRef(false);
+
+  const fetchStatus = useCallback(async (): Promise<string | null> => {
+    try {
+      const res = await fetch(`${API_URL}/bookings/status/${refCode}`);
+      if (!res.ok) return null;
+      const json = await res.json();
+      return json.status || null;
+    } catch {
+      return null;
+    }
+  }, [refCode]);
+
+  const persistAndGate = useCallback(async () => {
+    setError(null);
+    setPhase('persisting');
+    try {
+      if (!alreadySigned) {
+        // 1. Sign agreement
+        const agreementPayload = {
+          address_line1: draft.address.line1,
+          city: draft.address.city,
+          state: draft.address.state,
+          zip: draft.address.zip,
+          date_of_birth: draft.dob,
+          driver_license_number: draft.license.number,
+          driver_license_state: draft.license.state,
+          driver_license_expiry: draft.license.expiry,
+          insurance_company: draft.personalInsurance.company || null,
+          insurance_policy_number: draft.personalInsurance.policyNumber || null,
+          insurance_expiry: draft.personalInsurance.expiry || null,
+          insurance_agent_name: draft.personalInsurance.agentName || null,
+          insurance_agent_phone: draft.personalInsurance.agentPhone || null,
+          insurance_vehicle_description: draft.personalInsurance.vehicleDescription || null,
+          signature_data: draft.signature.data,
+          signature_type: draft.signature.mode === 'draw' ? 'drawn' : 'typed',
+          license_photo_paths: draft.licensePhotoPaths?.length ? draft.licensePhotoPaths : undefined,
+        };
+        const agRes = await fetch(`${API_URL}/agreements/${refCode}/sign`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(agreementPayload),
+        });
+        const agJson = await agRes.json();
+        if (!agRes.ok && !agJson.alreadySigned) {
+          throw new Error(agJson.error || 'Failed to submit agreement');
+        }
+
+        // 2. Persist insurance
+        const insurancePayload: any = { source: draft.insuranceChoice };
+        if (draft.insuranceChoice === 'bonzah') insurancePayload.tier_id = draft.bonzahTierId;
+        const insRes = await fetch(`${API_URL}/bookings/${refCode}/insurance`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(insurancePayload),
+        });
+        if (!insRes.ok) {
+          const insJson = await insRes.json();
+          throw new Error(insJson.error || 'Failed to record insurance');
+        }
+      }
+
+      // 3. Gate on status
+      const status = await fetchStatus();
+      const next = classifyGateStatus(status);
+      if (next === 'error') setError(`This booking has been ${status}.`);
+      setPhase(next);
+    } catch (e: any) {
+      setError(e.message || 'Something went wrong');
+      setPhase('error');
+    }
+  }, [draft, refCode, fetchStatus, alreadySigned]);
+
+  useEffect(() => {
+    if (persistedRef.current) return;
+    persistedRef.current = true;
+    persistAndGate();
+  }, [persistAndGate]);
+
+  useEffect(() => {
+    if (phase !== 'awaiting') return;
+    const id = window.setInterval(async () => {
+      const status = await fetchStatus();
+      if (!status) return;
+      const next = classifyGateStatus(status);
+      if (next === 'ready') setPhase('ready');
+      else if (next === 'error') {
+        setError(`This booking has been ${status}.`);
+        setPhase('error');
+      }
+    }, 12000);
+    return () => window.clearInterval(id);
+  }, [phase, fetchStatus]);
+
+  const handleCheckNow = async () => {
+    setChecking(true);
+    const status = await fetchStatus();
+    setChecking(false);
+    const next = classifyGateStatus(status);
+    if (next === 'ready') setPhase('ready');
+    else if (next === 'error') {
+      setError(`This booking has been ${status}.`);
+      setPhase('error');
+    }
+  };
+
+  if (phase === 'persisting') {
+    return (
+      <div className="rounded-2xl border p-8 text-center space-y-3"
+        style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+        <Loader2 className="animate-spin mx-auto" size={24} style={{ color: 'var(--accent-color)' }} />
+        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Finalizing your request…</p>
+      </div>
+    );
+  }
+
+  if (phase === 'error') {
+    return (
+      <div className="rounded-2xl border p-6 text-center space-y-4"
+        style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+        <AlertCircle size={36} style={{ color: '#ef4444' }} className="mx-auto" />
+        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{error}</p>
+        <div className="flex gap-3 justify-center">
+          <button type="button" onClick={onBack}
+            className="px-6 py-3 rounded-full font-medium border cursor-pointer"
+            style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)', backgroundColor: 'transparent' }}>Back</button>
+          <button type="button" onClick={persistAndGate}
+            className="px-6 py-3 rounded-full font-medium cursor-pointer"
+            style={{ backgroundColor: 'var(--accent-color)', color: 'var(--accent-fg)' }}>Try again</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === 'awaiting') {
+    return (
+      <div className="rounded-2xl border p-6 sm:p-8 text-center space-y-4"
+        style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+        <div className="w-14 h-14 rounded-full mx-auto flex items-center justify-center"
+          style={{ backgroundColor: 'color-mix(in srgb, var(--accent-color) 12%, transparent)' }}>
+          <Loader2 className="animate-spin" size={24} style={{ color: 'var(--accent-color)' }} />
+        </div>
+        <h2 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>Awaiting Approval</h2>
+        <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+          We’ve received everything and your request is with our team for approval.
+          As soon as it’s approved we’ll email you a secure link to complete payment
+          and lock in your dates — this page will update automatically too.
+        </p>
+        <div className="rounded-xl border p-3 text-sm"
+          style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
+          Ref <span className="font-mono font-bold">{refCode}</span>
+          {bookingSummary?.vehicle ? <> · {bookingSummary.vehicle}</> : null}
+        </div>
+        <button type="button" onClick={handleCheckNow} disabled={checking}
+          className="px-6 py-3 rounded-full font-medium cursor-pointer inline-flex items-center gap-2 disabled:opacity-60"
+          style={{ backgroundColor: 'var(--accent-color)', color: 'var(--accent-fg)' }}>
+          {checking ? <><Loader2 className="animate-spin" size={16} /> Checking…</> : 'Check again'}
+        </button>
+        <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+          <Phone size={12} className="inline mr-1" /> Questions? Call {PHONE_NUMBER}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <React.Suspense fallback={
+      <div className="flex items-center justify-center py-10">
+        <Loader2 className="animate-spin" size={22} style={{ color: 'var(--accent-color)' }} />
+      </div>
+    }>
+      {SquarePaymentStage ? (
+        <SquarePaymentStage
+          bookingSummary={bookingSummary}
+          draft={draft}
+          depositAmount={depositAmount}
+          bookingCode={refCode}
+          onBack={onBack}
+          onSuccess={onSuccess}
+          theme={theme}
+        />
+      ) : null}
+    </React.Suspense>
   );
 }

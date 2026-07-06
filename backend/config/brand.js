@@ -44,6 +44,9 @@ const brand = {
   taxRate:      parseFloat(process.env.TAX_RATE || '0.07'),
   depositCents: parseInt(process.env.DEFAULT_DEPOSIT_CENTS || '15000', 10),
   currency:     'usd',
+  // Federal EIN printed on invoices. Empty fallback on purpose — a blank EIN
+  // is correct until the brand provides its own; never inherit a template EIN.
+  ein:          process.env.BRAND_EIN || '',
 
   // ── Visual Identity ───────────────────────────────────────────────────
   colors: {
@@ -52,6 +55,10 @@ const brand = {
     accent:    process.env.BRAND_COLOR_ACCENT    || '#92400e',  // Amber dark
     muted:     '#78716c',  // Stone muted
     link:      '#c8a97e',  // Warm gold link
+    // Fillable-field background tint on the rental-agreement PDF. Warm salmon
+    // for Annie's; clones override via BRAND_PDF_FIELD_FILL (e.g. a cool tint
+    // that reads cleanly against a navy/orange palette).
+    pdfFieldFill: process.env.BRAND_PDF_FIELD_FILL || '#FBE2D5',
   },
 
   logoUrl:     process.env.BRAND_LOGO_URL || 'https://anniescarrental.com/logo.svg',

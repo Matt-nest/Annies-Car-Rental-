@@ -218,12 +218,73 @@ async function recordSuccessfulSquarePayment(payment, bookingOverride = null) {
   return { success: true, alreadyRecorded: !rentalResult.inserted, payment_id: payment.id };
 }
 
+async function formatSquareBookingSummary(booking) {
+  const depositAmount = centsToDollars(await getDepositCentsForVehicle(booking.vehicle_id));
+  const insuranceSource = booking.insurance_provider || null;
+  const insuranceTier = booking.bonzah_tier_id || null;
+  const insuranceCost = calcInsuranceCost(booking);
+
+  return {
+    bookingCode: booking.booking_code,
+    status: booking.status,
+    customerName: `${booking.customers?.first_name} ${booking.customers?.last_name}`,
+    customerEmail: booking.customers?.email || '',
+    vehicle: booking.vehicles
+      ? `${booking.vehicles.year} ${booking.vehicles.make} ${booking.vehicles.model}`
+      : null,
+    pickupDate: booking.pickup_date,
+    returnDate: booking.return_date,
+    rentalDays: booking.rental_days,
+    dailyRate: Number(booking.daily_rate),
+    subtotal: Number(booking.subtotal),
+    deliveryFee: Number(booking.delivery_fee || 0),
+    discountAmount: Number(booking.discount_amount || 0),
+    mileageAddonFee: Number(booking.mileage_addon_fee || 0),
+    tollAddonFee: Number(booking.toll_addon_fee || 0),
+    taxAmount: Number(booking.tax_amount || 0),
+    totalCost: Number(booking.total_cost),
+    rateType: booking.rate_type || 'daily',
+    lineItems: booking.line_items || null,
+    mileageAllowance: booking.mileage_allowance || null,
+    insuranceSource,
+    insuranceTier,
+    insuranceCost,
+    depositAmount,
+    depositIncludedInCharge: true,
+    totalChargedWithDeposit: Number(booking.total_cost) + insuranceCost + depositAmount,
+    hasDelivery: !!booking.delivery_requested,
+    hasUnlimitedMiles: !!booking.unlimited_miles,
+    hasUnlimitedTolls: !!booking.unlimited_tolls,
+  };
+}
+
+export async function getSquareBookingSummary(bookingCode) {
+  requireProvider('square');
+  const booking = await getBookingByCode(bookingCode);
+  const { data: existingPayment } = await supabase
+    .from('payments')
+    .select('status')
+    .eq('booking_id', booking.id)
+    .eq('payment_type', 'rental')
+    .eq('status', 'completed')
+    .maybeSingle();
+  return { alreadyPaid: !!existingPayment, booking: await formatSquareBookingSummary(booking) };
+}
+
 export async function createSquarePayment(bookingCode, { source_id, expected_total_cents, idempotency_key }) {
   requireProvider('square');
   if (!source_id) throw Object.assign(new Error('source_id is required'), { status: 400 });
   const booking = await getBookingByCode(bookingCode);
   if (['declined', 'cancelled'].includes(booking.status)) {
     throw Object.assign(new Error(`This booking has been ${booking.status}`), { status: 400 });
+  }
+
+  // Preserve approval gate behavior before charging a card.
+  if (expected_total_cents != null && booking.status === 'pending_approval') {
+    throw Object.assign(
+      new Error('This booking is awaiting owner approval. You’ll receive a secure link to complete payment once it’s approved.'),
+      { status: 403 }
+    );
   }
 
   const existing = await supabase

@@ -273,8 +273,16 @@ export function buildMergeFields(bookingPayload) {
   const bp = bookingPayload;
   const v = bp.vehicle || {};
   const c = bp.customer || {};
-  const h = bp.handoff || {};
-  const siteUrl = brand.siteUrl;
+  // Brand/business identity — sourced from env (brand.js) so templates never
+  // hardcode a business name, address, phone, or email. Set once per clone in
+  // the backend .env; every template that uses {{business_*}} re-brands itself.
+  const loc = brand.location || {};
+  const businessCityState = [loc.city, loc.state].filter(Boolean).join(', ');
+  const businessStreet = loc.address && loc.address !== loc.city ? loc.address : '';
+  const businessAddress = [
+    businessStreet,
+    `${businessCityState}${loc.zip ? ' ' + loc.zip : ''}`.trim(),
+  ].filter(Boolean).join(', ');
 
   // Vehicle photo: prefer VIN-based hero image, fallback to thumbnail_url
   const vehiclePhotoUrl = v.vin
@@ -286,6 +294,14 @@ export function buildMergeFields(bookingPayload) {
     last_name:      c.last_name || '',
     email:          c.email || '',
     phone:          c.phone || '',
+    // Business identity (env-driven — see brand.js). Use these in templates
+    // instead of writing the business name/phone/address as literal text.
+    business_name:        brand.name,
+    business_phone:       brand.phone,
+    business_email:       brand.email,
+    business_address:     businessAddress,
+    business_city_state:  businessCityState,
+    business_domain:      brand.domain,
     booking_code:   bp.booking_code || '',
     vehicle:        [v.year, v.make, v.model].filter(Boolean).join(' ') || 'your vehicle',
     pickup_date:    formatDate(bp.pickup_date),

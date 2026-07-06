@@ -253,7 +253,8 @@ export async function createBooking(payload) {
       insurance_provider,
       insurance_status: insurance_status || 'pending',
       bonzah_policy_id,
-      status: 'pending_approval',
+      status: created_by_admin ? 'approved' : 'pending_approval',
+      ...(created_by_admin ? { owner_approved_at: new Date().toISOString() } : {}),
       created_by_admin: !!created_by_admin,
       special_requests: [
         delivery_type && delivery_type !== 'pickup' ? `Delivery type: ${delivery_type}` : '',
@@ -273,16 +274,17 @@ export async function createBooking(payload) {
   await supabase.from('booking_status_log').insert({
     booking_id: booking.id,
     from_status: null,
-    to_status: 'pending_approval',
+    to_status: created_by_admin ? 'approved' : 'pending_approval',
     changed_by: 'system',
-    reason: 'Booking submitted via website',
+    reason: created_by_admin ? 'Admin-created booking — auto-approved on creation' : 'Booking submitted via website',
   });
 
-  // 8. Send booking notification (fire-and-forget)
+  // 8. Send booking notification
+  // Awaited so the email→SMS→push fan-out completes inside the request
+  // lifecycle — an un-awaited call gets frozen when the Vercel lambda returns,
+  // which delayed/dropped the admin "new booking" push. Never throws.
   const fullBooking = { ...booking, customers: customer, vehicles: vehicle };
-  if (!created_by_admin) {
-    sendBookingNotification('booking_submitted', buildBookingPayload(fullBooking));
-  }
+  await sendBookingNotification('booking_submitted', buildBookingPayload(fullBooking));
 
   // 9. Confirmation email to customer (fire-and-forget)
   // ⚠ IMPLICIT CONTRACT (Phase 1 audit F-3):
@@ -290,13 +292,11 @@ export async function createBooking(payload) {
   // stage === 'booking_submitted' on the assumption that this call is firing
   // the branded confirmation. Removing or renaming this call leaves customers
   // with NO email after submission. Guarded by tests/booking-submitted-contract.test.js.
-  if (!created_by_admin) {
-    sendBookingConfirmation({
-      customer,
-      booking,
-      vehicle: vehicle.year && vehicle.make ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : null,
-    }).catch(err => console.error('[Email] Confirmation email failed:', err));
-  }
+  sendBookingConfirmation({
+    customer,
+    booking,
+    vehicle: vehicle.year && vehicle.make ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : null,
+  }).catch(err => console.error('[Email] Confirmation email failed:', err));
 
   // 10. Dashboard notification
   createNotification(
@@ -307,25 +307,11 @@ export async function createBooking(payload) {
     { booking_id: booking.id, booking_code }
   ).catch(() => { });
 
-  // 11. Trusted-customer auto-approve (migration 019).
-  // Fires AFTER the welcome email + admin notification so:
-  //   (a) the customer still gets the "we got it" branded confirmation
-  //   (b) the admin still sees the booking land in their feed
-  //   (c) the approval transition then fires booking_approved → "complete agreement" CTA
-  // Wrapped in try/catch so a transition failure (e.g. canTransition gate)
-  // doesn't roll back a valid booking. The admin can approve manually.
-  if (customer.is_trusted) {
-    try {
-      await transitionBooking(booking.id, 'approved', {
-        changedBy: 'system',
-        reason: 'Trusted customer — auto-approved on submission',
-      });
-      booking.status = 'approved';
-      booking.owner_approved_at = new Date().toISOString();
-    } catch (err) {
-      console.error(`[Booking] Trusted auto-approve failed for ${booking_code} (booking left pending):`, err.message);
-    }
-  }
+  // 11. Approval gate: every public/website submission now requires an explicit
+  // admin approve/deny before the payment step unlocks (the customer receives a
+  // continue-link once approved). Trusted-customer auto-approve (migration 019)
+  // was intentionally removed — no bookings bypass the gate except admin-created
+  // ones, which are born 'approved' above.
 
   return booking;
 }
