@@ -1,13 +1,31 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Loader2, AlertCircle, CheckCircle, ChevronLeft, ChevronRight, Copy, Send, Car, Calendar, User, Sparkles, DollarSign, Percent } from 'lucide-react';
+import {
+  Loader2,
+  AlertCircle,
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  Send,
+  Car,
+  Calendar,
+  User,
+  Sparkles,
+  DollarSign,
+  Percent,
+  ScanLine,
+  UserPlus,
+} from 'lucide-react';
 import { api } from '../../api/client';
 import Modal from '../shared/Modal';
+import AdminScanStep from './AdminScanStep';
 
 const STEPS = [
   { key: 'vehicle',   label: 'Vehicle',   icon: Car },
   { key: 'dates',     label: 'Dates',     icon: Calendar },
   { key: 'customer',  label: 'Customer',  icon: User },
   { key: 'addons',    label: 'Add-ons',   icon: Sparkles },
+  { key: 'id',        label: 'ID',        icon: ScanLine },
   { key: 'review',    label: 'Review',    icon: CheckCircle },
 ];
 
@@ -29,6 +47,9 @@ function calcRentalDays(pickupDate, returnDate) {
 function money(value) {
   return Number(value || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 }
+
+const fieldLabel = 'text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-1 block';
+const currentTheme = () => (typeof document !== 'undefined' && document.documentElement.classList.contains('dark')) ? 'dark' : 'light';
 
 function StepperHeader({ step }) {
   return (
@@ -71,6 +92,7 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null); // { booking_code, continue_url } once created
   const [copied, setCopied] = useState(false);
+  const theme = currentTheme();
 
   // Form state
   const [pickupDate, setPickupDate] = useState('');
@@ -92,6 +114,17 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
   const [weeklyDiscountPct, setWeeklyDiscountPct] = useState(15);
   const [exactPriceEnabled, setExactPriceEnabled] = useState(false);
   const [exactPrice, setExactPrice] = useState('');
+  const [idMode, setIdMode] = useState(null); // null | 'fill' | 'skip'
+  const [showScanner, setShowScanner] = useState(true);
+  const [licenseNumber, setLicenseNumber] = useState('');
+  const [licenseState, setLicenseState] = useState('');
+  const [licenseExpiry, setLicenseExpiry] = useState('');
+  const [dob, setDob] = useState('');
+  const [addrLine1, setAddrLine1] = useState('');
+  const [addrCity, setAddrCity] = useState('');
+  const [addrState, setAddrState] = useState('');
+  const [addrZip, setAddrZip] = useState('');
+  const [licensePhotoPaths, setLicensePhotoPaths] = useState([]);
 
   function reset() {
     setStep(0);
@@ -106,6 +139,10 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
     setUnlimitedMiles(false); setUnlimitedTolls(false);
     setDeliveryType('pickup'); setDeliveryAddress(''); setSpecialRequests('');
     setWeeklyDiscountPct(15); setExactPriceEnabled(false); setExactPrice('');
+    setIdMode(null); setShowScanner(true);
+    setLicenseNumber(''); setLicenseState(''); setLicenseExpiry(''); setDob('');
+    setAddrLine1(''); setAddrCity(''); setAddrState(''); setAddrZip('');
+    setLicensePhotoPaths([]);
   }
 
   // Whenever the user enters dates, refetch the available-vehicles list.
@@ -177,6 +214,48 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
     };
   }, [selectedVehicle, pickupDate, returnDate, weeklyDiscountPct, deliveryType, unlimitedMiles, unlimitedTolls, exactPriceEnabled, exactPrice]);
 
+  const bookingName = `${firstName} ${lastName}`.trim();
+
+  function applyScan(p) {
+    if (p.firstName) setFirstName(p.firstName);
+    if (p.lastName) setLastName(p.lastName);
+    if (p.license?.number) setLicenseNumber(p.license.number);
+    if (p.license?.state) setLicenseState(p.license.state);
+    if (p.license?.expiry) setLicenseExpiry(p.license.expiry);
+    if (p.dob) setDob(p.dob);
+    if (p.address?.line1) setAddrLine1(p.address.line1);
+    if (p.address?.city) setAddrCity(p.address.city);
+    if (p.address?.state) setAddrState(p.address.state);
+    if (p.address?.zip) setAddrZip(p.address.zip);
+    setShowScanner(false);
+  }
+
+  function buildPrefill() {
+    if (idMode !== 'fill') return null;
+    const hasLicense = !!licenseNumber.trim();
+    const hasAddress = !!(addrLine1.trim() && addrCity.trim());
+    const steps = [];
+    if (hasLicense) steps.push('scan', 'license');
+    if (hasAddress) steps.push('address');
+    if (!steps.length) return null;
+    return {
+      license: hasLicense
+        ? { number: licenseNumber.trim(), state: licenseState.trim(), expiry: licenseExpiry }
+        : undefined,
+      dob: dob || undefined,
+      address: hasAddress
+        ? { line1: addrLine1.trim(), city: addrCity.trim(), state: addrState.trim(), zip: addrZip.trim() }
+        : undefined,
+      license_photo_paths: licensePhotoPaths.length ? licensePhotoPaths : undefined,
+      steps,
+    };
+  }
+
+  const prefillSteps = useMemo(
+    () => buildPrefill()?.steps || [],
+    [idMode, licenseNumber, licenseState, licenseExpiry, dob, addrLine1, addrCity, addrState, addrZip, licensePhotoPaths]
+  );
+
   function canAdvance() {
     setError('');
     if (step === 0) {
@@ -197,6 +276,11 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
         setError('Delivery address required for delivery options.');
         return false;
       }
+    } else if (step === 4) {
+      if (idMode === null) {
+        setError("Choose whether you'll add the customer's ID now or let them add it on their link.");
+        return false;
+      }
     }
     return true;
   }
@@ -210,6 +294,7 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
     setSubmitting(true);
     setError('');
     try {
+      const prefill = buildPrefill();
       const payload = {
         first_name: firstName.trim(),
         last_name:  lastName.trim(),
@@ -227,9 +312,10 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
         admin_weekly_discount_percent: Math.min(50, Math.max(0, Number(weeklyDiscountPct) || 0)),
         admin_total_cost_override: exactPriceEnabled ? Number(exactPrice) : undefined,
         special_requests: specialRequests.trim() || undefined,
+        ...(prefill ? { agreement_prefill: prefill } : {}),
       };
       const res = await api.createAdminBooking(payload);
-      setResult(res);
+      setResult({ ...res, prefilledSteps: prefill?.steps || [] });
       onCreated?.();
     } catch (e) {
       setError(e.message || 'Failed to create booking');
@@ -264,6 +350,15 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
               <p className="text-[var(--text-secondary)] mt-0.5">An email with the continue-booking link has been sent to {email}.</p>
             </div>
           </div>
+
+          {result.prefilledSteps?.length ? (
+            <div
+              className="text-sm p-3 rounded-xl"
+              style={{ backgroundColor: 'var(--accent-glow)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}
+            >
+              ID details were prefilled, so the customer will skip those steps on their link.
+            </div>
+          ) : null}
 
           <div>
             <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-1 block">
@@ -526,31 +621,161 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
             <p className="text-sm text-[var(--text-secondary)]">
               Optional add-ons. The customer will pick insurance themselves on the continue link.
             </p>
-            <label className="flex items-center gap-3 p-3 rounded-xl cursor-pointer"
-              style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
-              <input type="checkbox" checked={unlimitedMiles} onChange={e => setUnlimitedMiles(e.target.checked)} />
+            <label
+              className="flex items-center gap-3 p-3 rounded-xl cursor-pointer"
+              style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
+            >
+              <input type="checkbox" checked={unlimitedMiles} onChange={(e) => setUnlimitedMiles(e.target.checked)} />
               <div className="flex-1">
                 <p className="text-sm font-semibold text-[var(--text-primary)]">Unlimited miles</p>
                 <p className="text-xs text-[var(--text-tertiary)]">Removes the 200 mi/day cap. Free on weekly bookings.</p>
               </div>
             </label>
-            <label className="flex items-center gap-3 p-3 rounded-xl cursor-pointer"
-              style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
-              <input type="checkbox" checked={unlimitedTolls} onChange={e => setUnlimitedTolls(e.target.checked)} />
+            <label
+              className="flex items-center gap-3 p-3 rounded-xl cursor-pointer"
+              style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
+            >
+              <input type="checkbox" checked={unlimitedTolls} onChange={(e) => setUnlimitedTolls(e.target.checked)} />
               <div className="flex-1">
                 <p className="text-sm font-semibold text-[var(--text-primary)]">Unlimited tolls</p>
                 <p className="text-xs text-[var(--text-tertiary)]">No per-mile toll passthroughs.</p>
               </div>
             </label>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-1 block">Special requests (optional)</label>
-              <textarea className="input w-full" rows={3} value={specialRequests} onChange={e => setSpecialRequests(e.target.value)} />
+              <label className={fieldLabel}>Special requests (optional)</label>
+              <textarea className="input w-full" rows={3} value={specialRequests} onChange={(e) => setSpecialRequests(e.target.value)} />
             </div>
           </div>
         )}
 
-        {/* Step 4 — Review */}
+        {/* Step 4 — ID capture */}
         {step === 4 && (
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-base font-semibold text-[var(--text-primary)]">Customer ID &amp; details</h3>
+              <p className="text-[13px] mt-0.5 text-[var(--text-secondary)]">
+                Capture the driver license now to prefill checkout, or let the customer complete it from their link.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setIdMode('fill')}
+                className="p-3.5 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-2.5"
+                style={{ backgroundColor: idMode === 'fill' ? 'var(--accent-glow)' : 'var(--bg-card)', borderColor: idMode === 'fill' ? 'var(--accent-color)' : 'var(--border-subtle)' }}
+              >
+                <ScanLine size={18} className="mt-0.5 shrink-0" style={{ color: 'var(--accent-color)' }} />
+                <div>
+                  <p className="text-sm font-semibold text-[var(--text-primary)]">I have the ID now</p>
+                  <p className="text-[11px] mt-0.5 text-[var(--text-tertiary)]">Scan it or type it now — customer skips this later.</p>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIdMode('skip')}
+                className="p-3.5 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-2.5"
+                style={{ backgroundColor: idMode === 'skip' ? 'var(--accent-glow)' : 'var(--bg-card)', borderColor: idMode === 'skip' ? 'var(--accent-color)' : 'var(--border-subtle)' }}
+              >
+                <UserPlus size={18} className="mt-0.5 shrink-0" style={{ color: 'var(--text-secondary)' }} />
+                <div>
+                  <p className="text-sm font-semibold text-[var(--text-primary)]">Customer adds it</p>
+                  <p className="text-[11px] mt-0.5 text-[var(--text-tertiary)]">They scan and enter their ID in checkout.</p>
+                </div>
+              </button>
+            </div>
+
+            {idMode === 'skip' && (
+              <div
+                className="text-xs text-[var(--text-tertiary)] p-3 rounded-xl"
+                style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px dashed var(--border-subtle)' }}
+              >
+                The customer will scan their license, verify address details, sign, and pay on their continue-booking link.
+              </div>
+            )}
+
+            {idMode === 'fill' && (
+              <div className="space-y-4">
+                {showScanner && (
+                  <AdminScanStep
+                    onApply={applyScan}
+                    onPhotoPath={(p) => setLicensePhotoPaths((prev) => (prev.includes(p) ? prev : [...prev, p]))}
+                    onManual={() => setShowScanner(false)}
+                    bookingName={bookingName}
+                    theme={theme}
+                  />
+                )}
+                {!showScanner && (
+                  <button
+                    type="button"
+                    onClick={() => setShowScanner(true)}
+                    className="w-full min-h-[44px] py-2.5 rounded-xl border flex items-center justify-center gap-2 text-sm font-medium cursor-pointer"
+                    style={{ borderColor: 'var(--border-subtle)', color: 'var(--accent-color)' }}
+                  >
+                    <ScanLine size={15} /> Scan a license
+                  </button>
+                )}
+
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className={fieldLabel}>First name</label>
+                      <input className="input w-full" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className={fieldLabel}>Last name</label>
+                      <input className="input w-full" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className={fieldLabel}>License #</label>
+                      <input className="input w-full" value={licenseNumber} onChange={(e) => setLicenseNumber(e.target.value)} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className={fieldLabel}>State</label>
+                        <input className="input w-full" maxLength={2} value={licenseState} onChange={(e) => setLicenseState(e.target.value.toUpperCase())} placeholder="FL" />
+                      </div>
+                      <div>
+                        <label className={fieldLabel}>Expiry</label>
+                        <input type="date" className="input w-full" value={licenseExpiry} onChange={(e) => setLicenseExpiry(e.target.value)} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className={fieldLabel}>Date of birth</label>
+                    <input type="date" className="input w-full" value={dob} onChange={(e) => setDob(e.target.value)} />
+                  </div>
+
+                  <div>
+                    <label className={fieldLabel}>Address</label>
+                    <input className="input w-full" value={addrLine1} onChange={(e) => setAddrLine1(e.target.value)} placeholder="Street address" />
+                    <div className="grid grid-cols-3 gap-2 mt-2">
+                      <input className="input w-full" value={addrCity} onChange={(e) => setAddrCity(e.target.value)} placeholder="City" />
+                      <input className="input w-full" maxLength={2} value={addrState} onChange={(e) => setAddrState(e.target.value.toUpperCase())} placeholder="State" />
+                      <input className="input w-full" value={addrZip} onChange={(e) => setAddrZip(e.target.value)} placeholder="ZIP" />
+                    </div>
+                  </div>
+
+                  {licensePhotoPaths.length > 0 && (
+                    <p className="text-[11px] text-[var(--text-tertiary)]">
+                      ID photo on file.
+                    </p>
+                  )}
+                  <p className="text-[11px] text-[var(--text-tertiary)]">
+                    Leave blank anything you don&apos;t have yet. The customer will complete any remaining details in checkout.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Step 5 — Review */}
+        {step === 5 && (
           <div className="space-y-3 text-sm">
             <div className="p-3 rounded-xl space-y-1" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
               <div className="flex justify-between"><span className="text-[var(--text-tertiary)]">Vehicle</span><span className="font-semibold text-[var(--text-primary)]">{selectedVehicle ? `${selectedVehicle.year} ${selectedVehicle.make} ${selectedVehicle.model}` : '—'}</span></div>
@@ -559,7 +784,7 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
               <div className="flex justify-between"><span className="text-[var(--text-tertiary)]">Customer</span><span className="text-[var(--text-secondary)]">{firstName} {lastName}</span></div>
               <div className="flex justify-between"><span className="text-[var(--text-tertiary)]">Email</span><span className="text-[var(--text-secondary)]">{email}</span></div>
               <div className="flex justify-between"><span className="text-[var(--text-tertiary)]">Phone</span><span className="text-[var(--text-secondary)]">{phone}</span></div>
-              <div className="flex justify-between"><span className="text-[var(--text-tertiary)]">Delivery</span><span className="text-[var(--text-secondary)]">{DELIVERY_OPTIONS.find(o => o.value === deliveryType)?.label}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-tertiary)]">Delivery</span><span className="text-[var(--text-secondary)]">{DELIVERY_OPTIONS.find((o) => o.value === deliveryType)?.label}</span></div>
               <div className="flex justify-between"><span className="text-[var(--text-tertiary)]">Unlimited miles</span><span className="text-[var(--text-secondary)]">{unlimitedMiles ? 'Yes' : 'No'}</span></div>
               <div className="flex justify-between"><span className="text-[var(--text-tertiary)]">Unlimited tolls</span><span className="text-[var(--text-secondary)]">{unlimitedTolls ? 'Yes' : 'No'}</span></div>
             </div>
@@ -590,9 +815,16 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
                 <p className="text-[11px] text-[var(--text-tertiary)]">Deposit and customer-selected insurance are added in the customer checkout wizard.</p>
               </div>
             )}
+            <div
+              className="p-3 rounded-xl text-[13px]"
+              style={{ backgroundColor: prefillSteps.length ? 'var(--accent-glow)' : 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}
+            >
+              {prefillSteps.length
+                ? `ID details were prefilled. The customer will skip ${prefillSteps.includes('address') ? 'license and address' : 'license'} and continue with insurance, signature, and payment.`
+                : 'The customer will complete license, address, insurance, signature, and payment on their continue-booking link.'}
+            </div>
             <p className="text-xs text-[var(--text-tertiary)]">
-              The customer will receive an email with a link to add insurance, sign the agreement, and pay.
-              Payment will auto-approve and confirm this booking.
+              The customer will receive an email with a link to continue checkout. Payment will auto-approve and confirm this booking.
             </p>
           </div>
         )}
