@@ -17,6 +17,7 @@ import PaymentsPage from './pages/PaymentsPage';
 import RevenuePage from './pages/RevenuePage';
 import SettingsPage from './pages/SettingsPage';
 import WebhookFailuresPage from './pages/WebhookFailuresPage';
+import StripePage from './pages/StripePage';
 import MessagingPage from './pages/MessagingPage';
 import CheckInsPage from './pages/CheckInsPage';
 import MonthlyInquiriesPage from './pages/MonthlyInquiriesPage';
@@ -27,10 +28,6 @@ import InsurancePage from './pages/InsurancePage';
 
 // Lazy-load TelematicsPage — mapbox-gl is 1.7MB and only used here
 const TelematicsPage = lazy(() => import('./pages/TelematicsPage'));
-const PAYMENT_PROVIDER = (import.meta.env.VITE_PAYMENT_PROVIDER || 'square').toLowerCase();
-const StripePage = (import.meta.env.VITE_PAYMENT_PROVIDER || 'square').toLowerCase() === 'stripe'
-  ? lazy(() => import('./pages/StripePage'))
-  : null;
 
 export default function App() {
   return (
@@ -58,13 +55,7 @@ export default function App() {
             <Route path="/payments"   element={<PaymentsPage />} />
             <Route path="/revenue"    element={<RevenuePage />} />
             <Route path="/settings"   element={<SettingsPage />} />
-            {PAYMENT_PROVIDER === 'stripe' && (
-              <Route path="/stripe" element={
-                <Suspense fallback={<div />}>
-                  {StripePage ? <StripePage /> : <Navigate to="/payments" replace />}
-                </Suspense>
-              } />
-            )}
+            <Route path="/stripe"     element={<StripePage />} />
             <Route path="/messaging"  element={<MessagingPage />} />
             <Route path="/webhook-failures" element={<WebhookFailuresPage />} />
             <Route path="/monthly-inquiries" element={<MonthlyInquiriesPage />} />

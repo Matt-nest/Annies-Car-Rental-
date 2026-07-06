@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { supabase } from '../db/supabase.js';
-import { verifyPortalAccess, requirePortalAuth } from '../services/portalAuthService.js';
+import { verifyPortalAccess, requirePortalAuth, refreshPortalToken } from '../services/portalAuthService.js';
 import { transitionBooking, getBookingDetail } from '../services/bookingService.js';
 
 const router = Router();
@@ -26,6 +26,19 @@ router.post('/verify', portalRateLimit, async (req, res) => {
     }
 
     const result = await verifyPortalAccess(bookingCode, email);
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /portal/refresh — Issue a fresh portal token from a valid session.
+ * Keeps long-lived (long-term rental) sessions alive without re-verifying.
+ */
+router.post('/refresh', requirePortalAuth, async (req, res) => {
+  try {
+    const result = await refreshPortalToken(req.portal);
     res.json(result);
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
@@ -500,6 +513,126 @@ router.post('/pending-charges/:id/dispute', requirePortalAuth, async (req, res) 
       return res.status(404).json({ error: 'Charge not found for this booking' });
     }
     const result = await disputePendingCharge(req.params.id, req.body?.message || '');
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+/* ── Rental Extensions (Square) ─────────────────────────────────────────── */
+
+/**
+ * POST /portal/extension/quote — Price an extension to a new return date.
+ * Body: { newReturnDate: 'YYYY-MM-DD' }
+ * Returns a quote (no charge, no DB write).
+ */
+router.post('/extension/quote', requirePortalAuth, async (req, res) => {
+  try {
+    const { quoteExtension } = await import('../services/extensionService.js');
+    const quote = await quoteExtension(req.portal.bookingId, req.body?.newReturnDate);
+    const { _booking, ...safe } = quote;
+    res.json(safe);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message, conflicts: err.conflicts });
+  }
+});
+
+/**
+ * POST /portal/extension/pay-square — Pay and apply a rental extension via Square.
+ * Body: { newReturnDate, source_id, expectedTotalCents, idempotency_key }
+ */
+router.post('/extension/pay-square', requirePortalAuth, async (req, res) => {
+  try {
+    const { createExtensionSquarePayment } = await import('../services/extensionService.js');
+    const result = await createExtensionSquarePayment(
+      req.portal.bookingId,
+      req.body?.newReturnDate,
+      {
+        source_id: req.body?.source_id,
+        expectedTotalCents: req.body?.expectedTotalCents,
+        idempotencyKey: req.body?.idempotency_key,
+      }
+    );
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message, conflicts: err.conflicts });
+  }
+});
+
+/**
+ * GET /portal/extensions — List this booking's extension history.
+ */
+router.get('/extensions', requirePortalAuth, async (req, res) => {
+  try {
+    const { listExtensions } = await import('../services/extensionService.js');
+    const rows = await listExtensions(req.portal.bookingId);
+    res.json(rows);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+/* ── Payment Method on File (Square) ───────────────────────────────────── */
+
+/** GET /portal/payment-method — the card currently on file (or null). */
+router.get('/payment-method', requirePortalAuth, async (req, res) => {
+  try {
+    const { getCardOnFile } = await import('../services/cardOnFileService.js');
+    const card = await getCardOnFile(req.portal.bookingId);
+    res.json({ card });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+/** POST /portal/payment-method/save — save a Square card token nonce as the card on file. */
+router.post('/payment-method/save', requirePortalAuth, async (req, res) => {
+  try {
+    const { source_id } = req.body || {};
+    if (!source_id) return res.status(400).json({ error: 'source_id is required' });
+    const { saveCardOnFile } = await import('../services/cardOnFileService.js');
+    const card = await saveCardOnFile(req.portal.bookingId, source_id);
+    res.json({ card });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+/* ── Payment Plan / Installments ────────────────────────────────────────── */
+
+/** GET /portal/payment-plan — the customer's installment schedule (read-only). */
+router.get('/payment-plan', requirePortalAuth, async (req, res) => {
+  try {
+    const { getPlan } = await import('../services/installmentService.js');
+    const plan = await getPlan(req.portal.bookingId);
+    res.json(plan);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+/* ── Balance / Pay Now (Square) ─────────────────────────────────────────── */
+
+/** GET /portal/balance — outstanding rental balance. */
+router.get('/balance', requirePortalAuth, async (req, res) => {
+  try {
+    const { computeBalance } = await import('../services/balanceService.js');
+    const balance = await computeBalance(req.portal.bookingId);
+    res.json(balance);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+/** POST /portal/balance/pay-square — pay the outstanding balance via Square. */
+router.post('/balance/pay-square', requirePortalAuth, async (req, res) => {
+  try {
+    const { createSquareBalancePayment } = await import('../services/balanceService.js');
+    const result = await createSquareBalancePayment(req.portal.bookingId, {
+      source_id: req.body?.source_id,
+      expectedCents: req.body?.expectedCents,
+      idempotencyKey: req.body?.idempotency_key,
+    });
     res.json(result);
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });

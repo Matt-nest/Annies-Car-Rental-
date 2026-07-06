@@ -212,6 +212,13 @@ export default function FleetCommandGrid() {
 
   useEffect(() => { load(); }, [load]);
 
+  const filtered = vehicles.filter((v) => {
+    if (filter === 'all') return true;
+    if (filter === 'maintenance') return v.status === 'maintenance' || v.status === 'retired';
+    return v.status === 'filter';
+  });
+
+  // Fix filter logic
   const filteredVehicles = vehicles.filter((v) => {
     if (filter === 'all') return true;
     if (filter === 'maintenance') return v.status === 'maintenance' || v.status === 'retired';
@@ -245,7 +252,7 @@ export default function FleetCommandGrid() {
       <div className="px-5 pb-5">
         <motion.div
           layout
-          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 gap-3"
+          className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3"
         >
           {filteredVehicles.map((v) => (
             <VehicleTile

@@ -7,7 +7,6 @@ import {
 import { format, subDays } from 'date-fns';
 import { api } from '../../../api/client';
 import { cachedQuery } from '../../../lib/queryCache';
-import { useMediaQuery } from '../../../hooks/useMediaQuery';
 import WidgetWrapper from '../WidgetWrapper';
 
 function GlassTooltip({ active, payload, label }) {
@@ -44,7 +43,6 @@ export default function RevenueTrendWidget() {
   const [mounted, setMounted] = useState(false);
   const navigate = useNavigate();
   const timerRef = useRef(null);
-  const isNarrow = useMediaQuery('(max-width: 479px)');
 
   const load = useCallback(() => {
     setLoading(true);
@@ -153,15 +151,14 @@ export default function RevenueTrendWidget() {
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-subtle)" opacity={0.5} />
               <XAxis
                 dataKey="label" axisLine={false} tickLine={false}
-                tick={{ fill: 'var(--text-tertiary)', fontSize: isNarrow ? 9 : 10 }} dy={8}
+                tick={{ fill: 'var(--text-tertiary)', fontSize: 10 }} dy={8}
                 interval="preserveStartEnd"
-                minTickGap={isNarrow ? 44 : 20}
               />
               <YAxis
                 axisLine={false} tickLine={false}
-                tick={{ fill: 'var(--text-tertiary)', fontSize: isNarrow ? 9 : 10 }}
+                tick={{ fill: 'var(--text-tertiary)', fontSize: 10 }}
                 tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
-                width={isNarrow ? 32 : 45}
+                width={45}
               />
               <Tooltip content={<GlassTooltip />} />
               <Area

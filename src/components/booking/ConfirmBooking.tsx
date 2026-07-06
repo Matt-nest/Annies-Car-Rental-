@@ -59,7 +59,7 @@ export default function ConfirmBooking() {
   const [confirmed, setConfirmed] = useState(false);
 
   // Debounced save
-  const saveTimerRef = useRef<number>();
+  const saveTimerRef = useRef<number | undefined>(undefined);
   const updateDraft = useCallback((patch: Partial<WizardDraft>) => {
     setDraft(prev => {
       const next = { ...prev, ...patch };

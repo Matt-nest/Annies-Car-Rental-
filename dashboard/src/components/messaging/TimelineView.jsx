@@ -27,12 +27,10 @@ import { api } from '../../api/client';
 import TimelineEditorPanel from './TimelineEditorPanel';
 import { EASE } from './shared.js';
 
-const PAYMENT_PROVIDER = (import.meta.env.VITE_PAYMENT_PROVIDER || 'square').toLowerCase();
-
 const LIFECYCLE_COLUMNS = [
   { position: 0, label: 'Request',   subtitle: 'Submitted',           color: '#64748b' },
   { position: 1, label: 'Approval',  subtitle: 'Admin + insurance',   color: '#10b981' },
-  { position: 2, label: 'Payment',   subtitle: `${PAYMENT_PROVIDER === 'stripe' ? 'Stripe' : 'Square'} confirmation`, color: '#3b82f6' },
+  { position: 2, label: 'Payment',   subtitle: 'Stripe confirmation', color: '#3b82f6' },
   { position: 3, label: 'Ready',     subtitle: 'Vehicle prepped',     color: '#8b5cf6' },
   { position: 4, label: 'Pickup',    subtitle: 'Customer collects',   color: '#f59e0b' },
   { position: 5, label: 'During',    subtitle: 'Active rental',       color: '#a78bfa' },

@@ -53,16 +53,6 @@
   --sidebar-active-bg:   rgba(70, 95, 255, 0.08);
   --sidebar-active-text: #465FFF;
   --sidebar-active-icon: #465FFF;
-
-  /* App chrome — iOS-aware safe-area references for mobile shells. */
-  --app-safe-top:      env(safe-area-inset-top, 0px);
-  --app-safe-bottom:   env(safe-area-inset-bottom, 0px);
-  --app-header-h:      64px;
-  --app-bottomnav-h:   64px;
-}
-
-@media (min-width: 1024px) {
-  :root { --app-bottomnav-h: 0px; }
 }
 
 /* ─── Light Mode ────────────────────────────────────────────────────────────── */
@@ -145,11 +135,7 @@ html.dark {
     background: rgba(70, 95, 255, 0.22);
   }
 
-  html {
-    scroll-behavior: smooth;
-    -webkit-text-size-adjust: 100%;
-    text-size-adjust: 100%;
-  }
+  html { scroll-behavior: smooth; }
 
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -181,48 +167,7 @@ html.dark {
     background: var(--border-medium);
     border-radius: 9999px;
   }
-
-  /* iOS Safari: prevent zoom-on-focus by guaranteeing >=16px on controls. */
-  @media (max-width: 767px) {
-    input, select, textarea {
-      font-size: 16px !important;
-    }
-  }
-
-  /* Remove the 300ms double-tap-zoom delay on tappable elements. */
-  button, a, [role="button"], label, summary, input[type="submit"], input[type="button"] {
-    touch-action: manipulation;
-  }
 }
-
-/* ─── Mobile foundation utilities (iOS Safari hygiene) ─────────────────────── */
-
-/* Dynamic viewport height — Safari URL bar aware. */
-.h-dvh-fallback { min-height: 100vh; }
-@supports (min-height: 100dvh) {
-  .h-dvh-fallback { min-height: 100dvh; }
-}
-
-/* Safe-area helpers for notch / Dynamic Island / home indicator. */
-.safe-top    { padding-top:    max(env(safe-area-inset-top), 0px); }
-.safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 0px); }
-.safe-left   { padding-left:   max(env(safe-area-inset-left), 0px); }
-.safe-right  { padding-right:  max(env(safe-area-inset-right), 0px); }
-.safe-x      { padding-left:   max(env(safe-area-inset-left), 0px); padding-right: max(env(safe-area-inset-right), 0px); }
-
-/* 44×44 minimum tap target (WCAG 2.5.5 AAA + Apple HIG). */
-.tap-target {
-  min-width: 44px;
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Sub-pixel hairline borders for retina-friendly separators. */
-.hairline-bottom { border-bottom: 0.5px solid var(--border-subtle); }
-.hairline-top    { border-top:    0.5px solid var(--border-subtle); }
-.hairline-y      { border-top:    0.5px solid var(--border-subtle); border-bottom: 0.5px solid var(--border-subtle); }
 
 /* ─── Components ────────────────────────────────────────────────────────────── */
 @layer components {

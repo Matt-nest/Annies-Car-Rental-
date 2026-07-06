@@ -338,7 +338,7 @@ export default function BrandsTab() {
             </FormSection>
 
             <FormSection title="Integrations" icon={Globe} defaultOpen={false}>
-              <Field label="Payment Statement Prefix" value={form.stripe_prefix} onChange={v => setField('stripe_prefix', v)} placeholder="Sunshine Rentals" hint="Appears on customer card statements where supported" />
+              <Field label="Stripe Description Prefix" value={form.stripe_prefix} onChange={v => setField('stripe_prefix', v)} placeholder="Sunshine Rentals" hint="Appears on customer credit card statements" />
               <Field label="Google Review Link" value={form.review_link} onChange={v => setField('review_link', v)} placeholder="https://g.page/sunshine-rentals/review" />
               <Field label="Chat Widget ID" value={form.chat_widget_id} onChange={v => setField('chat_widget_id', v)} placeholder="Leave empty to disable" hint="LeadConnector widget ID — leave blank for no chat widget" />
             </FormSection>

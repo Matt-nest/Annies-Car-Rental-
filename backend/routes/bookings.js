@@ -1,40 +1,18 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { supabase } from '../db/supabase.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
 import { verifyRecaptcha } from '../middleware/recaptcha.js';
 import brand from '../config/brand.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { validateBookingPayload } from '../utils/validators.js';
 import { createBooking, transitionBooking, getBookingDetail, applyCheckoutOverride } from '../services/bookingService.js';
 import { createNotification } from '../services/notificationService.js';
-import { sendBookingNotification, buildBookingPayload, sendSMS } from '../services/notifyService.js';
+import { sendBookingNotification, buildBookingPayload } from '../services/notifyService.js';
 import { computeRentalPricing, DELIVERY_FEES } from '../services/pricingService.js';
 import { getQuote, getSetting, BonzahError } from '../services/bonzahService.js';
 
 const router = Router();
-
-async function getCheckoutPaymentTotals(booking) {
-  const rentalCents = Math.round(Number(booking.total_cost || 0) * 100);
-  const insuranceCents = booking.insurance_provider === 'bonzah'
-    ? Number(booking.bonzah_premium_cents || 0) + Number(booking.bonzah_markup_cents || 0)
-    : 0;
-  let depositCents = 15000;
-  if (booking.vehicle_id) {
-    const { data: depositRow } = await supabase
-      .from('vehicle_deposits')
-      .select('amount')
-      .eq('vehicle_id', booking.vehicle_id)
-      .maybeSingle();
-    if (depositRow?.amount != null) depositCents = Number(depositRow.amount);
-  }
-  return {
-    rental_cents: rentalCents,
-    insurance_cents: insuranceCents,
-    deposit_cents: depositCents,
-    total_cents: rentalCents + insuranceCents + depositCents,
-  };
-}
 
 // Rate limit public booking submissions: 5 per minute per IP
 const bookingRateLimit = rateLimit({
@@ -87,6 +65,65 @@ router.get('/:id/timeline', requireAuth, asyncHandler(async (req, res) => {
 
   if (error) throw error;
   res.json(data);
+}));
+
+/** GET /bookings/:id/extensions — extension history (admin) */
+router.get('/:id/extensions', requireAuth, asyncHandler(async (req, res) => {
+  const { listExtensions } = await import('../services/extensionService.js');
+  const rows = await listExtensions(req.params.id);
+  res.json(rows);
+}));
+
+/** POST /bookings/:id/extension-quote — price an admin extension (admin) */
+router.post('/:id/extension-quote', requireAuth, asyncHandler(async (req, res) => {
+  try {
+    const { quoteExtension } = await import('../services/extensionService.js');
+    const quote = await quoteExtension(req.params.id, req.body?.newReturnDate);
+    const { _booking, ...safe } = quote;
+    res.json(safe);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message, conflicts: err.conflicts });
+  }
+}));
+
+/** POST /bookings/:id/extend — admin-initiated extension (owner/admin only) */
+router.post('/:id/extend', requireAuth, requireRole('owner', 'admin'), asyncHandler(async (req, res) => {
+  try {
+    const { adminExtendBooking } = await import('../services/extensionService.js');
+    const result = await adminExtendBooking(req.params.id, {
+      newReturnDate: req.body?.newReturnDate,
+      collectPayment: req.body?.collectPayment !== false,
+      method: req.body?.method || 'cash',
+      reference: req.body?.reference || null,
+      actorId: req.user?.id || null,
+    });
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message, conflicts: err.conflicts });
+  }
+}));
+
+/** GET /bookings/:id/payment-plan — installment plan for a booking (admin) */
+router.get('/:id/payment-plan', requireAuth, asyncHandler(async (req, res) => {
+  const { getPlan } = await import('../services/installmentService.js');
+  const plan = await getPlan(req.params.id);
+  res.json(plan);
+}));
+
+/** POST /bookings/:id/payment-plan — create an installment plan (owner/admin) */
+router.post('/:id/payment-plan', requireAuth, requireRole('owner', 'admin'), asyncHandler(async (req, res) => {
+  try {
+    const { createPlan } = await import('../services/installmentService.js');
+    const plan = await createPlan(req.params.id, {
+      interval: req.body?.interval,
+      installmentCount: req.body?.installmentCount,
+      startDate: req.body?.startDate,
+      actor: `admin:${req.user?.id || 'unknown'}`,
+    });
+    res.status(201).json(plan);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
 }));
 
 /** GET /bookings/status/:bookingCode — public status lookup by code */
@@ -160,23 +197,7 @@ router.post('/admin-create', requireAuth, asyncHandler(async (req, res) => {
 
   // Build the continue link the admin can copy/paste.
   const siteUrl = brand.siteUrl;
-  const continueUrl = `${siteUrl}/confirm?code=${booking.booking_code}`;
-
-  // Admin-created bookings are already vetted by the admin who is sending the
-  // link. Mark approved now so the customer messaging and status are accurate.
-  await supabase
-    .from('bookings')
-    .update({ status: 'approved', owner_approved_at: new Date().toISOString() })
-    .eq('id', booking.id)
-    .eq('status', 'pending_approval');
-  await supabase.from('booking_status_log').insert({
-    booking_id: booking.id,
-    from_status: 'pending_approval',
-    to_status: 'approved',
-    changed_by: req.user?.email || 'admin',
-    reason: 'Admin-created booking approved before sending completion link',
-  });
-  booking.status = 'approved';
+  const continueUrl = `${siteUrl}/booking?code=${booking.booking_code}`;
 
   // Send the continue-booking email (fire-and-forget so the response isn't blocked).
   try {
@@ -194,13 +215,6 @@ router.post('/admin-create', requireAuth, asyncHandler(async (req, res) => {
     const vehicleLabel = vehicleRow ? `${vehicleRow.year} ${vehicleRow.make} ${vehicleRow.model}` : null;
     sendContinueBookingEmail({ customer, booking, vehicle: vehicleLabel })
       .catch(err => console.error('[Email] Continue-booking email failed:', err));
-    if (customer?.phone) {
-      sendSMS({
-        to: customer.phone,
-        body: `${brand.name}: your booking ${booking.booking_code} is approved. Complete your agreement and payment here: ${continueUrl}`,
-        source: 'manual',
-      }).catch(err => console.error('[SMS] Continue-booking SMS failed:', err));
-    }
   } catch (err) {
     console.error('[admin-create] Continue email setup failed:', err);
   }
@@ -438,7 +452,7 @@ router.post('/:code/insurance/quote', asyncHandler(async (req, res) => {
   }
 
   // Wizard captures DOB + address + license into sessionStorage during the Agreement
-      // stage, but only persists them to the customer record at payment-submit time. We
+  // stage, but only persists them to the customer record at Stripe-submit time. We
   // need those fields here to call Bonzah. Merge the wizard's draft onto the loaded
   // customer for quote-time only — the bind path (post-payment) re-reads the now-
   // persisted customer record, so this can't smuggle bad data into a real policy.
@@ -519,7 +533,7 @@ router.patch('/:code/insurance', asyncHandler(async (req, res) => {
   // Look up booking by booking_code (public route — no auth)
   const { data: booking, error } = await supabase
     .from('bookings')
-    .select('*')
+    .select('id, booking_code, status, bonzah_tier_id, bonzah_quote_id, bonzah_quote_expires_at, bonzah_premium_cents')
     .eq('booking_code', req.params.code)
     .single();
 
@@ -570,7 +584,7 @@ router.patch('/:code/insurance', asyncHandler(async (req, res) => {
       .from('bookings')
       .update({
         insurance_provider: 'bonzah',
-        insurance_status: 'pending', // flips to 'active' after successful payment binds coverage
+        insurance_status: 'pending', // flips to 'active' after Stripe webhook binds
         bonzah_tier_id: tier_id,
         bonzah_quote_id: quote.quote_id,
         bonzah_premium_cents: premiumCents,
@@ -581,15 +595,8 @@ router.patch('/:code/insurance', asyncHandler(async (req, res) => {
       .eq('id', booking.id);
     if (updErr) return res.status(500).json({ error: `Failed to record insurance choice: ${updErr.message}` });
 
-    const payment_totals = await getCheckoutPaymentTotals({
-      ...bookingFull,
-      insurance_provider: 'bonzah',
-      bonzah_premium_cents: premiumCents,
-      bonzah_markup_cents: markupCents,
-    });
-
     console.log(`[Booking] Bonzah ${tier_id} locked in for ${booking.booking_code} (premium ${premiumCents}c, markup ${markupCents}c)`);
-    return res.json({ success: true, booking_code: booking.booking_code, payment_totals });
+    return res.json({ success: true, booking_code: booking.booking_code });
   }
 
   if (source === 'own') {
@@ -633,15 +640,8 @@ router.patch('/:code/insurance', asyncHandler(async (req, res) => {
       }
     }
 
-    const payment_totals = await getCheckoutPaymentTotals({
-      ...booking,
-      insurance_provider: 'own',
-      bonzah_premium_cents: null,
-      bonzah_markup_cents: null,
-    });
-
     console.log(`[Booking] Customer has own insurance for ${booking.booking_code} (status: ${insuranceStatus})`);
-    return res.json({ success: true, booking_code: booking.booking_code, payment_totals });
+    return res.json({ success: true, booking_code: booking.booking_code });
   }
 
   if (bonzah_policy_number) {
@@ -655,13 +655,8 @@ router.patch('/:code/insurance', asyncHandler(async (req, res) => {
       .eq('id', booking.id);
     if (updErr) return res.status(500).json({ error: `Failed to record insurance: ${updErr.message}` });
 
-    const payment_totals = await getCheckoutPaymentTotals({
-      ...booking,
-      insurance_provider: 'bonzah',
-    });
-
     console.log(`[Booking] Bonzah insurance manually set for ${booking.booking_code}: ${bonzah_policy_number}`);
-    return res.json({ success: true, booking_code: booking.booking_code, payment_totals });
+    return res.json({ success: true, booking_code: booking.booking_code });
   }
 
   return res.status(400).json({ error: 'Insurance source is required (bonzah with tier_id, or own)' });

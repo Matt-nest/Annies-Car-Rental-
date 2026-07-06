@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { Search, DollarSign, Download, CreditCard, RefreshCw, AlertCircle } from 'lucide-react';
@@ -34,28 +34,12 @@ export default function PaymentsPage() {
 
   useEffect(() => { loadData(); }, []);
 
-  const summary = useMemo(() => {
-    const totals = payments.reduce((acc, payment) => {
-      const amount = Number(payment.amount || 0);
-      if (payment.payment_type === 'refund') {
-        acc.refunds += Math.abs(amount);
-      } else {
-        acc.gross += amount;
-        if (payment.payment_type === 'deposit') acc.deposits += amount;
-        if (payment.payment_type === 'insurance') acc.insurance += amount;
-      }
-      acc.net += amount;
-      return acc;
-    }, { gross: 0, refunds: 0, net: 0, deposits: 0, insurance: 0 });
-    return totals;
-  }, [payments]);
-
   const openRefundModal = (payment) => {
-    const childRefunds = payments.filter(p => {
-      if (p.payment_type !== 'refund' || p.booking_id !== payment.booking_id) return false;
-      return p.notes?.includes(`Refund for payment ${payment.id}`) ||
-        (payment.reference_id && p.notes?.includes(`PI: ${payment.reference_id}`) && payment.payment_type === 'deposit');
-    });
+    const childRefunds = payments.filter(p =>
+      p.payment_type === 'refund' &&
+      p.booking_id === payment.booking_id &&
+      p.notes?.includes(`Refund for payment ${payment.id}`)
+    );
     const totalRefunded = childRefunds.reduce((acc, curr) => acc + Math.abs(curr.amount), 0);
     const maxRefund = payment.amount - totalRefunded;
     if (maxRefund <= 0) { alert('This payment has already been fully refunded.'); return; }
@@ -94,33 +78,14 @@ export default function PaymentsPage() {
       >
         <div>
           <h1 className="text-2xl font-bold tracking-tight tabular-nums" style={{ color: 'var(--text-primary)' }}>Payments Ledger</h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>Live payment ledger, deposit tracking, and card refund controls</p>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>Review all transactions and manage refunds</p>
         </div>
         <button className="btn-secondary" onClick={loadData}>
-          <RefreshCw size={14} /> Refresh ledger
+          <RefreshCw size={14} /> Sync
         </button>
       </motion.div>
 
       <DataError error={error} />
-
-      {!loading && payments.length > 0 && (
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-          {[
-            ['Gross collected', summary.gross, '#22c55e'],
-            ['Refunded', summary.refunds, 'var(--danger-color)'],
-            ['Net ledger', summary.net, 'var(--accent-color)'],
-            ['Deposits held/paid', summary.deposits, '#8b5cf6'],
-            ['Insurance collected', summary.insurance, '#0ea5e9'],
-          ].map(([label, value, color]) => (
-            <div key={label} className="card p-4">
-              <p className="text-[10px] uppercase tracking-wider font-bold" style={{ color: 'var(--text-tertiary)' }}>{label}</p>
-              <p className="text-xl font-bold tabular-nums mt-1" style={{ color }}>
-                ${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
 
       {loading ? (
         <SkeletonTable rows={8} cols={7} />
@@ -142,9 +107,7 @@ export default function PaymentsPage() {
               <tbody>
                 {payments.map(payment => {
                   const isStripe = payment.method === 'stripe' && payment.reference_id?.startsWith('pi_');
-                  const isSquare = payment.method === 'square' && !!payment.reference_id;
                   const isRefund = payment.payment_type === 'refund';
-                  const canRefund = !isRefund && (isStripe || isSquare) && payment.amount > 0 && payment.payment_type !== 'insurance';
                   const displayAmount = isRefund
                     ? `-$${Math.abs(payment.amount).toFixed(2)}`
                     : `$${parseFloat(payment.amount).toFixed(2)}`;
@@ -186,7 +149,7 @@ export default function PaymentsPage() {
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-1.5 capitalize" style={{ color: 'var(--text-secondary)' }}>
-                          {['stripe', 'square'].includes(payment.method) ? <CreditCard size={13} style={{ color: '#818cf8' }} /> : <DollarSign size={13} style={{ color: '#22c55e' }} />}
+                          {payment.method === 'stripe' ? <CreditCard size={13} style={{ color: '#818cf8' }} /> : <DollarSign size={13} style={{ color: '#22c55e' }} />}
                           <span className="text-xs">{payment.method}</span>
                         </div>
                       </td>
@@ -194,7 +157,7 @@ export default function PaymentsPage() {
                         {displayAmount}
                       </td>
                       <td className="px-5 py-4 text-right">
-                        {canRefund && (
+                        {!isRefund && isStripe && payment.amount > 0 && (
                           <button
                             onClick={() => openRefundModal(payment)}
                             className="text-xs font-semibold px-3 py-1.5 rounded-xl transition-all duration-200"
@@ -212,7 +175,7 @@ export default function PaymentsPage() {
                               e.currentTarget.style.color = 'var(--accent-color)';
                             }}
                           >
-                            {payment.payment_type === 'deposit' ? 'Refund deposit' : 'Refund'}
+                            Refund
                           </button>
                         )}
                       </td>
@@ -228,8 +191,6 @@ export default function PaymentsPage() {
             {payments.map(payment => {
               const isRefund = payment.payment_type === 'refund';
               const isStripe = payment.method === 'stripe' && payment.reference_id?.startsWith('pi_');
-              const isSquare = payment.method === 'square' && !!payment.reference_id;
-              const canRefund = !isRefund && (isStripe || isSquare) && payment.amount > 0 && payment.payment_type !== 'insurance';
               const displayAmount = isRefund
                 ? `-$${Math.abs(payment.amount).toFixed(2)}`
                 : `$${parseFloat(payment.amount).toFixed(2)}`;
@@ -265,13 +226,13 @@ export default function PaymentsPage() {
                       {format(new Date(payment.created_at), 'MM/dd HH:mm')}
                     </span>
                   </div>
-                  {canRefund && (
+                  {!isRefund && isStripe && payment.amount > 0 && (
                     <button
                       onClick={() => openRefundModal(payment)}
                       className="mt-2 w-full h-10 rounded-lg text-xs font-semibold transition-colors"
                       style={{ backgroundColor: 'var(--accent-glow)', color: 'var(--accent-color)', border: '1px solid rgba(30,58,95,0.2)' }}
                     >
-                      {payment.payment_type === 'deposit' ? 'Refund Deposit' : 'Issue Refund'}
+                      Issue Refund
                     </button>
                   )}
                 </div>
@@ -282,15 +243,12 @@ export default function PaymentsPage() {
       )}
 
       {/* Refund Modal */}
-      <Modal open={!!refundData} onClose={closeRefundModal} title="Issue Refund">
+      <Modal open={!!refundData} onClose={closeRefundModal} title="Issue Stripe Refund">
         <form onSubmit={handleRefundSubmit} className="space-y-6">
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
             Booking: <span className="mono-code font-bold px-2 py-0.5 rounded-lg" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)' }}>
               {refundData?.bookings?.booking_code}
             </span>
-            {refundData?.payment_type === 'deposit' && (
-              <span className="ml-2 text-xs font-semibold text-purple-500">Deposit refund</span>
-            )}
           </p>
 
           {refundError && (
@@ -328,8 +286,7 @@ export default function PaymentsPage() {
           <div className="card p-3" style={{ backgroundColor: 'var(--danger-glow)', borderColor: 'rgba(244,63,94,0.15)' }}>
             <p className="text-xs font-bold mb-0.5" style={{ color: 'var(--danger-color)' }}>Warning</p>
             <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-              This will immediately reverse funds on the customer's card through the configured payment processor. This action cannot be undone.
-              For deposits, the booking deposit tracker is updated after a successful full refund.
+              This will immediately reverse funds on the customer's card via Stripe. This action cannot be undone.
             </p>
           </div>
 

@@ -30,12 +30,9 @@ const GROWTH_NAV = [
 ];
 
 const SYSTEM_NAV = [
+  { to: '/stripe',          label: 'Stripe',   icon: Landmark },
   { to: '/webhook-failures', label: 'Webhooks', icon: AlertTriangle },
 ];
-const PAYMENT_PROVIDER = (import.meta.env.VITE_PAYMENT_PROVIDER || 'square').toLowerCase();
-const PAYMENT_NAV = PAYMENT_PROVIDER === 'stripe'
-  ? [{ to: '/stripe', label: 'Stripe', icon: Landmark }]
-  : [];
 
 const SETTINGS_NAV = { to: '/settings', label: 'Settings', icon: Settings };
 
@@ -347,7 +344,7 @@ export default function Sidebar({ open, onClose, alerts = {}, pinned }) {
                   System
                 </h3>
                 <ul className="flex flex-col gap-0.5">
-                {[...PAYMENT_NAV, ...SYSTEM_NAV].map(item => (
+                  {SYSTEM_NAV.map(item => (
                     <NavItem key={item.to} {...item} alerts={alerts} onClose={onClose} showLabels={isWide} />
                   ))}
                   <ExternalNavItem

@@ -273,6 +273,8 @@ export function buildMergeFields(bookingPayload) {
   const bp = bookingPayload;
   const v = bp.vehicle || {};
   const c = bp.customer || {};
+  const h = bp.handoff || {};
+  const siteUrl = brand.siteUrl;
   // Brand/business identity — sourced from env (brand.js) so templates never
   // hardcode a business name, address, phone, or email. Set once per clone in
   // the backend .env; every template that uses {{business_*}} re-brands itself.
