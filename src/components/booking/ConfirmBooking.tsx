@@ -18,6 +18,7 @@ import TermsStep from './confirm-booking/wizard-steps/TermsStep';
 import AcknowledgementsStep from './confirm-booking/wizard-steps/AcknowledgementsStep';
 import SignatureStep from './confirm-booking/wizard-steps/SignatureStep';
 import InsuranceStep from './confirm-booking/wizard-steps/InsuranceStep';
+import { useKeyboardInset } from '../../hooks/useKeyboardInset';
 
 import {
   API_URL, PHONE_NUMBER,
@@ -45,6 +46,9 @@ export default function ConfirmBooking() {
   const [theme, setTheme] = useState(() =>
     document.documentElement.getAttribute('data-theme') || 'dark'
   );
+  // iOS/Android software-keyboard height so the fixed-bottom wizard actions
+  // (Continue / pay) stay above the keyboard instead of being occluded.
+  const keyboardInset = useKeyboardInset();
 
   // Booking data from server
   const [loading, setLoading] = useState(true);
@@ -234,7 +238,7 @@ export default function ConfirmBooking() {
   return (
     <>
       <Navbar onNavigate={scrollToSection} />
-      <div className="min-h-screen px-4" style={{ paddingTop: '100px', paddingBottom: '80px' }}>
+      <div className="min-h-screen px-4" style={{ paddingTop: '100px', paddingBottom: keyboardInset > 0 ? `${keyboardInset + 16}px` : '80px' }}>
         <div className="max-w-lg mx-auto">
           {/* Header */}
           <motion.div
