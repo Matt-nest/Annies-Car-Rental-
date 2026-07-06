@@ -1,21 +1,44 @@
 {
-  "name": "Annie's Dashboard",
-  "short_name": "Dashboard",
+  "name": "Annie's Car Rental — Admin",
+  "short_name": "Annie's Admin",
+  "description": "Admin dashboard for Annie's Car Rental — bookings, fleet, customers, and payments.",
+  "id": "/",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "lang": "en-US",
+  "dir": "ltr",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "theme_color": "#465FFF",
+  "background_color": "#111928",
+  "categories": ["business", "productivity"],
   "icons": [
     {
-      "src": "/web-app-manifest-192x192.png",
+      "src": "/pwa-icon-192.svg",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
+      "type": "image/svg+xml",
+      "purpose": "any"
     },
     {
-      "src": "/web-app-manifest-512x512.png",
+      "src": "/pwa-icon-512.svg",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ],
-  "theme_color": "#E8A825",
-  "background_color": "#000000",
-  "display": "standalone"
+  "shortcuts": [
+    {
+      "name": "Today's Bookings",
+      "short_name": "Bookings",
+      "url": "/bookings?source=pwa",
+      "icons": [{ "src": "/pwa-icon-192.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Fleet Status",
+      "short_name": "Fleet",
+      "url": "/fleet?source=pwa",
+      "icons": [{ "src": "/pwa-icon-192.svg", "sizes": "192x192" }]
+    }
+  ]
 }

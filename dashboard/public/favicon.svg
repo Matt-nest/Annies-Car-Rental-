@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Annie's Admin</title>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#465FFF" />
+      <stop offset="100%" stop-color="#3B4BDB" />
+    </linearGradient>
+  </defs>
+  <rect x="3" y="3" width="58" height="58" rx="13" fill="url(#bg)" />
+  <path d="M32 14L44 50H38L36 43H28L26 50H20L32 14ZM30 37H34L32 30L30 37Z" fill="#fff" />
+</svg>

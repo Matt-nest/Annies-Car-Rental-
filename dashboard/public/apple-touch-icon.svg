@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180" role="img" aria-labelledby="title">
+  <title id="title">Annie's Dashboard</title>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#465FFF" />
+      <stop offset="100%" stop-color="#3B4BDB" />
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="164" height="164" rx="38" fill="url(#bg)" />
+  <path
+    d="M90 40L125 140H108L101 119H79L72 140H55L90 40ZM84 102H96L90 83L84 102Z"
+    fill="#FFFFFF"
+  />
+</svg>
