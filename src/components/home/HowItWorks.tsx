@@ -73,9 +73,9 @@ export default function HowItWorks() {
                 />
               )}
 
-              <div className="relative mb-5 sm:mb-6 inline-block">
+              <div className="relative mb-5 sm:mb-6 inline-block overflow-hidden">
                 <span
-                  className="absolute -top-4 -left-4 text-[64px] sm:text-[80px] font-serif italic leading-none select-none pointer-events-none"
+                  className="hidden sm:block absolute -top-4 -left-4 text-[64px] sm:text-[80px] font-serif italic leading-none select-none pointer-events-none"
                   style={{ color: theme === 'dark' ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.04)' }}
                 >
                   {i + 1}

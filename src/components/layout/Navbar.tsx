@@ -47,8 +47,8 @@ export default function Navbar({ onNavigate, isHomePage = false }: NavbarProps) 
         transition={{ duration: 0.8, ease: EASE.dramatic, delay: 0.3 }}
         className={`fixed top-0 inset-x-0 z-[100] transition-[padding,background-color,border-color] duration-500 ${
           isScrolled
-            ? 'py-3 md:backdrop-blur-2xl shadow-lg'
-            : 'py-5 md:py-6'
+            ? 'pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:backdrop-blur-2xl shadow-lg'
+            : 'pb-4 md:pb-6 pt-[max(1rem,env(safe-area-inset-top))] md:pt-[max(1.5rem,env(safe-area-inset-top))]'
         }`}
         style={{
           backgroundColor: isScrolled
@@ -57,7 +57,7 @@ export default function Navbar({ onNavigate, isHomePage = false }: NavbarProps) 
           borderBottom: isScrolled ? `1px solid var(--border-subtle)` : 'none',
         }}
       >
-        <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex justify-between items-center safe-x">
           {/* Logo - fades in/out based on hero logo visibility; crossfades color between themes */}
           <button onClick={() => onNavigate('home')} className="flex items-center group cursor-pointer">
             <div className="relative inline-flex h-[32px] md:h-[40px]">
@@ -140,8 +140,12 @@ export default function Navbar({ onNavigate, isHomePage = false }: NavbarProps) 
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.4, ease: EASE.smooth }}
-            className="fixed inset-0 z-[200] flex flex-col p-8"
-            style={{ backgroundColor: theme === 'dark' ? 'rgba(10,10,10,0.98)' : 'rgba(250,250,249,0.98)' }}
+            className="fixed inset-0 z-[200] flex flex-col p-6 sm:p-8 safe-x"
+            style={{
+              backgroundColor: theme === 'dark' ? 'rgba(10,10,10,0.98)' : 'rgba(250,250,249,0.98)',
+              paddingTop: 'max(1.5rem, env(safe-area-inset-top))',
+              paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))',
+            }}
           >
             <div className="flex justify-end">
               <button onClick={() => setMobileOpen(false)} aria-label="Close menu" className="w-12 h-12 flex items-center justify-center -mr-4 transition-opacity hover:opacity-70" style={{ color: 'var(--text-secondary)' }}>
