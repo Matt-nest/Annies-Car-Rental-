@@ -850,7 +850,7 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
   // ── Wizard shell ────────────────────────────────────────────────────────────
   return (
     <div
-      className="relative rounded-3xl border overflow-hidden"
+      className="relative rounded-3xl border overflow-hidden overflow-x-clip max-w-full min-w-0"
       style={glassCard}
     >
       {/* Soft accent light effect */}

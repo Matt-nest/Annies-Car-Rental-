@@ -257,7 +257,7 @@ export default function ReviewsSection() {
           onMouseLeave={() => setIsPaused(false)}
           onTouchStart={() => setIsPaused(true)}
           onTouchEnd={() => setIsPaused(false)}
-          className="flex gap-4 md:gap-5 overflow-x-auto no-scrollbar pb-6 px-4 sm:px-6 w-full"
+          className="flex gap-4 md:gap-5 scroll-x-contained no-scrollbar pb-6 px-4 sm:px-6 w-full max-w-full"
           style={{ scrollBehavior: 'auto' }}
         >
           {displayReviews.map((review, idx) => (

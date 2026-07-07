@@ -27,15 +27,59 @@
     scroll-behavior: smooth;
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
+    overflow-x: clip;
+    max-width: 100%;
+    overscroll-behavior-x: none;
   }
 
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    overflow-x: hidden;
+    overflow-x: clip;
+    max-width: 100%;
+    width: 100%;
     text-rendering: optimizeLegibility;
     font-feature-settings: 'cv11', 'ss01';
+    overscroll-behavior-x: none;
+  }
+
+  #root {
+    overflow-x: clip;
+    max-width: 100%;
+    width: 100%;
+    min-height: 100dvh;
+    min-height: 100svh;
+  }
+
+  /* Page shell — prevents sideways scroll from decorative absolute elements */
+  .app-shell {
+    overflow-x: clip;
+    max-width: 100%;
+    width: 100%;
+    position: relative;
+  }
+
+  /* Contained horizontal scroll regions (carousels) — scroll inside, not the page */
+  .scroll-x-contained {
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
+  /* Long-form legal / receipt text — prevent sideways overflow from URLs & codes */
+  .prose-safe {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .prose-safe pre,
+  .prose-safe table {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -281,10 +325,13 @@ details[open] > div {
   }
 
   /* Footer safe area for sticky CTA */
-  footer { padding-bottom: 5rem !important; }
+  footer { padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px)) !important; }
 
   /* Disable hover:scale on touch - it fires on tap and causes jank */
   .vehicle-card { will-change: auto; }
+
+  /* Prevent decorative absolute elements from widening the viewport */
+  section { overflow-x: clip; }
 }
 
 /* === reduced motion & print === */

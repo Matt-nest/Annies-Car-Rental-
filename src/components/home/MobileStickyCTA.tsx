@@ -6,7 +6,7 @@ export default function MobileStickyCTA() {
 
   return (
     <div
-      className="fixed bottom-0 inset-x-0 z-[150] md:hidden"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-[150] md:hidden"
       style={{
         background: theme === 'dark'
           ? 'linear-gradient(to top, rgba(10,10,10,1) 60%, rgba(10,10,10,0) 100%)'
@@ -14,7 +14,7 @@ export default function MobileStickyCTA() {
         paddingTop: '2rem',
       }}
     >
-      <div className="px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <div className="pointer-events-auto px-4 safe-x pb-[max(1rem,env(safe-area-inset-bottom))]">
         <a
           href="tel:+17722071655"
           className="flex items-center justify-center gap-2 w-full py-4 rounded-full font-medium shadow-2xl active:scale-95 transition-all duration-300 text-sm"

@@ -248,8 +248,16 @@ export default function ConfirmBooking() {
   return (
     <>
       <Navbar onNavigate={scrollToSection} />
-      <div className="min-h-screen px-4" style={{ paddingTop: '100px', paddingBottom: keyboardInset > 0 ? `${keyboardInset + 16}px` : '80px' }}>
-        <div className="max-w-lg mx-auto">
+      <div
+        className="min-h-dvh px-4 safe-x overflow-x-clip max-w-full"
+        style={{
+          paddingTop: 'max(5.5rem, calc(env(safe-area-inset-top) + 4.5rem))',
+          paddingBottom: keyboardInset > 0
+            ? `${keyboardInset + 16}px`
+            : 'max(5rem, calc(env(safe-area-inset-bottom) + 4rem))',
+        }}
+      >
+        <div className="max-w-lg mx-auto w-full min-w-0">
           {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: 12 }}

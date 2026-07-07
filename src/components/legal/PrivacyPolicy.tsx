@@ -20,10 +20,14 @@ export default function PrivacyPolicy() {
   const processorLegal = brand.paymentProvider === 'stripe' ? 'Stripe, Inc.' : 'Square, Inc.';
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-dvh overflow-x-clip max-w-full" style={{ backgroundColor: 'var(--bg-primary)' }}>
       <header
-        className="sticky top-0 z-10 backdrop-blur-md"
-        style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border-subtle)' }}
+        className="sticky top-0 z-10 backdrop-blur-md safe-x overflow-x-clip"
+        style={{
+          background: 'var(--bg-elevated)',
+          borderBottom: '1px solid var(--border-subtle)',
+          paddingTop: 'env(safe-area-inset-top)',
+        }}
       >
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
           <a
@@ -36,7 +40,7 @@ export default function PrivacyPolicy() {
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 safe-x py-10 sm:py-14 pb-[max(2.5rem,env(safe-area-inset-bottom))] prose-safe min-w-0">
         <p className="text-[11px] uppercase tracking-[0.2em] font-semibold mb-3" style={{ color: 'var(--text-tertiary)' }}>
           Legal
         </p>

@@ -13,8 +13,12 @@ export default function RentalAgreementPage() {
     <>
       <Navbar onNavigate={() => { window.location.href = '/'; }} />
       <div
-        className="min-h-screen px-4 sm:px-6 py-20 sm:py-28"
-        style={{ backgroundColor: 'var(--bg-primary)' }}
+        className="min-h-dvh px-4 sm:px-6 safe-x overflow-x-clip max-w-full prose-safe"
+        style={{
+          backgroundColor: 'var(--bg-primary)',
+          paddingTop: 'max(6rem, calc(env(safe-area-inset-top) + 5rem))',
+          paddingBottom: 'max(3rem, env(safe-area-inset-bottom))',
+        }}
       >
         <div className="max-w-3xl mx-auto">
           {/* Header */}
