@@ -192,6 +192,8 @@ router.post('/admin-create', requireAuth, asyncHandler(async (req, res) => {
     admin_total_cost_override,
     rental_type,
     portal_notes,
+    skip_availability_check,
+    mark_active,
     ...bookingBody
   } = req.body;
 
@@ -203,10 +205,20 @@ router.post('/admin-create', requireAuth, asyncHandler(async (req, res) => {
     admin_total_cost_override,
     rental_type: rental_type === 'long_term' ? 'long_term' : 'standard',
     portal_notes,
+    skip_availability_check: !!skip_availability_check,
     source: 'admin',
     created_by_admin: true,
     insurance_status: 'pending',
   });
+
+  if (mark_active) {
+    await transitionBooking(booking.id, 'active', {
+      changedBy: req.user?.email || 'admin',
+      reason: 'Long-term renter onboarded — vehicle already in possession',
+    });
+    await supabase.from('vehicles').update({ status: 'rented' }).eq('id', booking.vehicle_id);
+    booking.status = 'active';
+  }
 
   if (agreement_prefill && Array.isArray(agreement_prefill.steps) && agreement_prefill.steps.length) {
     const { error: prefillErr } = await supabase
@@ -245,12 +257,14 @@ router.post('/admin-create', requireAuth, asyncHandler(async (req, res) => {
     success: true,
     booking_id: booking.id,
     booking_code: booking.booking_code,
+    customer_email: bookingBody.email,
     continue_url: continueUrl,
     portal_url: portalUrl,
+    status: booking.status,
   });
 }));
 
-/** POST /bookings/:id/long-term — flag an existing booking as a portal-managed long-term rental */
+/** POST /bookings/:id/long-term — flag an existing booking (only if they already have one in the system) */
 router.post('/:id/long-term', requireAuth, requireRole('owner', 'admin'), asyncHandler(async (req, res) => {
   const { portal_notes } = req.body || {};
   const { data, error } = await supabase

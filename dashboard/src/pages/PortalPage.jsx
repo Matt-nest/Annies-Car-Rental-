@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  DoorOpen, UserPlus, Search, Copy, Check, ExternalLink, CalendarPlus,
+  DoorOpen, UserPlus, Copy, Check, ExternalLink, CalendarPlus,
   MessageSquare, ChevronRight, Loader2, RefreshCw,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
@@ -9,8 +9,6 @@ import { api } from '../api/client';
 import brand from '../config/brand';
 import StatusBadge from '../components/shared/StatusBadge';
 import DataError from '../components/shared/DataError';
-import InlineBanner from '../components/shared/InlineBanner';
-import Modal from '../components/shared/Modal';
 import { SkeletonTable } from '../components/shared/Skeleton';
 import LongTermOnboardModal from '../components/portal/LongTermOnboardModal';
 
@@ -22,12 +20,25 @@ function portalUrl(code) {
 
 function RenterCard({ booking, onRefresh }) {
   const navigate = useNavigate();
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
   const [notes, setNotes] = useState(booking.portal_notes || '');
   const c = booking.customers;
   const v = booking.vehicles;
   const url = portalUrl(booking.booking_code);
+
+  function copyLogin() {
+    const text = `Booking code: ${booking.booking_code}\nEmail: ${c?.email || ''}\nPortal: ${url}`;
+    navigator.clipboard.writeText(text);
+    setCopied('login');
+    setTimeout(() => setCopied(''), 2000);
+  }
+
+  function copyPortal() {
+    navigator.clipboard.writeText(url);
+    setCopied('link');
+    setTimeout(() => setCopied(''), 2000);
+  }
 
   async function saveNotes() {
     setSavingNotes(true);
@@ -36,12 +47,6 @@ function RenterCard({ booking, onRefresh }) {
       onRefresh();
     } catch { /* ignore */ }
     setSavingNotes(false);
-  }
-
-  function copyPortal() {
-    navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   }
 
   return (
@@ -68,8 +73,11 @@ function RenterCard({ booking, onRefresh }) {
           {c?.email && <p className="text-xs text-[var(--text-tertiary)]">{c.email}{c.phone ? ` · ${c.phone}` : ''}</p>}
         </div>
         <div className="flex flex-wrap gap-2 shrink-0">
+          <button type="button" className="btn-primary text-xs py-2" onClick={copyLogin}>
+            {copied === 'login' ? <Check size={14} /> : <Copy size={14} />} Copy login
+          </button>
           <button type="button" className="btn-secondary text-xs py-2" onClick={copyPortal}>
-            {copied ? <Check size={14} /> : <Copy size={14} />} Portal link
+            {copied === 'link' ? <Check size={14} /> : <Copy size={14} />} Link only
           </button>
           <a href={url} target="_blank" rel="noreferrer" className="btn-ghost text-xs py-2">
             <ExternalLink size={14} /> Open
@@ -110,90 +118,6 @@ function RenterCard({ booking, onRefresh }) {
   );
 }
 
-function PromoteModal({ open, onClose, onPromoted }) {
-  const [code, setCode] = useState('');
-  const [searching, setSearching] = useState(false);
-  const [error, setError] = useState('');
-  const [match, setMatch] = useState(null);
-  const [notes, setNotes] = useState('');
-  const [promoting, setPromoting] = useState(false);
-
-  useEffect(() => {
-    if (!open) { setCode(''); setMatch(null); setError(''); setNotes(''); }
-  }, [open]);
-
-  async function search() {
-    if (!code.trim()) return;
-    setSearching(true);
-    setError('');
-    setMatch(null);
-    try {
-      const res = await api.getBookings({ q: code.trim(), limit: 5 });
-      const list = Array.isArray(res) ? res : (res?.data || []);
-      const found = list.find(b => b.booking_code?.toUpperCase() === code.trim().toUpperCase()) || list[0];
-      if (!found) setError('No booking found for that code.');
-      else setMatch(found);
-    } catch (e) {
-      setError(e.message || 'Search failed');
-    }
-    setSearching(false);
-  }
-
-  async function promote() {
-    if (!match) return;
-    setPromoting(true);
-    setError('');
-    try {
-      await api.markBookingLongTerm(match.id, { portal_notes: notes.trim() || undefined });
-      onPromoted();
-      onClose();
-    } catch (e) {
-      setError(e?.data?.error || e.message);
-    }
-    setPromoting(false);
-  }
-
-  return (
-    <Modal open={open} onClose={onClose} title="Add existing booking to Portal" maxWidth="max-w-md">
-      <div className="space-y-4">
-        <InlineBanner message={error} onDismiss={() => setError('')} />
-        <p className="text-sm text-[var(--text-secondary)]">
-          For renters already in the system — flag their booking as long-term and manage it here.
-        </p>
-        <div className="flex gap-2">
-          <input
-            className="input font-mono flex-1"
-            placeholder="Booking code e.g. ACR-XXXX"
-            value={code}
-            onChange={e => setCode(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && search()}
-          />
-          <button type="button" className="btn-secondary" onClick={search} disabled={searching}>
-            {searching ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
-          </button>
-        </div>
-        {match && (
-          <div className="rounded-xl p-3 text-sm" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}>
-            <p className="font-semibold text-[var(--text-primary)]">
-              {match.customers?.first_name} {match.customers?.last_name} — {match.booking_code}
-            </p>
-            <p className="text-xs text-[var(--text-tertiary)] mt-1">
-              {match.vehicles?.year} {match.vehicles?.make} {match.vehicles?.model}
-            </p>
-          </div>
-        )}
-        <div>
-          <label className="label">Notes (optional)</label>
-          <textarea className="input resize-none" rows={2} value={notes} onChange={e => setNotes(e.target.value)} />
-        </div>
-        <button type="button" className="btn-primary w-full justify-center" disabled={!match || promoting} onClick={promote}>
-          {promoting ? <Loader2 size={16} className="animate-spin" /> : 'Add to long-term portal'}
-        </button>
-      </div>
-    </Modal>
-  );
-}
-
 export default function PortalPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState('renters');
@@ -202,7 +126,6 @@ export default function PortalPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [onboardOpen, setOnboardOpen] = useState(false);
-  const [promoteOpen, setPromoteOpen] = useState(false);
   const [onboardPrefill, setOnboardPrefill] = useState(null);
 
   const load = useCallback(async () => {
@@ -235,17 +158,12 @@ export default function PortalPage() {
             Long-Term Portal
           </h1>
           <p className="text-sm text-[var(--text-secondary)] mt-1 max-w-xl">
-            Onboard existing long-term renters, send portal links, and manage ongoing rentals in one place.
+            Onboard long-term renters who are <strong>not in the system yet</strong> — no booking code needed. We create their record and portal login for you.
           </p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          <button type="button" className="btn-secondary justify-center flex-1 sm:flex-none" onClick={() => setPromoteOpen(true)}>
-            <Search size={15} /> Add existing
-          </button>
-          <button type="button" className="btn-primary justify-center flex-1 sm:flex-none" onClick={() => { setOnboardPrefill(null); setOnboardOpen(true); }}>
-            <UserPlus size={15} /> Onboard renter
-          </button>
-        </div>
+        <button type="button" className="btn-primary justify-center w-full sm:w-auto" onClick={() => { setOnboardPrefill(null); setOnboardOpen(true); }}>
+          <UserPlus size={15} /> Onboard renter
+        </button>
       </div>
 
       <DataError message={loadError} onRetry={load} />
@@ -281,12 +199,9 @@ export default function PortalPage() {
             <DoorOpen size={32} className="mx-auto text-[var(--text-tertiary)]" />
             <p className="text-sm font-medium text-[var(--text-primary)]">No long-term renters yet</p>
             <p className="text-xs text-[var(--text-tertiary)] max-w-sm mx-auto">
-              Onboard a new renter or add an existing booking to start managing them here.
+              Use <strong>Onboard renter</strong> — enter their name, email, and vehicle. We generate their booking code and portal login.
             </p>
-            <div className="flex flex-col sm:flex-row gap-2 justify-center pt-2">
-              <button type="button" className="btn-primary" onClick={() => setOnboardOpen(true)}>Onboard renter</button>
-              <button type="button" className="btn-secondary" onClick={() => setPromoteOpen(true)}>Add existing booking</button>
-            </div>
+            <button type="button" className="btn-primary" onClick={() => setOnboardOpen(true)}>Onboard renter</button>
           </div>
         ) : (
           <div className="space-y-3">
@@ -336,7 +251,6 @@ export default function PortalPage() {
         onCreated={load}
         initialCustomer={onboardPrefill}
       />
-      <PromoteModal open={promoteOpen} onClose={() => setPromoteOpen(false)} onPromoted={load} />
     </div>
   );
 }
