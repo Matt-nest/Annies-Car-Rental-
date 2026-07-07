@@ -572,7 +572,12 @@ function PaymentGate({
           onSuccess={onSuccess}
           theme={theme}
         />
-      ) : null}
+      ) : (
+        <div className="rounded-xl border p-4 text-sm text-center space-y-2" style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)' }}>
+          <p className="font-medium" style={{ color: 'var(--text-primary)' }}>Online payment is not available</p>
+          <p>This site uses Square for payments. Please contact us to complete your booking.</p>
+        </div>
+      )}
     </React.Suspense>
   );
 }

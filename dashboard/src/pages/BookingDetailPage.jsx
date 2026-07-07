@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { ArrowLeft, Phone, Mail, Car, MapPin, CheckCircle, XCircle, Package, RotateCcw, Flag, DollarSign, FileText, Shield, CreditCard, User, ClipboardCheck, Receipt, Navigation, RefreshCw, AlertCircle, Loader2, CalendarPlus, Clock } from 'lucide-react';
 import { api } from '../api/client';
 import { bonzahApi } from '../api/bonzah';
@@ -647,6 +647,7 @@ export default function BookingDetailPage() {
   const [modal, setModal] = useState(null);
   const [modalInput, setModalInput] = useState('');
   const [actioning, setActioning] = useState(false);
+  const [actionError, setActionError] = useState(null);
   const [paymentForm, setPaymentForm] = useState({ payment_type: 'rental', amount: '', method: 'cash', reference_id: '', notes: '' });
   const [conditionForm, setConditionForm] = useState({ fuel: 'full', notes: '', photoUrl: '' });
   const [damageForm, setDamageForm] = useState({ description: '', severity: 'minor', estimated_cost: '', photo_url: '' });
@@ -681,8 +682,11 @@ export default function BookingDetailPage() {
 
   useEffect(() => { load(); }, [id]);
 
+  useEffect(() => { setActionError(null); }, [modal]);
+
   async function doAction(action) {
     setActioning(true);
+    setActionError(null);
     try {
       if (action === 'approve')  await api.approveBooking(id);
       if (action === 'decline')  await api.declineBooking(id, modalInput);
@@ -702,15 +706,17 @@ export default function BookingDetailPage() {
       if (action === 'complete') await api.completeBooking(id);
       if (action === 'payment')  await api.recordPayment(id, paymentForm);
       if (action === 'damage')   await api.fileDamageReport(id, damageForm);
-      // Reload booking + dashboard alert badges in parallel so the top-bar
-      // pills, sidebar badges, and detail page all reflect the new state.
       await Promise.all([load(), refreshAlerts()]);
-    } catch (e) { console.error(e); }
-    setModal(null);
-    setModalInput('');
-    setConditionForm({ fuel: 'full', notes: '', photoUrl: '' });
-    setDamageForm({ description: '', severity: 'minor', estimated_cost: '', photo_url: '' });
-    setActioning(false);
+      setModal(null);
+      setModalInput('');
+      setConditionForm({ fuel: 'full', notes: '', photoUrl: '' });
+      setDamageForm({ description: '', severity: 'minor', estimated_cost: '', photo_url: '' });
+    } catch (e) {
+      console.error(e);
+      setActionError(e?.data?.error || e?.message || 'That action could not be completed. Please try again.');
+    } finally {
+      setActioning(false);
+    }
   }
 
   async function handleInsuranceAction(action) {
@@ -735,7 +741,7 @@ export default function BookingDetailPage() {
   const { status, customers: c, vehicles: v } = booking;
 
   return (
-    <div className="p-6 lg:p-8 space-y-6">
+    <div className="p-6 lg:p-8 pb-[calc(140px+env(safe-area-inset-bottom))] md:pb-8 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -972,7 +978,7 @@ export default function BookingDetailPage() {
         conditionForm={conditionForm} setConditionForm={setConditionForm}
         damageForm={damageForm} setDamageForm={setDamageForm}
         paymentForm={paymentForm} setPaymentForm={setPaymentForm}
-        actioning={actioning} doAction={doAction}
+        actioning={actioning} doAction={doAction} actionError={actionError}
       />
 
       <BookingActionBar
@@ -1253,12 +1259,12 @@ function OverviewTab({ booking, c, v, id, load, setModal, setPaymentForm, setLig
           >
             <DollarSign size={14} /> Record Payment
           </button>
-          <button
-            onClick={() => { setPaymentForm(p => ({ ...p, payment_type: 'refund', amount: '' })); setModal('payment'); }}
-            className="btn-ghost flex-1 justify-center text-[var(--danger-color)] hover:bg-[var(--danger-glow)]"
+          <Link
+            to="/payments"
+            className="btn-ghost flex-1 justify-center text-[var(--text-secondary)]"
           >
-            Issue Refund
-          </button>
+            Card refunds on Payments →
+          </Link>
         </div>
       </Section>
 

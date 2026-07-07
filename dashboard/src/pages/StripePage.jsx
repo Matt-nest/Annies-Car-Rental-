@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { ExternalLink, RefreshCw, DollarSign, CreditCard, Landmark, CheckCircle, XCircle, ArrowUpRight, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { api } from '../api/client';
@@ -222,9 +223,9 @@ export default function StripePage() {
                     </td>
                     <td className="px-5 py-4">
                       {t.booking_code ? (
-                        <a href={`/bookings/${t.booking_id}`} className="text-xs font-mono font-semibold hover:underline" style={{ color: '#FFFFFF' }}>
+                        <Link to={`/bookings/${t.booking_id}`} className="text-xs font-mono font-semibold hover:underline" style={{ color: 'var(--accent-color)' }}>
                           {t.booking_code}
-                        </a>
+                        </Link>
                       ) : (
                         <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>—</span>
                       )}
@@ -244,9 +245,9 @@ export default function StripePage() {
                     </td>
                     <td className="px-5 py-4">
                       {t.receipt_url ? (
-                        <a href={t.receipt_url} target="_blank" rel="noopener noreferrer" className="text-brand-500 hover:text-brand-600 transition-colors">
-                          <ArrowUpRight size={14} />
-                        </a>
+                          <a href={t.receipt_url} target="_blank" rel="noopener noreferrer" className="text-brand-500 hover:text-brand-600 transition-colors">
+                            <ArrowUpRight size={14} />
+                          </a>
                       ) : '—'}
                     </td>
                   </tr>

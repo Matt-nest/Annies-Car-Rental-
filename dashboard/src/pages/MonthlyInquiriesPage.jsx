@@ -9,6 +9,7 @@ const STATUS_COLORS = {
   new:       { bg: 'rgba(212,175,55,0.12)',  text: '#D4AF37',  border: 'rgba(212,175,55,0.3)' },
   contacted: { bg: 'rgba(99,179,237,0.08)',  text: '#63b3ed',  border: 'rgba(99,179,237,0.2)' },
   booked:    { bg: 'rgba(34,197,94,0.08)',   text: '#22c55e',  border: 'rgba(34,197,94,0.2)'  },
+  converted: { bg: 'rgba(34,197,94,0.08)',   text: '#22c55e',  border: 'rgba(34,197,94,0.2)'  },
   closed:    { bg: 'rgba(148,163,184,0.08)', text: '#94a3b8',  border: 'rgba(148,163,184,0.2)' },
 };
 
@@ -98,9 +99,9 @@ export default function MonthlyInquiriesPage() {
             onClick={() => setStatusFilter(s)}
             className="text-xs font-medium px-3 py-1.5 rounded-full border transition-all capitalize"
             style={{
-              backgroundColor: statusFilter === s ? 'var(--accent)' : 'var(--bg-card)',
+              backgroundColor: statusFilter === s ? 'var(--accent-color)' : 'var(--bg-card)',
               color: statusFilter === s ? 'var(--accent-fg)' : 'var(--text-secondary)',
-              borderColor: statusFilter === s ? 'var(--accent)' : 'var(--border-subtle)',
+              borderColor: statusFilter === s ? 'var(--accent-color)' : 'var(--border-subtle)',
             }}
           >
             {s === 'all' ? 'All' : s}
