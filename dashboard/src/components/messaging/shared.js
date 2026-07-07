@@ -1,21 +1,32 @@
 /**
  * Shared utilities + constants for the messaging UI.
  * Phase 2E decomposition — formerly inline at top of MessagingPage.jsx.
+ *
+ * EASE/SPRING are re-exported from lib/animation.js so the messaging UI uses
+ * the same motion vocabulary as the rest of the dashboard. Imports here are
+ * unchanged so callers keep working; new code should reach for lib/animation
+ * directly.
  */
 
-/* ── Design Tokens (leadflow-template aligned) ── */
-export const EASE = [0.25, 1, 0.5, 1];
-export const SPRING = { type: 'spring', stiffness: 500, damping: 30 };
+import { EASE_OUT_QUART, SPRING_SNAPPY } from '../../lib/animation';
+
+/* ── Design Tokens (re-exported from lib/animation.js) ── */
+export const EASE = EASE_OUT_QUART;
+export const SPRING = SPRING_SNAPPY;
 
 export const TEMPLATE_STAGES = [
   // Booking flow
   { value: 'booking_submitted', label: 'Booking Submitted', color: '#22c55e' },
   { value: 'booking_approved', label: 'Booking Approved', color: '#10b981' },
+  { value: 'payment_reminder', label: 'Payment Reminder (24h)', color: '#f59e0b' },
   { value: 'booking_declined', label: 'Booking Declined', color: '#ef4444' },
   { value: 'booking_cancelled', label: 'Booking Cancelled', color: '#f97316' },
-  // Payment
+  // Payment & insurance
   { value: 'payment_confirmed', label: 'Payment Confirmed', color: '#3b82f6' },
+  { value: 'insurance_approved', label: 'Insurance Approved', color: '#10b981' },
+  { value: 'insurance_rejected', label: 'Insurance Rejected', color: '#ef4444' },
   // Pickup flow
+  { value: 'ready_for_pickup', label: 'Ready for Pickup', color: '#eab308' },
   { value: 'pickup_reminder', label: 'Pre-Pickup (24h)', color: '#f59e0b' },
   { value: 'day_of_pickup', label: 'Day-of Pickup', color: '#eab308' },
   // During rental
@@ -26,13 +37,16 @@ export const TEMPLATE_STAGES = [
   { value: 'day_of_return', label: 'Day-of Return', color: '#f472b6' },
   { value: 'return_confirmed', label: 'Return Confirmed', color: '#14b8a6' },
   // Post-rental
-  { value: 'rental_completed', label: 'Review Request', color: '#06b6d4' },
-  { value: 'repeat_customer', label: 'Loyalty / Repeat', color: '#007AFF' },
+  { value: 'rental_completed', label: 'Review Request (day after)', color: '#06b6d4' },
+  { value: 'repeat_customer', label: 'Loyalty / Repeat', color: '#13294B' },
+  { value: 'deposit_refunded', label: 'Deposit Refunded', color: '#22c55e' },
+  { value: 'deposit_settled', label: 'Deposit Settled', color: '#64748b' },
   // Alerts
-  { value: 'late_return_warning', label: 'Late Warning (1h)', color: '#f97316' },
-  { value: 'late_return_escalation', label: 'Late Escalation (4h)', color: '#dc2626' },
+  { value: 'late_return_warning', label: 'Late Warning (day 1)', color: '#f97316' },
+  { value: 'late_return_escalation', label: 'Late Escalation (day 4)', color: '#dc2626' },
   // Other
   { value: 'damage_notification', label: 'Damage Report', color: '#991b1b' },
+  { value: 'inspection_charges_scheduled', label: 'Inspection Charges', color: '#b45309' },
 ];
 
 export function timeAgo(dateStr) {

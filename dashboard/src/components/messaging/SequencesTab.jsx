@@ -1,7 +1,13 @@
 /* ── Automated Sequences Tab ── */
 const SEQUENCES = [
   {
-    stage: 'pickup_reminder',
+    stage: 'payment_reminder',
+    label: 'Payment Reminder',
+    trigger: '24–48h after approval, unpaid',
+    color: '#E79B3C',
+    desc: 'Nudges approved-but-unpaid bookings before the 48h auto-expire. Email + SMS with pay link.',
+  },
+  {
     label: '24h Pre-Pickup Reminder',
     trigger: 'pickup_date = tomorrow',
     color: '#f59e0b',
@@ -18,7 +24,7 @@ const SEQUENCES = [
     stage: 'extension_offer',
     label: 'Extension Offer',
     trigger: '1 day before return (3+ day rentals)',
-    color: '#D4AF37',
+    color: '#E79B3C',
     desc: 'Upsell opportunity sent the day before scheduled return. Only fires for rentals ≥ 3 days.',
   },
   {
@@ -39,15 +45,15 @@ const SEQUENCES = [
     stage: 'repeat_customer',
     label: 'Repeat Customer Loyalty',
     trigger: '30 days after return',
-    color: '#007AFF',
+    color: '#13294B',
     desc: 'Loyalty message 30 days after completion. Links back to the fleet to encourage rebooking.',
   },
   {
     stage: 'late_return_warning',
     label: 'Late Return Warning',
-    trigger: 'return_date < today (daily)',
+    trigger: 'return_date = yesterday (once)',
     color: '#f97316',
-    desc: 'Fires every day the vehicle is overdue. Polite reminder with portal link.',
+    desc: 'Fires once on the first overdue day. Polite reminder with return address and extension option.',
   },
   {
     stage: 'late_return_escalation',
