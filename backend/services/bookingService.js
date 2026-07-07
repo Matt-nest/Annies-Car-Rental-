@@ -61,6 +61,9 @@ export async function createBooking(payload) {
     created_by_admin = false,
     admin_weekly_discount_percent,
     admin_total_cost_override,
+    rental_type = 'standard',
+    portal_notes,
+    skip_availability_check = false,
   } = payload;
 
   const validRatePref = ['daily', 'weekly', 'monthly'].includes(rate_preference) ? rate_preference : null;
@@ -142,13 +145,15 @@ export async function createBooking(payload) {
     throw err;
   }
 
-  // 2. Availability check
-  const { available, conflicts } = await checkAvailability(vehicle.id, pickup_date, return_date);
-  if (!available) {
-    const err = new Error('Vehicle is not available for the requested dates');
-    err.status = 409;
-    err.conflicts = conflicts;
-    throw err;
+  // 2. Availability check (admin long-term onboarding may skip — renter already has vehicle)
+  if (!(created_by_admin && skip_availability_check)) {
+    const { available, conflicts } = await checkAvailability(vehicle.id, pickup_date, return_date);
+    if (!available) {
+      const err = new Error('Vehicle is not available for the requested dates');
+      err.status = 409;
+      err.conflicts = conflicts;
+      throw err;
+    }
   }
 
   // 3. Find or create customer (don't overwrite existing customer data)
@@ -257,6 +262,8 @@ export async function createBooking(payload) {
       status: created_by_admin ? 'approved' : 'pending_approval',
       ...(created_by_admin ? { owner_approved_at: new Date().toISOString() } : {}),
       created_by_admin: !!created_by_admin,
+      rental_type: rental_type === 'long_term' ? 'long_term' : 'standard',
+      portal_notes: portal_notes || null,
       special_requests: [
         delivery_type && delivery_type !== 'pickup' ? `Delivery type: ${delivery_type}` : '',
         validRatePref ? `Rate preference: ${validRatePref}` : '',

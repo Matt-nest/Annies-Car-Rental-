@@ -32,6 +32,7 @@ router.get('/', requireAuth, asyncHandler(async (req, res) => {
   if (req.query.status)     query = query.eq('status', req.query.status);
   if (req.query.vehicle_id) query = query.eq('vehicle_id', req.query.vehicle_id);
   if (req.query.customer_id) query = query.eq('customer_id', req.query.customer_id);
+  if (req.query.rental_type) query = query.eq('rental_type', req.query.rental_type);
   if (req.query.from)       query = query.gte('pickup_date', req.query.from);
   if (req.query.to)         query = query.lte('pickup_date', req.query.to);
   if (req.query.q) {
@@ -189,6 +190,10 @@ router.post('/admin-create', requireAuth, asyncHandler(async (req, res) => {
   const {
     agreement_prefill,
     admin_total_cost_override,
+    rental_type,
+    portal_notes,
+    skip_availability_check,
+    mark_active,
     ...bookingBody
   } = req.body;
 
@@ -198,10 +203,22 @@ router.post('/admin-create', requireAuth, asyncHandler(async (req, res) => {
   const booking = await createBooking({
     ...bookingBody,
     admin_total_cost_override,
+    rental_type: rental_type === 'long_term' ? 'long_term' : 'standard',
+    portal_notes,
+    skip_availability_check: !!skip_availability_check,
     source: 'admin',
     created_by_admin: true,
     insurance_status: 'pending',
   });
+
+  if (mark_active) {
+    await transitionBooking(booking.id, 'active', {
+      changedBy: req.user?.email || 'admin',
+      reason: 'Long-term renter onboarded — vehicle already in possession',
+    });
+    await supabase.from('vehicles').update({ status: 'rented' }).eq('id', booking.vehicle_id);
+    booking.status = 'active';
+  }
 
   if (agreement_prefill && Array.isArray(agreement_prefill.steps) && agreement_prefill.steps.length) {
     const { error: prefillErr } = await supabase
@@ -214,6 +231,7 @@ router.post('/admin-create', requireAuth, asyncHandler(async (req, res) => {
   // Build the continue link the admin can copy/paste.
   const siteUrl = brand.siteUrl;
   const continueUrl = `${siteUrl}/booking?code=${booking.booking_code}`;
+  const portalUrl = `${siteUrl}/portal?code=${booking.booking_code}`;
 
   // Send the continue-booking email (fire-and-forget so the response isn't blocked).
   try {
@@ -239,8 +257,29 @@ router.post('/admin-create', requireAuth, asyncHandler(async (req, res) => {
     success: true,
     booking_id: booking.id,
     booking_code: booking.booking_code,
+    customer_email: bookingBody.email,
     continue_url: continueUrl,
+    portal_url: portalUrl,
+    status: booking.status,
   });
+}));
+
+/** POST /bookings/:id/long-term — flag an existing booking (only if they already have one in the system) */
+router.post('/:id/long-term', requireAuth, requireRole('owner', 'admin'), asyncHandler(async (req, res) => {
+  const { portal_notes } = req.body || {};
+  const { data, error } = await supabase
+    .from('bookings')
+    .update({
+      rental_type: 'long_term',
+      ...(portal_notes !== undefined ? { portal_notes } : {}),
+    })
+    .eq('id', req.params.id)
+    .select('id, booking_code, rental_type, portal_notes')
+    .single();
+  if (error) throw error;
+  if (!data) return res.status(404).json({ error: 'Booking not found' });
+  const portalUrl = `${brand.siteUrl}/portal?code=${data.booking_code}`;
+  res.json({ ...data, portal_url: portalUrl });
 }));
 
 /** PUT /bookings/:id — update booking details (admin) */
