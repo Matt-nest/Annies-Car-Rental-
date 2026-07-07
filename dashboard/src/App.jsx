@@ -25,6 +25,7 @@ import ReviewsPage from './pages/ReviewsPage';
 import PricingRulesPage from './pages/PricingRulesPage';
 import LoyaltyPage from './pages/LoyaltyPage';
 import InsurancePage from './pages/InsurancePage';
+import PortalPage from './pages/PortalPage';
 import { isStripeProvider } from './config/paymentProvider';
 
 // Lazy-load TelematicsPage — mapbox-gl is 1.7MB and only used here
@@ -51,6 +52,7 @@ export default function App() {
             <Route path="/fleet/:id"  element={<VehicleDetailPage />} />
             <Route path="/customers"  element={<CustomersPage />} />
             <Route path="/customers/:id" element={<CustomerDetailPage />} />
+            <Route path="/portal"      element={<PortalPage />} />
             <Route path="/calendar"   element={<CalendarPage />} />
             <Route path="/check-ins"  element={<CheckInsPage />} />
             <Route path="/payments"   element={<PaymentsPage />} />

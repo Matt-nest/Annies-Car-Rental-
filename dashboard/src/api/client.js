@@ -50,6 +50,7 @@ export const api = {
   cancelBooking: (id, reason, cancelled_by = 'owner') => request(`/bookings/${id}/cancel`, { method: 'POST', body: JSON.stringify({ reason, cancelled_by }) }),
   checkoutOverride: (id, body) => request(`/bookings/${id}/checkout-override`, { method: 'POST', body: JSON.stringify(body) }),
   createAdminBooking: (body) => request(`/bookings/admin-create`, { method: 'POST', body: JSON.stringify(body) }),
+  markBookingLongTerm: (id, body) => request(`/bookings/${id}/long-term`, { method: 'POST', body: JSON.stringify(body || {}) }),
   recordPickup: (id, body) => request(`/bookings/${id}/pickup`, { method: 'POST', body: JSON.stringify(body) }),
   recordReturn: (id, body) => request(`/bookings/${id}/return`, { method: 'POST', body: JSON.stringify(body) }),
   completeBooking: (id) => request(`/bookings/${id}/complete`, { method: 'POST' }),

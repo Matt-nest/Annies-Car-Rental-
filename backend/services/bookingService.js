@@ -61,6 +61,8 @@ export async function createBooking(payload) {
     created_by_admin = false,
     admin_weekly_discount_percent,
     admin_total_cost_override,
+    rental_type = 'standard',
+    portal_notes,
   } = payload;
 
   const validRatePref = ['daily', 'weekly', 'monthly'].includes(rate_preference) ? rate_preference : null;
@@ -257,6 +259,8 @@ export async function createBooking(payload) {
       status: created_by_admin ? 'approved' : 'pending_approval',
       ...(created_by_admin ? { owner_approved_at: new Date().toISOString() } : {}),
       created_by_admin: !!created_by_admin,
+      rental_type: rental_type === 'long_term' ? 'long_term' : 'standard',
+      portal_notes: portal_notes || null,
       special_requests: [
         delivery_type && delivery_type !== 'pickup' ? `Delivery type: ${delivery_type}` : '',
         validRatePref ? `Rate preference: ${validRatePref}` : '',

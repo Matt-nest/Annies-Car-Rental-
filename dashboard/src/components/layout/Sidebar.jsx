@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Calendar, Car, Users, BookOpen,
   TrendingUp, Settings, X, LogOut, AlertTriangle, CreditCard, Landmark, MessageSquare,
-  ArrowUpFromLine, CalendarClock, Star, Percent, Crown, Shield, Satellite,
+  ArrowUpFromLine, CalendarClock, Star, Percent, Crown, Shield, Satellite, DoorOpen,
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
 import { haptic } from '../../lib/haptic';
@@ -16,6 +16,7 @@ const MAIN_NAV = [
   { to: '/bookings',  label: 'Bookings',  icon: BookOpen, alertKey: 'pending_approvals' },
   { to: '/fleet',     label: 'Fleet',     icon: Car },
   { to: '/customers', label: 'Customers', icon: Users },
+  { to: '/portal',     label: 'Portal',    icon: DoorOpen },
   { to: '/calendar',  label: 'Calendar',  icon: Calendar },
   { to: '/check-ins', label: 'Check-Ins',  icon: ArrowUpFromLine },
   { to: '/payments',  label: 'Payments',  icon: CreditCard },
