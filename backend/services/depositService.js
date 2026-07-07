@@ -61,16 +61,67 @@ async function createDepositRefund(paymentIntentId, amountCents, reason = 'reque
 async function recordDepositRefundLedger({ bookingId, amountCents, referenceId, paymentIntentId, note }) {
   if (amountCents <= 0) return;
   const provider = isSquareProvider() ? 'square' : PAYMENT_PROVIDER;
+
+  const { data: depositPayment } = await supabase
+    .from('payments')
+    .select('id')
+    .eq('booking_id', bookingId)
+    .eq('payment_type', 'deposit')
+    .eq('status', 'completed')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const gatewayRef = provider === 'square' ? 'Square Payment' : 'PI';
+  const notes = depositPayment
+    ? `Refund for payment ${depositPayment.id} - ${note} (${gatewayRef}: ${paymentIntentId})`
+    : `${note} (${gatewayRef}: ${paymentIntentId})`;
+
   await supabase.from('payments').insert({
     booking_id: bookingId,
     payment_type: 'refund',
     amount: -(amountCents / 100),
     method: provider,
     reference_id: referenceId || `deposit_refund_${Date.now()}`,
-    notes: `${note} (${provider === 'square' ? 'Square Payment' : 'PI'}: ${paymentIntentId})`,
+    notes,
     status: 'completed',
     paid_at: new Date().toISOString(),
   });
+
+  if (depositPayment) {
+    const { data: childRefunds } = await supabase
+      .from('payments')
+      .select('amount')
+      .eq('booking_id', bookingId)
+      .eq('payment_type', 'refund')
+      .ilike('notes', `%Refund for payment ${depositPayment.id}%`);
+
+    const totalRefunded = (childRefunds || []).reduce((sum, row) => sum + Math.abs(row.amount), 0);
+    const { data: depositRow } = await supabase
+      .from('payments')
+      .select('amount')
+      .eq('id', depositPayment.id)
+      .single();
+
+    const depositAmount = Number(depositRow?.amount || 0);
+    const depositStatus = totalRefunded >= depositAmount ? 'refunded' : 'partial_refund';
+
+    await supabase
+      .from('booking_deposits')
+      .update({
+        status: depositStatus,
+        refund_amount: Math.round(totalRefunded * 100),
+        refunded_at: new Date().toISOString(),
+      })
+      .eq('booking_id', bookingId);
+
+    if (depositStatus === 'refunded') {
+      await supabase
+        .from('bookings')
+        .update({ deposit_status: 'refunded' })
+        .eq('id', bookingId);
+    }
+  }
 }
 
 /**
