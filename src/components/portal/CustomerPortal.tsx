@@ -1646,7 +1646,7 @@ export default function CustomerPortal() {
                   onClick={async () => {
                     setReviewSubmitting(true);
                     try {
-                      await fetch(`${API_URL}/reviews`, {
+                      const res = await fetch(`${API_URL}/reviews`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -1657,8 +1657,14 @@ export default function CustomerPortal() {
                           vehicle_name: booking?.vehicle_name || undefined,
                         }),
                       });
-                    } catch { /* show success regardless */ }
-                    setReviewDone(true);
+                      if (!res.ok) {
+                        const data = await res.json().catch(() => ({}));
+                        throw new Error(data.error || 'Could not submit your review');
+                      }
+                      setReviewDone(true);
+                    } catch (err: any) {
+                      setError(err.message || 'Could not submit your review');
+                    }
                     setReviewSubmitting(false);
                   }}
                   className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 cursor-pointer"
