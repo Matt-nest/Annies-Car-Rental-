@@ -6,6 +6,7 @@ import { resolveCustomerLoyalty, LOYALTY_TIERS } from './loyaltyService.js';
 import { sendBookingNotification, buildBookingPayload } from './notifyService.js';
 import { sendBookingConfirmation } from './emailService.js';
 import { createNotification } from './notificationService.js';
+import { sendTeamAlertAsync, TEAM_ALERT_EVENTS } from './teamAlertService.js';
 import { cancelPolicy as cancelBonzahPolicy } from './bonzahService.js';
 
 // Valid one-way status transitions
@@ -298,7 +299,7 @@ export async function createBooking(payload) {
     vehicle: vehicle.year && vehicle.make ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : null,
   }).catch(err => console.error('[Email] Confirmation email failed:', err));
 
-  // 10. Dashboard notification
+  // 10. Dashboard notification + team SMS (website submissions awaiting approval)
   createNotification(
     'new_booking',
     `New booking: ${booking_code}`,
@@ -306,6 +307,10 @@ export async function createBooking(payload) {
     `/bookings/${booking.id}`,
     { booking_id: booking.id, booking_code }
   ).catch(() => { });
+
+  if (!created_by_admin) {
+    sendTeamAlertAsync(TEAM_ALERT_EVENTS.NEW_BOOKING, fullBooking);
+  }
 
   // 11. Approval gate: every public/website submission now requires an explicit
   // admin approve/deny before the payment step unlocks (the customer receives a
@@ -444,6 +449,11 @@ export async function transitionBooking(bookingId, newStatus, { changedBy = 'own
       `/bookings/${bookingId}`,
       { booking_id: bookingId, new_status: newStatus }
     ).catch(() => { });
+  }
+
+  if (newStatus === 'returned') {
+    const updated = await getBookingDetail(bookingId);
+    sendTeamAlertAsync(TEAM_ALERT_EVENTS.VEHICLE_RETURNED, updated);
   }
 
   return { success: true, booking_code: booking.booking_code, new_status: newStatus };

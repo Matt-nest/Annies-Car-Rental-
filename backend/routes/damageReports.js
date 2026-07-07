@@ -5,6 +5,7 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 import { validateDamageReportPayload } from '../utils/validators.js';
 import { getBookingDetail } from '../services/bookingService.js';
 import { sendBookingNotification, buildBookingPayload } from '../services/notifyService.js';
+import { sendTeamAlertAsync, TEAM_ALERT_EVENTS } from '../services/teamAlertService.js';
 
 const router = Router();
 
@@ -59,6 +60,10 @@ router.post('/bookings/:bookingId/damage', requireAuth, asyncHandler(async (req,
         payload.damage_type = damage_type || 'damage';
         payload.damage_fee = estimated_cost != null ? String(estimated_cost) : '';
         await sendBookingNotification('damage_notification', payload);
+        sendTeamAlertAsync(TEAM_ALERT_EVENTS.DAMAGE_REPORT, {
+          booking: fullBooking,
+          severity,
+        });
       } catch (e) {
         console.error('[damage_notification] dispatch failed:', e.message);
       }

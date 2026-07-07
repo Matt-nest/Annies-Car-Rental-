@@ -4,6 +4,7 @@ import { supabase } from '../db/supabase.js';
 import { squareRequest, getSquareConfig } from '../utils/square.js';
 import { transitionBooking, getBookingDetail } from './bookingService.js';
 import { createNotification } from './notificationService.js';
+import { sendTeamAlertAsync, TEAM_ALERT_EVENTS } from './teamAlertService.js';
 import { sendBookingNotification, buildBookingPayload } from './notifyService.js';
 import { calcInsuranceCost } from './pricingService.js';
 import { bindPolicy as bindBonzahPolicy, BonzahError } from './bonzahService.js';
@@ -211,6 +212,16 @@ async function recordSuccessfulSquarePayment(payment, bookingOverride = null) {
       `/bookings/${booking.id}`,
       { booking_id: booking.id, amount: centsToDollars(payment.amount_money?.amount), provider: 'square' }
     ).catch(() => {});
+    getBookingDetail(booking.id)
+      .then((detail) => {
+        if (detail) {
+          sendTeamAlertAsync(TEAM_ALERT_EVENTS.PAYMENT_RECEIVED, {
+            booking: detail,
+            amount: centsToDollars(payment.amount_money?.amount),
+          });
+        }
+      })
+      .catch(() => {});
   }
 
   await finalizeBookingAfterPayment(booking.id);

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { supabase } from '../db/supabase.js';
 import { sendBookingNotification, buildBookingPayload } from '../services/notifyService.js';
+import { sendTeamAlertAsync, TEAM_ALERT_EVENTS } from '../services/teamAlertService.js';
 import { transitionBooking } from '../services/bookingService.js';
 
 const router = Router();
@@ -175,6 +176,7 @@ router.get('/daily', async (req, res) => {
 
     for (const b of overdue || []) {
       sendBookingNotification('late_return_warning', buildBookingPayload(b));
+      sendTeamAlertAsync(TEAM_ALERT_EVENTS.LATE_RETURN, { booking: b, hoursLate: 1 });
       results.overdueFlags++;
     }
 
