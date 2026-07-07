@@ -14,10 +14,17 @@ import Footer from '../layout/Footer';
 import PhotoUploader from './PhotoUploader';
 import SlotPhotoUploader, { type PhotoSlots } from './SlotPhotoUploader';
 import CrispWidget, { openCrispChat } from './CrispWidget';
+import PortalActionBar from './PortalActionBar';
+import StatusHero from './StatusHero';
+import BookingTimelineStepper from './BookingTimelineStepper';
+import PushOptInCard from './PushOptInCard';
+import Sheet from '../common/Sheet';
 import ExtendRentalCard from './ExtendRentalCard';
 import PaymentMethodCard from './PaymentMethodCard';
 import BalanceDueCard from './BalanceDueCard';
 import PaymentPlanCard from './PaymentPlanCard';
+import { usePullToRefresh } from '../../hooks/usePullToRefresh';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 
 /* Persisted portal session — keeps long-term renters signed in across refreshes. */
 const SESSION_KEY = 'portal_session';
@@ -380,6 +387,19 @@ export default function CustomerPortal() {
 
   useEffect(() => { loadBooking(); }, [loadBooking]);
 
+  const { pullDistance, isRefreshing, progress, triggered } = usePullToRefresh(loadBooking);
+
+  const isMobile = useMediaQuery('(max-width: 767px)');
+  const [checkInSheetOpen, setCheckInSheetOpen] = useState(false);
+  const [checkOutSheetOpen, setCheckOutSheetOpen] = useState(false);
+
+  useEffect(() => {
+    if (actionSuccess) {
+      setCheckInSheetOpen(false);
+      setCheckOutSheetOpen(false);
+    }
+  }, [actionSuccess]);
+
   /* ── Self-Service Check-In ── */
   const handleCheckIn = async () => {
     if (!conditionConfirmed || !allSlotsReady) return;
@@ -648,46 +668,58 @@ export default function CustomerPortal() {
   }
 
   const { status, customers: c, vehicles: v } = booking;
-  const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
-    pending_approval: { label: 'Pending Approval', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
-    approved: { label: 'Approved', color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
-    confirmed: { label: 'Confirmed', color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
-    ready_for_pickup: { label: 'Ready for Pickup', color: '#06b6d4', bg: 'rgba(6,182,212,0.1)' },
-    active: { label: 'Active Rental', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
-    returned: { label: 'Returned: Under Inspection', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
-    completed: { label: 'Completed', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
-    cancelled: { label: 'Cancelled', color: '#ef4444', bg: 'rgba(239,68,68,0.1)' },
-    declined: { label: 'Declined', color: '#ef4444', bg: 'rgba(239,68,68,0.1)' },
-  };
-  const sc = statusConfig[status] || { label: status, color: 'var(--text-secondary)', bg: 'var(--bg-card-hover)' };
 
   return (
     <>
       <Navbar onNavigate={scrollToSection} />
-      <main className="min-h-screen px-4 sm:px-6" style={{ paddingTop: '100px', paddingBottom: '80px' }}>
+
+      {(pullDistance > 0 || isRefreshing) && (
+        <div
+          className="md:hidden fixed left-1/2 -translate-x-1/2 z-[95] pointer-events-none flex items-center justify-center w-10 h-10 rounded-full"
+          style={{
+            top: `calc(env(safe-area-inset-top, 0px) + ${64 + pullDistance * 0.6}px)`,
+            backgroundColor: 'var(--bg-elevated)',
+            border: '1px solid var(--border-subtle)',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+            opacity: progress,
+            transition: isRefreshing ? 'top 200ms ease-out' : 'none',
+          }}
+          aria-hidden="true"
+        >
+          <Loader2
+            size={18}
+            className={isRefreshing ? 'animate-spin' : ''}
+            style={{
+              color: triggered ? 'var(--accent-color)' : 'var(--text-tertiary)',
+              transform: isRefreshing ? 'none' : `rotate(${progress * 270}deg)`,
+              transition: 'color 200ms',
+            }}
+          />
+        </div>
+      )}
+
+      <main
+        className="min-h-dvh px-4 sm:px-6"
+        style={{
+          paddingTop: '100px',
+          paddingBottom: 'max(120px, calc(96px + env(safe-area-inset-bottom)))',
+        }}
+      >
         <div className="max-w-lg mx-auto space-y-5">
 
-          {/* Compact identity header - name + booking code */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: DURATION.slow, ease: EASE.dramatic }}
-            className="text-center"
-          >
-            <div
-              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-3"
-              style={{ backgroundColor: sc.bg, color: sc.color, border: `1px solid ${sc.color}30` }}
-            >
-              <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: sc.color }} />
-              {sc.label}
-            </div>
-            <h1 className="text-xl sm:text-2xl font-light" style={{ color: 'var(--text-primary)' }}>
-              {c?.first_name} {c?.last_name}
-            </h1>
-            <p className="text-xs font-mono mt-1" style={{ color: 'var(--text-tertiary)' }}>
-              {booking.booking_code}
-            </p>
-          </motion.div>
+          <StatusHero
+            status={status as any}
+            customerName={`${c?.first_name || ''} ${c?.last_name || ''}`.trim() || 'Customer'}
+            bookingCode={booking.booking_code}
+            pickupDate={booking.pickup_date}
+            pickupTime={booking.pickup_time}
+            returnDate={booking.return_date}
+            returnTime={booking.return_time}
+          />
+
+          <BookingTimelineStepper status={status as any} />
+
+          <PushOptInCard status={status as any} portalToken={token} />
 
           {/* Success Message */}
           <AnimatePresence>
@@ -1070,13 +1102,8 @@ export default function CustomerPortal() {
           })()}
 
           {/* Self-Service Check-In (ready_for_pickup) */}
-          {status === 'ready_for_pickup' && (
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3, ease: EASE.standard }}
-              style={card(theme)}
-            >
+          {status === 'ready_for_pickup' && (() => {
+            const formBody = (
               <div className="p-5 space-y-5">
                 <h3 className="text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
                   <Check size={20} style={{ color: '#22c55e' }} /> Start Your Rental
@@ -1085,7 +1112,6 @@ export default function CustomerPortal() {
                   Inspect the vehicle, take photos from each angle, record the odometer and fuel level, then confirm to start your rental.
                 </p>
 
-                {/* Photo Slots */}
                 {token && (
                   <SlotPhotoUploader
                     token={token}
@@ -1096,7 +1122,6 @@ export default function CustomerPortal() {
                   />
                 )}
 
-                {/* Odometer + Fuel */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
@@ -1142,7 +1167,6 @@ export default function CustomerPortal() {
                   </div>
                 </div>
 
-                {/* Condition Confirmation */}
                 <label className="flex items-start gap-3 cursor-pointer py-3 px-4 rounded-xl transition-all" style={{
                   backgroundColor: conditionConfirmed ? 'rgba(34,197,94,0.08)' : 'var(--bg-card-hover)',
                   border: conditionConfirmed ? '2px solid rgba(34,197,94,0.3)' : '2px solid var(--border-subtle)',
@@ -1154,7 +1178,6 @@ export default function CustomerPortal() {
                   </span>
                 </label>
 
-                {/* Submit */}
                 <button
                   onClick={handleCheckIn}
                   disabled={actionLoading || !conditionConfirmed || !allSlotsReady || !odometer}
@@ -1170,8 +1193,28 @@ export default function CustomerPortal() {
                   </p>
                 )}
               </div>
-            </motion.div>
-          )}
+            );
+            return isMobile ? (
+              <Sheet
+                open={checkInSheetOpen}
+                onOpenChange={(o) => !o && setCheckInSheetOpen(false)}
+                title="Check in to your rental"
+                maxWidth="32rem"
+              >
+                {formBody}
+              </Sheet>
+            ) : (
+              <motion.div
+                id="portal-checkin"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3, ease: EASE.standard }}
+                style={{ ...card(theme), scrollMarginTop: '100px' }}
+              >
+                {formBody}
+              </motion.div>
+            );
+          })()}
 
           {/* Lockbox Code - only revealed AFTER successful check-in */}
           <AnimatePresence>
@@ -1205,15 +1248,9 @@ export default function CustomerPortal() {
             )}
           </AnimatePresence>
 
-          {/* Self-Service Check-Out (active) - mirrors check-in: required
-              slot photos, odometer, fuel, plus key-returned acknowledgement. */}
-          {status === 'active' && (
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3, ease: EASE.standard }}
-              style={card(theme)}
-            >
+          {/* Self-Service Check-Out (active) */}
+          {status === 'active' && (() => {
+            const formBody = (
               <div className="p-5 space-y-5">
                 <h3 className="text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
                   <Car size={20} style={{ color: 'var(--accent-color)' }} /> Return Your Vehicle
@@ -1222,7 +1259,6 @@ export default function CustomerPortal() {
                   Park at the pickup location, take photos from each angle, record the odometer and fuel level, place the key back in the lockbox, then confirm.
                 </p>
 
-                {/* Photo Slots - same 4 required angles as check-in */}
                 {token && (
                   <SlotPhotoUploader
                     token={token}
@@ -1233,7 +1269,6 @@ export default function CustomerPortal() {
                   />
                 )}
 
-                {/* Odometer + Fuel */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
@@ -1279,7 +1314,6 @@ export default function CustomerPortal() {
                   </div>
                 </div>
 
-                {/* Key returned */}
                 <label className="flex items-start gap-3 cursor-pointer py-3 px-4 rounded-xl transition-all" style={{
                   backgroundColor: keyReturned ? 'rgba(200,169,126,0.08)' : 'var(--bg-card-hover)',
                   border: keyReturned ? '2px solid rgba(200,169,126,0.3)' : '2px solid var(--border-subtle)',
@@ -1306,8 +1340,28 @@ export default function CustomerPortal() {
                   </p>
                 )}
               </div>
-            </motion.div>
-          )}
+            );
+            return isMobile ? (
+              <Sheet
+                open={checkOutSheetOpen}
+                onOpenChange={(o) => !o && setCheckOutSheetOpen(false)}
+                title="Return your vehicle"
+                maxWidth="32rem"
+              >
+                {formBody}
+              </Sheet>
+            ) : (
+              <motion.div
+                id="portal-checkout"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3, ease: EASE.standard }}
+                style={{ ...card(theme), scrollMarginTop: '100px' }}
+              >
+                {formBody}
+              </motion.div>
+            );
+          })()}
 
           {/* ── Extend Rental (active only): pick a later return date, get an
               instant quote for the extra days, and pay inline via Stripe. ── */}
@@ -1433,10 +1487,11 @@ export default function CustomerPortal() {
           {/* Deposit & Invoice (returned / completed) */}
           {['returned', 'completed'].includes(status) && (
             <motion.div
+              id="portal-inspection"
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, ease: EASE.standard }}
-              style={card(theme)}
+              style={{ ...card(theme), scrollMarginTop: '100px' }}
             >
               <div className="p-5 space-y-4">
                 <h3 className="text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
@@ -1551,10 +1606,11 @@ export default function CustomerPortal() {
           {/* Review prompt - completed rentals only */}
           {status === 'completed' && !reviewDone && (
             <motion.div
+              id="portal-review"
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, ease: EASE.standard }}
-              style={card(theme)}
+              style={{ ...card(theme), scrollMarginTop: '100px' }}
             >
               <div className="p-5 space-y-4">
                 <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
@@ -1844,7 +1900,11 @@ export default function CustomerPortal() {
           )}
 
           {/* Contact footer */}
-          <div className="flex flex-col items-center gap-3 py-5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+          <div
+            id="portal-message"
+            className="flex flex-col items-center gap-3 py-5 text-xs"
+            style={{ color: 'var(--text-tertiary)', scrollMarginTop: '100px' }}
+          >
             <button
               onClick={() => {
                 try { openCrispChat(); }
@@ -1869,6 +1929,14 @@ export default function CustomerPortal() {
           </div>
         </div>
       </main>
+
+      <PortalActionBar
+        status={status as any}
+        disabled={actionLoading}
+        onCheckIn={() => setCheckInSheetOpen(true)}
+        onCheckOut={() => setCheckOutSheetOpen(true)}
+      />
+
       <Footer />
       {/* F-16: mount once at the portal root, toggle visibility via prop. */}
       <CrispWidget booking={booking} visible={view === 'dashboard'} />

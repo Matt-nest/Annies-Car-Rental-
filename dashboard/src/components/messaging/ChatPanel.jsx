@@ -5,6 +5,8 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../../api/client';
 import { EASE, formatDate, getInitials, getAvatarColor } from './shared.js';
+import { haptic } from '../../lib/haptic';
+import { useKeyboardInset } from '../../hooks/useKeyboardInset';
 
 /* ── Chat Panel ── */
 export default function ChatPanel({ customerId, conversations }) {
@@ -19,6 +21,7 @@ export default function ChatPanel({ customerId, conversations }) {
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const messagesEndRef = useRef(null);
   const scrollContainerRef = useRef(null);
+  const keyboardInset = useKeyboardInset();
 
   const conversation = conversations.find(c => c.customer_id === customerId);
   const customerName = conversation
@@ -56,6 +59,7 @@ export default function ChatPanel({ customerId, conversations }) {
 
   const handleSend = async () => {
     if (!body.trim()) return;
+    haptic('tap');
     setSending(true);
     try {
       // Use 'email' as default when 'all' is selected for composing
@@ -65,11 +69,13 @@ export default function ChatPanel({ customerId, conversations }) {
       const result = await api.sendMessage(customerId, payload);
       if (result?.message) {
         setMessages(prev => [...prev, result.message]);
+        haptic('commit');
       }
       setBody('');
       setSubject('');
     } catch (err) {
       console.error('Send failed:', err);
+      haptic('edge');
     }
     setSending(false);
   };
@@ -425,9 +431,11 @@ export default function ChatPanel({ customerId, conversations }) {
 
       {/* ── Compose area ── */}
       <div style={{
-        padding: '12px 20px 16px',
+        padding: '12px 20px',
+        paddingBottom: `calc(16px + ${keyboardInset}px)`,
         borderTop: '1px solid var(--border-subtle)',
         background: 'var(--bg-elevated)',
+        transition: 'padding-bottom 0.15s ease-out',
       }}>
         {(channel === 'email' || channel === 'all') && (
           <motion.input

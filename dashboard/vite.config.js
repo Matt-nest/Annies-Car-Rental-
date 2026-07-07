@@ -24,7 +24,7 @@ export default defineConfig(({ mode }) => {
         srcDir: 'src',
         filename: 'sw.js',
         injectManifest: {
-          globPatterns: ['**/*.{js,css,html,svg,ico,woff2}'],
+          globPatterns: ['**/*.{js,css,html,svg,ico,png,woff2}'],
           globIgnores: [
             '**/mapbox-gl-*.js',
             '**/mapbox-gl-*.css',

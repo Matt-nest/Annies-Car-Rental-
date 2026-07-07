@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => {
         manifest: false,
         injectRegister: false,
         injectManifest: {
-          globPatterns: ['**/*.{js,css,html,svg,ico,woff2}'],
+          globPatterns: ['**/*.{js,css,html,svg,ico,png,woff2}'],
           globIgnores: [
             '**/{ConfirmBooking,CustomerPortal,VehicleDetailPage,RentalAgreementPage,BookingStatusPage,PrivacyPolicy,TermsOfService,MonthlyInquiryModal,vendor-vaul,vendor-stripe,vendor-signature}-*.js',
           ],

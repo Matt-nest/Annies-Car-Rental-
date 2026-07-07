@@ -14,6 +14,7 @@ import Field from '../components/shared/Field';
 import CheckInPrepTab from '../components/booking-tabs/CheckInPrepTab';
 import CheckOutTab from '../components/booking-tabs/CheckOutTab';
 import InvoiceTab from '../components/booking-tabs/InvoiceTab';
+import BookingActionBar from '../components/booking-tabs/BookingActionBar';
 import { useAlerts } from '../lib/alertsContext';
 import { format } from 'date-fns';
 
@@ -972,6 +973,12 @@ export default function BookingDetailPage() {
         damageForm={damageForm} setDamageForm={setDamageForm}
         paymentForm={paymentForm} setPaymentForm={setPaymentForm}
         actioning={actioning} doAction={doAction}
+      />
+
+      <BookingActionBar
+        status={status}
+        onAction={(action) => setModal(action)}
+        disabled={actioning}
       />
 
       {/* Extend Rental modal */}

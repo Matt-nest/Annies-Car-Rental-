@@ -3,7 +3,6 @@ import { AnimatePresence } from 'motion/react';
 import { Loader2, AlertCircle } from 'lucide-react';
 
 import { brand } from '../../../config/brand';
-import OrderSummary from './wizard-steps/OrderSummary';
 import SubmitLoader from './wizard-steps/SubmitLoader';
 import {
   API_URL,
@@ -23,7 +22,7 @@ declare global {
   }
 }
 
-interface PaymentStageProps {
+interface SquarePaymentStageProps {
   bookingSummary: any;
   draft: WizardDraft;
   depositAmount: number;
@@ -58,67 +57,29 @@ function loadSquareSdk() {
   });
 }
 
-async function submitAgreementAndInsurance({
-  bookingCode,
+export default function SquarePaymentStage({
+  bookingSummary,
   draft,
-  fallbackTotalCents,
-}: {
-  bookingCode: string;
-  draft: WizardDraft;
-  fallbackTotalCents: number;
-}) {
-  const agreementPayload = {
-    address_line1: draft.address.line1,
-    city: draft.address.city,
-    state: draft.address.state,
-    zip: draft.address.zip,
-    date_of_birth: draft.dob,
-    driver_license_number: draft.license.number,
-    driver_license_state: draft.license.state,
-    driver_license_expiry: draft.license.expiry,
-    insurance_company: draft.personalInsurance.company || null,
-    insurance_policy_number: draft.personalInsurance.policyNumber || null,
-    insurance_expiry: draft.personalInsurance.expiry || null,
-    insurance_agent_name: draft.personalInsurance.agentName || null,
-    insurance_agent_phone: draft.personalInsurance.agentPhone || null,
-    insurance_vehicle_description: draft.personalInsurance.vehicleDescription || null,
-    signature_data: draft.signature.data,
-    signature_type: draft.signature.mode === 'draw' ? 'drawn' : 'typed',
-    license_photo_paths: draft.licensePhotoPaths?.length ? draft.licensePhotoPaths : undefined,
-  };
-
-  const agRes = await fetch(`${API_URL}/agreements/${bookingCode}/sign`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(agreementPayload),
-  });
-  const agJson = await agRes.json();
-  if (!agRes.ok && !agJson.alreadySigned) throw new Error(agJson.error || 'Failed to submit agreement');
-
-  const insurancePayload: any = { source: draft.insuranceChoice };
-  if (draft.insuranceChoice === 'bonzah') insurancePayload.tier_id = draft.bonzahTierId;
-  const insRes = await fetch(`${API_URL}/bookings/${bookingCode}/insurance`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(insurancePayload),
-  });
-  const insJson = await insRes.json().catch(() => ({}));
-  if (!insRes.ok) throw new Error(insJson.error || 'Failed to record insurance');
-  return insJson.payment_totals?.total_cents ?? fallbackTotalCents;
-}
-
-export default function SquarePaymentStage({ bookingSummary, draft, depositAmount, bookingCode, onBack, onSuccess, theme }: PaymentStageProps) {
+  depositAmount,
+  bookingCode,
+  onBack,
+  onSuccess,
+}: SquarePaymentStageProps) {
   const cardRef = useRef<any>(null);
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [submitStep, setSubmitStep] = useState<'agreement' | 'insurance' | 'payment' | 'confirming' | 'done'>('agreement');
+  const [submitStep, setSubmitStep] = useState<'agreement' | 'insurance' | 'payment' | 'confirming' | 'done'>('payment');
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const insuranceCost = draft.insuranceChoice === 'bonzah' && draft.bonzahQuote
-    ? draft.bonzahQuote.total_cents / 100
-    : 0;
-  const grandTotal = (bookingSummary?.totalCost || 0) + insuranceCost + depositAmount;
+  // Agreement + insurance are persisted by PaymentGate before approval. On
+  // return-after-approval the draft may be empty — fall back to server totals.
+  let insuranceCost = bookingSummary?.insuranceCost ?? 0;
+  if (draft.insuranceChoice === 'bonzah' && draft.bonzahQuote) {
+    insuranceCost = draft.bonzahQuote.total_cents / 100;
+  }
+  const rentalTotal = bookingSummary?.totalCost || 0;
+  const grandTotal = rentalTotal + insuranceCost + depositAmount;
 
   useEffect(() => {
     let cancelled = false;
@@ -154,16 +115,9 @@ export default function SquarePaymentStage({ bookingSummary, draft, depositAmoun
     setSubmitError(null);
 
     try {
-      setSubmitStep('agreement');
-      const expectedTotalCents = await submitAgreementAndInsurance({
-        bookingCode,
-        draft,
-        fallbackTotalCents: Math.round(grandTotal * 100),
-      });
-
       setSubmitStep('payment');
       const tokenResult = await cardRef.current.tokenize({
-        amount: (expectedTotalCents / 100).toFixed(2),
+        amount: grandTotal.toFixed(2),
         currencyCode: 'USD',
         intent: 'CHARGE',
         customerInitiated: true,
@@ -190,7 +144,7 @@ export default function SquarePaymentStage({ bookingSummary, draft, depositAmoun
         body: JSON.stringify({
           booking_code: bookingCode,
           source_id: tokenResult.token,
-          expected_total_cents: expectedTotalCents,
+          expected_total_cents: Math.round(grandTotal * 100),
           idempotency_key: crypto.randomUUID(),
         }),
       });
@@ -214,7 +168,7 @@ export default function SquarePaymentStage({ bookingSummary, draft, depositAmoun
           <div>
             <h3 className="font-semibold" style={{ color: 'var(--text-primary)' }}>Square is not configured</h3>
             <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-              This Annie payment page cannot take payment until Square application and location IDs are configured. Please call {PHONE_NUMBER}.
+              This payment page cannot take payment until Square application and location IDs are configured. Please call {PHONE_NUMBER}.
             </p>
           </div>
         </div>
@@ -229,11 +183,15 @@ export default function SquarePaymentStage({ bookingSummary, draft, depositAmoun
       </AnimatePresence>
 
       <div className="space-y-5">
-        <OrderSummary bookingSummary={bookingSummary} draft={draft} depositAmount={depositAmount} theme={theme} />
+        <div className="rounded-xl border p-4 flex items-center justify-between"
+          style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+          <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Total due today</span>
+          <span className="text-xl font-bold" style={{ color: 'var(--accent-color)' }}>{formatCurrency(grandTotal)}</span>
+        </div>
         <div className="rounded-xl border p-4 sm:p-5" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
           <h3 className="text-base font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Payment Method</h3>
           <div id="square-card-container" className="min-h-[90px]" />
-          {!ready && !loadError && <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Loading Square secure card form…</p>}
+          {!ready && !loadError && <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Loading Square secure card form...</p>}
           {loadError && <p className="text-sm text-red-500">{loadError}</p>}
         </div>
         {submitError && !submitting && (
@@ -245,7 +203,7 @@ export default function SquarePaymentStage({ bookingSummary, draft, depositAmoun
         <div className="flex gap-3">
           <button type="button" onClick={onBack} className="px-6 py-4 rounded-full font-medium transition-all duration-300 cursor-pointer border" style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)', backgroundColor: 'transparent' }}>Back</button>
           <button type="button" onClick={handlePayNow} disabled={!ready || submitting} className={`flex-1 py-4 rounded-full font-medium transition-all duration-300 flex items-center justify-center gap-2 ${submitting ? 'opacity-60 cursor-not-allowed' : 'hover:scale-[1.02] hover:-translate-y-px active:scale-95 hover:shadow-lg cursor-pointer'}`} style={{ backgroundColor: 'var(--accent-color)', color: 'var(--accent-fg)' }}>
-            {submitting ? <><Loader2 className="animate-spin" size={18} /> Processing…</> : <>Pay {formatCurrency(grandTotal)}</>}
+            {submitting ? <><Loader2 className="animate-spin" size={18} /> Processing...</> : <>Pay {formatCurrency(grandTotal)}</>}
           </button>
         </div>
         <p className="text-[10px] text-center leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>

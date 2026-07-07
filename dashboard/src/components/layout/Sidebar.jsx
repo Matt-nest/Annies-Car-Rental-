@@ -6,6 +6,8 @@ import {
   ArrowUpFromLine, CalendarClock, Star, Percent, Crown, Shield, Satellite,
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
+import { haptic } from '../../lib/haptic';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 import brand from '../../config/brand';
 
 const MAIN_NAV = [
@@ -46,12 +48,12 @@ function NavItem({ to, label, icon: Icon, end, alertKey, alerts, onClose, showLa
       <NavLink
         to={to}
         end={end}
-        onClick={onClose}
+        onClick={() => { haptic('tap'); onClose?.(); }}
         title={!showLabels ? label : undefined}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         className={({ isActive }) =>
-          `group relative flex items-center w-full gap-3 font-medium rounded-lg text-sm transition-all duration-200 ${
+          `group relative flex items-center w-full gap-3 font-medium rounded-lg text-sm transition-all duration-200 active:scale-[0.97] ${
             showLabels ? 'px-4 py-2.5' : 'justify-center px-2 py-2.5'
           } ${
             isActive
@@ -164,8 +166,10 @@ export default function Sidebar({ open, onClose, alerts = {}, pinned }) {
   const [hoverExpanded, setHoverExpanded] = useState(false);
   const hoverTimeout = useRef(null);
 
+  const isMobile = useMediaQuery('(max-width: 1023px)');
+
   // Effective visual width state
-  const isWide = pinned || hoverExpanded;
+  const isWide = isMobile || pinned || hoverExpanded;
 
   function handleMouseEnter() {
     if (pinned) return;
@@ -194,23 +198,28 @@ export default function Sidebar({ open, onClose, alerts = {}, pinned }) {
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         className={`
-          fixed mt-16 flex flex-col lg:mt-0 top-0 left-0 h-screen
-          border-r z-[99999] lg:z-[999]
+          fixed flex flex-col top-0 left-0 h-dvh
+          border-r z-[100000] lg:z-[999] lg:mt-0
           ${open ? 'translate-x-0' : '-translate-x-full'}
           lg:translate-x-0 lg:flex lg:relative lg:shrink-0
         `}
         style={{
           backgroundColor: 'var(--sidebar-bg)',
           borderColor: 'var(--sidebar-border)',
-          // Mobile always 260px; desktop controlled by media query below
           width: 260,
           paddingLeft: 20,
           paddingRight: 20,
-          transition: 'width 0.4s cubic-bezier(0.22, 1, 0.36, 1), padding 0.4s cubic-bezier(0.22, 1, 0.36, 1)',
+          transition: 'transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), width 0.4s cubic-bezier(0.22, 1, 0.36, 1), padding 0.4s cubic-bezier(0.22, 1, 0.36, 1)',
         }}
       >
-        {/* Desktop width override via CSS — changes with pinned/hover state */}
         <style>{`
+          @media (max-width: 1023px) {
+            aside[data-sidebar-rail] {
+              width: 100% !important;
+              padding-left: 20px !important;
+              padding-right: 20px !important;
+            }
+          }
           @media (min-width: 1024px) {
             aside[data-sidebar-rail] {
               width: ${isWide ? 260 : 72}px !important;
