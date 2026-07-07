@@ -4,19 +4,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAlerts } from '../../lib/alertsContext';
 
 /**
- * AlertPillBar — unified row of high-priority alert pills shown in the
- * dashboard header (next to Bookings/Fleet). Each pill glows with a pulse
- * animation matching its color. Counts come from AlertsContext so mutations
- * (approve / counter-sign / complete inspection) update the bar instantly.
- *
- * Colors mirror MorningBriefingWidget chips so the visual language is consistent:
- *  - Approve         → yellow  (#F59E0B, pulseYellow)
- *  - Counter-Sign    → blue    (#007AFF, pulseBlue)
- *  - Check-Ins       → light blue (#63b3ed, pulseLightBlue)
- *  - Active          → green   (#22c55e, pulseGreen)        — transient
- *  - Inspections     → purple  (#a78bfa, pulsePurple)       — return under inspection
+ * AlertPillBar — unified row of high-priority alert pills.
+ * `inline` — desktop header row (parent controls visibility).
+ * `strip` — mobile full-bleed scrollable row at top of dashboard home.
  */
-export default function AlertPillBar({ onActiveAlertClick }) {
+export default function AlertPillBar({ onActiveAlertClick, variant = 'inline' }) {
   const navigate = useNavigate();
   const { alerts } = useAlerts();
 
@@ -87,8 +79,13 @@ export default function AlertPillBar({ onActiveAlertClick }) {
   const visible = pills.filter(p => p.count > 0);
   if (visible.length === 0) return null;
 
+  const isStrip = variant === 'strip';
+  const containerClass = isStrip
+    ? 'lg:hidden flex items-center gap-2 scroll-x-contained no-scrollbar -mx-6 px-6 py-0.5 max-w-[100vw]'
+    : 'flex items-center gap-2';
+
   return (
-    <div className="hidden md:flex items-center gap-2">
+    <div className={containerClass}>
       <AnimatePresence>
         {visible.map(pill => (
           <motion.button
@@ -100,13 +97,12 @@ export default function AlertPillBar({ onActiveAlertClick }) {
             transition={{ duration: 0.18 }}
             onClick={pill.onClick}
             title={pill.title}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold tabular-nums transition-transform hover:scale-[1.04] whitespace-nowrap"
+            className="tap-target inline-flex items-center gap-2 px-5 rounded-full text-sm font-semibold tabular-nums transition-transform active:scale-[0.97] lg:hover:scale-[1.04] whitespace-nowrap shrink-0"
             style={{
               backgroundColor: pill.bg,
               border: `1px solid ${pill.border}`,
               color: pill.color,
               animation: pill.pulse,
-              minHeight: 40,
             }}
           >
             <pill.icon size={14} />

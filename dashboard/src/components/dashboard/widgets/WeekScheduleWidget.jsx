@@ -71,7 +71,7 @@ export default function WeekScheduleWidget() {
       noPadding
     >
       {/* Day strip */}
-      <div className="flex px-5 py-3 gap-2 overflow-x-auto no-scrollbar">
+      <div className="flex px-5 py-3 gap-2 scroll-x-contained no-scrollbar max-w-full">
         {days.map((day) => {
           const key = format(day, 'yyyy-MM-dd');
           const pc = byPickup[key]?.length || 0;

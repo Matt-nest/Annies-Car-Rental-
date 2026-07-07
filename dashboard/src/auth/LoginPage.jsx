@@ -26,17 +26,23 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex" style={{ backgroundColor: '#111928' }}>
-      {/* ─── Left panel: form ──────────────────────────────────────── */}
+    <div className="min-h-dvh flex overflow-x-clip max-w-full" style={{ backgroundColor: '#111928' }}>
+      {/* Left panel: form */}
       <div
-        className="w-full lg:w-1/2 flex flex-col justify-center px-8 sm:px-16 lg:px-20 py-12 relative"
-        style={{ backgroundColor: '#111928' }}
+        className="w-full lg:w-1/2 flex flex-col justify-center px-6 sm:px-16 lg:px-20 py-12 relative safe-x"
+        style={{
+          backgroundColor: '#111928',
+          paddingTop: 'max(3rem, calc(env(safe-area-inset-top) + 2rem))',
+          paddingBottom: 'max(3rem, env(safe-area-inset-bottom))',
+        }}
       >
-        {/* Back link */}
         <a
           href={brand.siteUrl}
-          className="absolute top-8 left-8 sm:left-16 lg:left-20 flex items-center gap-1 text-sm font-medium transition-colors"
-          style={{ color: '#465FFF' }}
+          className="absolute left-6 sm:left-16 lg:left-20 flex items-center gap-1 text-sm font-medium transition-colors"
+          style={{
+            color: '#465FFF',
+            top: 'max(2rem, calc(env(safe-area-inset-top) + 1rem))',
+          }}
           onMouseEnter={e => e.currentTarget.style.color = '#6B7FFF'}
           onMouseLeave={e => e.currentTarget.style.color = '#465FFF'}
         >
@@ -44,7 +50,7 @@ export default function LoginPage() {
           Back to site
         </a>
 
-        <div className="max-w-[380px] w-full mx-auto">
+        <div className="max-w-[380px] w-full mx-auto min-w-0">
           {/* Logo */}
           <div className="mb-8">
             <h1

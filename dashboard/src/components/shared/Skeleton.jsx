@@ -102,7 +102,7 @@ export function SkeletonDashboard() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="p-4 sm:p-6 pb-28 lg:pb-8 max-w-7xl mx-auto space-y-5"
+      className="p-4 sm:p-6 lg:pb-8 max-w-7xl mx-auto space-y-5 min-w-0"
     >
       {/* Header */}
       <div className="space-y-2 pt-1">

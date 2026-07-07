@@ -164,7 +164,7 @@ export default function RevenuePage() {
       </motion.div>
 
       {/* Date range filter */}
-      <motion.div {...fadeUp(1)} className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+      <motion.div {...fadeUp(1)} className="flex items-center gap-1.5 scroll-x-contained no-scrollbar pb-1 max-w-full">
         <Calendar size={14} className="text-gray-400 mr-1 shrink-0" />
         {RANGE_PRESETS.map((preset, i) => (
           <button

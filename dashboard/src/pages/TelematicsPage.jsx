@@ -882,7 +882,7 @@ function PageHeader() {
 
 function Tabs({ tab, setTab }) {
   return (
-    <div className="border-b border-[var(--border-subtle)] flex gap-1 overflow-x-auto no-scrollbar">
+    <div className="border-b border-[var(--border-subtle)] flex gap-1 scroll-x-contained no-scrollbar max-w-full">
       {TABS.map(t => {
         const Icon = t.icon;
         const active = tab === t.key;

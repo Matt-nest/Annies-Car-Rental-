@@ -44,6 +44,13 @@
   --shadow-xl: 0px 20px 24px -4px rgba(0, 0, 0, 0.10), 0px 8px 8px -4px rgba(0, 0, 0, 0.04);
   --shadow-focus-ring: 0px 0px 0px 4px rgba(70, 95, 255, 0.18);
 
+  /* Mobile layout — bottom nav pill + home-indicator clearance */
+  --bottom-nav-offset: calc(72px + env(safe-area-inset-bottom, 0px));
+
+  /* Safe-area env aliases for sticky overlays */
+  --app-safe-top:    env(safe-area-inset-top, 0px);
+  --app-safe-bottom: env(safe-area-inset-bottom, 0px);
+
   /* Sidebar (light) */
   --sidebar-bg:          #FFFFFF;
   --sidebar-border:      #E2E8F0;
@@ -135,7 +142,14 @@ html.dark {
     background: rgba(70, 95, 255, 0.22);
   }
 
-  html { scroll-behavior: smooth; }
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    overflow-x: clip;
+    max-width: 100%;
+    overscroll-behavior-x: none;
+  }
 
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -146,7 +160,17 @@ html.dark {
     text-rendering: optimizeLegibility;
     transition: background-color 0.4s ease, color 0.3s ease;
     overscroll-behavior: contain;
-    overflow-x: hidden;
+    overscroll-behavior-x: none;
+    overflow-x: clip;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  #root {
+    overflow-x: clip;
+    max-width: 100%;
+    width: 100%;
+    min-height: 100dvh;
   }
 
   :focus-visible {
@@ -166,6 +190,17 @@ html.dark {
   .glass-scroll::-webkit-scrollbar-thumb {
     background: var(--border-medium);
     border-radius: 9999px;
+  }
+
+  /* iOS Safari: prevent zoom-on-focus on form controls */
+  @media (max-width: 767px) {
+    input, select, textarea {
+      font-size: 16px !important;
+    }
+  }
+
+  button, a, [role="button"], label, summary, input[type="submit"], input[type="button"] {
+    touch-action: manipulation;
   }
 }
 
@@ -489,6 +524,36 @@ html.dark {
   }
 }
 
+/* ─── Mobile foundation utilities ─────────────────────────────────────────── */
+.safe-top    { padding-top:    max(env(safe-area-inset-top), 0px); }
+.safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 0px); }
+.safe-left   { padding-left:   max(env(safe-area-inset-left), 0px); }
+.safe-right  { padding-right:  max(env(safe-area-inset-right), 0px); }
+.safe-x      { padding-left:   max(env(safe-area-inset-left), 0px); padding-right: max(env(safe-area-inset-right), 0px); }
+
+.tap-target {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scroll-x-contained {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+.mobile-bottom-nav-pad {
+  padding-bottom: var(--bottom-nav-offset);
+}
+@media (min-width: 1024px) {
+  .mobile-bottom-nav-pad { padding-bottom: 0; }
+}
+
 /* ─── Animations ────────────────────────────────────────────────────────────── */
 @keyframes fade-up {
   from { opacity: 0; transform: translateY(10px); }
@@ -606,10 +671,38 @@ html.dark {
   }
 }
 
-/* ─── Mobile Performance ────────────────────────────────────────────────────── */
+/* ─── Mobile Performance + Tap Targets ────────────────────────────────────── */
 @media (max-width: 767px) {
   .card, .glass-card {
     will-change: auto;
   }
-  /* Keep liquid-glass effects on mobile — they're lightweight enough */
+
+  .btn,
+  .btn-primary,
+  .btn-accent,
+  .btn-secondary,
+  .btn-danger,
+  .btn-ghost {
+    min-height: 44px;
+  }
+  .input {
+    min-height: 44px;
+  }
+}
+
+/* Touch devices — kill sticky :hover after tap */
+@media (hover: none) {
+  .btn-primary:hover,
+  .btn-accent:hover,
+  .btn-secondary:hover,
+  .btn-danger:hover,
+  .btn-ghost:hover,
+  .nav-item:hover {
+    filter: none;
+    transform: none;
+    box-shadow: var(--shadow-xs);
+  }
+  .btn-secondary:hover { background-color: var(--bg-card); border-color: var(--border-subtle); }
+  .btn-ghost:hover { background-color: transparent; color: var(--text-secondary); }
+  .nav-item:hover { background-color: transparent; }
 }
