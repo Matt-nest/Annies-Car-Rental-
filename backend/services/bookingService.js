@@ -408,7 +408,8 @@ export async function transitionBooking(bookingId, newStatus, { changedBy = 'own
     cancelled: 'booking_cancelled',
     ready_for_pickup: 'ready_for_pickup',
     returned: 'return_confirmed',
-    completed: 'rental_completed',
+    // rental_completed (review request) fires via cron the day after return —
+    // not here — so customers get one thoughtful follow-up, not two.
   };
 
   if (stageMap[newStatus]) {
