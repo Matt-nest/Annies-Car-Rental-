@@ -139,8 +139,8 @@ router.post('/webhook/inbound', verifyTwilioSignature, asyncHandler(async (req, 
 
   // F-20: exact last-10-digits match. The previous bidirectional substring
   // (localPhone.endsWith(normalized) || normalized.endsWith(localPhone)) would
-  // wrongly match an inbound +44...7728340117 against a US customer with
-  // 7728340117 because suffix-match is order-insensitive. Last-10 equality
+  // wrongly match an inbound +44...9086928492 against a US customer with
+  // 9086928492 because suffix-match is order-insensitive. Last-10 equality
   // handles US format variations (+1XXX, (XXX) XXX-XXXX, raw 10-digit) without
   // the international false-positive. Phones shorter than 10 digits don't match
   // — protects against degenerate stored data.
@@ -546,24 +546,27 @@ router.post('/email-templates/preview-html', requireAuth, asyncHandler(async (re
     // and we want to avoid exporting more surface than necessary for preview.
     const STAGE_CTA_PREVIEW = {
       booking_submitted:   { label: 'Check Booking Status',           fieldKey: 'status_link' },
-      booking_approved:    { label: 'Complete Agreement & Pay →',     fieldKey: 'confirm_link',  style: 'gold' },
+      booking_approved:    { label: 'Complete Agreement & Pay',         fieldKey: 'confirm_link',  style: 'gold' },
+      payment_reminder:    { label: 'Complete Payment',                 fieldKey: 'confirm_link',  style: 'gold' },
       booking_declined:    { label: 'Browse Other Vehicles',          path: '/vehicles' },
       booking_cancelled:   { label: 'Browse Other Vehicles',          path: '/vehicles' },
-      payment_confirmed:   { label: 'Go to My Customer Portal →',     fieldKey: 'portal_link',   style: 'gold' },
+      payment_confirmed:   { label: 'Go to My Customer Portal',       fieldKey: 'portal_link',   style: 'gold' },
       ready_for_pickup:    { label: 'View Pickup Details',            fieldKey: 'portal_link',   style: 'gold' },
       pickup_reminder:     { label: 'View Pickup Details',            fieldKey: 'portal_link',   style: 'gold' },
       day_of_pickup:       { label: 'View Pickup Details',            fieldKey: 'portal_link',   style: 'gold' },
       return_reminder:     { label: 'View Return Details',            fieldKey: 'portal_link' },
-      rental_completed:    { label: 'Leave a Review ⭐',               fieldKey: 'review_link',   style: 'gold' },
+      rental_completed:    { label: 'Leave a Review',                 fieldKey: 'review_link',   style: 'gold' },
+      insurance_approved:  { label: 'View My Booking',                fieldKey: 'portal_link',   style: 'gold' },
+      insurance_rejected:  { label: 'Contact Us',                     path: '/#contact' },
     };
     const cta = STAGE_CTA_PREVIEW[stage];
     if (cta) {
       const siteUrl = brand.siteUrl;
       const href = cta.fieldKey ? (fields[cta.fieldKey] || `${siteUrl}/`) : `${siteUrl}${cta.path || '/'}`;
-      const bg = cta.style === 'gold'
-        ? 'background:linear-gradient(135deg,#D4AF37 0%,#B8941E 100%);color:#fff;'
-        : 'background:#1c1917;color:#fff;';
-      ctaHtml = `<div style="text-align:center;margin:28px 0 8px;"><a href="${href}" style="display:inline-block;${bg}font-size:15px;font-weight:600;padding:14px 32px;border-radius:10px;text-decoration:none;">${cta.label}</a></div>`;
+      const isAccent = cta.style === 'gold' || cta.style === 'accent';
+      const bg = isAccent ? brand.colors.primary : brand.colors.secondary;
+      const fg = isAccent ? brand.colors.secondary : '#ffffff';
+      ctaHtml = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0 8px;"><tr><td align="center"><a href="${href}" style="display:inline-block;background:${bg};color:${fg};font-size:15px;font-weight:700;padding:15px 36px;border-radius:10px;text-decoration:none;">${cta.label}</a></td></tr></table>`;
     }
   }
 

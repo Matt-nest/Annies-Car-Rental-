@@ -4,13 +4,20 @@
  * These fire ONLY when the `email_templates` DB table has no active row
  * for a given stage. DB templates always take priority.
  *
- * All brand-specific values (name, phone, address, etc.) are injected
- * from `brand.js` so the templates work for any white-label deployment.
+ * Design intent: concise, sharp, "$50M brand" messaging. The branded shell
+ * (utils/emailShell.js) supplies the chrome and CTA button; bodies stay lean.
+ * The primary action for each stage is rendered automatically as a CTA button
+ * via notifyService STAGE_CTA — so bodies do NOT repeat the link inline.
+ *
+ * All brand-specific values (name, phone, address, palette) are injected from
+ * `brand.js`, so templates work for any white-label deployment. No hardcoded
+ * cities, prices, or colors.
  *
  * Covers Tier 1 (business-critical) and Tier 2 (revenue/protection):
  *   booking_approved, booking_declined, booking_cancelled,
  *   payment_confirmed, pickup_reminder, return_reminder,
- *   late_return_warning, rental_completed
+ *   late_return_warning, rental_completed, deposit_*, inspection_charges,
+ *   insurance_*, damage_notification, day_of_pickup, day_of_return.
  */
 
 import brand from '../config/brand.js';
@@ -18,314 +25,249 @@ import brand from '../config/brand.js';
 const B = brand;
 const ADDR = `${B.location.address}, ${B.location.city}, ${B.location.state} ${B.location.zip}`;
 
-const FALLBACK_TEMPLATES = {
+// ── Email body building blocks (rendered inline; preserved by wrapInBrandedHTML) ──
+// Single, flat tables only — wrapInBrandedHTML's HTML-block extractor matches to
+// the first </table>, so nested tables would break. Values may contain {{merge}}
+// fields and a literal "$"; single-quoted args never trigger JS interpolation.
 
-  // ── TIER 1: Business breaks without these ────────────────────────────────
+/** One label/value row. */
+function r(label, value) {
+  return `<tr>
+      <td style="padding:7px 18px;color:#78716c;font-size:13px;line-height:1.5;">${label}</td>
+      <td style="padding:7px 18px;color:#1c1917;font-size:13px;font-weight:600;text-align:right;line-height:1.5;">${value}</td>
+    </tr>`;
+}
+
+/** Wrap rows in a soft, bordered details card. */
+function details(rows) {
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fafaf9;border:1px solid #eceae7;border-radius:12px;border-collapse:separate;margin:4px 0 6px;">
+    <tr><td colspan="2" style="height:9px;line-height:9px;font-size:0;">&nbsp;</td></tr>
+    ${rows}
+    <tr><td colspan="2" style="height:9px;line-height:9px;font-size:0;">&nbsp;</td></tr>
+  </table>`;
+}
+
+/** Vehicle hero image — only rendered when a photo URL is present. */
+const VEHICLE_PHOTO = `{{#if vehicle_photo_url}}<img src="{{vehicle_photo_url}}" alt="{{vehicle_year_make_model}}" style="width:100%;max-width:100%;border-radius:12px;margin:4px 0 8px;" />{{/if}}`;
+
+const FALLBACK_TEMPLATES = {
 
   booking_approved: {
     channel: 'both',
-    subject: 'Confirmed: Your {{vehicle}} is reserved — {{booking_code}}',
+    subject: 'You’re confirmed — {{vehicle}} ({{booking_code}})',
     body: `Hi {{first_name}},
 
-Your booking has been approved. Here's your confirmation:
+You're confirmed. Sign your agreement and pay to lock it in — that's the only step left.
 
-RESERVATION CONFIRMED ✓
-───────────────────────
-Reference:  {{booking_code}}
-Vehicle:    {{vehicle}}
-Pickup:     {{pickup_date}} at {{pickup_time}}
-Return:     {{return_date}} at {{return_time}}
-Duration:   {{rental_days}} days
-Mileage:    {{mileage_policy}}
-Total:      \${{total_cost}}
-
-{{#if vehicle_year_make_model}}YOUR VEHICLE
-───────────────────────
-{{#if vehicle_photo_url}}<img src="{{vehicle_photo_url}}" alt="{{vehicle_year_make_model}}" style="width:100%;max-width:400px;border-radius:12px;margin-bottom:12px;" />
-{{/if}}{{vehicle_year_make_model}}{{#if vehicle_color}}
-Color: {{vehicle_color}}{{/if}}{{#if vehicle_plate}}
-Plate: {{vehicle_plate}}{{/if}}
-{{/if}}
-NEXT STEP
-Please complete your rental agreement and payment to lock in your reservation:
-→ {{confirm_link}}
-
-WHAT TO EXPECT
-• 24 hours before pickup — You'll receive a text with the exact address, lockbox code, and parking location.
-• Day of pickup — A final reminder with directions.
-• During your rental — We're a text or call away if you need anything.
-
-DELIVERY OPTION
-Don't want to come to us? We offer delivery and pickup:
-• Port Saint Lucie / Fort Pierce — $35 each way
-• Vero Beach / Stuart — $45 each way
-Reply to this email or text us to arrange delivery.
-
-Questions? We're here:
-  ${B.phone}
-
-${B.name}
-${B.location.city}, ${B.location.state}`,
-    sms_body: `Great news, {{first_name}} — your booking is confirmed!
+${details(
+  r('Reference', '{{booking_code}}') +
+  r('Vehicle', '{{vehicle}}') +
+  r('Pickup', '{{pickup_date}} · {{pickup_time}}') +
+  r('Return', '{{return_date}} · {{return_time}}') +
+  r('Mileage', '{{mileage_policy}}') +
+  r('Total', '${{total_cost}}')
+)}
+${VEHICLE_PHOTO}
+We'll text your exact address, parking spot, and lockbox code 24 hours before pickup. Prefer delivery? Just reply and we'll set it up.`,
+    sms_body: `You're confirmed, {{first_name}}!
 
 {{vehicle}}
-Pickup: {{pickup_date}} at {{pickup_time}}
-Ref: {{booking_code}}
+Pickup {{pickup_date}} at {{pickup_time}}
+Ref {{booking_code}}
 
-Complete your agreement & pay here:
-{{confirm_link}}
+Sign & pay to lock it in: {{confirm_link}}
 
-We'll send you pickup instructions and the lockbox code the day before your rental.
+We'll text pickup details the day before. — ${B.name}`,
+  },
 
-— ${B.name}`,
+  payment_reminder: {
+    channel: 'both',
+    subject: 'Complete your booking — {{booking_code}}',
+    body: `Hi {{first_name}},
+
+Your {{vehicle}} is reserved, but we still need your agreement and payment to lock it in.
+
+${details(
+  r('Reference', '{{booking_code}}') +
+  r('Vehicle', '{{vehicle}}') +
+  r('Pickup', '{{pickup_date}} · {{pickup_time}}') +
+  r('Total', '${{total_cost}}')
+)}
+Unpaid bookings expire 48 hours after approval. It only takes a few minutes to finish.`,
+    sms_body: `Hi {{first_name}}, your {{vehicle}} is reserved — payment still needed.
+
+Ref {{booking_code}}
+Pickup {{pickup_date}} at {{pickup_time}}
+
+Finish here: {{confirm_link}}
+Unpaid bookings expire 48h after approval. — ${B.name}`,
+  },
+
+  ready_for_pickup: {
+    channel: 'both',
+    subject: 'Your {{vehicle}} is ready — {{booking_code}}',
+    body: `Hi {{first_name}},
+
+Your vehicle is cleaned, prepped, and ready.
+
+${details(
+  r('Vehicle', '{{vehicle}}') +
+  r('Reference', '{{booking_code}}') +
+  r('Pickup', '{{pickup_date}} · {{pickup_time}}')
+)}
+${VEHICLE_PHOTO}
+Getting your keys
+${ADDR} — park and walk to the back of the building. Your vehicle has a key lockbox on the window. Enter code {{lockbox_code}}, take the key, and remove the lockbox before driving.
+
+Text us when you arrive.`,
+    sms_body: `Hi {{first_name}}, your {{vehicle}} is ready for pickup.
+
+${ADDR} (back of building)
+Lockbox code {{lockbox_code}}
+
+Check in: {{portal_link}}
+Have a great trip! — ${B.name}`,
+  },
+
+  insurance_approved: {
+    channel: 'both',
+    subject: 'Insurance approved — you’re all set ({{booking_code}})',
+    body: `Hi {{first_name}},
+
+Your insurance documents are approved. You're cleared for pickup.
+
+${details(
+  r('Reference', '{{booking_code}}') +
+  r('Vehicle', '{{vehicle}}') +
+  r('Pickup', '{{pickup_date}} · {{pickup_time}}')
+)}
+We'll text your exact address and lockbox code 24 hours before pickup.`,
+    sms_body: `Hi {{first_name}}, your insurance is approved for {{booking_code}}. You're cleared for pickup {{pickup_date}}.
+
+Details: {{portal_link}} — ${B.name}`,
+  },
+
+  insurance_rejected: {
+    channel: 'both',
+    subject: 'Insurance needs attention — {{booking_code}}',
+    body: `Hi {{first_name}},
+
+We reviewed your insurance documents and need updated information before your rental.
+
+${details(
+  r('Reference', '{{booking_code}}') +
+  r('Vehicle', '{{vehicle}}') +
+  r('Pickup', '{{pickup_date}} · {{pickup_time}}')
+)}
+Please upload corrected documents in your portal, or call us at ${B.phone} and we'll help.`,
+    sms_body: `Hi {{first_name}}, we need updated insurance docs for {{booking_code}} before pickup.
+
+Upload in your portal: {{portal_link}}
+Or call ${B.phone}. — ${B.name}`,
   },
 
   booking_declined: {
     channel: 'both',
-    subject: 'Update on your booking request — {{booking_code}}',
+    subject: 'About your booking request — {{booking_code}}',
     body: `Hi {{first_name}},
 
-We're sorry to let you know that we're unable to confirm your booking at this time.
+Unfortunately we can't confirm this booking.
 
-BOOKING DETAILS
-───────────────
-Reference:  {{booking_code}}
-Vehicle:    {{vehicle}}
-Dates:      {{pickup_date}} – {{return_date}}
+${details(
+  r('Reference', '{{booking_code}}') +
+  r('Vehicle', '{{vehicle}}') +
+  r('Dates', '{{pickup_date}} – {{return_date}}')
+)}
+Why: {{decline_reason}}
 
-REASON
-{{decline_reason}}
-
-WHAT YOU CAN DO
-We may have other vehicles available for your dates. Please give us a call and we'll help find something that works:
-
-  ${B.phone}
-
-We appreciate your interest and hope to serve you soon.
-
-${B.name}
-${B.location.city}, ${B.location.state}`,
-    sms_body: `Hi {{first_name}}, unfortunately we're unable to confirm your booking for the {{vehicle}} ({{pickup_date}} – {{return_date}}).
+We may have another vehicle open for your dates. Call us at ${B.phone} and we'll find you something that works.`,
+    sms_body: `Hi {{first_name}}, we couldn't confirm the {{vehicle}} for {{pickup_date}}–{{return_date}}.
 
 {{decline_reason}}
 
-We'd love to help you find an alternative. Give us a call at ${B.phone}.
-
-— ${B.name}`,
+Call ${B.phone} and we'll find an alternative. — ${B.name}`,
   },
 
   payment_confirmed: {
     channel: 'both',
-    subject: '✅ Payment Confirmed — Receipt for {{booking_code}}',
+    subject: 'Payment received — you’re all set ({{booking_code}})',
+    // Itemized receipt, welcome banner, and pickup next-steps are injected
+    // above this body by notifyService (renderPrepWelcomeHtml +
+    // renderItemizedReceiptHtml + renderPickupNextStepsHtml). Body stays short.
     body: `Hi {{first_name}},
 
-Thank you — your payment has been received and your booking is confirmed! Here's your itemized receipt and everything you need to know.
+Payment received and your booking is confirmed. Your receipt and pickup steps are below.
+${VEHICLE_PHOTO}
+Everything lives in your portal — receipt, check-in, messages, and extensions. {{#if deposit_amount}}Your \${{deposit_amount}} deposit is fully refundable and returns 3–5 business days after inspection.{{/if}}`,
+    sms_body: `Payment confirmed, {{first_name}} — you're all set!
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-ITEMIZED RECEIPT
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{{vehicle}}
+Pickup {{pickup_date}} at {{pickup_time}}
+Ref {{booking_code}}
 
-Booking Reference:  {{booking_code}}
-Payment Date:       {{payment_date}}
-Payment Method:     {{payment_method}}
-
-RENTAL CHARGES
-───────────────────────────
-Vehicle Rental ({{rental_days}} days)    \${{amount}}{{#if unlimited_miles_fee}}
-  └ Unlimited Miles Add-On       \${{unlimited_miles_fee}}{{/if}}{{#if unlimited_tolls_fee}}
-  └ Unlimited Tolls Add-On      \${{unlimited_tolls_fee}}{{/if}}{{#if tax_amount}}
-Taxes & Fees                     \${{tax_amount}}{{/if}}
-Security Deposit (refundable)    \${{deposit_amount}}
-                                 ─────────
-TOTAL CHARGED                    \${{total_charged}}
-
-{{#if vehicle_year_make_model}}YOUR VEHICLE
-───────────────────────────
-{{#if vehicle_photo_url}}<img src="{{vehicle_photo_url}}" alt="{{vehicle_year_make_model}}" style="width:100%;max-width:400px;border-radius:12px;margin-bottom:12px;" />
-{{/if}}{{vehicle_year_make_model}}{{#if vehicle_color}}
-Color: {{vehicle_color}}{{/if}}{{#if vehicle_plate}}
-Plate: {{vehicle_plate}}{{/if}}
-{{/if}}
-RENTAL DETAILS
-───────────────────────────
-Pickup:    {{pickup_date}} at {{pickup_time}}
-Return:    {{return_date}} at {{return_time}}
-Mileage:   {{mileage_policy}}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-WHAT HAPPENS NEXT
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-1️⃣  24 HOURS BEFORE PICKUP
-   You'll receive a text with the exact pickup address, parking location, and your lockbox code.
-
-2️⃣  DAY OF PICKUP
-   A final reminder with turn-by-turn directions.
-
-3️⃣  PICKUP
-   Walk to the back of the building, find your vehicle, retrieve the key from the lockbox, and you're off!
-
-4️⃣  SELF-SERVICE CHECK-IN
-   Use your Customer Portal to complete check-in, view your rental details, and contact us anytime:
-   → {{portal_link}}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-YOUR CUSTOMER PORTAL
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Your portal is your rental home base. Use it to:
-• View your booking details and receipt
-• Complete self-service check-in on pickup day
-• Message us directly
-• Request a rental extension
-
-→ {{portal_link}}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-DEPOSIT INFO
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Your \${{deposit_amount}} security deposit is fully refundable. After your return, we'll inspect the vehicle and process your refund within 3–5 business days — no action needed from you.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Questions? We're always here:
-  ${B.phone}
-
-${B.name}
-${B.location.city}, ${B.location.state}`,
-    sms_body: `Hi {{first_name}}, your payment of \${{total_charged}} for the {{vehicle}} is confirmed! ✅
-
-Ref: {{booking_code}}
-Pickup: {{pickup_date}} at {{pickup_time}}
-
-Your Customer Portal: {{portal_link}}
-
-We'll text you pickup instructions the day before. Questions? Call ${B.phone}.
-
-— ${B.name}`,
+Your portal: {{portal_link}}
+We'll text pickup details the day before. — ${B.name}`,
   },
 
   pickup_reminder: {
     channel: 'both',
-    subject: 'Pickup tomorrow: Your {{vehicle}} is ready — {{booking_code}}',
+    subject: 'Pickup tomorrow — your {{vehicle}} is ready ({{booking_code}})',
     body: `Hi {{first_name}},
 
-Your rental starts tomorrow. Here's everything you need:
+Your rental starts tomorrow. Here's everything you need.
 
-PICKUP DETAILS
-──────────────
-Date:       {{pickup_date}} at {{pickup_time}}
-Vehicle:    {{vehicle}}
-Reference:  {{booking_code}}
+${details(
+  r('Pickup', '{{pickup_date}} · {{pickup_time}}') +
+  r('Vehicle', '{{vehicle}}') +
+  r('Reference', '{{booking_code}}') +
+  r('Mileage', '{{mileage_policy}}')
+)}
+${VEHICLE_PHOTO}
+Getting your keys
+${ADDR} — park and walk to the back of the building. Your vehicle has a key lockbox on the window. Enter code {{lockbox_code}}, take the key, and remove the lockbox before driving.
 
-{{#if vehicle_year_make_model}}YOUR VEHICLE
-──────────────
-{{#if vehicle_photo_url}}<img src="{{vehicle_photo_url}}" alt="{{vehicle_year_make_model}}" style="width:100%;max-width:400px;border-radius:12px;margin-bottom:12px;" />
-{{/if}}{{vehicle_year_make_model}}{{#if vehicle_color}}
-Color: {{vehicle_color}}{{/if}}{{#if vehicle_plate}}
-Plate: {{vehicle_plate}}{{/if}}{{#if vehicle_vin}}
-VIN:   {{vehicle_vin}}{{/if}}
-{{/if}}
-{{#if handoff_fuel_level}}VEHICLE CONDITION AT HANDOFF
-──────────────────────────
-Fuel Level:  {{handoff_fuel_level}}
-{{#if handoff_odometer}}Odometer:    {{handoff_odometer}} mi{{/if}}
-{{#if handoff_photos}}
-Inspection Photos:
-{{handoff_photos}}{{/if}}
-{{/if}}
-PICKUP LOCATION
-${ADDR}
-→ Park and walk to the back of the building.
-
-HOW TO GET YOUR KEYS
-1. Locate your vehicle in the back lot
-2. Find the key lockbox attached to the window
-3. Enter code: {{lockbox_code}}
-4. Remove the lockbox from the window before driving
-
-SELF-SERVICE CHECK-IN
-Once you have the key, complete your check-in through your Rental Portal:
-→ {{portal_link}}
-
-IMPORTANT REMINDERS
-• Mileage — {{mileage_policy}}.
-• Fuel — Return the vehicle with the same fuel level you receive it with.
-• No smoking — Vehicles are smoke-free. A $150 cleaning fee applies.
-• No pets — A $150 cleaning fee applies.
-• Text us when you arrive so we know you're all set.
-
-CONTACT
-  ${B.phone}
-
-${B.name}
-${B.location.city}, ${B.location.state}`,
+{{#if handoff_fuel_level}}At handoff: fuel {{handoff_fuel_level}}{{#if handoff_odometer}}, odometer {{handoff_odometer}} mi{{/if}}.
+{{/if}}A few house rules: return with the same fuel level, no smoking, no pets ($150 cleaning fee each). Text us when you arrive.`,
     sms_body: `Hi {{first_name}}, your {{vehicle}} is ready for pickup tomorrow.
 
-Mileage: {{mileage_policy}}.
-📍 ${ADDR}
-🔑 Lockbox code: {{lockbox_code}}
-🅿️ The car will be parked in the back of the building.
+Mileage: {{mileage_policy}}
+${ADDR}
+Lockbox code {{lockbox_code}} (car parked in back)
 
-When you arrive:
 1. Go to the back of the building
-2. Find the vehicle with the lockbox on the window
-3. Enter code {{lockbox_code}} to retrieve the keys
-4. Remove the lockbox from the window before driving
+2. Find the car with the lockbox on the window
+3. Enter {{lockbox_code}}, take the key, remove the lockbox
 
-Complete your check-in: {{portal_link}}
-
-Need help? Call us at ${B.phone}.
-
-— ${B.name}`,
+Check in: {{portal_link}}
+Need help? ${B.phone} — ${B.name}`,
   },
 
   return_reminder: {
     channel: 'both',
-    subject: 'Return reminder: {{vehicle}} due back {{return_date}}',
+    subject: 'Return reminder — {{vehicle}} due {{return_date}}',
     body: `Hi {{first_name}},
 
-Your rental is almost over. Here are the details for a smooth return:
+Your rental is almost up. A quick checklist for a smooth return.
 
-RETURN DETAILS
-──────────────
-Date:     {{return_date}} at {{return_time}}
-Vehicle:  {{vehicle}}
-Ref:      {{booking_code}}
+${details(
+  r('Return', '{{return_date}} · {{return_time}}') +
+  r('Vehicle', '{{vehicle}}') +
+  r('Reference', '{{booking_code}}')
+)}
+Before you drop off: refill fuel to the level you received, park in the back near the dumpster, return the key to the lockbox (code {{lockbox_code}}), and snap a photo of where you parked.
 
-RETURN LOCATION
+Plans changed? Reply and we'll check on extending your rental.`,
+    sms_body: `Hi {{first_name}}, your {{vehicle}} is due back tomorrow by {{return_time}}.
+
 ${ADDR}
 
-RETURN CHECKLIST
-☐ Fill fuel to the same level you received the car with
-☐ Park in the back of the building, near the dumpster
-☐ Place the key back in the lockbox (code: {{lockbox_code}})
-☐ Take a photo of where you parked and send it to us
+Before drop-off:
+• Same fuel level as pickup
+• Park in back, near the dumpster
+• Key in lockbox (code {{lockbox_code}})
+• Photo of where you parked
 
-WANT TO EXTEND?
-If your plans have changed, we can often extend your rental or swap you into another vehicle. Just reply to this email or text us.
-
-CONTACT
-  ${B.phone}
-
-${B.name}
-${B.location.city}, ${B.location.state}`,
-    sms_body: `Hi {{first_name}}, a reminder that your {{vehicle}} is due back tomorrow.
-
-Return by: {{return_date}} at {{return_time}}
-
-📍 ${ADDR}
-
-Please remember:
-• Return with the same fuel level
-• Park in the back, near the dumpster
-• Place the key back in the lockbox (code: {{lockbox_code}})
-• Take a photo of where you parked
-
-Want to extend? Reply to this message and we'll check availability.
-
-— ${B.name}`,
+Want to extend? Reply and we'll check. — ${B.name}`,
   },
 
   // ── TIER 2: Revenue & protection ─────────────────────────────────────────
@@ -334,41 +276,91 @@ Want to extend? Reply to this message and we'll check availability.
     channel: 'sms',
     subject: null,
     body: null,
-    sms_body: `Hi {{first_name}}, we noticed your {{vehicle}} was due back at {{return_time}} today. If you're on your way, no worries — just let us know your ETA.
+    sms_body: `Hi {{first_name}}, your {{vehicle}} was due back at {{return_time}} today. On your way? Just send your ETA.
 
-If you need to extend, reply to this message and we'll check availability.
+Need more time? Reply and we'll check on extending.
 
-Return address: ${ADDR}
+Return: ${ADDR}
+— ${B.name}, ${B.phone}`,
+  },
 
-— ${B.name}
-${B.phone}`,
+  late_return_escalation: {
+    channel: 'both',
+    subject: 'Your rental is overdue — {{booking_code}}',
+    body: `{{first_name}},
+
+Your {{vehicle}} was due back and hasn't been returned. We've also been unable to reach you.
+
+${details(
+  r('Reference', '{{booking_code}}') +
+  r('Due', '{{return_date}} · {{return_time}}') +
+  r('Status', 'Overdue')
+)}
+Please return the vehicle to ${ADDR} right away, or call us at ${B.phone}. Late fees apply to overdue rentals. If there's an emergency, let us know and we'll work with you.`,
+    sms_body: `{{first_name}}, your {{vehicle}} was due back and hasn't been returned.
+
+Please return it now or call ${B.phone}. Late fees apply.
+
+— ${B.name}`,
+  },
+
+  extension_offer: {
+    channel: 'sms',
+    subject: null,
+    body: null,
+    sms_body: `Hi {{first_name}}, your rental ends {{return_date}}. Enjoying the {{vehicle}}? We can extend it.
+
+Reply with how many extra days you need and we'll confirm pricing and availability.
+
+— ${B.name}`,
+  },
+
+  mid_rental_checkin: {
+    channel: 'sms',
+    subject: null,
+    body: null,
+    sms_body: `Hi {{first_name}}, just checking in — how's the {{vehicle}} treating you?
+
+Your return is set for {{return_date}}. Want to keep it longer? Reply and we'll hold it for you.
+
+— ${B.name}, ${B.phone}`,
+  },
+
+  return_confirmed: {
+    channel: 'sms',
+    subject: null,
+    body: null,
+    sms_body: `Hi {{first_name}}, we've got the {{vehicle}} back and everything looks great. Thanks for taking care of it.
+
+Hope to see you again soon! — ${B.name}`,
+  },
+
+  repeat_customer: {
+    channel: 'email',
+    subject: '{{first_name}}, your next rental is 5% off',
+    body: `Hi {{first_name}},
+
+Thanks for renting with ${B.name}. As a returning guest, here's 5% off your next trip — just mention this email when you book.
+
+Whenever you need a car next, we'd love to have you back.`,
+    sms_body: null,
   },
 
   rental_completed: {
     channel: 'both',
-    subject: 'How was your rental, {{first_name}}?',
+    subject: 'How was your {{vehicle}}, {{first_name}}?',
     body: `Hi {{first_name}},
 
-Thank you for renting with ${B.name}. We hope the {{vehicle}} made your trip a little easier.
+Thanks for renting with ${B.name} — we hope the {{vehicle}} made your trip easier.
 
-We're a small, family-run business in ${B.location.city}, and your feedback helps us grow. If you have a moment, we'd love to hear how it went.
+If you have a moment, a quick review means a lot. As a thank-you, you'll get 5% off your next rental — just mention it when you book.
 
-→ Leave a review: {{review_link}}
+We'd love to have you back.`,
+    sms_body: `Hi {{first_name}}, hope you enjoyed your {{vehicle}}!
 
-AS A THANK YOU
-Every guest who leaves a review receives 5% off their next rental. Just mention your review when you book and we'll apply the discount.
+A quick review would mean a lot — and we'll take 5% off your next rental as thanks.
 
-We'd love to have you back.
-
-${B.name}
-${B.location.city}, ${B.location.state}
-${B.phone}`,
-    sms_body: `Hi {{first_name}}, we hope you enjoyed your {{vehicle}}.
-
-If you have a moment, a review would mean a lot to our small business. As a thank you, we'll give you 5% off your next rental.
-
-Leave a review: {{review_link}}
-
+{{review_link}}
 — ${B.name}`,
   },
 
@@ -379,100 +371,64 @@ Leave a review: {{review_link}}
 
 Your booking has been cancelled.
 
-CANCELLED BOOKING
-─────────────────
-Reference:  {{booking_code}}
-Vehicle:    {{vehicle}}
-Dates:      {{pickup_date}} – {{return_date}}
+${details(
+  r('Reference', '{{booking_code}}') +
+  r('Vehicle', '{{vehicle}}') +
+  r('Dates', '{{pickup_date}} – {{return_date}}')
+)}
+Any deposit collected is refunded to your original payment method within 3–5 business days. Want to rebook? We're here at ${B.phone}.`,
+    sms_body: `Hi {{first_name}}, your booking for the {{vehicle}} ({{pickup_date}}–{{return_date}}) is cancelled.
 
-If a deposit was collected, it will be refunded to your original payment method within 3–5 business days per our cancellation policy.
+Ref {{booking_code}}
+Any deposit is refunded within 3–5 business days.
 
-If you'd like to rebook or have questions, we're here to help:
-  ${B.phone}
-
-${B.name}
-${B.location.city}, ${B.location.state}`,
-    sms_body: `Hi {{first_name}}, your booking for the {{vehicle}} ({{pickup_date}} – {{return_date}}) has been cancelled.
-
-Ref: {{booking_code}}
-
-If a deposit was collected, it will be refunded within 3–5 business days.
-
-Questions? Call us at ${B.phone}.
-
-— ${B.name}`,
+Questions? ${B.phone} — ${B.name}`,
   },
 
   // ── TIER 2 (continued): Deposit Notifications ────────────────────────────
 
   deposit_refunded: {
     channel: 'both',
-    subject: 'Your ${{deposit_amount}} deposit has been refunded — {{booking_code}}',
+    subject: 'Your ${{deposit_amount}} deposit is on its way back — {{booking_code}}',
     body: `Hi {{first_name}},
 
-Great news — your security deposit has been fully refunded.
+Good news — your security deposit has been fully refunded.
 
-DEPOSIT REFUND
-──────────────
-Reference:     {{booking_code}}
-Vehicle:       {{vehicle}}
-Deposit Held:  \${{deposit_amount}}
-Refund Amount: \${{refund_amount}}
-Status:        ✅ Full Refund
+${details(
+  r('Reference', '{{booking_code}}') +
+  r('Vehicle', '{{vehicle}}') +
+  r('Deposit held', '${{deposit_amount}}') +
+  r('Refunded', '${{refund_amount}}')
+)}
+It'll appear on your original payment method within 5–10 business days. Thanks for taking great care of the vehicle — we hope to see you again.`,
+    sms_body: `Hi {{first_name}}, your \${{deposit_amount}} deposit for the {{vehicle}} has been fully refunded.
 
-Your refund of \${{refund_amount}} will be returned to your original payment method within 5–10 business days.
-
-Thank you for taking great care of the vehicle — we hope to see you again soon.
-
-Questions? We're always here:
-  ${B.phone}
-
-${B.name}
-${B.location.city}, ${B.location.state}`,
-    sms_body: `Hi {{first_name}}, your \${{deposit_amount}} security deposit for the {{vehicle}} has been fully refunded! ✅
-
-Ref: {{booking_code}}
-
-The refund will appear on your statement within 5–10 business days.
-
-— ${B.name}`,
+Ref {{booking_code}}
+Expect it within 5–10 business days. — ${B.name}`,
   },
 
   deposit_settled: {
     channel: 'both',
-    subject: 'Deposit settlement details — {{booking_code}}',
+    subject: 'Deposit settlement — {{booking_code}}',
     body: `Hi {{first_name}},
 
-Your security deposit has been settled. Here are the details:
+Your security deposit has been settled. Here's the breakdown.
 
-DEPOSIT SETTLEMENT
-──────────────────
-Reference:       {{booking_code}}
-Vehicle:         {{vehicle}}
-Deposit Held:    \${{deposit_amount}}
-Charges Applied: \${{incidental_total}}
-Refund Amount:   \${{refund_amount}}
+${details(
+  r('Reference', '{{booking_code}}') +
+  r('Vehicle', '{{vehicle}}') +
+  r('Deposit held', '${{deposit_amount}}') +
+  r('Charges applied', '${{incidental_total}}') +
+  r('Refund', '${{refund_amount}}')
+)}
+{{#if refund_amount}}Your \${{refund_amount}} refund returns to your original payment method within 5–10 business days.
+{{/if}}Questions about a charge? Reach us at ${B.phone}, or review and dispute it in your portal.`,
+    sms_body: `Hi {{first_name}}, your deposit for the {{vehicle}} is settled.
 
-{{#if refund_amount}}Your refund of \${{refund_amount}} will be returned to your original payment method within 5–10 business days.{{/if}}
+Deposit \${{deposit_amount}} · Charges \${{incidental_total}} · Refund \${{refund_amount}}
+Ref {{booking_code}}
 
-If you have any questions about the charges applied to your deposit, please don't hesitate to reach out. You can also view your booking details and submit a dispute through your Customer Portal.
-
-Contact us anytime:
-  ${B.phone}
-
-${B.name}
-${B.location.city}, ${B.location.state}`,
-    sms_body: `Hi {{first_name}}, your deposit for the {{vehicle}} has been settled.
-
-Deposit: \${{deposit_amount}}
-Charges: \${{incidental_total}}
-Refund:  \${{refund_amount}}
-
-Ref: {{booking_code}}
-
-The refund will appear on your statement within 5–10 business days. Questions? Call ${B.phone}.
-
-— ${B.name}`,
+Refund arrives in 5–10 business days. Questions? ${B.phone} — ${B.name}`,
   },
 
   inspection_charges_scheduled: {
@@ -480,73 +436,58 @@ The refund will appear on your statement within 5–10 business days. Questions?
     subject: 'Inspection charges scheduled — {{booking_code}}',
     body: `Hi {{first_name}},
 
-Your post-rental inspection is complete. Charges came in above your security deposit, and the difference is scheduled to be charged to the card on file.
+Your post-rental inspection is complete. Charges came in above your deposit, and the difference is scheduled to the card on file.
 
-INSPECTION CHARGES
-──────────────────
-Reference:       {{booking_code}}
-Vehicle:         {{vehicle}}
-Charges Total:   \${{incidental_total}}
-Amount Owed:     \${{amount_owed}}
-
-This charge will be processed automatically in 48 hours. If you'd like to dispute any portion before that window closes, log into your Customer Portal — disputed charges are paused for review.
-
-Contact us anytime:
-  ${B.phone}
-
-${B.name}
-${B.location.city}, ${B.location.state}`,
+${details(
+  r('Reference', '{{booking_code}}') +
+  r('Vehicle', '{{vehicle}}') +
+  r('Charges total', '${{incidental_total}}') +
+  r('Amount owed', '${{amount_owed}}')
+)}
+This processes automatically in 48 hours. To dispute any part before then, open your portal — disputed charges are paused for review. Questions? ${B.phone}.`,
   },
 
   // ── Bonzah insurance lifecycle ───────────────────────────────────────────
 
   insurance_policy_issued: {
     channel: 'email',
-    subject: '🛡️ Your Bonzah insurance policy is active — {{booking_code}}',
+    subject: 'Your insurance is active — {{booking_code}}',
     body: `Hi {{first_name}},
 
-Good news — your Bonzah rental insurance is active for your upcoming trip.
+Your Bonzah rental insurance is active for this trip.
 
-POLICY DETAILS
-──────────────
-Reference:    {{booking_code}}
-Vehicle:      {{vehicle}}
-Coverage:     {{bonzah_tier_label}}
-Policy #:     {{bonzah_policy_no}}
-Total paid:   \${{bonzah_total_charged}}
-Effective:    {{pickup_date}} – {{return_date}}
-
-The policy is held with Bonzah (Insillion) — keep this email for your records. If you have a claim during your rental, contact Bonzah directly using the policy number above.
-
-Need to reach us?
-  ${B.phone}
-
-${B.name}
-${B.location.city}, ${B.location.state}`,
+${details(
+  r('Reference', '{{booking_code}}') +
+  r('Vehicle', '{{vehicle}}') +
+  r('Coverage', '{{bonzah_tier_label}}') +
+  r('Policy #', '{{bonzah_policy_no}}') +
+  r('Total paid', '${{bonzah_total_charged}}') +
+  r('Effective', '{{pickup_date}} – {{return_date}}')
+)}
+The policy is held with Bonzah (Insillion) — keep this email for your records. For a claim during your rental, contact Bonzah directly using the policy number above.`,
   },
 
   insurance_bind_failed: {
     channel: 'email',
     subject: '⚠️ Bonzah bind FAILED — manual reconciliation needed for {{booking_code}}',
-    body: `Bonzah policy could NOT be issued for booking {{booking_code}} after the payment processor successfully charged the customer.
+    body: `Bonzah policy could NOT be issued for booking {{booking_code}} after Stripe successfully charged the customer.
 
-BOOKING
-───────
-Reference:   {{booking_code}}
-Customer:    {{first_name}} {{last_name}} ({{email}})
-Vehicle:     {{vehicle}}
-Pickup:      {{pickup_date}} at {{pickup_time}}
-Tier:        {{bonzah_tier_label}}
-Quote #:     {{bonzah_quote_id}}
-Premium:     \${{bonzah_premium}}
+${details(
+  r('Reference', '{{booking_code}}') +
+  r('Customer', '{{first_name}} {{last_name}}') +
+  r('Email', '{{email}}') +
+  r('Vehicle', '{{vehicle}}') +
+  r('Pickup', '{{pickup_date}} · {{pickup_time}}') +
+  r('Tier', '{{bonzah_tier_label}}') +
+  r('Quote #', '{{bonzah_quote_id}}') +
+  r('Premium', '${{bonzah_premium}}')
+)}
+What to do:
+1. Open the booking: {{dashboard_link}}
+2. Inspect the latest bonzah_events row for the underlying error.
+3. Retry the bind, OR refund the insurance portion and switch insurance_provider to 'own'.
 
-WHAT TO DO
-1. Open the booking in the dashboard: {{dashboard_link}}
-2. Inspect the most recent bonzah_events row for the underlying error.
-3. Either retry the bind manually OR refund the insurance portion to the customer
-   and switch insurance_provider to 'own'.
-
-The customer's payment charge HAS gone through. They are not aware of this failure.
+The customer's Stripe charge HAS gone through. They are not aware of this failure.
 
 — ${B.name} Internal Alert`,
   },
@@ -558,24 +499,13 @@ The customer's payment charge HAS gone through. They are not aware of this failu
     subject: 'A note about your recent rental — {{booking_code}}',
     body: `Hi {{first_name}},
 
-We wanted to reach out about your recent rental of the {{vehicle}} (booking {{booking_code}}). During our post-rental inspection we noted some damage that we'll need to follow up on.
+We wanted to reach out about your recent rental of the {{vehicle}} ({{booking_code}}). During our post-rental inspection we noted some damage we'll need to follow up on.
 
-WHAT WE FOUND
-{{damage_description}}
+What we found: {{damage_description}}
 
-NEXT STEPS
-We'll review the details and contact you within 1 business day to walk through what we found, what (if anything) is owed beyond your security deposit, and answer any questions you may have.
+We'll review the details and contact you within one business day to walk through what we found, whether anything is owed beyond your deposit, and answer any questions.
 
-If you'd like to get ahead of this, you can reach us directly:
-  ${B.phone}
-
-Your booking details are also available in your customer portal:
-{{portal_link}}
-
-Thank you for renting with us — we'll be in touch soon.
-
-${B.name}
-${B.location.city}, ${B.location.state}`,
+Want to get ahead of it? Reach us at ${B.phone}, or view your booking in the portal.`,
   },
 
   day_of_pickup: {
@@ -584,15 +514,11 @@ ${B.location.city}, ${B.location.state}`,
     body: null,
     sms_body: `Good morning, {{first_name}}! Your {{vehicle}} is ready for pickup today at {{pickup_time}}.
 
-📍 ${ADDR} (back of building)
-🔑 Lockbox code: {{lockbox_code}}
+${ADDR} (back of building)
+Lockbox code {{lockbox_code}}
 
-Complete your check-in here: {{portal_link}}
-
-Drive safe — text us if anything comes up.
-
-— ${B.name}
-${B.phone}`,
+Check in: {{portal_link}}
+Drive safe — text us if anything comes up. — ${B.name}, ${B.phone}`,
   },
 
   day_of_return: {
@@ -601,18 +527,15 @@ ${B.phone}`,
     body: null,
     sms_body: `Good morning, {{first_name}}! Your {{vehicle}} is due back today by {{return_time}}.
 
-📍 ${ADDR} (back of building, near the dumpster)
-🔑 Place key in lockbox (code {{lockbox_code}})
+${ADDR} (back of building, near the dumpster)
+Key in lockbox (code {{lockbox_code}})
 
 Quick checklist:
 • Same fuel level as pickup
-• Snap a photo of where you parked
-• Reply to extend if your plans changed
+• Photo of where you parked
+• Reply to extend if plans changed
 
-Thanks again for renting with us!
-
-— ${B.name}
-${B.phone}`,
+Thanks again! — ${B.name}, ${B.phone}`,
   },
 };
 

@@ -54,7 +54,8 @@ const TWILIO_FROM = process.env.TWILIO_PHONE_NUMBER;
 
 const STAGE_CTA = {
   booking_submitted:   { label: 'Check Booking Status',         fieldKey: 'status_link' },
-  booking_approved:    { label: 'Complete Agreement \u0026 Pay →', fieldKey: 'confirm_link',  style: 'gold' },
+  booking_approved:    { label: 'Complete Agreement \u0026 Pay', fieldKey: 'confirm_link',  style: 'gold' },
+  payment_reminder:    { label: 'Complete Payment',                fieldKey: 'confirm_link',  style: 'gold' },
   booking_declined:    { label: 'Browse Other Vehicles',         fallbackPath: '/vehicles' },
   booking_cancelled:   { label: 'Browse Other Vehicles',         fallbackPath: '/vehicles' },
   payment_confirmed:   { label: 'Go to My Customer Portal →', fieldKey: 'portal_link',  style: 'gold' },
@@ -102,17 +103,16 @@ function buildCtaHtml(stage, mergeFields) {
     return ''; // No URL available
   }
 
-  const isGold = cta.style === 'gold';
-  const bg = isGold
-    ? 'background:linear-gradient(135deg,#D4AF37 0%,#B8941E 100%);color:#fff;box-shadow:0 4px 12px rgba(212,175,55,0.3);'
-    : 'background:#1c1917;color:#fff;';
+  const isAccent = cta.style === 'gold' || cta.style === 'accent';
+  const bg = isAccent ? brand.colors.primary : brand.colors.secondary;
+  const fg = isAccent ? brand.colors.secondary : '#ffffff';
 
   return `
-    <div style="text-align:center;margin:28px 0 8px;">
-      <a href="${href}" style="display:inline-block;${bg}font-size:15px;font-weight:600;padding:14px 32px;border-radius:10px;text-decoration:none;letter-spacing:0.01em;">
-        ${escapeHtml(cta.label)}
-      </a>
-    </div>`;
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0 8px;"><tr>
+      <td align="center">
+        <a href="${href}" style="display:inline-block;background:${bg};color:${fg};font-size:15px;font-weight:700;padding:15px 36px;border-radius:10px;text-decoration:none;letter-spacing:0.01em;">${escapeHtml(cta.label)}</a>
+      </td>
+    </tr></table>`;
 }
 
 // ── Core Send Functions ─────────────────────────────────────────────────────
@@ -607,6 +607,7 @@ export function buildBookingPayload(booking, { handoffRecord } = {}) {
 /** Human-readable summaries for each event (used for local message storage) */
 const EVENT_SUMMARIES = {
   booking_submitted:      'New booking request submitted',
+  payment_reminder:       'Payment reminder sent — booking awaiting payment',
   booking_approved:       'Booking approved — awaiting agreement & payment',
   booking_declined:       'Booking request declined',
   booking_cancelled:      'Booking cancelled',
@@ -949,7 +950,7 @@ function renderPickupNextStepsHtml(mergeFields) {
         <li>Open your customer portal to review the pickup instructions.</li>
         <li>Tap <em>Start your rental</em> in the portal to receive your lockbox code.</li>
       </ol>
-      ${portalLink ? `<a href="${portalLink}" style="display:inline-block;background:linear-gradient(135deg,#D4AF37 0%,#B8941E 100%);color:#fff;font-size:13px;font-weight:600;padding:10px 18px;border-radius:8px;text-decoration:none;">Open My Portal →</a>` : ''}
+      ${portalLink ? `<a href="${portalLink}" style="display:inline-block;background:${brand.colors.primary};color:${brand.colors.secondary};font-size:13px;font-weight:700;padding:11px 20px;border-radius:8px;text-decoration:none;">Open My Portal</a>` : ''}
     </div>`;
 }
 
@@ -1008,7 +1009,7 @@ export function wrapInBrandedHTML(subject, plainTextBody, ctaHtml = '', prependH
       // Auto-link bare URLs (only those NOT inside a placeholder)
       inner = inner.replace(
         /(https?:\/\/[^\s<\x00]+)/g,
-        '<a href="$1" style="color:#c8a97e;text-decoration:underline;">$1</a>'
+        `<a href="$1" style="color:${brand.colors.accent};text-decoration:underline;">$1</a>`
       );
 
       return `<p style="margin:0 0 16px;color:#44403c;font-size:15px;line-height:1.7;">${inner}</p>`;

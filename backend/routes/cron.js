@@ -121,7 +121,7 @@ function dateForOffset(offsetMinutes) {
 router.get('/daily', async (req, res) => {
   const results = {
     pickupReminders: 0, returnReminders: 0, overdueFlags: 0,
-    autoDeclined: 0, approvalReminders: 0,
+    autoDeclined: 0, paymentReminders: 0,
     midRentalCheckins: 0, extensionOffers: 0,
     reviewRequests: 0, repeatCustomers: 0, lateEscalations: 0,
     autoNoShows: 0,
@@ -164,14 +164,13 @@ router.get('/daily', async (req, res) => {
       results.returnReminders++;
     }
 
-    // 3. Overdue returns — late_return_warning is intentionally NOT externalized.
-    // It uses `.lt(return_date, today())` (less-than, ongoing-daily) which doesn't
-    // map to a single offset. Editing this stage's timing in the UI is blocked
-    // (trigger_kind='cron' but no offset row).
+    // 3. Overdue returns — late_return_warning fires once on the first overdue
+    // day only (return_date = yesterday). Daily re-nags are handled by
+    // late_return_escalation after 4 days. Idempotency is per calendar day.
     const { data: overdue } = await supabase
       .from('bookings')
       .select('*, customers(*), vehicles(*)')
-      .lt('return_date', today())
+      .eq('return_date', daysAgo(1))
       .eq('status', 'active');
 
     for (const b of overdue || []) {
@@ -179,29 +178,46 @@ router.get('/daily', async (req, res) => {
       results.overdueFlags++;
     }
 
-    // 4. Auto-expire unapproved bookings (48h+ → decline, 24-48h → remind)
+    // 4. Auto-expire APPROVED-but-unpaid bookings — the payment deadline.
+    // The 48h clock starts when the booking is approved and the payment link is
+    // sent (owner_approved_at), NOT at submission: pending_approval bookings now
+    // wait on the admin indefinitely (admin owns clearing stale requests). A
+    // paid booking has already moved to 'confirmed', so status='approved' means
+    // the payment link was never completed.
     const cutoff48h = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
     const cutoff24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
     const { data: toDecline } = await supabase
       .from('bookings')
       .select('*, customers(*), vehicles(*)')
-      .eq('status', 'pending_approval')
-      .lt('created_at', cutoff48h);
+      .eq('status', 'approved')
+      .lt('owner_approved_at', cutoff48h);
 
     for (const b of toDecline || []) {
+      // Safety: never expire a booking that has actually been paid (guards
+      // against a webhook that recorded the payment but failed to transition
+      // the booking to 'confirmed').
+      const { data: paid } = await supabase
+        .from('payments')
+        .select('id')
+        .eq('booking_id', b.id)
+        .eq('payment_type', 'rental')
+        .eq('status', 'completed')
+        .maybeSingle();
+      if (paid) continue;
+
       await supabase.from('bookings').update({
         status: 'declined',
-        decline_reason: 'No response — booking expired after 48 hours',
+        decline_reason: 'Payment not completed — booking expired 48 hours after approval',
         owner_declined_at: new Date().toISOString(),
       }).eq('id', b.id);
 
       await supabase.from('booking_status_log').insert({
         booking_id: b.id,
-        from_status: 'pending_approval',
+        from_status: 'approved',
         to_status: 'declined',
         changed_by: 'system',
-        reason: 'Auto-expired after 48 hours with no owner response',
+        reason: 'Auto-expired 48 hours after approval with no completed payment',
       });
 
       sendBookingNotification('booking_declined', buildBookingPayload({ ...b, status: 'declined' }));
@@ -211,14 +227,22 @@ router.get('/daily', async (req, res) => {
     const { data: toRemind } = await supabase
       .from('bookings')
       .select('*, customers(*), vehicles(*)')
-      .eq('status', 'pending_approval')
-      .lt('created_at', cutoff24h)
-      .gte('created_at', cutoff48h);
+      .eq('status', 'approved')
+      .lt('owner_approved_at', cutoff24h)
+      .gte('owner_approved_at', cutoff48h);
 
     for (const b of toRemind || []) {
-      // No template for approval_reminder yet — just log it
-      console.log(`[CRON] Approval reminder for ${b.booking_code} — no template configured`);
-      results.approvalReminders++;
+      const { data: paid } = await supabase
+        .from('payments')
+        .select('id')
+        .eq('booking_id', b.id)
+        .eq('payment_type', 'rental')
+        .eq('status', 'completed')
+        .maybeSingle();
+      if (paid) continue;
+
+      sendBookingNotification('payment_reminder', buildBookingPayload(b));
+      results.paymentReminders++;
     }
 
     // 5. Mid-rental check-in
