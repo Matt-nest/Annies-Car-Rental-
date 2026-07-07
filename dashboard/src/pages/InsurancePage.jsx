@@ -43,7 +43,7 @@ function StatusBadge({ status }) {
   );
 }
 
-function StatTile({ icon: Icon, label, value, accent = '#465FFF', sublabel }) {
+function StatTile({ icon: Icon, label, value, accent = '#13294B', sublabel }) {
   return (
     <div className="card p-4 flex items-start gap-3">
       <div
@@ -117,12 +117,12 @@ export default function InsurancePage() {
   const allTimeMarkup = stats?.markup_all_time_cents || 0;
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 lg:p-8 space-y-6">
       {/* Header */}
-      <div className="flex items-end justify-between gap-3 flex-wrap">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-[var(--text-primary)] flex items-center gap-2">
-            <Shield size={22} className="text-[#465FFF]" />
+            <Shield size={22} className="text-[#13294B]" />
             Insurance
           </h1>
           <p className="text-sm text-[var(--text-secondary)] mt-1">
@@ -155,7 +155,7 @@ export default function InsurancePage() {
             icon={DollarSign}
             label="Markup · this month"
             value={dollars(monthMarkup)}
-            accent="#465FFF"
+            accent="#13294B"
             sublabel={`${dollars(allTimeMarkup)} lifetime`}
           />
         </div>
@@ -194,7 +194,7 @@ export default function InsurancePage() {
               onClick={() => setFilter(f.key)}
               className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
                 active
-                  ? 'border-[#465FFF] bg-[rgba(70,95,255,0.1)] text-[#465FFF]'
+                  ? 'border-[#13294B] bg-[rgba(19,41,75,0.1)] text-[#13294B]'
                   : 'border-[var(--border-subtle)] text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)]'
               }`}
             >
@@ -218,7 +218,8 @@ export default function InsurancePage() {
             No {filter ? STATUS_FILTERS.find(f => f.key === filter)?.label?.toLowerCase() : ''} policies yet.
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-[11px] uppercase tracking-wider text-[var(--text-tertiary)] border-b border-[var(--border-subtle)]">
                 <tr>
@@ -245,7 +246,7 @@ export default function InsurancePage() {
                   return (
                     <tr key={p.id} className="border-b border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] transition-colors">
                       <td className="px-4 py-3">
-                        <Link to={`/bookings/${p.id}`} className="font-mono text-xs text-[#465FFF] hover:underline">
+                        <Link to={`/bookings/${p.id}`} className="font-mono text-xs text-[#13294B] hover:underline">
                           {p.booking_code}
                         </Link>
                         {p.bonzah_policy_no && (
@@ -272,6 +273,45 @@ export default function InsurancePage() {
               </tbody>
             </table>
           </div>
+          <div className="md:hidden divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
+            {policies.map(p => {
+              const v = p.vehicles || {};
+              const c = p.customers || {};
+              const customerName = `${c.first_name || ''} ${c.last_name || ''}`.trim() || c.email || '—';
+              const vehicleName = `${v.year || ''} ${v.make || ''} ${v.model || ''}`.trim() || '—';
+              const tier = p.bonzah_tier_id
+                ? p.bonzah_tier_id.charAt(0).toUpperCase() + p.bonzah_tier_id.slice(1)
+                : '—';
+              return (
+                <div key={p.id} className="px-4 py-3.5 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <Link to={`/bookings/${p.id}`} className="font-mono text-xs font-semibold" style={{ color: 'var(--accent-color)' }}>
+                        {p.booking_code}
+                      </Link>
+                      <p className="text-sm font-medium mt-0.5 truncate" style={{ color: 'var(--text-primary)' }}>{customerName}</p>
+                      <p className="text-xs truncate" style={{ color: 'var(--text-tertiary)' }}>{vehicleName}</p>
+                    </div>
+                    <StatusBadge status={p.insurance_status} />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    <span>{tier}</span>
+                    <span>·</span>
+                    <span>
+                      {p.pickup_date && format(new Date(p.pickup_date + 'T12:00:00'), 'MMM d')}
+                      {' → '}
+                      {p.return_date && format(new Date(p.return_date + 'T12:00:00'), 'MMM d')}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs font-mono">
+                    <span style={{ color: 'var(--text-tertiary)' }}>Charged {dollars(p.bonzah_total_charged_cents)}</span>
+                    <span style={{ color: '#22c55e' }}>+{dollars(p.bonzah_markup_cents)} markup</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          </>
         )}
       </div>
 
@@ -304,8 +344,8 @@ export default function InsurancePage() {
                 <span
                   className="text-[10px] font-mono px-1.5 py-0.5 rounded shrink-0"
                   style={{
-                    backgroundColor: ev.error_text ? 'rgba(239,68,68,0.15)' : 'rgba(70,95,255,0.12)',
-                    color: ev.error_text ? '#ef4444' : '#465FFF',
+                    backgroundColor: ev.error_text ? 'rgba(239,68,68,0.15)' : 'rgba(19,41,75,0.12)',
+                    color: ev.error_text ? '#ef4444' : '#13294B',
                   }}
                 >
                   {ev.event_type}

@@ -7,6 +7,7 @@ import { cachedQuery, invalidateCache } from '../../../lib/queryCache';
 import { useAlerts } from '../../../lib/alertsContext';
 import { haptic } from '../../../lib/haptic';
 import Modal from '../../shared/Modal';
+import InlineBanner from '../../shared/InlineBanner';
 import WidgetWrapper from '../WidgetWrapper';
 
 const SWIPE_THRESHOLD = 90;
@@ -14,6 +15,7 @@ const SWIPE_THRESHOLD = 90;
 function DeclineModal({ booking, onDecline, onClose }) {
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   const QUICK_REASONS = [
     'Vehicle not available for those dates',
@@ -25,13 +27,14 @@ function DeclineModal({ booking, onDecline, onClose }) {
   async function submit() {
     if (!reason.trim()) return;
     setSaving(true);
+    setSubmitError('');
     try {
       await api.declineBooking(booking.id, reason.trim());
       onDecline(booking.id);
       onClose();
     } catch (e) {
       console.error(e);
-      alert(e?.data?.error || 'Failed to decline booking');
+      setSubmitError(e?.data?.error || 'Failed to decline booking');
     } finally {
       setSaving(false);
     }
@@ -40,6 +43,7 @@ function DeclineModal({ booking, onDecline, onClose }) {
   return (
     <Modal open onClose={onClose} title="Decline Booking">
       <div className="space-y-4">
+        <InlineBanner message={submitError} onDismiss={() => setSubmitError('')} />
         <div>
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
             Declining booking{' '}
@@ -278,6 +282,7 @@ export default function PendingApprovalsWidget() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [approveError, setApproveError] = useState('');
   const [approving, setApproving] = useState(null);
   const [declining, setDeclining] = useState(null);
   const { refresh: refreshAlerts } = useAlerts();
@@ -301,6 +306,7 @@ export default function PendingApprovalsWidget() {
 
   async function handleApprove(id) {
     setApproving(id);
+    setApproveError('');
     try {
       await api.approveBooking(id);
       // Invalidate dashboard cache + force the global alerts context to
@@ -311,7 +317,7 @@ export default function PendingApprovalsWidget() {
       setBookings((prev) => prev.filter((b) => b.id !== id));
     } catch (e) {
       console.error(e);
-      alert(e?.data?.error || 'Failed to approve booking');
+      setApproveError(e?.data?.error || 'Failed to approve booking');
     } finally {
       setApproving(null);
     }
@@ -383,6 +389,11 @@ export default function PendingApprovalsWidget() {
         {error && (
           <div className="px-5 py-3 text-sm" style={{ color: 'var(--danger-color)', borderBottom: '1px solid rgba(239,68,68,0.15)', background: 'rgba(239,68,68,0.06)' }}>
             Could not load pending approvals. <button type="button" className="underline ml-1" onClick={load}>Retry</button>
+          </div>
+        )}
+        {approveError && (
+          <div className="px-5 py-3">
+            <InlineBanner message={approveError} onDismiss={() => setApproveError('')} />
           </div>
         )}
 

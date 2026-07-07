@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import StatusBadge from '../components/shared/StatusBadge';
+import DataError from '../components/shared/DataError';
 import { ArrowUpFromLine, ArrowDownToLine, Car, Calendar, Clock, ChevronRight, Search } from 'lucide-react';
 import { format, isToday, isTomorrow, isYesterday, parseISO } from 'date-fns';
 
@@ -9,7 +10,8 @@ export default function CheckInsPage() {
   const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('today'); // 'today' | 'upcoming' | 'past'
+  const [loadError, setLoadError] = useState(null);
+  const [filter, setFilter] = useState('today');
 
   useEffect(() => {
     loadBookings();
@@ -17,11 +19,14 @@ export default function CheckInsPage() {
 
   async function loadBookings() {
     setLoading(true);
+    setLoadError(null);
     try {
       const result = await api.getBookings({ limit: 200 });
-      // API returns { data: [...], total, limit, offset }
       setBookings(Array.isArray(result) ? result : (result?.data || []));
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+      setLoadError(e?.message || 'Could not load check-ins');
+    }
     setLoading(false);
   }
 
@@ -99,12 +104,14 @@ export default function CheckInsPage() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-8">
+    <div className="p-6 lg:p-8 max-w-4xl mx-auto space-y-8">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-[var(--text-primary)]">Check-Ins & Check-Outs</h1>
         <p className="text-sm text-[var(--text-tertiary)] mt-1">Manage today's vehicle handoffs and returns</p>
       </div>
+
+      <DataError message={loadError} onRetry={loadBookings} />
 
       {/* Today's Activity */}
       <section>

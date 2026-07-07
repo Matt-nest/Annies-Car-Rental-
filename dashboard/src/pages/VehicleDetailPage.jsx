@@ -6,6 +6,7 @@ import StatusBadge from '../components/shared/StatusBadge';
 import { SkeletonDashboard } from '../components/shared/Skeleton';
 import Modal from '../components/shared/Modal';
 import Section from '../components/shared/Section';
+import InlineBanner from '../components/shared/InlineBanner';
 import Field from '../components/shared/Field';
 import WeeklyPricingSection from '../components/vehicles/WeeklyPricingSection';
 import { format } from 'date-fns';
@@ -38,6 +39,7 @@ export default function VehicleDetailPage() {
   const [blockModal, setBlockModal] = useState(false);
   const [blockForm, setBlockForm] = useState({ start_date: '', end_date: '', reason: 'personal_use', notes: '' });
   const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const [lockboxDraft, setLockboxDraft] = useState('');
   const [lockboxEditing, setLockboxEditing] = useState(false);
   const [lockboxSaving, setLockboxSaving] = useState(false);
@@ -119,12 +121,12 @@ export default function VehicleDetailPage() {
     const name = `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
     if (!confirm(`Are you sure you want to permanently delete ${name}? This cannot be undone.`)) return;
     setDeleting(true);
+    setDeleteError('');
     try {
       await api.deleteVehicle(id);
       navigate('/fleet');
     } catch (e) {
-      const msg = e?.message || 'Failed to delete vehicle';
-      alert(msg);
+      setDeleteError(e?.message || 'Failed to delete vehicle');
     }
     setDeleting(false);
   }
@@ -138,6 +140,7 @@ export default function VehicleDetailPage() {
 
   return (
     <div className="p-6 lg:p-8 space-y-6">
+      <InlineBanner message={deleteError} onDismiss={() => setDeleteError('')} />
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div className="flex items-center gap-3">

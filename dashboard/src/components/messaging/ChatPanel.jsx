@@ -7,6 +7,7 @@ import { api } from '../../api/client';
 import { EASE, formatDate, getInitials, getAvatarColor } from './shared.js';
 import { haptic } from '../../lib/haptic';
 import { useKeyboardInset } from '../../hooks/useKeyboardInset';
+import InlineBanner from '../shared/InlineBanner';
 
 /* ── Chat Panel ── */
 export default function ChatPanel({ customerId, conversations }) {
@@ -19,6 +20,7 @@ export default function ChatPanel({ customerId, conversations }) {
   const [showTemplates, setShowTemplates] = useState(false);
   const [templates, setTemplates] = useState([]);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const [sendError, setSendError] = useState('');
   const messagesEndRef = useRef(null);
   const scrollContainerRef = useRef(null);
   const keyboardInset = useKeyboardInset();
@@ -61,6 +63,7 @@ export default function ChatPanel({ customerId, conversations }) {
     if (!body.trim()) return;
     haptic('tap');
     setSending(true);
+    setSendError('');
     try {
       // Use 'email' as default when 'all' is selected for composing
       const sendChannel = channel === 'all' ? 'email' : channel;
@@ -75,6 +78,7 @@ export default function ChatPanel({ customerId, conversations }) {
       setSubject('');
     } catch (err) {
       console.error('Send failed:', err);
+      setSendError(err?.data?.error || err?.message || 'Message could not be sent. Try again.');
       haptic('edge');
     }
     setSending(false);
@@ -437,6 +441,7 @@ export default function ChatPanel({ customerId, conversations }) {
         background: 'var(--bg-elevated)',
         transition: 'padding-bottom 0.15s ease-out',
       }}>
+        <InlineBanner message={sendError} onDismiss={() => setSendError('')} />
         {(channel === 'email' || channel === 'all') && (
           <motion.input
             initial={{ opacity: 0, height: 0 }}

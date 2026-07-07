@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { api } from '../../api/client';
 import brand from '../../config/brand';
 import Section from '../shared/Section';
+import InlineBanner from '../shared/InlineBanner';
 import { FileText, Send, DollarSign, CheckCircle, AlertCircle, Eye, RefreshCw, Mail, ArrowRight, Printer, Download } from 'lucide-react';
 
 export default function InvoiceTab({ booking, onReload }) {
@@ -14,6 +15,7 @@ export default function InvoiceTab({ booking, onReload }) {
   const [sending, setSending] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [actionError, setActionError] = useState('');
 
   useEffect(() => {
     loadData();
@@ -48,7 +50,7 @@ export default function InvoiceTab({ booking, onReload }) {
       const inv = await api.generateInvoice(booking.id);
       setInvoice(inv);
       setShowPreview(true);
-    } catch (e) { console.error(e); alert(e.message); }
+    } catch (e) { console.error(e); setActionError(e.message); }
     setGenerating(false);
   }
 
@@ -58,7 +60,7 @@ export default function InvoiceTab({ booking, onReload }) {
     try {
       await api.sendInvoice(invoice.id);
       await loadData();
-    } catch (e) { console.error(e); alert(e.message); }
+    } catch (e) { console.error(e); setActionError(e.message); }
     setSending(false);
   }
 
@@ -74,7 +76,7 @@ export default function InvoiceTab({ booking, onReload }) {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (e) { console.error(e); alert(e.message); }
+    } catch (e) { console.error(e); setActionError(e.message); }
     setDownloading(false);
   }
 
@@ -85,7 +87,7 @@ export default function InvoiceTab({ booking, onReload }) {
       await api.releaseDeposit(booking.id);
       await loadData();
       onReload?.();
-    } catch (e) { console.error(e); alert(e.message); }
+    } catch (e) { console.error(e); setActionError(e.message); }
     setReleasing(false);
   }
 
@@ -98,7 +100,7 @@ export default function InvoiceTab({ booking, onReload }) {
       await api.settleDeposit(booking.id, { incidentalTotal: activeTotal });
       await loadData();
       onReload?.();
-    } catch (e) { console.error(e); alert(e.message); }
+    } catch (e) { console.error(e); setActionError(e.message); }
     setSettling(false);
   }
 
@@ -126,6 +128,7 @@ export default function InvoiceTab({ booking, onReload }) {
 
   return (
     <div className="space-y-5">
+      <InlineBanner message={actionError} onDismiss={() => setActionError('')} />
       {/* ── Deposit Status ─────────────────────────────────────────────── */}
       <Section title="Security Deposit">
         {deposit && deposit.status !== 'none' ? (

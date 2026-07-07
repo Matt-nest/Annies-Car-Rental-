@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { api } from '../../api/client';
 import { useAlerts } from '../../lib/alertsContext';
 import Modal from './Modal';
+import InlineBanner from './InlineBanner';
 
 // ── Canvas signature pad (no external deps) ───────────────────────────────────
 function SignaturePad({ canvasRef, onDrawn }) {
@@ -88,6 +89,7 @@ export default function AgreementSection({ bookingId }) {
   const [hasDrawn, setHasDrawn] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState('');
   const canvasRef = useRef(null);
   const { refresh: refreshAlerts } = useAlerts();
 
@@ -133,6 +135,7 @@ export default function AgreementSection({ bookingId }) {
   async function handleDownloadPdf() {
     try {
       setDownloading(true);
+      setDownloadError('');
       const blob = await api.downloadAgreementPdf(bookingId);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -144,7 +147,7 @@ export default function AgreementSection({ bookingId }) {
       document.body.removeChild(a);
     } catch (e) {
       console.error('Failed to download PDF:', e);
-      alert('Failed to download PDF. Please try again later.');
+      setDownloadError('Failed to download PDF. Please try again later.');
     } finally {
       setDownloading(false);
     }
@@ -157,6 +160,7 @@ export default function AgreementSection({ bookingId }) {
 
   return (
     <div className="card p-5 space-y-4" data-section="agreement">
+      <InlineBanner message={downloadError} onDismiss={() => setDownloadError('')} />
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wide flex items-center gap-2">
