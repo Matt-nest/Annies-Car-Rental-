@@ -356,7 +356,7 @@ export default function CustomerDetailPage() {
         {bookings.length === 0 ? (
           <p className="text-sm text-[var(--text-tertiary)]">No bookings yet.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="scroll-x-contained max-w-full">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border-subtle)]">

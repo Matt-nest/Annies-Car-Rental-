@@ -23,7 +23,7 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <div className="p-6 lg:p-8 space-y-6 min-w-0 max-w-full overflow-x-clip">
+    <div className="page-shell lg:p-8 space-y-6 min-w-0">
 
       {/* Page header */}
       <motion.div

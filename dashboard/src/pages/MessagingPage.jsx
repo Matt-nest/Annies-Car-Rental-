@@ -1,16 +1,5 @@
 /**
  * Messaging route — orchestrator only.
- *
- * Phase 2E decomposition: heavy lifting lives in components/messaging/*.
- * This file is now ~200 lines (was 1,406). Adding new functionality should
- * land in the appropriate component file rather than bloating the orchestrator.
- *
- * Components:
- *   ConversationList   — left panel, customer rows
- *   ChatPanel          — message thread + compose
- *   EmailTemplatesTab  — templates CRUD with preview + active toggle
- *   SequencesTab       — read-only listing of cron-driven stages
- *   shared.js          — utility helpers + constants (TEMPLATE_STAGES, EASE, etc.)
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -32,7 +21,6 @@ export default function MessagingPage() {
   const [search, setSearch] = useState('');
   const [, setLoading] = useState(true);
 
-  // Mobile viewport detection (768px = Tailwind md breakpoint)
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 767px)');
@@ -48,12 +36,10 @@ export default function MessagingPage() {
       .catch(() => { });
   }, []);
 
-  // Initial load
   useEffect(() => {
     loadConversations().finally(() => setLoading(false));
   }, [loadConversations]);
 
-  // Poll for new messages every 30 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       loadConversations();
@@ -65,108 +51,136 @@ export default function MessagingPage() {
     loadConversations();
   };
 
-  return (
-    <div style={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+  const tabs = [
+    { key: 'conversations', label: 'Chat', fullLabel: 'Conversations', Icon: MessageSquare },
+    { key: 'timeline', label: 'Timeline', fullLabel: 'Timeline', Icon: GitBranch },
+    { key: 'templates', label: 'Templates', fullLabel: 'Templates', Icon: FileText },
+    { key: 'sequences', label: 'Cron', fullLabel: 'Sequences', Icon: Clock },
+    { key: 'optouts', label: 'Opt-Outs', fullLabel: 'Opt-Outs', Icon: ShieldOff },
+  ];
 
-      {/* Page header — hidden on mobile when viewing a chat */}
+  return (
+    <div style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', maxWidth: '100%' }}>
+
       {!(isMobile && selectedCustomer) && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: EASE }}
           style={{
-            padding: '14px 16px',
+            padding: isMobile ? '10px 12px' : '14px 16px',
             borderBottom: '1px solid var(--border-subtle)',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            flexWrap: 'wrap', gap: '8px',
+            display: 'flex',
+            alignItems: isMobile ? 'stretch' : 'center',
+            justifyContent: 'space-between',
+            flexDirection: isMobile ? 'column' : 'row',
+            flexWrap: isMobile ? 'nowrap' : 'wrap',
+            gap: '8px',
             background: 'var(--bg-elevated)',
             backdropFilter: 'blur(12px)',
             flexShrink: 0,
           }}
         >
-          <div>
-            <h1 style={{
-              fontSize: '18px', fontWeight: 700, letterSpacing: '-0.02em',
-              color: 'var(--text-primary)',
-            }}>SMS Conversations</h1>
-            <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: 2 }}>
-              Two-way SMS & email messaging
-            </p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minWidth: 0 }}>
+            <div className="min-w-0">
+              <h1 style={{
+                fontSize: isMobile ? '16px' : '18px',
+                fontWeight: 700,
+                letterSpacing: '-0.02em',
+                color: 'var(--text-primary)',
+              }}>SMS Conversations</h1>
+              {!isMobile && (
+                <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: 2 }}>
+                  Two-way SMS & email messaging
+                </p>
+              )}
+            </div>
+            {!isMobile && (
+              <a
+                href="https://app.crisp.chat"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  fontSize: '12px', fontWeight: 500, padding: '6px 12px',
+                  borderRadius: 8, border: '1px solid var(--border-subtle)',
+                  backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)',
+                  textDecoration: 'none', transition: 'all 0.2s ease', cursor: 'pointer',
+                  flexShrink: 0,
+                }}
+                onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.borderColor = 'var(--accent-color)'; }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
+              >
+                <MessageSquare size={13} />
+                Open Crisp Dashboard
+              </a>
+            )}
           </div>
-          <a
-            href="https://app.crisp.chat"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              fontSize: '12px', fontWeight: 500, padding: '6px 12px',
-              borderRadius: 8, border: '1px solid var(--border-subtle)',
-              backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)',
-              textDecoration: 'none', transition: 'all 0.2s ease', cursor: 'pointer',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.borderColor = 'var(--accent-color)'; }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
-          >
-            <MessageSquare size={13} />
-            Open Crisp Dashboard
-          </a>
 
-          {/* Tab switcher */}
           <div style={{
-            display: 'flex', borderRadius: 12, padding: 3,
+            display: isMobile ? 'grid' : 'flex',
+            gridTemplateColumns: isMobile ? 'repeat(5, 1fr)' : undefined,
+            borderRadius: 12,
+            padding: 3,
             background: 'var(--bg-card, rgba(0,0,0,0.03))',
             border: '1px solid var(--border-subtle)',
+            maxWidth: '100%',
           }}>
-            {[
-              { key: 'conversations', label: 'Conversations', Icon: MessageSquare },
-              { key: 'timeline',      label: 'Timeline',      Icon: GitBranch },
-              { key: 'templates',     label: 'Templates',     Icon: FileText },
-              { key: 'sequences',     label: 'Sequences',     Icon: Clock },
-              { key: 'optouts',       label: 'Opt-Outs',      Icon: ShieldOff },
-            ].map(({ key, label, Icon }) => (
-              <motion.button
-                key={key}
-                whileTap={{ scale: 0.97 }}
-                onClick={() => setTab(key)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 5,
-                  padding: '7px 14px', borderRadius: 9, border: 'none',
-                  cursor: 'pointer', fontSize: '12px', fontWeight: 600,
-                  letterSpacing: '-0.005em',
-                  background: tab === key ? 'var(--bg-elevated, #fff)' : 'transparent',
-                  color: tab === key ? '#007AFF' : 'var(--text-secondary)',
-                  boxShadow: tab === key ? '0 1px 4px rgba(0,0,0,0.06)' : 'none',
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                <Icon size={13} />
-                {label}
-              </motion.button>
-            ))}
+            {tabs.map(({ key, label, fullLabel, Icon }) => {
+              const isActive = tab === key;
+              return (
+                <motion.button
+                  key={key}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => setTab(key)}
+                  aria-label={fullLabel}
+                  style={{
+                    display: 'flex',
+                    flexDirection: isMobile ? 'column' : 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: isMobile ? 2 : 5,
+                    padding: isMobile ? '8px 4px' : '7px 14px',
+                    borderRadius: 9,
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: isMobile ? '10px' : '12px',
+                    fontWeight: 600,
+                    letterSpacing: '-0.005em',
+                    minHeight: isMobile ? 44 : undefined,
+                    background: isActive ? 'var(--bg-elevated, #fff)' : 'transparent',
+                    color: isActive ? '#007AFF' : 'var(--text-secondary)',
+                    boxShadow: isActive ? '0 1px 4px rgba(0,0,0,0.06)' : 'none',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <Icon size={isMobile ? 15 : 13} />
+                  {isMobile ? (isActive ? label : null) : label}
+                </motion.button>
+              );
+            })}
           </div>
         </motion.div>
       )}
 
-      {/* Content area */}
       {tab === 'timeline' ? (
-        <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
           <TimelineView />
         </div>
       ) : tab === 'sequences' ? (
-        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 16px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 16px', minHeight: 0 }}>
           <SequencesTab />
         </div>
       ) : tab === 'templates' ? (
-        <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
           <EmailTemplatesTab />
         </div>
       ) : tab === 'optouts' ? (
-        <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
           <OptOutsTab />
         </div>
       ) : (
-        <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-          {/* ── DESKTOP LAYOUT: side-by-side, always both visible ── */}
+        <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
           {!isMobile && (
             <>
               <div style={{ width: 340, flexShrink: 0 }}>
@@ -183,9 +197,8 @@ export default function MessagingPage() {
             </>
           )}
 
-          {/* ── MOBILE LAYOUT: list OR chat, never both ── */}
           {isMobile && !selectedCustomer && (
-            <div style={{ width: '100%' }}>
+            <div style={{ width: '100%', minWidth: 0 }}>
               <ConversationList
                 conversations={conversations}
                 selected={selectedCustomer}
@@ -200,6 +213,7 @@ export default function MessagingPage() {
             <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
               <button
                 onClick={() => setSelectedCustomer(null)}
+                className="tap-target"
                 style={{
                   display: 'flex', alignItems: 'center', gap: 8,
                   padding: '12px 16px', fontSize: '14px', fontWeight: 600,
@@ -215,14 +229,6 @@ export default function MessagingPage() {
           )}
         </div>
       )}
-
-      {/* Keyframe injection */}
-      <style>{`
-        @keyframes spin {
-          from { transform: rotate(0deg) }
-          to { transform: rotate(360deg) }
-        }
-      `}</style>
     </div>
   );
 }

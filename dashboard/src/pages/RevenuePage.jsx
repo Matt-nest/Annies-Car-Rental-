@@ -461,7 +461,7 @@ export default function RevenuePage() {
           <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Transactions</h2>
           <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{revenue?.transactions?.length || 0} total</span>
         </div>
-        <div className="overflow-x-auto glass-scroll">
+        <div className="scroll-x-contained glass-scroll max-w-full">
           <table className="w-full text-sm">
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>

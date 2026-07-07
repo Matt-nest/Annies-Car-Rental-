@@ -183,7 +183,7 @@ export default function StripePage() {
           <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Recent Transactions</h2>
           <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{transactions.length} charges</span>
         </div>
-        <div className="overflow-x-auto glass-scroll">
+        <div className="scroll-x-contained glass-scroll max-w-full">
           <table className="w-full text-sm">
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
@@ -264,7 +264,7 @@ export default function StripePage() {
           <div className="px-5 py-4" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
             <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Recent Refunds</h2>
           </div>
-          <div className="overflow-x-auto glass-scroll">
+          <div className="scroll-x-contained glass-scroll max-w-full">
             <table className="w-full text-sm">
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
