@@ -80,6 +80,9 @@ router.get('/:bookingCode', asyncHandler(async (req, res) => {
 
   const customer = booking.customers || {};
   const vehicle = booking.vehicles || {};
+  const prefill = booking.admin_prefill || null;
+  const prefillAddr = prefill?.address || {};
+  const prefillLic = prefill?.license || {};
   const { data: vehicleDeposit } = await supabase
     .from('vehicle_deposits')
     .select('amount')
@@ -160,17 +163,19 @@ router.get('/:bookingCode', asyncHandler(async (req, res) => {
       taxAmount: Number(booking.tax_amount || 0),
       totalCost: Number(booking.total_cost),
     },
-    // Pre-fill from customer record if they have previous data
+    // Pre-fill from admin pre-fill first, then customer record
     customerDefaults: {
-      address_line1: customer.address_line1 || '',
-      city: customer.city || '',
-      state: customer.state || '',
-      zip: customer.zip || '',
-      date_of_birth: customer.date_of_birth || '',
-      driver_license_number: customer.driver_license_number || '',
-      driver_license_state: customer.driver_license_state || '',
-      driver_license_expiry: customer.driver_license_expiry || '',
+      address_line1: prefillAddr.line1 || customer.address_line1 || '',
+      city: prefillAddr.city || customer.city || '',
+      state: prefillAddr.state || customer.state || '',
+      zip: prefillAddr.zip || customer.zip || '',
+      date_of_birth: prefill?.dob || customer.date_of_birth || '',
+      driver_license_number: prefillLic.number || customer.driver_license_number || '',
+      driver_license_state: prefillLic.state || customer.driver_license_state || '',
+      driver_license_expiry: prefillLic.expiry || customer.driver_license_expiry || '',
     },
+    prefilledSteps: Array.isArray(prefill?.steps) ? prefill.steps : [],
+    prefilledLicensePhotoPaths: Array.isArray(prefill?.license_photo_paths) ? prefill.license_photo_paths : [],
   });
 }));
 

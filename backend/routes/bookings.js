@@ -185,15 +185,30 @@ router.post('/', bookingRateLimit, verifyRecaptcha, asyncHandler(async (req, res
  *  success will auto-approve in stripeService.
  */
 router.post('/admin-create', requireAuth, asyncHandler(async (req, res) => {
-  const errors = validateBookingPayload(req.body);
+  const {
+    agreement_prefill,
+    admin_total_cost_override,
+    ...bookingBody
+  } = req.body;
+
+  const errors = validateBookingPayload(bookingBody);
   if (errors.length) return res.status(400).json({ error: 'Validation failed', details: errors });
 
   const booking = await createBooking({
-    ...req.body,
+    ...bookingBody,
+    admin_total_cost_override,
     source: 'admin',
     created_by_admin: true,
     insurance_status: 'pending',
   });
+
+  if (agreement_prefill && Array.isArray(agreement_prefill.steps) && agreement_prefill.steps.length) {
+    const { error: prefillErr } = await supabase
+      .from('bookings')
+      .update({ admin_prefill: agreement_prefill })
+      .eq('id', booking.id);
+    if (prefillErr) console.error('[admin-create] admin_prefill save failed:', prefillErr.message);
+  }
 
   // Build the continue link the admin can copy/paste.
   const siteUrl = brand.siteUrl;

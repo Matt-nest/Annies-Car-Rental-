@@ -3,6 +3,7 @@ import {
   User, Users, Server, Save, Eye, EyeOff, Plus, Shield,
   ChevronDown, ChevronUp, Check, X, RefreshCw, Lock, Mail, Phone, Info,
   ExternalLink, AlertCircle, Plug, Zap, Loader2, PhoneCall, Trash2,
+  Bell, BellOff, Send,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { bonzahApi } from '../api/bonzah';
@@ -10,6 +11,9 @@ import { useAuth } from '../auth/AuthProvider';
 import DashboardLayoutSettings from '../components/settings/DashboardLayoutSettings';
 import BrandsTab from './settings/BrandsTab';
 import DataError from '../components/shared/DataError';
+import { useAdminPushSubscription } from '../hooks/useAdminPushSubscription';
+import { haptic } from '../lib/haptic';
+import brand from '../config/brand';
 
 /* ─── Role badge colors ───────────────────────────────── */
 const ROLE_COLORS = {
@@ -593,6 +597,8 @@ function SystemTab() {
         </div>
       </div>
 
+      <WebPushSection />
+
       <Section title="Notifications" description="Email & SMS delivery services">
         <div className="space-y-0">
           <EnvRow label="Resend API Key" envKey="RESEND_API_KEY" note="Transactional emails (resend.com)" />
@@ -639,6 +645,119 @@ function SystemTab() {
 
       <DashboardLayoutSettings />
     </div>
+  );
+}
+
+function WebPushSection() {
+  const push = useAdminPushSubscription();
+  const [testResult, setTestResult] = useState(null);
+
+  const handleToggle = async () => {
+    haptic('tap');
+    setTestResult(null);
+    if (push.subscribed) {
+      await push.unsubscribe();
+    } else {
+      await push.subscribe();
+    }
+  };
+
+  const handleTest = async () => {
+    haptic('tap');
+    setTestResult(null);
+    try {
+      const result = await push.sendTest();
+      haptic('commit');
+      setTestResult({ ok: true, message: `Sent to ${result.sent} device${result.sent === 1 ? '' : 's'}.` });
+    } catch (e) {
+      haptic('edge');
+      setTestResult({ ok: false, message: e?.message || 'Failed' });
+    }
+  };
+
+  return (
+    <Section title="Web Push Notifications" description="Get notified on this device when a new booking comes in or an incident is filed.">
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          {push.subscribed ? (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold" style={{ backgroundColor: 'rgba(34,197,94,0.12)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.25)' }}>
+              <Bell size={11} /> Enabled on this device
+            </span>
+          ) : push.permission === 'denied' ? (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold" style={{ backgroundColor: 'rgba(239,68,68,0.12)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.25)' }}>
+              <BellOff size={11} /> Blocked in system settings
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold" style={{ backgroundColor: 'rgba(107,114,128,0.12)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}>
+              <BellOff size={11} /> Not enabled
+            </span>
+          )}
+          {!push.serverEnabled && (
+            <span className="text-xs text-[var(--text-tertiary)]">
+              (Server VAPID keys not configured)
+            </span>
+          )}
+        </div>
+
+        {push.requiresInstall && (
+          <div className="flex items-start gap-2.5 bg-[rgba(99,179,237,0.07)] border border-[rgba(99,179,237,0.15)] rounded-xl p-3 text-xs text-[#63b3ed]">
+            <Info size={14} className="mt-0.5 shrink-0" />
+            <div>
+              iOS requires you to add this site to your Home Screen before push notifications can be enabled.
+              In Safari, tap the Share button → &quot;Add to Home Screen&quot;, then re-open the app from your Home Screen and toggle this on.
+            </div>
+          </div>
+        )}
+
+        {push.permission === 'denied' && (
+          <div className="flex items-start gap-2.5 bg-[rgba(239,68,68,0.06)] border border-[rgba(239,68,68,0.18)] rounded-xl p-3 text-xs text-[#ef4444]">
+            <AlertCircle size={14} className="mt-0.5 shrink-0" />
+            <div>
+              Notifications are blocked by your browser/OS settings. On iPhone: Settings → Notifications → {brand.name} Admin → Allow Notifications. Then come back here and toggle on.
+            </div>
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleToggle}
+            disabled={push.loading || !push.supported || (!push.subscribed && (push.requiresInstall || push.permission === 'denied' || !push.serverEnabled))}
+            className={push.subscribed ? 'btn-secondary' : 'btn-primary'}
+          >
+            {push.loading ? <RefreshCw size={14} className="animate-spin" /> : push.subscribed ? <BellOff size={14} /> : <Bell size={14} />}
+            {push.subscribed ? 'Disable on this device' : 'Enable push notifications'}
+          </button>
+
+          {push.subscribed && (
+            <button
+              type="button"
+              onClick={handleTest}
+              disabled={push.loading}
+              className="btn-ghost text-sm"
+            >
+              {push.loading ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
+              Send test push
+            </button>
+          )}
+        </div>
+
+        {testResult && (
+          <p className="text-xs" style={{ color: testResult.ok ? '#22c55e' : '#ef4444' }}>
+            {testResult.ok ? '✓ ' : '⚠ '}{testResult.message}
+          </p>
+        )}
+        {push.error && !testResult && (
+          <p className="text-xs" style={{ color: '#ef4444' }}>⚠ {push.error}</p>
+        )}
+
+        {push.subscribed && (
+          <p className="text-xs text-[var(--text-tertiary)]">
+            Push works per-device. Enable separately on each phone, tablet, or computer where you want alerts.
+          </p>
+        )}
+      </div>
+    </Section>
   );
 }
 

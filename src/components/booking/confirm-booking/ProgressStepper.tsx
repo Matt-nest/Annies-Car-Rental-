@@ -72,7 +72,7 @@ export default function ProgressStepper({ currentStage, currentSubStep, complete
         })}
       </div>
 
-      {/* Sub-step progress bar (only for Stage 1 which has 6 sub-steps) */}
+      {/* Sub-step progress bar (only for Stage 1) */}
       {currentStage === 1 && (
         <div className="mt-4 flex items-center gap-1.5">
           {Array.from({ length: STAGES[0].subSteps }, (_, i) => (
@@ -90,7 +90,7 @@ export default function ProgressStepper({ currentStage, currentSubStep, complete
             />
           ))}
           <span className="text-[10px] ml-1 shrink-0" style={{ color: 'var(--text-tertiary)' }}>
-            {currentSubStep}/6
+            {currentSubStep}/{STAGES[0].subSteps}
           </span>
         </div>
       )}

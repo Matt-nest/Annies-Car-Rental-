@@ -170,9 +170,15 @@ export default function ConfirmBooking() {
     draft.license.number && draft.license.state && draft.license.expiry && draft.dob
   );
 
+  const scanPrefilled = React.useMemo(
+    () => Array.isArray(agreementData?.prefilledSteps) && agreementData.prefilledSteps.includes('scan'),
+    [agreementData]
+  );
+
   const nextSubStep = () => {
     let next = draft.subStep + 1;
-    if (draft.subStep === 2 && detailsComplete()) next = 5; // Scan → Terms (skip Address+License)
+    if (draft.subStep === 1 && scanPrefilled && detailsComplete()) next = 5;
+    else if (draft.subStep === 2 && detailsComplete()) next = 5;
     if (next > 7) {
       completeStage(1);
       goToStage(2);
@@ -183,7 +189,8 @@ export default function ConfirmBooking() {
 
   const prevSubStep = () => {
     let prev = draft.subStep - 1;
-    if (draft.subStep === 5 && detailsComplete()) prev = 2; // Terms → Scan (skip back over the filled steps)
+    if (draft.subStep === 5 && scanPrefilled) prev = 1;
+    else if (draft.subStep === 5 && detailsComplete()) prev = 2;
     if (prev >= 1) goToSubStep(prev);
   };
 

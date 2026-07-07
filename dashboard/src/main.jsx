@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { registerSW } from './pwa/registerSW';
 import './styles/globals.css';
 import { initSentry } from './lib/sentry';
 
@@ -12,3 +13,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <App />
   </React.StrictMode>
 );
+
+// Register the production service worker. No-op in dev / tests.
+registerSW();
