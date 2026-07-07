@@ -219,7 +219,7 @@ export default function FleetPage() {
       {loading ? (
         <SkeletonKpi count={5} />
       ) : (
-        <div className="flex md:grid md:grid-cols-5 gap-3 overflow-x-auto no-scrollbar pb-1">
+        <div className="flex md:grid md:grid-cols-5 gap-3 scroll-x-contained no-scrollbar pb-1 max-w-full">
           {['available', 'rented', 'turo', 'maintenance', 'retired'].map(s => (
             <button
               key={s}

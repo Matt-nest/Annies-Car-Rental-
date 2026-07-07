@@ -187,7 +187,7 @@ export default function RevenueHeatmapWidget() {
           {/* Grid container — scrollable */}
           <div
             ref={scrollRef}
-            className="overflow-x-auto no-scrollbar flex-1"
+            className="scroll-x-contained no-scrollbar flex-1 max-w-full"
           >
             {/* Month labels row */}
             <div className="flex mb-1" style={{ gap: GAP }}>

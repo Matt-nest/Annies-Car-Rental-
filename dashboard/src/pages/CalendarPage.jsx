@@ -150,7 +150,7 @@ export default function CalendarPage() {
       ) : (
         <>
         <div className="lg:hidden space-y-4">
-          <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-6 px-6">
+          <div className="flex gap-1.5 scroll-x-contained no-scrollbar -mx-6 px-6 max-w-[100vw]">
             {days.map(day => {
               const sel = isSameDay(day, selectedDay);
               const today = isToday(day);
