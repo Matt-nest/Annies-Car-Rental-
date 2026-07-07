@@ -107,9 +107,9 @@ export default function ReviewsPage() {
             onClick={() => setTab(t.key)}
             className="text-xs font-medium px-3 py-1.5 rounded-full border transition-all"
             style={{
-              backgroundColor: tab === t.key ? 'var(--accent)' : 'var(--bg-card)',
+              backgroundColor: tab === t.key ? 'var(--accent-color)' : 'var(--bg-card)',
               color: tab === t.key ? 'var(--accent-fg)' : 'var(--text-secondary)',
-              borderColor: tab === t.key ? 'var(--accent)' : 'var(--border-subtle)',
+              borderColor: tab === t.key ? 'var(--accent-color)' : 'var(--border-subtle)',
             }}
           >
             {t.label}

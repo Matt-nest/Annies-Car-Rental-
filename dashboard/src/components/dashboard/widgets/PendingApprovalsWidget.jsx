@@ -38,7 +38,7 @@ function DeclineModal({ booking, onDecline, onClose }) {
   }
 
   return (
-    <Modal onClose={onClose} title="Decline Booking">
+    <Modal open onClose={onClose} title="Decline Booking">
       <div className="space-y-4">
         <div>
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
@@ -379,6 +379,12 @@ export default function PendingApprovalsWidget() {
             {bookings.length}
           </span>
         </div>
+
+        {error && (
+          <div className="px-5 py-3 text-sm" style={{ color: 'var(--danger-color)', borderBottom: '1px solid rgba(239,68,68,0.15)', background: 'rgba(239,68,68,0.06)' }}>
+            Could not load pending approvals. <button type="button" className="underline ml-1" onClick={load}>Retry</button>
+          </div>
+        )}
 
         {/* List */}
         <AnimatePresence mode="popLayout">

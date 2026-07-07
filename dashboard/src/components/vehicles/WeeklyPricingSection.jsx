@@ -59,7 +59,7 @@ export default function WeeklyPricingSection({ vehicle, onSaved }) {
           disabled={saving}
           className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all"
           style={{
-            backgroundColor: saved ? 'rgba(34,197,94,0.12)' : 'var(--accent)',
+            backgroundColor: saved ? 'rgba(34,197,94,0.12)' : 'var(--accent-color)',
             color: saved ? '#22c55e' : 'var(--accent-fg)',
             border: saved ? '1px solid rgba(34,197,94,0.3)' : 'none',
           }}

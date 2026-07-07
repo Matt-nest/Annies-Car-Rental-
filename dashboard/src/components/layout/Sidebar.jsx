@@ -9,6 +9,7 @@ import { useAuth } from '../../auth/AuthProvider';
 import { haptic } from '../../lib/haptic';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import brand from '../../config/brand';
+import { isStripeProvider } from '../../config/paymentProvider';
 
 const MAIN_NAV = [
   { to: '/',          label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -32,7 +33,7 @@ const GROWTH_NAV = [
 ];
 
 const SYSTEM_NAV = [
-  { to: '/stripe',          label: 'Stripe',   icon: Landmark },
+  ...(isStripeProvider() ? [{ to: '/stripe', label: 'Stripe', icon: Landmark }] : []),
   { to: '/webhook-failures', label: 'Webhooks', icon: AlertTriangle },
 ];
 

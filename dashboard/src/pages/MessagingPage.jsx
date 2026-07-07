@@ -104,7 +104,7 @@ export default function MessagingPage() {
               backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)',
               textDecoration: 'none', transition: 'all 0.2s ease', cursor: 'pointer',
             }}
-            onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.borderColor = 'var(--accent)'; }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.borderColor = 'var(--accent-color)'; }}
             onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
           >
             <MessageSquare size={13} />
