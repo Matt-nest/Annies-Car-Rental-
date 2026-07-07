@@ -45,7 +45,7 @@ export default function WebhookFailuresPage() {
             <p className="text-sm font-medium text-[var(--danger-color)]">{failures.length} failed webhook{failures.length !== 1 ? 's' : ''}</p>
             <p className="text-xs text-[var(--danger-color)] ml-1">— GHL may not have received these notifications</p>
           </div>
-          <div className="overflow-x-auto">
+          <div className="scroll-x-contained max-w-full">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border-subtle)]">

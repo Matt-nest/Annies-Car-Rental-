@@ -133,7 +133,7 @@ export default function BookingsPage() {
   ];
 
   return (
-    <div className="p-6 lg:p-8 space-y-6">
+    <div className="page-shell lg:p-8 space-y-6">
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -163,8 +163,8 @@ export default function BookingsPage() {
       <DataError error={error} />
 
       {/* Filter bar */}
-      <div className="card p-4 flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 rounded-xl px-4 py-3 flex-1 min-w-[200px]"
+      <div className="card p-4 flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 min-w-0">
+        <div className="flex items-center gap-2 rounded-xl px-4 py-3 flex-1 min-w-0"
           style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)' }}>
           <Search size={15} style={{ color: 'var(--text-tertiary)' }} />
           <input
@@ -175,10 +175,10 @@ export default function BookingsPage() {
             onChange={e => setSearchParams({ status, q: e.target.value })}
           />
         </div>
-        <div className="flex items-center gap-2">
-          <Filter size={14} style={{ color: 'var(--text-tertiary)' }} />
+        <div className="flex items-center gap-2 w-full sm:w-auto min-w-0">
+          <Filter size={14} style={{ color: 'var(--text-tertiary)' }} className="shrink-0" />
           <select
-            className="input max-w-[200px]"
+            className="input w-full sm:max-w-[200px] min-w-0"
             value={status}
             onChange={e => setSearchParams({ status: e.target.value, q })}
           >

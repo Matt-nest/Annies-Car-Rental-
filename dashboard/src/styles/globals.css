@@ -554,6 +554,17 @@ html.dark {
   .mobile-bottom-nav-pad { padding-bottom: 0; }
 }
 
+/* Standard page wrapper — prevents child overflow from widening the viewport */
+.page-shell {
+  padding: 1.5rem;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: clip;
+}
+@media (min-width: 1024px) {
+  .page-shell { padding: 2rem; }
+}
+
 /* ─── Animations ────────────────────────────────────────────────────────────── */
 @keyframes fade-up {
   from { opacity: 0; transform: translateY(10px); }
