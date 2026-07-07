@@ -111,6 +111,16 @@ export async function createBooking(payload) {
     if (v2) {
       vehicle = v2;
     } else {
+      // Try VIN match — catalog exposes vehicle_code || vin as `id`
+      const { data: v3 } = await supabase
+        .from('vehicles')
+        .select('*')
+        .eq('vin', vehicle_code)
+        .maybeSingle();
+
+      if (v3) {
+        vehicle = v3;
+      } else {
       // Try slug match: 'v-altima' → match against make/model
       const slugModel = vehicle_code.replace(/^v-/, '').replace(/-/g, ' ').toLowerCase();
       const { data: allVehicles } = await supabase
@@ -126,6 +136,7 @@ export async function createBooking(payload) {
             || `${make} ${model}`.includes(slugModel)
             || slugModel.includes(model);
         });
+      }
       }
     }
   }

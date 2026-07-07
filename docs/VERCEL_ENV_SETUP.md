@@ -15,6 +15,7 @@ openssl rand -hex 32
 | Variable | Value (placeholder) | Notes |
 |----------|---------------------|--------|
 | `VITE_API_URL` | `https://admin.dashboard.anniescarrental.com/api/v1` | Required |
+| `VITE_RECAPTCHA_SITE_KEY` | `6L...` (reCAPTCHA v3 **site** key) | **Required** for booking + inquiries |
 | `VITE_PAYMENT_PROVIDER` | `square` | Required |
 | `VITE_SQUARE_APPLICATION_ID` | `sq0idp-...` | From Square Developer → Credentials |
 | `VITE_SQUARE_LOCATION_ID` | `L...` | From Square → Locations |
@@ -31,6 +32,7 @@ openssl rand -hex 32
 | Variable | Value (placeholder) | Notes |
 |----------|---------------------|--------|
 | `PORTAL_JWT_SECRET` | output of `openssl rand -hex 32` | Required for customer portal |
+| `RECAPTCHA_SECRET_KEY` | reCAPTCHA v3 **secret** key (pair with site key above) | **Required** — without this every `POST /bookings` returns 500 |
 | `PAYMENT_PROVIDER` | `square` | Required |
 | `SQUARE_ACCESS_TOKEN` | `EAAA...` | Square access token |
 | `SQUARE_LOCATION_ID` | `L...` | Same as customer site |
@@ -44,7 +46,18 @@ openssl rand -hex 32
 ## Quick verify
 
 ```bash
+# Backend up
 curl -s https://admin.dashboard.anniescarrental.com/api/v1/health
+
+# reCAPTCHA secret is set (expect 403, NOT 500)
+curl -s -X POST https://admin.dashboard.anniescarrental.com/api/v1/bookings \
+  -H 'Content-Type: application/json' -d '{"first_name":"Test"}'
+# Good: {"error":"Missing CAPTCHA token"}
+# Bad:  {"error":"Booking security is not configured..."} or code recaptcha_not_configured
+
+# Customer site baked the site key (should NOT be render=)
+curl -s https://www.anniescarrental.com/ | grep -o 'recaptcha/api.js[^"]*'
+
 curl -s -X POST https://admin.dashboard.anniescarrental.com/api/v1/portal/verify \
   -H "Content-Type: application/json" \
   -d '{"bookingCode":"TEST","email":"test@example.com"}'

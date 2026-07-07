@@ -11,7 +11,10 @@ export async function verifyRecaptcha(req, res, next) {
   if (!secretKey) {
     if (process.env.NODE_ENV === 'production') {
       console.error('[reCAPTCHA] RECAPTCHA_SECRET_KEY not set in production — blocking request');
-      return res.status(500).json({ error: 'CAPTCHA configuration error' });
+      return res.status(500).json({
+        error: 'Booking security is not configured. Please call us to complete your reservation.',
+        code: 'recaptcha_not_configured',
+      });
     }
     console.warn('[reCAPTCHA] RECAPTCHA_SECRET_KEY not set — skipping verification (dev mode)');
     return next();
@@ -30,8 +33,8 @@ export async function verifyRecaptcha(req, res, next) {
 
     const data = await response.json();
 
-    if (!data.success || data.score < 0.5) {
-      console.warn(`[reCAPTCHA] Failed verification for IP ${req.ip} — score: ${data.score}`);
+    if (!data.success || (data.score != null && data.score < 0.5)) {
+      console.warn(`[reCAPTCHA] Failed verification for IP ${req.ip} — score: ${data.score}, success: ${data.success}`);
       return res.status(403).json({ error: 'CAPTCHA verification failed. Please try again.' });
     }
 
