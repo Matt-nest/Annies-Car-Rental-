@@ -131,7 +131,7 @@ function DashboardLayoutInner() {
 
   return (
     <ThemeContext.Provider value={{ dark, toggle: () => setDark(d => !d) }}>
-      <div className="flex h-dvh overflow-hidden theme-transition" style={{ backgroundColor: 'var(--bg-primary)' }}>
+      <div className="flex h-dvh overflow-hidden theme-transition max-w-full" style={{ backgroundColor: 'var(--bg-primary)' }}>
         <OfflineBanner />
         <Sidebar
           open={sidebarOpen}
@@ -299,7 +299,7 @@ function DashboardLayoutInner() {
           </header>
 
           {/* Page content */}
-          <main ref={mainScrollRef} className="flex-1 overflow-y-auto glass-scroll pb-[calc(84px+env(safe-area-inset-bottom))] lg:pb-0">
+          <main ref={mainScrollRef} className="flex-1 overflow-y-auto overflow-x-clip glass-scroll mobile-bottom-nav-pad lg:pb-0 min-w-0 max-w-full">
             <AnimatePresence mode="wait" initial={false} custom={navType}>
               <motion.div
                 key={location.pathname.split('/').slice(0, 2).join('/') || '/'}

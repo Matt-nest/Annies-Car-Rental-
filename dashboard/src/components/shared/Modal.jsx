@@ -14,7 +14,7 @@ export default function Modal({ open, onClose, title, children, maxWidth = 'max-
   return (
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 safe-x" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -36,7 +36,7 @@ export default function Modal({ open, onClose, title, children, maxWidth = 'max-
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.94, y: 20 }}
             transition={{ duration: 0.25, ease: EASE }}
-            className={`relative w-full ${maxWidth} max-h-[90vh] overflow-y-auto glass-scroll`}
+            className={`relative w-full min-w-0 ${maxWidth} max-h-[min(90dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem))] overflow-y-auto overflow-x-clip glass-scroll`}
             style={{
               backgroundColor: 'var(--bg-elevated)',
               border: '1px solid var(--border-medium)',

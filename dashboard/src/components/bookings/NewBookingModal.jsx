@@ -44,7 +44,7 @@ const fieldLabel = 'text-xs font-semibold uppercase tracking-wider text-[var(--t
 
 function StepperHeader({ step }) {
   return (
-    <div className="flex items-center gap-1.5 mb-4 overflow-x-auto pb-1">
+    <div className="flex items-center gap-1.5 mb-4 scroll-x-contained no-scrollbar pb-1 max-w-full">
       {STEPS.map((s, i) => {
         const Icon = s.icon;
         const done = i < step;

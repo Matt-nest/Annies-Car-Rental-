@@ -77,7 +77,7 @@ function FilterPills({ active, onChange, vehicles }) {
   for (const v of vehicles) counts[v.status] = (counts[v.status] || 0) + 1;
 
   return (
-    <div className="flex gap-1.5 px-5 pb-3 overflow-x-auto no-scrollbar">
+    <div className="flex gap-1.5 px-5 pb-3 scroll-x-contained no-scrollbar max-w-full">
       {FILTERS.map(({ key, label }) => {
         const count = key === 'all' ? vehicles.length
           : key === 'maintenance' ? (counts.maintenance || 0) + (counts.retired || 0)

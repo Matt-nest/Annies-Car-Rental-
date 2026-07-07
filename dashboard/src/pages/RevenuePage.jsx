@@ -164,7 +164,7 @@ export default function RevenuePage() {
       </motion.div>
 
       {/* Date range filter */}
-      <motion.div {...fadeUp(1)} className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+      <motion.div {...fadeUp(1)} className="flex items-center gap-1.5 scroll-x-contained no-scrollbar pb-1 max-w-full">
         <Calendar size={14} className="text-gray-400 mr-1 shrink-0" />
         {RANGE_PRESETS.map((preset, i) => (
           <button
@@ -461,7 +461,7 @@ export default function RevenuePage() {
           <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Transactions</h2>
           <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{revenue?.transactions?.length || 0} total</span>
         </div>
-        <div className="overflow-x-auto glass-scroll">
+        <div className="scroll-x-contained glass-scroll max-w-full">
           <table className="w-full text-sm">
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>

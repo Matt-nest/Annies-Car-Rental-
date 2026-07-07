@@ -63,13 +63,13 @@ export default function BookingActionBar({ status, onAction, disabled = false })
     <div
       className="md:hidden fixed inset-x-0 z-[80]"
       style={{
-        bottom: 'calc(64px + env(safe-area-inset-bottom, 0px))',
+        bottom: 'var(--bottom-nav-offset)',
         backgroundColor: 'var(--bg-elevated)',
         borderTop: '1px solid var(--border-subtle)',
         boxShadow: '0 -8px 32px rgba(0,0,0,0.18)',
       }}
     >
-      <div className="px-4 py-3 flex items-center gap-2">
+      <div className="px-4 py-3 flex items-center gap-2 safe-x">
         {cfg.secondary && SecondaryIcon && (
           <button
             type="button"

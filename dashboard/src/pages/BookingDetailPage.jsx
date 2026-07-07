@@ -749,7 +749,7 @@ export default function BookingDetailPage() {
   const { status, customers: c, vehicles: v } = booking;
 
   return (
-    <div className="p-6 lg:p-8 pb-[calc(140px+env(safe-area-inset-bottom))] md:pb-8 space-y-6">
+    <div className="p-6 lg:p-8 pb-[calc(140px+env(safe-area-inset-bottom,0px))] lg:pb-8 space-y-6 min-w-0 max-w-full overflow-x-clip">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -934,7 +934,7 @@ export default function BookingDetailPage() {
       })()}
 
       {/* ── Tab Navigation ──────────────────────────────────────────── */}
-      <div className="flex gap-1 overflow-x-auto pb-1 border-b border-[var(--border-subtle)]">
+      <div className="flex gap-1 scroll-x-contained no-scrollbar pb-1 border-b border-[var(--border-subtle)] max-w-full">
         {TABS.map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
