@@ -599,6 +599,8 @@ function SystemTab() {
 
       <WebPushSection />
 
+      <TeamAlertsSection />
+
       <Section title="Notifications" description="Email & SMS delivery services">
         <div className="space-y-0">
           <EnvRow label="Resend API Key" envKey="RESEND_API_KEY" note="Transactional emails (resend.com)" />
@@ -757,6 +759,202 @@ function WebPushSection() {
           </p>
         )}
       </div>
+    </Section>
+  );
+}
+
+/* ─── Team SMS Alerts (migration 026) ─────────────────────────────────────
+ * Up to 4 phone numbers receive concise internal SMS for core booking events.
+ * ────────────────────────────────────────────────────────────────────────── */
+const TEAM_ALERT_SLOTS = 4;
+
+function normalizeE164(raw) {
+  const digits = String(raw || '').replace(/\D/g, '');
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+  if (String(raw || '').startsWith('+1') && digits.length === 11) return `+${digits}`;
+  return '';
+}
+
+function TeamAlertsSection() {
+  const [settings, setSettings] = useState(null);
+  const [draft, setDraft] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    api.getBusinessSettings()
+      .then((data) => {
+        if (!mounted) return;
+        const phones = Array.isArray(data?.team_alert_phones) ? data.team_alert_phones : [];
+        const padded = [...phones];
+        while (padded.length < TEAM_ALERT_SLOTS) padded.push('');
+        const safe = {
+          ...data,
+          team_alerts_enabled: !!data?.team_alerts_enabled,
+          team_alert_phones: padded.slice(0, TEAM_ALERT_SLOTS),
+        };
+        setSettings(safe);
+        setDraft(safe);
+      })
+      .catch((err) => { if (mounted) setError(err.message || 'Failed to load settings'); })
+      .finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
+  }, []);
+
+  const dirty = draft && settings && (
+    draft.team_alerts_enabled !== settings.team_alerts_enabled ||
+    JSON.stringify(draft.team_alert_phones) !== JSON.stringify(settings.team_alert_phones)
+  );
+
+  function updatePhone(idx, value) {
+    const next = [...(draft.team_alert_phones || [])];
+    next[idx] = value;
+    setDraft({ ...draft, team_alert_phones: next });
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    setError('');
+    try {
+      const normalized = (draft.team_alert_phones || [])
+        .map((p) => normalizeE164(p))
+        .filter(Boolean);
+      if (normalized.length !== new Set(normalized).size) {
+        throw new Error('Duplicate phone numbers are not allowed');
+      }
+      const invalid = (draft.team_alert_phones || []).some((p) => p.trim() && !normalizeE164(p));
+      if (invalid) {
+        throw new Error('Each number must be a valid US phone (10 digits)');
+      }
+      const updated = await api.updateBusinessSettings({
+        team_alerts_enabled: draft.team_alerts_enabled,
+        team_alert_phones: normalized,
+      });
+      const phones = Array.isArray(updated?.team_alert_phones) ? updated.team_alert_phones : [];
+      const padded = [...phones];
+      while (padded.length < TEAM_ALERT_SLOTS) padded.push('');
+      const safe = {
+        ...updated,
+        team_alerts_enabled: !!updated?.team_alerts_enabled,
+        team_alert_phones: padded.slice(0, TEAM_ALERT_SLOTS),
+      };
+      setSettings(safe);
+      setDraft(safe);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2400);
+    } catch (err) {
+      setError(err.message || 'Save failed');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Section
+      title="Team SMS Alerts"
+      description="Text up to 4 team phones when key booking events happen — new requests, payments, agreements, returns, and more."
+    >
+      {loading ? (
+        <div className="flex items-center gap-2 text-[var(--text-secondary)] text-sm">
+          <RefreshCw size={14} className="animate-spin" /> Loading…
+        </div>
+      ) : error && !draft ? (
+        <div className="flex items-start gap-2 text-sm text-[#ef4444]">
+          <AlertCircle size={14} className="mt-0.5 shrink-0" />
+          <span>{error}</span>
+        </div>
+      ) : draft ? (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-4 py-2">
+            <div>
+              <p className="text-sm font-medium text-[var(--text-primary)]">Enable team SMS alerts</p>
+              <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
+                Bypasses quiet hours. Requires Twilio to be configured.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setDraft({ ...draft, team_alerts_enabled: !draft.team_alerts_enabled })}
+              className="relative shrink-0"
+              style={{
+                width: 42, height: 24, borderRadius: 12,
+                border: 'none', cursor: 'pointer', padding: 0,
+                background: draft.team_alerts_enabled
+                  ? 'linear-gradient(135deg, #13294B, #1E3A5F)'
+                  : 'var(--bg-card, rgba(255,255,255,0.06))',
+                boxShadow: draft.team_alerts_enabled
+                  ? '0 2px 8px rgba(19,41,75,0.3)'
+                  : 'inset 0 1px 3px rgba(0,0,0,0.15)',
+                transition: 'background 0.25s, box-shadow 0.25s',
+              }}
+              aria-pressed={draft.team_alerts_enabled}
+              aria-label="Toggle team SMS alerts"
+            >
+              <span style={{
+                position: 'absolute', top: 2, width: 20, height: 20,
+                borderRadius: '50%', background: '#fff',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                transition: 'left 0.25s cubic-bezier(0.4,0,0.2,1)',
+                left: draft.team_alerts_enabled ? 20 : 2,
+              }} />
+            </button>
+          </div>
+
+          <div className={`space-y-2 ${!draft.team_alerts_enabled ? 'opacity-50 pointer-events-none' : ''}`}>
+            <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] block">
+              Team phone numbers ({TEAM_ALERT_SLOTS} max)
+            </label>
+            {(draft.team_alert_phones || []).map((phone, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <span className="text-[10px] font-mono text-[var(--text-tertiary)] w-4 shrink-0">{i + 1}</span>
+                <Phone size={14} className="text-[var(--text-tertiary)] shrink-0" />
+                <input
+                  type="tel"
+                  className="input text-sm flex-1"
+                  placeholder="+1 (772) 555-0100"
+                  value={phone}
+                  onChange={(e) => updatePhone(i, e.target.value)}
+                  disabled={!draft.team_alerts_enabled}
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-start gap-2.5 bg-[rgba(99,179,237,0.07)] border border-[rgba(99,179,237,0.15)] rounded-xl p-3 text-xs text-[#63b3ed]">
+            <Info size={14} className="mt-0.5 shrink-0" />
+            <div>
+              Alerts cover: new booking pending approval (most detail), payment received, agreement signed,
+              vehicle returned, late return, damage reported, and insurance review needed.
+            </div>
+          </div>
+
+          {error && draft && (
+            <div className="flex items-start gap-2 text-sm text-[#ef4444]">
+              <AlertCircle size={14} className="mt-0.5 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <div className="flex items-center justify-end gap-2 pt-1">
+            {saved && (
+              <span className="flex items-center gap-1 text-xs text-[#22c55e]"><Check size={12} /> Saved</span>
+            )}
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={!dirty || saving}
+              className="btn-primary text-xs"
+              style={{ opacity: !dirty || saving ? 0.5 : 1 }}
+            >
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+      ) : null}
     </Section>
   );
 }

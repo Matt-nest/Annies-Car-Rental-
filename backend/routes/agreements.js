@@ -6,6 +6,7 @@ import { generateRentalAgreementPdf } from '../utils/pdfGenerator.js';
 import { transitionBooking } from '../services/bookingService.js';
 import { sendCounterSignNotification } from '../services/emailService.js';
 import { createNotification } from '../services/notificationService.js';
+import { sendTeamAlertAsync, TEAM_ALERT_EVENTS } from '../services/teamAlertService.js';
 
 const router = Router();
 
@@ -312,6 +313,10 @@ router.post('/:bookingCode/sign', asyncHandler(async (req, res) => {
     `/bookings/${booking.id}`,
     { booking_id: booking.id }
   ).catch(() => {});
+
+  sendTeamAlertAsync(TEAM_ALERT_EVENTS.AGREEMENT_PENDING, {
+    booking: { ...fullBooking, customers: customer },
+  });
 
   res.json({ success: true, agreementId: agreement.id });
 }));

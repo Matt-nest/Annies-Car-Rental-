@@ -12,6 +12,7 @@ import { Router } from 'express';
 import { supabase } from '../db/supabase.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
+import { normalizeTeamAlertPhones } from '../services/teamAlertService.js';
 
 const router = Router();
 
@@ -30,6 +31,9 @@ const EDITABLE_FIELDS = [
   'hunt_group_fallback',
   'voicemail_email',
   'voicemail_greeting',
+  // Team SMS alerts (migration 026)
+  'team_alerts_enabled',
+  'team_alert_phones',
 ];
 
 /** GET /settings/business — returns the singleton row. */
@@ -87,6 +91,22 @@ router.put('/business', requireAuth, requireRole('owner', 'admin'), asyncHandler
         if (!Number.isFinite(n) || n < 5 || n > 60) return res.status(400).json({ error: `member ${i}: ring_seconds must be 5-60` });
       }
     }
+  }
+
+  // Team alert phones — max 4 E.164 US numbers for internal ops SMS.
+  if (updates.team_alert_phones !== undefined) {
+    if (!Array.isArray(updates.team_alert_phones)) {
+      return res.status(400).json({ error: 'team_alert_phones must be an array' });
+    }
+    if (updates.team_alert_phones.length > 4) {
+      return res.status(400).json({ error: 'team_alert_phones allows at most 4 numbers' });
+    }
+    for (const [i, phone] of updates.team_alert_phones.entries()) {
+      if (typeof phone !== 'string' || !/^\+1\d{10}$/.test(phone)) {
+        return res.status(400).json({ error: `team_alert_phones[${i}] must be E.164 like +17725551234` });
+      }
+    }
+    updates.team_alert_phones = normalizeTeamAlertPhones(updates.team_alert_phones);
   }
 
   // Validate TIME format (HH:MM or HH:MM:SS) for the two time fields. Same idea:

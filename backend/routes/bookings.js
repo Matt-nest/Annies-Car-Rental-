@@ -8,6 +8,7 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 import { validateBookingPayload } from '../utils/validators.js';
 import { createBooking, transitionBooking, getBookingDetail, applyCheckoutOverride } from '../services/bookingService.js';
 import { createNotification } from '../services/notificationService.js';
+import { sendTeamAlertAsync, TEAM_ALERT_EVENTS } from '../services/teamAlertService.js';
 import { sendBookingNotification, buildBookingPayload } from '../services/notifyService.js';
 import { computeRentalPricing, DELIVERY_FEES } from '../services/pricingService.js';
 import { getQuote, getSetting, BonzahError } from '../services/bonzahService.js';
@@ -652,6 +653,7 @@ router.patch('/:code/insurance', asyncHandler(async (req, res) => {
           `/bookings/${booking.id}`,
           { booking_id: booking.id, booking_code: booking.booking_code }
         ).catch(() => {});
+        sendTeamAlertAsync(TEAM_ALERT_EVENTS.INSURANCE_REVIEW, fullBooking);
       }
     }
 

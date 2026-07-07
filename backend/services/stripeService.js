@@ -3,6 +3,7 @@ import { getStripe } from '../utils/stripe.js';
 import { supabase } from '../db/supabase.js';
 import { transitionBooking, getBookingDetail } from './bookingService.js';
 import { createNotification } from './notificationService.js';
+import { sendTeamAlertAsync, TEAM_ALERT_EVENTS } from './teamAlertService.js';
 import { sendBookingNotification, buildBookingPayload } from './notifyService.js';
 import { calcInsuranceCost } from './pricingService.js';
 import { bindPolicy as bindBonzahPolicy, BonzahError } from './bonzahService.js';
@@ -154,6 +155,16 @@ async function recordSuccessfulPaymentIntent(pi, source = 'stripe') {
       `/bookings/${bookingId}`,
       { booking_id: bookingId, amount: pi.amount / 100, source }
     ).catch(() => {});
+    getBookingDetail(bookingId)
+      .then((detail) => {
+        if (detail) {
+          sendTeamAlertAsync(TEAM_ALERT_EVENTS.PAYMENT_RECEIVED, {
+            booking: detail,
+            amount: pi.amount / 100,
+          });
+        }
+      })
+      .catch(() => {});
   }
 
   await finalizeBookingAfterPayment(bookingId);
