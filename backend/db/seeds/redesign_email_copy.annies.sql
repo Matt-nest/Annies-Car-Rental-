@@ -125,8 +125,8 @@ ON CONFLICT (stage) DO UPDATE SET
 -- Day-of Pickup
 INSERT INTO email_templates (name, stage, channel, subject, body, sms_body, trigger_type, description) VALUES (
   E'Day-of Pickup', E'day_of_pickup', E'sms',
-  NULL,
-  NULL,
+  '',
+  '',
   E'Good morning, {{first_name}}! Your {{vehicle}} is ready for pickup today at {{pickup_time}}.\n\n1234 SE Commerce Ave, Port St. Lucie, FL 34952 (back of building)\nLockbox code {{lockbox_code}}\n\nCheck in: {{portal_link}}\nDrive safe — text us if anything comes up. — Annie''s Car Rental, (772) 207-1655',
   E'automated', E'Sent the morning of the pickup date.'
 )
@@ -138,8 +138,8 @@ ON CONFLICT (stage) DO UPDATE SET
 -- Mid-Rental Check-in
 INSERT INTO email_templates (name, stage, channel, subject, body, sms_body, trigger_type, description) VALUES (
   E'Mid-Rental Check-in', E'mid_rental_checkin', E'sms',
-  NULL,
-  NULL,
+  '',
+  '',
   E'Hi {{first_name}}, just checking in — how''s the {{vehicle}} treating you?\n\nYour return is set for {{return_date}}. Want to keep it longer? Reply and we''ll hold it for you, no rebooking needed.\n\n— Annie''s Car Rental, (772) 207-1655',
   E'automated', E'Sent partway through longer rentals.'
 )
@@ -164,8 +164,8 @@ ON CONFLICT (stage) DO UPDATE SET
 -- Day-of Return
 INSERT INTO email_templates (name, stage, channel, subject, body, sms_body, trigger_type, description) VALUES (
   E'Day-of Return', E'day_of_return', E'sms',
-  NULL,
-  NULL,
+  '',
+  '',
   E'Good morning, {{first_name}}! Your {{vehicle}} is due back today by {{return_time}}.\n\n1234 SE Commerce Ave, Port St. Lucie, FL 34952 (back of building, near the dumpster)\nKey in lockbox (code {{lockbox_code}})\n\nQuick checklist:\n• Same fuel level as pickup\n• Photo of where you parked\n• Reply to extend if plans changed\n\nThanks again! — Annie''s Car Rental, (772) 207-1655',
   E'automated', E'Sent the morning of the return date.'
 )
@@ -177,8 +177,8 @@ ON CONFLICT (stage) DO UPDATE SET
 -- Return Confirmed
 INSERT INTO email_templates (name, stage, channel, subject, body, sms_body, trigger_type, description) VALUES (
   E'Return Confirmed', E'return_confirmed', E'sms',
-  NULL,
-  NULL,
+  '',
+  '',
   E'Hi {{first_name}}, we''ve got the {{vehicle}} back and everything looks great. Thanks for taking care of it.\n\nHope to see you again soon! — Annie''s Car Rental',
   E'manual', E'Sent after the vehicle is returned and inspected.'
 )
@@ -203,8 +203,8 @@ ON CONFLICT (stage) DO UPDATE SET
 -- Late Return Warning
 INSERT INTO email_templates (name, stage, channel, subject, body, sms_body, trigger_type, description) VALUES (
   E'Late Return Warning', E'late_return_warning', E'sms',
-  NULL,
-  NULL,
+  '',
+  '',
   E'Hi {{first_name}}, your {{vehicle}} was due back at {{return_time}} today. On your way? Just send your ETA.\n\nNeed more time? Reply and we''ll check on extending.\n\nReturn: 1234 SE Commerce Ave, Port St. Lucie, FL 34952\n— Annie''s Car Rental, (772) 207-1655',
   E'automated', E'Sent on the first day after the scheduled return date.'
 )
@@ -229,8 +229,8 @@ ON CONFLICT (stage) DO UPDATE SET
 -- Extension Offer
 INSERT INTO email_templates (name, stage, channel, subject, body, sms_body, trigger_type, description) VALUES (
   E'Extension Offer', E'extension_offer', E'sms',
-  NULL,
-  NULL,
+  '',
+  '',
   E'Hi {{first_name}}, your rental ends {{return_date}}. Enjoying the {{vehicle}}? We can extend it.\n\nReply with how many extra days you need and we''ll confirm pricing and availability.\n\n— Annie''s Car Rental',
   E'automated', E'Sent before the return date for multi-day rentals.'
 )
@@ -244,7 +244,7 @@ INSERT INTO email_templates (name, stage, channel, subject, body, sms_body, trig
   E'Damage Notification', E'damage_notification', E'email',
   E'A note about your recent rental — {{booking_code}}',
   E'Hi {{first_name}},\n\nWe wanted to reach out about your recent rental of the {{vehicle}} ({{booking_code}}). During our post-rental inspection we noted some damage we''ll need to follow up on.\n\nWhat we found: {{damage_description}}\n\nWe''ll review the details and contact you within one business day to walk through what we found, whether anything is owed beyond your deposit, and answer any questions.\n\nWant to get ahead of it? Reach us at (772) 207-1655, or view your booking in the portal.\n\nAnnie''s Car Rental\nPort St. Lucie, FL',
-  NULL,
+  '',
   E'manual', E'Sent after inspection reveals damage.'
 )
 ON CONFLICT (stage) DO UPDATE SET
@@ -283,7 +283,7 @@ INSERT INTO email_templates (name, stage, channel, subject, body, sms_body, trig
   E'Repeat Customer', E'repeat_customer', E'email',
   E'{{first_name}}, your next rental is 5% off',
   E'Hi {{first_name}},\n\nThanks for renting with Annie''s Car Rental. As a returning guest, here''s 5% off your next trip — just mention this email when you book.\n\nWe''re always adding vehicles and sharpening the experience. Whenever you need a car next, we''d love to have you back.\n\nAnnie''s Car Rental\nPort St. Lucie, FL',
-  NULL,
+  '',
   E'automated', E'Sent a while after rental completion.'
 )
 ON CONFLICT (stage) DO UPDATE SET

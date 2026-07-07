@@ -525,8 +525,9 @@ Questions? ${B.phone} — ${B.name}`,
 export const TEMPLATES = T;
 
 // ── SQL emitter ─────────────────────────────────────────────────────────────
+// subject + body are NOT NULL in email_templates — SMS-only stages use ''.
 function lit(s) {
-  if (s == null) return 'NULL';
+  if (s == null) return "''";
   const esc = s.replace(/\\/g, '\\\\').replace(/'/g, "''").replace(/\n/g, '\\n');
   return `E'${esc}'`;
 }
