@@ -182,15 +182,13 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
 
   return (
     <div
-      className="min-h-dvh overflow-x-clip max-w-full safe-x"
+      className={`min-h-screen ${theme} transition-colors duration-500`}
       style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
     >
       {/* Sticky Header */}
       <header
-        className="fixed top-0 left-0 right-0 z-[90] flex items-center justify-between px-4 md:px-8 safe-x md:backdrop-blur-2xl border-b overflow-x-clip"
+        className="fixed top-0 left-0 right-0 z-[90] h-16 md:h-20 flex items-center justify-between px-4 md:px-8 md:backdrop-blur-2xl border-b"
         style={{
-          paddingTop: 'env(safe-area-inset-top)',
-          minHeight: 'calc(4rem + env(safe-area-inset-top))',
           backgroundColor: theme === 'dark' ? 'rgba(10,10,10,0.97)' : 'rgba(250,250,249,0.97)',
           borderColor: 'var(--border-subtle)',
         }}
@@ -217,7 +215,7 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
         </div>
       </header>
 
-      <div className="pt-[calc(4rem+env(safe-area-inset-top))] md:pt-[calc(5rem+env(safe-area-inset-top))] overflow-x-clip">
+      <div className="pt-16 md:pt-20">
         {/* Gallery */}
         <Gallery images={vehicle.images} alt={displayName} />
 
@@ -248,7 +246,7 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
         </div>
 
         {/* Main Content */}
-        <main className="max-w-7xl mx-auto px-4 md:px-6 safe-x mt-8 md:mt-12 grid grid-cols-1 lg:grid-cols-3 gap-8 md:gap-12 pb-44 lg:pb-16 min-w-0 w-full">
+        <main className="max-w-7xl mx-auto px-4 md:px-6 mt-8 md:mt-12 grid grid-cols-1 lg:grid-cols-3 gap-8 md:gap-12 pb-44 lg:pb-16">
           {/* Left Column: Details */}
           <div className="lg:col-span-2 space-y-12">
             {/* Header */}
@@ -263,7 +261,7 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
                 <span>·</span>
                 <span>{vehicle.year}</span>
               </div>
-              <h1 className="text-3xl sm:text-4xl md:text-6xl font-light tracking-tight break-words">{displayName}</h1>
+              <h1 className="text-4xl md:text-6xl font-light tracking-tight">{displayName}</h1>
             </motion.div>
 
             {/* Description */}

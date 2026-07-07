@@ -174,7 +174,7 @@ export default function Gallery({ images, alt }: GalleryProps) {
             </div>
 
             {/* Thumbnails */}
-            <div className="p-4 md:p-6 flex justify-center gap-2 scroll-x-contained no-scrollbar max-w-full">
+            <div className="p-4 md:p-6 flex justify-center gap-2 overflow-x-auto no-scrollbar">
               {images.map((img, i) => (
                 <button
                   key={i}

@@ -60,7 +60,7 @@ export default function BookingTimelineStepper({ status }: BookingTimelineSteppe
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.1, duration: 0.4 }}
-      className="scroll-x-contained no-scrollbar max-w-full"
+      className="overflow-x-auto no-scrollbar"
       aria-label="Trip progress"
     >
       <div className="flex items-start justify-between gap-1 min-w-[320px] px-1">

@@ -84,18 +84,9 @@ export default function BookingStatusPage({ onBack }: Props) {
   };
 
   return (
-    <div
-      className="min-h-dvh flex flex-col overflow-x-clip max-w-full safe-x"
-      style={{ backgroundColor: 'var(--bg-primary)' }}
-    >
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: 'var(--bg-primary)' }}>
       {/* Header */}
-      <div
-        className="px-4 sm:px-6 py-4 flex items-center gap-3 safe-x"
-        style={{
-          paddingTop: 'max(1rem, env(safe-area-inset-top))',
-          borderBottom: '1px solid var(--border-subtle)',
-        }}
-      >
+      <div className="px-6 py-5 flex items-center gap-3" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
         <button
           onClick={onBack}
           className="flex items-center gap-2 text-sm transition-opacity hover:opacity-70"
@@ -108,27 +99,27 @@ export default function BookingStatusPage({ onBack }: Props) {
         <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{brand.name}</span>
       </div>
 
-      <div className="flex-1 flex items-start justify-center px-4 safe-x pt-8 pb-[max(4rem,env(safe-area-inset-bottom))] min-w-0 w-full">
-        <div className="w-full max-w-md space-y-6 min-w-0">
+      <div className="flex-1 flex items-start justify-center px-4 pt-12 pb-16">
+        <div className="w-full max-w-md space-y-6">
           <div className="text-center space-y-1">
             <h1 className="text-2xl font-semibold" style={{ color: 'var(--text-primary)' }}>Check Booking Status</h1>
             <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Enter the reference code from your confirmation</p>
           </div>
 
           {/* Lookup form */}
-          <form onSubmit={handleLookup} className="flex flex-col sm:flex-row gap-2 min-w-0">
+          <form onSubmit={handleLookup} className="flex gap-2">
             <input
               value={code}
               onChange={e => setCode(e.target.value.toUpperCase())}
               placeholder="e.g. BK-20260404-XXXX"
               maxLength={20}
-              className="flex-1 min-w-0 px-4 h-12 rounded-xl border text-sm font-mono tracking-widest focus:outline-none transition-all uppercase"
+              className="flex-1 px-4 h-12 rounded-xl border text-sm font-mono tracking-widest focus:outline-none transition-all uppercase"
               style={inputStyle}
             />
             <button
               type="submit"
               disabled={loading || !code.trim()}
-              className="h-12 px-5 rounded-xl font-medium text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-50 shrink-0"
+              className="h-12 px-5 rounded-xl font-medium text-sm flex items-center gap-2 transition-all disabled:opacity-50"
               style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
             >
               <Search size={16} />

@@ -176,7 +176,7 @@ export default function FleetGrid({ onSelectVehicle, rateMode = 'daily', onRateM
       </div>
 
       {/* Category Filter Pills */}
-      <div className="flex gap-2.5 sm:gap-3 mb-10 sm:mb-14 scroll-x-contained no-scrollbar pb-2 snap-x snap-mandatory -mx-4 px-4 sm:mx-0 sm:px-0">
+      <div className="flex gap-2.5 sm:gap-3 mb-10 sm:mb-14 no-scrollbar overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory">
         {categories.map((cat) => (
           <button
             key={cat.value}

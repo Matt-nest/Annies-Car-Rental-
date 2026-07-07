@@ -141,7 +141,6 @@ export default function App() {
         {currentPage === 'portal' ? (
           <motion.div
             key="portal"
-            className="app-shell"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -154,7 +153,6 @@ export default function App() {
         ) : currentPage === 'booking-status' ? (
           <motion.div
             key="booking-status"
-            className="app-shell"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -167,7 +165,6 @@ export default function App() {
         ) : currentPage === 'privacy' ? (
           <motion.div
             key="privacy"
-            className="app-shell"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -180,7 +177,6 @@ export default function App() {
         ) : currentPage === 'terms' ? (
           <motion.div
             key="terms"
-            className="app-shell"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -193,7 +189,6 @@ export default function App() {
         ) : currentPage === 'rental-agreement' ? (
           <motion.div
             key="rental-agreement"
-            className="app-shell"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -206,7 +201,6 @@ export default function App() {
         ) : currentPage === 'confirm' ? (
           <motion.div
             key="confirm"
-            className="app-shell"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -219,7 +213,6 @@ export default function App() {
         ) : currentPage === 'detail' && selectedVehicle ? (
           <motion.div
             key="detail"
-            className="app-shell"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -232,7 +225,6 @@ export default function App() {
         ) : (
           <motion.div
             key="home"
-            className="app-shell"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

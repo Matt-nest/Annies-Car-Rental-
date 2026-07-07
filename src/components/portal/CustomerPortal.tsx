@@ -528,13 +528,7 @@ export default function CustomerPortal() {
     return (
       <>
         <Navbar onNavigate={scrollToSection} />
-        <main
-          className="min-h-dvh px-4 sm:px-6 safe-x overflow-x-clip max-w-full"
-          style={{
-            paddingTop: 'max(6rem, calc(env(safe-area-inset-top) + 5rem))',
-            paddingBottom: 'max(5rem, calc(env(safe-area-inset-bottom) + 3rem))',
-          }}
-        >
+        <main className="min-h-screen px-4 sm:px-6" style={{ paddingTop: '120px', paddingBottom: '80px' }}>
           <div className="max-w-md mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 24 }}
@@ -705,13 +699,13 @@ export default function CustomerPortal() {
       )}
 
       <main
-        className="min-h-dvh px-4 sm:px-6 safe-x overflow-x-clip max-w-full"
+        className="min-h-dvh px-4 sm:px-6"
         style={{
-          paddingTop: 'max(5.5rem, calc(env(safe-area-inset-top) + 4.5rem))',
+          paddingTop: '100px',
           paddingBottom: 'max(120px, calc(96px + env(safe-area-inset-bottom)))',
         }}
       >
-        <div className="max-w-lg mx-auto space-y-5 min-w-0 w-full">
+        <div className="max-w-lg mx-auto space-y-5">
 
           <StatusHero
             status={status as any}
