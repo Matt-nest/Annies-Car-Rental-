@@ -6,6 +6,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { brandsApi } from '../../api/brands';
+import InlineBanner from '../../components/shared/InlineBanner';
 
 /* ─── Section wrapper (collapsible) ───────────────────── */
 function FormSection({ title, icon: Icon, children, defaultOpen = true }) {
@@ -245,7 +246,7 @@ export default function BrandsTab() {
       await loadBrands();
       if (editing === id) closeEditor();
     } catch (e) {
-      alert(e.message);
+      setError(e.message);
     }
   }
 
@@ -253,7 +254,7 @@ export default function BrandsTab() {
     try {
       await brandsApi.exportEnv(id);
     } catch (e) {
-      alert(`Export failed: ${e.message}`);
+      setError(`Export failed: ${e.message}`);
     }
   }
 

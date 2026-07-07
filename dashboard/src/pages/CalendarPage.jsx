@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { api } from '../api/client';
 import { SkeletonChartCard } from '../components/shared/Skeleton';
 import EmptyState from '../components/shared/EmptyState';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, isToday } from 'date-fns';
+import DataError from '../components/shared/DataError';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, isToday, isSameMonth, isSameDay } from 'date-fns';
 
 const EASE = [0.25, 1, 0.5, 1];
 
@@ -24,12 +25,19 @@ export default function CalendarPage() {
   const [bookings, setBookings] = useState([]);
   const [blocked, setBlocked] = useState([]);
   const [month, setMonth] = useState(new Date());
+  const [selectedDay, setSelectedDay] = useState(new Date());
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    setSelectedDay(isSameMonth(new Date(), month) ? new Date() : startOfMonth(month));
+  }, [month]);
 
   useEffect(() => {
     async function load() {
       setLoading(true);
+      setLoadError(null);
       try {
         const [vs, bs] = await Promise.all([
           api.getVehicles(),
@@ -43,7 +51,10 @@ export default function CalendarPage() {
         setBookings(bs.data || bs);
         const blockedResults = await Promise.all(vs.map(v => api.getBlockedDates(v.id).catch(() => [])));
         setBlocked(blockedResults.flat());
-      } catch (e) { console.error(e); }
+      } catch (e) {
+        console.error(e);
+        setLoadError(e?.message || 'Could not load calendar');
+      }
       setLoading(false);
     }
     load();
@@ -65,6 +76,24 @@ export default function CalendarPage() {
     const d = format(day, 'yyyy-MM-dd');
     return blockedDates.some(b => d >= b.start_date && d <= b.end_date);
   }
+  function vehicleDayState(v, day) {
+    const booking = getBookingsForVehicle(v.id).find(b => isCovered(b, day));
+    if (booking) {
+      return {
+        kind: 'booked',
+        color: STATUS_COLORS[booking.status] || '#a8a29e',
+        label: booking.customers?.first_name
+          ? `${booking.customers.first_name} ${booking.customers.last_name || ''}`.trim()
+          : booking.booking_code,
+        sub: booking.status.replace('_', ' '),
+        booking,
+      };
+    }
+    if (isBlockedDay(getBlockedForVehicle(v.id), day)) {
+      return { kind: 'blocked', color: '#737373', label: 'Blocked', sub: 'Unavailable' };
+    }
+    return { kind: 'available', color: '#22c55e', label: 'Available', sub: null };
+  }
 
   return (
     <div className="p-6 lg:p-8 max-w-full space-y-6">
@@ -73,7 +102,7 @@ export default function CalendarPage() {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: EASE }}
-        className="flex items-center justify-between"
+        className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
       >
         <div>
           <h1 className="text-2xl font-bold tracking-tight tabular-nums" style={{ color: 'var(--text-primary)' }}>Fleet Calendar</h1>
@@ -83,15 +112,17 @@ export default function CalendarPage() {
           <button onClick={() => setMonth(subMonths(month, 1))} className="btn-ghost p-2.5 rounded-xl" style={{ minWidth: 44, minHeight: 44 }}>
             <ChevronLeft size={18} />
           </button>
-          <span className="text-sm font-bold min-w-[140px] text-center tracking-tight" style={{ color: 'var(--text-primary)' }}>
+          <span className="flex-1 sm:flex-none text-sm font-bold sm:min-w-[140px] text-center tracking-tight" style={{ color: 'var(--text-primary)' }}>
             {format(month, 'MMMM yyyy')}
           </span>
           <button onClick={() => setMonth(addMonths(month, 1))} className="btn-ghost p-2.5 rounded-xl" style={{ minWidth: 44, minHeight: 44 }}>
             <ChevronRight size={18} />
           </button>
-          <button onClick={() => setMonth(new Date())} className="btn-secondary text-xs py-2 px-3">Today</button>
+          <button onClick={() => setMonth(new Date())} className="btn-secondary text-xs py-2 px-3" style={{ minHeight: 44 }}>Today</button>
         </div>
       </motion.div>
+
+      <DataError message={loadError} onRetry={() => setMonth(m => new Date(m))} />
 
       {/* Legend */}
       <div className="flex flex-wrap gap-3">
@@ -117,7 +148,61 @@ export default function CalendarPage() {
       ) : vehicles.length === 0 ? (
         <EmptyState icon={Calendar} title="No vehicles" description="Add vehicles to see the fleet calendar." />
       ) : (
-        <div className="card overflow-x-auto glass-scroll">
+        <>
+        <div className="lg:hidden space-y-4">
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-6 px-6">
+            {days.map(day => {
+              const sel = isSameDay(day, selectedDay);
+              const today = isToday(day);
+              return (
+                <button
+                  key={day.toISOString()}
+                  onClick={() => setSelectedDay(day)}
+                  className="shrink-0 flex flex-col items-center justify-center rounded-xl transition-colors"
+                  style={{
+                    width: 48, minHeight: 56,
+                    backgroundColor: sel ? 'var(--accent-color)' : 'var(--bg-card)',
+                    border: `1px solid ${sel ? 'var(--accent-color)' : today ? 'var(--accent-color)' : 'var(--border-subtle)'}`,
+                    color: sel ? 'var(--accent-fg)' : today ? 'var(--accent-color)' : 'var(--text-secondary)',
+                  }}
+                >
+                  <span className="text-[9px] font-semibold uppercase tracking-wide opacity-80">{format(day, 'EEE')}</span>
+                  <span className="text-base font-bold tabular-nums leading-none mt-0.5">{format(day, 'd')}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="card divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
+            <div className="px-4 py-2.5" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+              <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{format(selectedDay, 'EEEE, MMMM d')}</p>
+            </div>
+            {vehicles.map(v => {
+              const st = vehicleDayState(v, selectedDay);
+              const clickable = st.kind === 'booked';
+              return (
+                <div
+                  key={v.id}
+                  onClick={() => clickable && navigate(`/bookings/${st.booking.id}`)}
+                  className="flex items-center gap-3 px-4 py-3"
+                  style={{ cursor: clickable ? 'pointer' : 'default', minHeight: 56, borderColor: 'var(--border-subtle)' }}
+                >
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: st.color, opacity: st.kind === 'available' ? 0.4 : 1 }} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{v.year} {v.make} {v.model}</p>
+                    <p className="text-[11px] mono-code" style={{ color: 'var(--text-tertiary)' }}>{v.vehicle_code}</p>
+                  </div>
+                  <div className="text-right min-w-0">
+                    <p className="text-xs font-semibold truncate" style={{ color: st.kind === 'available' ? 'var(--text-tertiary)' : st.color }}>{st.label}</p>
+                    {st.sub && <p className="text-[10px] capitalize" style={{ color: 'var(--text-tertiary)' }}>{st.sub}</p>}
+                  </div>
+                  {clickable && <ChevronRightIcon size={15} className="shrink-0" style={{ color: 'var(--text-tertiary)' }} />}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="hidden lg:block card overflow-x-auto glass-scroll">
           <div className="min-w-[800px]">
             {/* Day headers */}
             <div className="flex" style={{ paddingLeft: '170px', borderBottom: '1px solid var(--border-subtle)' }}>
@@ -205,6 +290,7 @@ export default function CalendarPage() {
             })}
           </div>
         </div>
+        </>
       )}
     </div>
   );

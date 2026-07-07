@@ -8,6 +8,7 @@ import { SkeletonTable } from '../components/shared/Skeleton';
 import EmptyState from '../components/shared/EmptyState';
 import Modal from '../components/shared/Modal';
 import DataError from '../components/shared/DataError';
+import InlineBanner from '../components/shared/InlineBanner';
 
 const EASE = [0.25, 1, 0.5, 1];
 
@@ -34,6 +35,7 @@ export default function PaymentsPage() {
   const [refundReason, setRefundReason] = useState('requested_by_customer');
   const [refunding, setRefunding] = useState(false);
   const [refundError, setRefundError] = useState('');
+  const [notice, setNotice] = useState('');
 
   const loadData = async () => {
     setLoading(true);
@@ -55,7 +57,8 @@ export default function PaymentsPage() {
     );
     const totalRefunded = childRefunds.reduce((acc, curr) => acc + Math.abs(curr.amount), 0);
     const maxRefund = payment.amount - totalRefunded;
-    if (maxRefund <= 0) { alert('This payment has already been fully refunded.'); return; }
+    if (maxRefund <= 0) { setNotice('This payment has already been fully refunded.'); return; }
+    setNotice('');
     setRefundData({ ...payment, maxRefund });
     setRefundAmount(maxRefund.toString());
     setRefundReason('requested_by_customer');
@@ -99,6 +102,7 @@ export default function PaymentsPage() {
       </motion.div>
 
       <DataError error={error} />
+      <InlineBanner message={notice} onDismiss={() => setNotice('')} />
 
       {loading ? (
         <SkeletonTable rows={8} cols={7} />

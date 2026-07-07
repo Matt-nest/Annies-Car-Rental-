@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Star, CheckCircle2, XCircle, Trash2, Clock } from 'lucide-react';
 import { api } from '../api/client';
 import { SkeletonDashboard } from '../components/shared/Skeleton';
+import DataError from '../components/shared/DataError';
 import { format, parseISO } from 'date-fns';
 
 function StarDisplay({ rating }) {
@@ -24,11 +25,13 @@ export default function ReviewsPage() {
   const [pending, setPending] = useState([]);
   const [approved, setApproved] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [tab, setTab] = useState('pending');
   const [updatingId, setUpdatingId] = useState(null);
 
   async function load() {
     setLoading(true);
+    setLoadError(null);
     try {
       const [p, a] = await Promise.all([
         api.getReviewsPending(),
@@ -36,7 +39,10 @@ export default function ReviewsPage() {
       ]);
       setPending(p || []);
       setApproved(a || []);
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+      setLoadError(e?.message || 'Could not load reviews');
+    }
     setLoading(false);
   }
 
@@ -77,6 +83,7 @@ export default function ReviewsPage() {
 
   return (
     <div className="p-6 lg:p-8 space-y-6">
+      <DataError message={loadError} onRetry={load} />
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>

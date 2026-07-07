@@ -306,9 +306,10 @@ function TeamTab() {
   async function handleRoleChange(userId, newRole) {
     try {
       await api.updateUserRole(userId, newRole);
+      setError('');
       loadUsers();
     } catch (e) {
-      alert(e.message);
+      setError(e.message);
     }
   }
 
@@ -316,18 +317,20 @@ function TeamTab() {
     if (!confirm('Are you sure you want to deactivate this user?')) return;
     try {
       await api.deactivateUser(userId);
+      setError('');
       loadUsers();
     } catch (e) {
-      alert(e.message);
+      setError(e.message);
     }
   }
 
   async function handleReactivate(userId) {
     try {
       await api.reactivateUser(userId);
+      setError('');
       loadUsers();
     } catch (e) {
-      alert(e.message);
+      setError(e.message);
     }
   }
 
@@ -335,6 +338,9 @@ function TeamTab() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <p className="text-xs px-3 py-2 rounded-lg text-red-400 bg-red-500/10">{error}</p>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -1566,6 +1572,7 @@ function IntegrationsTab() {
   const [loading, setLoading] = useState(true);
   const [loadErr, setLoadErr] = useState('');
   const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState('');
   const [savedAt, setSavedAt] = useState(null);
   const [testResult, setTestResult] = useState(null);
   const [testing, setTesting] = useState(false);
@@ -1604,13 +1611,14 @@ function IntegrationsTab() {
 
   async function handleSave() {
     setSaving(true);
+    setSaveErr('');
     try {
       await bonzahApi.putSettings(draft);
       setSettings(draft);
       setSavedAt(new Date());
       setTimeout(() => setSavedAt(null), 3000);
     } catch (e) {
-      alert(`Save failed: ${e.message}`);
+      setSaveErr(`Save failed: ${e.message}`);
     } finally {
       setSaving(false);
     }
@@ -1642,6 +1650,9 @@ function IntegrationsTab() {
 
   return (
     <div className="space-y-6 max-w-4xl">
+      {saveErr && (
+        <p className="text-xs px-3 py-2 rounded-lg text-red-400 bg-red-500/10">{saveErr}</p>
+      )}
       {/* Bonzah master card */}
       <div className="card p-5 space-y-5">
         <div className="flex items-start justify-between gap-3">

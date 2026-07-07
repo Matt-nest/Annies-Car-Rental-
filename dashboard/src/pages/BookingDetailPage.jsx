@@ -10,6 +10,7 @@ import AgreementSection from '../components/shared/AgreementSection';
 import BookingModals from '../components/shared/BookingModals';
 import BookingTimeline from '../components/shared/BookingTimeline';
 import Section from '../components/shared/Section';
+import InlineBanner from '../components/shared/InlineBanner';
 import Field from '../components/shared/Field';
 import CheckInPrepTab from '../components/booking-tabs/CheckInPrepTab';
 import CheckOutTab from '../components/booking-tabs/CheckOutTab';
@@ -660,6 +661,7 @@ export default function BookingDetailPage() {
   // Insurance review state
   const [insuranceActioning, setInsuranceActioning] = useState(false);
   const [insuranceRejectReason, setInsuranceRejectReason] = useState('');
+  const [insuranceActionError, setInsuranceActionError] = useState('');
 
   const load = async () => {
     setLoading(true);
@@ -720,7 +722,12 @@ export default function BookingDetailPage() {
   }
 
   async function handleInsuranceAction(action) {
+    if (action === 'reject' && !insuranceRejectReason.trim()) {
+      setInsuranceActionError('Please provide a reason for rejecting this insurance.');
+      return;
+    }
     setInsuranceActioning(true);
+    setInsuranceActionError('');
     try {
       if (action === 'approve') {
         await api.approveInsurance(id);
@@ -731,6 +738,7 @@ export default function BookingDetailPage() {
       await Promise.all([load(), refreshAlerts()]);
     } catch (e) {
       console.error(`Insurance ${action} failed:`, e);
+      setInsuranceActionError(e?.data?.error || e?.message || `Insurance ${action} failed. Try again.`);
     }
     setInsuranceActioning(false);
   }
@@ -893,7 +901,18 @@ export default function BookingDetailPage() {
                 )}
               </div>
             )}
-            <div className="flex items-center gap-2 pl-[52px] pt-1">
+            <InlineBanner message={insuranceActionError} onDismiss={() => setInsuranceActionError('')} />
+            <div className="space-y-2 sm:pl-[52px]">
+              <label className="label text-xs">Rejection reason (required to decline)</label>
+              <textarea
+                className="input resize-none text-sm w-full"
+                rows={2}
+                placeholder="e.g. Policy expired, coverage insufficient…"
+                value={insuranceRejectReason}
+                onChange={(e) => setInsuranceRejectReason(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:pl-[52px] pt-1">
               <button
                 onClick={() => handleInsuranceAction('approve')}
                 disabled={insuranceActioning}

@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { api } from '../api/client';
 import { SkeletonTable } from '../components/shared/Skeleton';
 import EmptyState from '../components/shared/EmptyState';
+import DataError from '../components/shared/DataError';
 import { format } from 'date-fns';
 
 const EASE = [0.25, 1, 0.5, 1];
@@ -12,20 +13,26 @@ const EASE = [0.25, 1, 0.5, 1];
 export default function CustomersPage() {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [retryTick, setRetryTick] = useState(0);
   const [q, setQ] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
     const timeout = setTimeout(async () => {
       setLoading(true);
+      setLoadError(null);
       try {
         const data = await api.getCustomers({ q });
         setCustomers(data);
-      } catch (e) { console.error(e); }
+      } catch (e) {
+        console.error(e);
+        setLoadError(e?.message || 'Could not load customers');
+      }
       setLoading(false);
     }, 300);
     return () => clearTimeout(timeout);
-  }, [q]);
+  }, [q, retryTick]);
 
   return (
     <div className="p-6 lg:p-8 space-y-6">
@@ -38,6 +45,8 @@ export default function CustomersPage() {
         <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Customers</h1>
         <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>Your customer relationships</p>
       </motion.div>
+
+      <DataError message={loadError} onRetry={() => setRetryTick(t => t + 1)} />
 
       {/* Search */}
       <div

@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../api/client';
 import Section from '../shared/Section';
+import InlineBanner from '../shared/InlineBanner';
 import { MapPin, Plus, Trash2, DollarSign, Calendar } from 'lucide-react';
 
 export default function TollsTab({ booking }) {
   const [tolls, setTolls] = useState([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+  const [actionError, setActionError] = useState('');
   const [form, setForm] = useState({ amount: '', tollDate: '', description: '' });
 
   const vehicleId = booking.vehicle_id || booking.vehicles?.id;
@@ -27,6 +29,7 @@ export default function TollsTab({ booking }) {
   async function handleAdd() {
     if (!form.amount || !form.tollDate) return;
     setAdding(true);
+    setActionError('');
     try {
       await api.addTollCharge(vehicleId, {
         amount: Math.round(Number(form.amount) * 100),
@@ -36,7 +39,7 @@ export default function TollsTab({ booking }) {
       });
       setForm({ amount: '', tollDate: '', description: '' });
       await loadTolls();
-    } catch (e) { console.error(e); alert(e.message); }
+    } catch (e) { console.error(e); setActionError(e.message); }
     setAdding(false);
   }
 
@@ -55,6 +58,7 @@ export default function TollsTab({ booking }) {
 
   return (
     <div className="space-y-5">
+      <InlineBanner message={actionError} onDismiss={() => setActionError('')} />
       {/* Summary */}
       {bookingTolls.length > 0 && (
         <div className="bg-[var(--bg-elevated)] rounded-xl p-4 border border-[var(--border-subtle)]">

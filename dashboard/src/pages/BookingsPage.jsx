@@ -138,17 +138,17 @@ export default function BookingsPage() {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: EASE }}
-        className="flex items-center justify-between"
+        className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
       >
         <div>
           <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Bookings</h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>Manage rentals and reservations</p>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={fetchBookings} className="btn-ghost py-2 px-3">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <button onClick={fetchBookings} className="btn-ghost py-2 px-3 flex-1 sm:flex-none justify-center">
             <RefreshCw size={14} /> Refresh
           </button>
-          <button onClick={() => setNewBookingOpen(true)} className="btn-primary py-2 px-3">
+          <button onClick={() => setNewBookingOpen(true)} className="btn-primary py-2 px-3 flex-1 sm:flex-none justify-center">
             <Plus size={14} /> New Booking
           </button>
         </div>

@@ -6,6 +6,8 @@ import { api } from '../api/client';
 import StatusBadge from '../components/shared/StatusBadge';
 import { SkeletonFleetGrid, SkeletonKpi } from '../components/shared/Skeleton';
 import EmptyState from '../components/shared/EmptyState';
+import DataError from '../components/shared/DataError';
+import InlineBanner from '../components/shared/InlineBanner';
 import Modal from '../components/shared/Modal';
 import DamageSummaryWidget from '../components/dashboard/widgets/DamageSummaryWidget';
 import brand from '../config/brand';
@@ -28,6 +30,8 @@ const EMPTY_VEHICLE = {
 export default function FleetPage() {
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [imageError, setImageError] = useState('');
   const [filter, setFilter] = useState({ status: '', q: '' });
   const [addModal, setAddModal] = useState(false);
   const [addForm, setAddForm] = useState({ ...EMPTY_VEHICLE });
@@ -54,8 +58,12 @@ export default function FleetPage() {
 
   async function loadVehicles() {
     setLoading(true);
+    setLoadError(null);
     try { setVehicles(await api.getVehicles()); }
-    catch (e) { console.error(e); }
+    catch (e) {
+      console.error(e);
+      setLoadError(e?.message || 'Could not load fleet');
+    }
     setLoading(false);
   }
 
@@ -64,7 +72,8 @@ export default function FleetPage() {
   const handleImageFileChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 10 * 1024 * 1024) { alert('File too large. Max 10MB.'); return; }
+    if (file.size > 10 * 1024 * 1024) { setImageError('File too large. Max 10MB.'); return; }
+    setImageError('');
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
     setAddForm(f => ({ ...f, thumbnail_url: '' }));
@@ -166,16 +175,18 @@ export default function FleetPage() {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: EASE }}
-        className="flex items-center justify-between"
+        className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
       >
         <div>
           <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Fleet</h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>Manage your vehicle inventory</p>
         </div>
-        <button onClick={() => setAddModal(true)} className="btn-primary">
+        <button onClick={() => setAddModal(true)} className="btn-primary w-full sm:w-auto justify-center">
           <Plus size={16} /> Add Vehicle
         </button>
       </motion.div>
+
+      <DataError message={loadError} onRetry={loadVehicles} />
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
@@ -327,6 +338,7 @@ export default function FleetPage() {
       {/* Add Vehicle Modal */}
       <Modal open={addModal} onClose={() => setAddModal(false)} title="Add Vehicle" maxWidth="max-w-xl">
         <div className="space-y-4">
+          <InlineBanner message={imageError} onDismiss={() => setImageError('')} />
           <div className="grid sm:grid-cols-3 gap-3">
             <div>
               <label className="label">Make *</label>

@@ -3,6 +3,8 @@ import { Crown, Star, Award, Medal, Users, TrendingUp, ChevronRight } from 'luci
 import { supabase } from '../auth/supabaseClient';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import DataError from '../components/shared/DataError';
+import { SkeletonTable } from '../components/shared/Skeleton';
 
 const BASE = import.meta.env.VITE_API_URL || '/api/v1';
 
@@ -16,7 +18,7 @@ async function authFetch(path) {
 }
 
 const TIER_META = {
-  vip:    { label: 'VIP',    icon: Crown,  color: '#D4AF37', bg: 'rgba(212,175,55,0.12)',  discount: 15 },
+  vip:    { label: 'VIP',    icon: Crown,  color: '#E79B3C', bg: 'rgba(212,175,55,0.12)',  discount: 15 },
   gold:   { label: 'Gold',   icon: Star,   color: '#F59E0B', bg: 'rgba(245,158,11,0.12)',  discount: 10 },
   silver: { label: 'Silver', icon: Award,  color: '#94A3B8', bg: 'rgba(148,163,184,0.12)', discount: 8  },
   bronze: { label: 'Bronze', icon: Medal,  color: '#CD7F32', bg: 'rgba(205,127,50,0.12)',  discount: 5  },
@@ -46,15 +48,19 @@ export default function LoyaltyPage() {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
   const [filterTier, setFilterTier] = useState('all');
 
   const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
       const res = await authFetch('/loyalty/customers');
       setData(res);
     } catch (e) {
       console.error('[Loyalty]', e);
+      setError(e?.message || 'Failed to load loyalty customers');
     } finally {
       setLoading(false);
     }
@@ -80,7 +86,7 @@ export default function LoyaltyPage() {
     return (
       <button
         onClick={() => setFilterTier(filterTier === tier ? 'all' : tier)}
-        className="flex-1 rounded-xl p-4 border text-left cursor-pointer transition-all hover:opacity-90"
+        className="rounded-xl p-4 border text-left cursor-pointer transition-all hover:opacity-90 min-w-0"
         style={{
           backgroundColor: filterTier === tier ? meta.bg : 'var(--bg-card)',
           borderColor: filterTier === tier ? meta.color : 'var(--border-subtle)',
@@ -97,19 +103,21 @@ export default function LoyaltyPage() {
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-6 lg:p-8 space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-bold text-[var(--text-primary)]">Customer Loyalty</h1>
-        <p className="text-sm text-[var(--text-tertiary)] mt-0.5">Repeat customers receive automatic discounts at booking</p>
+        <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Customer Loyalty</h1>
+        <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>Repeat customers receive automatic discounts at booking</p>
       </div>
 
-      {/* Tier stats */}
-      <div className="flex gap-3">
+      <DataError error={error} onRetry={load} />
+
+      {/* Tier stats — 2-col on phone, full row on desktop */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {Object.entries(TIER_META).map(([key]) => (
           <StatCard key={key} tier={key} count={breakdown[key] || 0} />
         ))}
-        <div className="flex-1 rounded-xl p-4 border border-[var(--border-subtle)] text-left" style={{ backgroundColor: 'var(--bg-card)' }}>
+        <div className="rounded-xl p-4 border border-[var(--border-subtle)] text-left min-w-0" style={{ backgroundColor: 'var(--bg-card)' }}>
           <div className="flex items-center gap-2 mb-1">
             <Users size={14} className="text-[var(--text-tertiary)]" />
             <span className="text-xs font-semibold text-[var(--text-tertiary)]">Total</span>
@@ -139,7 +147,7 @@ export default function LoyaltyPage() {
 
       {/* Customer list */}
       {loading ? (
-        <div className="text-sm text-[var(--text-tertiary)] py-12 text-center">Loading…</div>
+        <SkeletonTable rows={6} />
       ) : customers.length === 0 ? (
         <div className="rounded-xl border border-dashed border-[var(--border-subtle)] py-16 text-center">
           <TrendingUp size={32} className="mx-auto mb-3 text-[var(--text-tertiary)] opacity-40" />
@@ -149,7 +157,8 @@ export default function LoyaltyPage() {
           <p className="text-xs text-[var(--text-tertiary)] mt-1">Customers earn a tier after their first completed rental</p>
         </div>
       ) : (
-        <div className="rounded-xl border border-[var(--border-subtle)] overflow-hidden" style={{ backgroundColor: 'var(--bg-card)' }}>
+        <>
+        <div className="hidden md:block rounded-xl border border-[var(--border-subtle)] overflow-hidden" style={{ backgroundColor: 'var(--bg-card)' }}>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--border-subtle)]">
@@ -191,6 +200,34 @@ export default function LoyaltyPage() {
             </tbody>
           </table>
         </div>
+        <div className="md:hidden rounded-xl border border-[var(--border-subtle)] divide-y overflow-hidden" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+          {customers.map((c, i) => (
+            <motion.button
+              type="button"
+              key={c.id}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: i * 0.02 }}
+              onClick={() => navigate(`/customers/${c.id}`)}
+              className="w-full text-left px-4 py-3.5 flex items-center gap-3 min-h-[56px]"
+              style={{ borderColor: 'var(--border-subtle)' }}
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <p className="font-medium truncate" style={{ color: 'var(--text-primary)' }}>{c.first_name} {c.last_name}</p>
+                  <TierBadge tier={c.tier} />
+                </div>
+                <p className="text-xs truncate" style={{ color: 'var(--text-tertiary)' }}>{c.email}</p>
+                <div className="flex items-center gap-3 mt-1.5 text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>
+                  <span>{c.completed_count} rentals</span>
+                  <span>{fmt(c.total_spent)}</span>
+                </div>
+              </div>
+              <ChevronRight size={16} style={{ color: 'var(--text-tertiary)' }} className="shrink-0" />
+            </motion.button>
+          ))}
+        </div>
+        </>
       )}
     </div>
   );
