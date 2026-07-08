@@ -63,6 +63,7 @@ export async function createBooking(payload) {
     created_by_admin = false,
     admin_weekly_discount_percent,
     admin_total_cost_override,
+    admin_deposit_amount,
     rental_type = 'standard',
     portal_notes,
     skip_availability_check = false,
@@ -82,6 +83,14 @@ export async function createBooking(payload) {
   }
   if (adminTotalCostOverride != null && (!Number.isFinite(adminTotalCostOverride) || adminTotalCostOverride <= 0)) {
     const err = new Error('Exact price override must be greater than $0');
+    err.status = 400;
+    throw err;
+  }
+  const adminDepositAmount = created_by_admin && admin_deposit_amount !== undefined && admin_deposit_amount !== ''
+    ? Number(admin_deposit_amount)
+    : null;
+  if (adminDepositAmount != null && (!Number.isFinite(adminDepositAmount) || adminDepositAmount < 0)) {
+    const err = new Error('Deposit amount must be zero or greater');
     err.status = 400;
     throw err;
   }
@@ -208,7 +217,9 @@ export async function createBooking(payload) {
     totalCostOverrideLabel: 'Admin exact price override',
   });
 
-  const depositCents = await getVehicleDepositAmount(vehicle.id);
+  const depositCents = adminDepositAmount != null
+    ? Math.round(adminDepositAmount * 100)
+    : await getVehicleDepositAmount(vehicle.id);
   const depositDollars = depositCents / 100;
 
   // 5. Generate booking code (retry on collision)
@@ -282,6 +293,7 @@ export async function createBooking(payload) {
         validRatePref ? `Rate preference: ${validRatePref}` : '',
         adminWeeklyDiscountPct != null ? `Admin weekly discount: ${adminWeeklyDiscountPct}%` : '',
         adminTotalCostOverride != null ? `Admin exact rental total: $${adminTotalCostOverride.toFixed(2)}` : '',
+        adminDepositAmount != null ? `Admin deposit: $${adminDepositAmount.toFixed(2)}` : '',
         special_requests || '',
       ].filter(Boolean).join(' | ') || null,
       source,

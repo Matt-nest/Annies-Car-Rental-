@@ -1,25 +1,13 @@
 import { Check, Car, Users, Gauge, Fuel } from 'lucide-react';
+import { vehicleImageUrl } from '../../lib/vehicleImage';
 
 /**
  * VehiclePickCard — visual, selectable vehicle card for the New Booking modal.
  * Replaces the old plain text-button list with an image + rate + spec badges,
  * echoing the customer site's fleet cards. Selected state gets an accent ring.
- *
- * Vehicle rows come from GET /vehicles/available (select '*'), so the image
- * field varies by data shape — we probe images[]/photo_url/image_url and fall
- * back to a Car icon tile.
  */
-function vehicleImage(v) {
-  const imgs = v.images;
-  if (Array.isArray(imgs) && imgs.length) {
-    const first = imgs[0];
-    return typeof first === 'string' ? first : (first?.url || first?.src || null);
-  }
-  return v.photo_url || v.image_url || v.hero_image || null;
-}
-
 export default function VehiclePickCard({ vehicle: v, selected, onSelect }) {
-  const img = vehicleImage(v);
+  const img = vehicleImageUrl(v);
   const specs = [
     v.seats != null && { icon: Users, label: `${v.seats}` },
     (v.mpg != null || v.mpg_combined != null) && { icon: Gauge, label: `${v.mpg ?? v.mpg_combined} mpg` },
@@ -39,7 +27,7 @@ export default function VehiclePickCard({ vehicle: v, selected, onSelect }) {
     >
       {/* Thumbnail */}
       <div
-        className="shrink-0 w-24 sm:w-28 relative flex items-center justify-center"
+        className="shrink-0 w-24 sm:w-28 self-stretch min-h-[5.5rem] relative flex items-center justify-center overflow-hidden"
         style={{ backgroundColor: 'var(--bg-card-hover)' }}
       >
         {img ? (
