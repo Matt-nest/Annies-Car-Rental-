@@ -18,14 +18,30 @@ export const STAGES = [
 // Legacy alias for backward compatibility
 export const STEPS = STAGES;
 
-export const PAYMENT_PROVIDER = (import.meta.env.VITE_PAYMENT_PROVIDER || 'square').toLowerCase();
-export const STRIPE_CONFIGURED = PAYMENT_PROVIDER === 'stripe' && Boolean(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+export const PAYMENT_PROVIDER = (import.meta.env.VITE_PAYMENT_PROVIDER || 'stripe').toLowerCase();
+export const STRIPE_CONFIGURED = PAYMENT_PROVIDER === 'stripe';
+/** Must match backend FEATURE_AUTO_OVERAGE_CHARGES — drives Stripe Elements setupFutureUsage. */
+export const CARD_ON_FILE_ENABLED =
+  String(import.meta.env.VITE_FEATURE_AUTO_OVERAGE_CHARGES || '').toLowerCase() === 'true';
 export const SQUARE_CONFIGURED = PAYMENT_PROVIDER === 'square' &&
   Boolean(import.meta.env.VITE_SQUARE_APPLICATION_ID) &&
   Boolean(import.meta.env.VITE_SQUARE_LOCATION_ID);
 export const SQUARE_APPLICATION_ID = import.meta.env.VITE_SQUARE_APPLICATION_ID || '';
 export const SQUARE_LOCATION_ID = import.meta.env.VITE_SQUARE_LOCATION_ID || '';
 export const SQUARE_ENVIRONMENT = (import.meta.env.VITE_SQUARE_ENVIRONMENT || 'production').toLowerCase();
+
+/*
+ * Stripe SDK is no longer eagerly initialized here.
+ * Importing this file (constants.ts) used to trigger loadStripe() at module
+ * top-level, which fetched the Stripe SDK on every page that transitively
+ * imported anything from constants - even the home page.
+ *
+ * The Stripe loader now lives in `./stripeClient.ts` and is imported only by
+ * `ConfirmBooking.tsx`, which itself is lazy-loaded via `React.lazy()` in
+ * `src/App.tsx`. The SDK is fetched only when a user visits /confirm.
+ *
+ * See `./stripeClient.ts` for the lazy getter.
+ */
 
 /* ────────────────────────────────────────────────────────
    Bonzah insurance - runtime config + tier metadata
@@ -119,12 +135,24 @@ export interface WizardDraft {
   // Stage 1 - License photo uploads (optional, stored as storage paths)
   licensePhotoPaths: string[];
 
+  // Stage 1 - License scan audit trail (method, scan ID, name match, photo path)
+  licenseScanMetadata: {
+    scan_id: string;
+    method: 'barcode_live' | 'barcode_still' | 'azure_ocr' | 'manual';
+    scanned_at: string;
+    name_match: 'match' | 'mismatch' | null;
+    photo_path?: string;
+    scanned_name?: string;
+  } | null;
+
   // Completed flags
   completedStages: number[];
 }
 
-// Bump whenever the wizard's step structure changes (Review + Payment split → 4).
-export const DRAFT_VERSION = 4;
+// Bump whenever the wizard's step structure changes
+// (2 = added Scan step; 3 = Review/Pay sub-steps; 4 = Review promoted to its own Stage 3, Payment → Stage 4;
+//  5 = license scan metadata + auto-saved scan photos).
+export const DRAFT_VERSION = 5;
 
 export function getDefaultDraft(): WizardDraft {
   return {
@@ -145,6 +173,7 @@ export function getDefaultDraft(): WizardDraft {
     bonzahTierId: null,
     bonzahQuote: null,
     licensePhotoPaths: [],
+    licenseScanMetadata: null,
     completedStages: [],
   };
 }
