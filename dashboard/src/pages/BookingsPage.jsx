@@ -14,6 +14,23 @@ import { format } from 'date-fns';
 const EASE = [0.25, 1, 0.5, 1];
 const STATUSES = ['', 'pending_approval', 'approved', 'confirmed', 'active', 'returned', 'completed', 'declined', 'cancelled'];
 
+const DELIVERY_LABELS = {
+  pickup: 'Customer Pickup',
+  psl_delivery: 'PSL Delivery',
+  surrounding_delivery: 'Surrounding Area Delivery',
+};
+
+function resolveDeliveryType(booking) {
+  if (booking.delivery_type) return booking.delivery_type;
+  const m = booking.special_requests?.match(/Delivery type:\s*(\w+)/i);
+  return m?.[1] || (booking.delivery_requested ? 'delivery' : 'pickup');
+}
+
+function formatDeliveryLabel(booking) {
+  const type = resolveDeliveryType(booking);
+  return DELIVERY_LABELS[type] || type.replace(/_/g, ' ');
+}
+
 export default function BookingsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -83,7 +100,7 @@ export default function BookingsPage() {
         <div
           className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shrink-0"
           style={{
-            background: 'linear-gradient(135deg, #465FFF, #8B5CF6)',
+            background: 'linear-gradient(135deg, #13294B, #8B5CF6)',
             color: 'var(--accent-fg)',
           }}
         >
@@ -92,9 +109,29 @@ export default function BookingsPage() {
         <div>
           <p className="font-medium" style={{ color: 'var(--text-primary)' }}>{b.customers?.first_name} {b.customers?.last_name}</p>
           <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{b.customers?.email}</p>
+          {b.customers?.phone && (
+            <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{b.customers.phone}</p>
+          )}
         </div>
       </div>
     )},
+    { key: 'delivery', label: 'Delivery', render: b => {
+      const type = resolveDeliveryType(b);
+      return (
+        <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+          {type === 'pickup' ? 'Pickup' : formatDeliveryLabel(b)}
+        </span>
+      );
+    }},
+    { key: 'addons', label: 'Add-ons', render: b => {
+      const tags = [];
+      if (b.unlimited_miles || b.has_unlimited_miles) tags.push('Miles');
+      if (b.unlimited_tolls || b.has_unlimited_tolls) tags.push('Tolls');
+      if (b.delivery_requested || b.has_delivery) tags.push('Delivery');
+      return tags.length
+        ? <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{tags.join(' · ')}</span>
+        : <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>—</span>;
+    }},
     { key: 'vehicle', label: 'Vehicle', render: b => (
       <span style={{ color: 'var(--text-secondary)' }}>{b.vehicles?.year} {b.vehicles?.make} {b.vehicles?.model}</span>
     )},
@@ -163,8 +200,8 @@ export default function BookingsPage() {
       <DataError error={error} />
 
       {/* Filter bar */}
-      <div className="card p-4 flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 min-w-0">
-        <div className="flex items-center gap-2 rounded-xl px-4 py-3 flex-1 min-w-0"
+      <div className="card p-4 flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2 rounded-xl px-4 py-3 flex-1 min-w-[200px]"
           style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)' }}>
           <Search size={15} style={{ color: 'var(--text-tertiary)' }} />
           <input
@@ -175,10 +212,10 @@ export default function BookingsPage() {
             onChange={e => setSearchParams({ status, q: e.target.value })}
           />
         </div>
-        <div className="flex items-center gap-2 w-full sm:w-auto min-w-0">
-          <Filter size={14} style={{ color: 'var(--text-tertiary)' }} className="shrink-0" />
+        <div className="flex items-center gap-2">
+          <Filter size={14} style={{ color: 'var(--text-tertiary)' }} />
           <select
-            className="input w-full sm:max-w-[200px] min-w-0"
+            className="input max-w-[200px]"
             value={status}
             onChange={e => setSearchParams({ status: e.target.value, q })}
           >
@@ -207,7 +244,7 @@ export default function BookingsPage() {
               <div className="flex items-center gap-2.5">
                 <div
                   className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shrink-0"
-                  style={{ background: 'linear-gradient(135deg, #465FFF, #8B5CF6)', color: '#fff' }}
+                  style={{ background: 'linear-gradient(135deg, #13294B, #8B5CF6)', color: '#fff' }}
                 >
                   {b.customers?.first_name?.[0]}{b.customers?.last_name?.[0]}
                 </div>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Phone, Mail, User, Calendar, DollarSign, FileText, CreditCard, MapPin, Home, ShieldCheck, Zap } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, User, Calendar, DollarSign, FileText, CreditCard, MapPin, Home, ShieldCheck, Zap, Shield, ScanLine } from 'lucide-react';
 import { api } from '../api/client';
 import StatusBadge from '../components/shared/StatusBadge';
 import { SkeletonDashboard } from '../components/shared/Skeleton';
@@ -148,6 +148,48 @@ function CustomerTrustToggle({ customer, onChange }) {
   );
 }
 
+function CustomerLicensePhotos({ paths, legacyUrl, onView }) {
+  const [signedUrls, setSignedUrls] = useState({});
+
+  useEffect(() => {
+    if (!paths?.length) return;
+    let cancelled = false;
+    (async () => {
+      const next = {};
+      for (const path of paths) {
+        try {
+          const signed = await api.getSignedUrl('id-photos', path);
+          next[path] = signed.url;
+        } catch { /* skip */ }
+      }
+      if (!cancelled) setSignedUrls(next);
+    })();
+    return () => { cancelled = true; };
+  }, [paths]);
+
+  if (!paths?.length && !legacyUrl) return null;
+
+  return (
+    <div className="pt-3 border-t border-[var(--border-subtle)]">
+      <p className="text-xs text-[var(--text-tertiary)] mb-2">License photos on file</p>
+      <div className="flex flex-wrap gap-2">
+        {(paths || []).map(path => (
+          signedUrls[path] ? (
+            <button key={path} onClick={() => onView(signedUrls[path])} className="cursor-pointer">
+              <img src={signedUrls[path]} alt="License" className="h-28 w-auto rounded-lg border border-[var(--border-subtle)] object-cover hover:opacity-80" />
+            </button>
+          ) : (
+            <div key={path} className="h-28 w-36 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] flex items-center justify-center">
+              <span className="text-xs animate-pulse text-[var(--text-secondary)]">Loading…</span>
+            </div>
+          )
+        ))}
+        {legacyUrl && !paths?.length && <CustomerIdPhoto url={legacyUrl} onView={onView} />}
+      </div>
+    </div>
+  );
+}
+
 function CustomerIdPhoto({ url, onView }) {
   const [resolvedUrl, setResolvedUrl] = useState(null);
 
@@ -222,6 +264,9 @@ export default function CustomerDetailPage() {
     return arr.map(ag => ({ ...ag, booking_code: b.booking_code, booking_id: b.id }));
   }) || [];
 
+  const latestAgreement = agreements[0] || null;
+  const allLicensePaths = [...new Set(agreements.flatMap(ag => ag.license_photo_paths || []))];
+
   async function saveNotes() {
     if (notes !== (customer.notes || '')) {
       await api.updateCustomer(id, { notes }).catch(console.error);
@@ -295,9 +340,10 @@ export default function CustomerDetailPage() {
               <Field label="DL Expiry" value={customer.driver_license_expiry} />
             </div>
           )}
-          {customer.id_photo_url && (
+          {customer.id_photo_url && !allLicensePaths.length && (
             <CustomerIdPhoto url={customer.id_photo_url} onView={setLightboxUrl} />
           )}
+          <CustomerLicensePhotos paths={allLicensePaths} onView={setLightboxUrl} />
           {customer.tags?.length > 0 && (
             <div className="flex flex-wrap gap-1.5 pt-2">
               {customer.tags.map(t => (
@@ -349,6 +395,35 @@ export default function CustomerDetailPage() {
         <Section title="Trust Status" icon={ShieldCheck}>
           <CustomerTrustToggle customer={customer} onChange={setCustomer} />
         </Section>
+
+        {/* Insurance & scan records from latest agreement */}
+        {latestAgreement && (latestAgreement.insurance_company || latestAgreement.license_scan_metadata) && (
+          <Section title="Insurance & ID Scan" icon={Shield}>
+            {latestAgreement.insurance_company && (
+              <div className="grid sm:grid-cols-2 gap-3">
+                <Field label="Insurance Company" value={latestAgreement.insurance_company} />
+                <Field label="Policy #" value={latestAgreement.insurance_policy_number} />
+                <Field label="Expiry" value={latestAgreement.insurance_expiry} />
+                <Field label="Agent" value={latestAgreement.insurance_agent_name} />
+                <Field label="Agent Phone" value={latestAgreement.insurance_agent_phone} />
+                <Field label="Insured Vehicle" value={latestAgreement.insurance_vehicle_description} />
+              </div>
+            )}
+            {latestAgreement.license_scan_metadata && (
+              <div className={latestAgreement.insurance_company ? 'pt-3 border-t border-[var(--border-subtle)]' : ''}>
+                <p className="text-xs text-[var(--text-tertiary)] mb-2 flex items-center gap-1.5">
+                  <ScanLine size={12} /> Latest scan ({latestAgreement.booking_code})
+                </p>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <Field label="Scan ID" value={latestAgreement.license_scan_metadata.scan_id} />
+                  <Field label="Method" value={latestAgreement.license_scan_metadata.method} />
+                  <Field label="Name on ID" value={latestAgreement.license_scan_metadata.scanned_name} />
+                  <Field label="Name Match" value={latestAgreement.license_scan_metadata.name_match || '—'} />
+                </div>
+              </div>
+            )}
+          </Section>
+        )}
       </div>
 
       {/* Booking History */}

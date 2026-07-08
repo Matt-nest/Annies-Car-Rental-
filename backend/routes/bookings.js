@@ -105,40 +105,33 @@ router.post('/:id/extend', requireAuth, requireRole('owner', 'admin'), asyncHand
   }
 }));
 
-/** GET /bookings/:id/payment-plan — installment plan for a booking (admin) */
-router.get('/:id/payment-plan', requireAuth, asyncHandler(async (req, res) => {
-  const { getPlan } = await import('../services/installmentService.js');
-  const plan = await getPlan(req.params.id);
-  res.json(plan);
-}));
-
-/** POST /bookings/:id/payment-plan — create an installment plan (owner/admin) */
-router.post('/:id/payment-plan', requireAuth, requireRole('owner', 'admin'), asyncHandler(async (req, res) => {
-  try {
-    const { createPlan } = await import('../services/installmentService.js');
-    const plan = await createPlan(req.params.id, {
-      interval: req.body?.interval,
-      installmentCount: req.body?.installmentCount,
-      startDate: req.body?.startDate,
-      actor: `admin:${req.user?.id || 'unknown'}`,
-    });
-    res.status(201).json(plan);
-  } catch (err) {
-    res.status(err.status || 500).json({ error: err.message });
-  }
-}));
-
 /** GET /bookings/status/:bookingCode — public status lookup by code */
 router.get('/status/:bookingCode', asyncHandler(async (req, res) => {
   const { data: booking, error } = await supabase
     .from('bookings')
-    .select('booking_code, status, pickup_date, return_date, pickup_time, return_time, pickup_location, vehicles(year, make, model)')
+    .select('id, booking_code, status, pickup_date, return_date, pickup_time, return_time, pickup_location, vehicles(year, make, model)')
     .eq('booking_code', req.params.bookingCode.toUpperCase())
     .single();
 
   if (error || !booking) {
     return res.status(404).json({ error: 'Booking not found. Check your reference code and try again.' });
   }
+
+  // Has the rental been paid? Both the Stripe and Square payment paths write a
+  // rental payment row with status 'completed'. A booking still owes payment
+  // once it's past approval, not in a terminal/pre-approval state, and no such
+  // row exists — this drives the customer-facing "Complete your booking" CTA so
+  // a booking that advanced past 'approved' (e.g. to 'active') without payment
+  // isn't left with no way to pay.
+  const { data: paidRow } = await supabase
+    .from('payments')
+    .select('id')
+    .eq('booking_id', booking.id)
+    .eq('payment_type', 'rental')
+    .eq('status', 'completed')
+    .maybeSingle();
+  const awaiting_payment =
+    !paidRow && !['pending_approval', 'declined', 'cancelled'].includes(booking.status);
 
   const nextStep = {
     pending_approval: { label: 'Awaiting approval', detail: "We're reviewing your request and will contact you shortly." },
@@ -154,6 +147,7 @@ router.get('/status/:bookingCode', asyncHandler(async (req, res) => {
   res.json({
     booking_code: booking.booking_code,
     status: booking.status,
+    awaiting_payment,
     pickup_date: booking.pickup_date,
     return_date: booking.return_date,
     pickup_time: booking.pickup_time,
@@ -187,8 +181,13 @@ router.post('/', bookingRateLimit, verifyRecaptcha, asyncHandler(async (req, res
  *  success will auto-approve in stripeService.
  */
 router.post('/admin-create', requireAuth, asyncHandler(async (req, res) => {
+  // agreement_prefill is admin-captured agreement data (license/address/dob/id
+  // photos/signature + the step keys the admin completed). It rides alongside the
+  // booking payload but is persisted separately so createBooking + validation
+  // stay untouched.
   const {
     agreement_prefill,
+    admin_weekly_discount_percent,
     admin_total_cost_override,
     rental_type,
     portal_notes,
@@ -202,6 +201,7 @@ router.post('/admin-create', requireAuth, asyncHandler(async (req, res) => {
 
   const booking = await createBooking({
     ...bookingBody,
+    admin_weekly_discount_percent,
     admin_total_cost_override,
     rental_type: rental_type === 'long_term' ? 'long_term' : 'standard',
     portal_notes,
@@ -220,6 +220,10 @@ router.post('/admin-create', requireAuth, asyncHandler(async (req, res) => {
     booking.status = 'active';
   }
 
+  // Persist whatever the admin pre-filled onto the booking.
+  // overlays this into customerDefaults and returns prefilled_steps so the
+  // customer's continue link skips those steps. Failure here must not fail the
+  // booking — the customer can always fill everything on the link.
   if (agreement_prefill && Array.isArray(agreement_prefill.steps) && agreement_prefill.steps.length) {
     const { error: prefillErr } = await supabase
       .from('bookings')
@@ -230,7 +234,7 @@ router.post('/admin-create', requireAuth, asyncHandler(async (req, res) => {
 
   // Build the continue link the admin can copy/paste.
   const siteUrl = brand.siteUrl;
-  const continueUrl = `${siteUrl}/booking?code=${booking.booking_code}`;
+  const continueUrl = `${siteUrl}/confirm?code=${booking.booking_code}`;
   const portalUrl = `${siteUrl}/portal?code=${booking.booking_code}`;
 
   // Send the continue-booking email (fire-and-forget so the response isn't blocked).
@@ -575,6 +579,8 @@ router.post('/:code/insurance/quote', asyncHandler(async (req, res) => {
   res.json({
     tier_id,
     quote_id: quoteId,
+    premium_cents: premiumCents,
+    markup_cents: markupCents,
     total_cents: totalCents,
     coverage_information: coverageInfo,
     expires_at: isFresh ? booking.bonzah_quote_expires_at : expiresAtIso,
@@ -583,7 +589,11 @@ router.post('/:code/insurance/quote', asyncHandler(async (req, res) => {
 
 /** PATCH /bookings/:code/insurance — public (customer submits insurance choice from unified wizard) */
 router.patch('/:code/insurance', asyncHandler(async (req, res) => {
-  const { source, tier_id, bonzah_policy_number } = req.body;
+  const { source, tier_id, bonzah_policy_number, customer_receipt_snapshot } = req.body;
+
+  const receiptFields = customer_receipt_snapshot && typeof customer_receipt_snapshot === 'object'
+    ? { customer_receipt_snapshot }
+    : {};
 
   // Look up booking by booking_code (public route — no auth)
   const { data: booking, error } = await supabase
@@ -646,6 +656,7 @@ router.patch('/:code/insurance', asyncHandler(async (req, res) => {
         bonzah_markup_cents: markupCents,
         bonzah_coverage_json: quote.coverage_information,
         bonzah_quote_expires_at: expiresAtIso,
+        ...receiptFields,
       })
       .eq('id', booking.id);
     if (updErr) return res.status(500).json({ error: `Failed to record insurance choice: ${updErr.message}` });
@@ -672,6 +683,7 @@ router.patch('/:code/insurance', asyncHandler(async (req, res) => {
         bonzah_premium_cents: null,
         bonzah_markup_cents: null,
         bonzah_quote_expires_at: null,
+        ...receiptFields,
       })
       .eq('id', booking.id);
     if (updErr) return res.status(500).json({ error: `Failed to record insurance choice: ${updErr.message}` });

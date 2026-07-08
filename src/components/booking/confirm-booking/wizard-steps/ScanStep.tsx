@@ -18,6 +18,7 @@ interface Props {
 
 type Mode = 'live' | 'analyzing' | 'success' | 'error' | 'denied';
 type ScannerControls = { stop: () => void } | null;
+type ScanMethod = 'barcode_live' | 'barcode_still' | 'azure_ocr';
 
 const TIPS = [
   { icon: Sun, label: 'Good light' },
@@ -36,6 +37,16 @@ function compareName(p: ParsedLicense, bookingName?: string): 'match' | 'mismatc
   if (!tokens.length || !book.length) return null;
   const hit = tokens.filter(t => t.length > 1 && book.some(b => b === t || b.startsWith(t) || t.startsWith(b)));
   return hit.length >= 1 ? 'match' : 'mismatch';
+}
+
+async function uploadIdPhoto(file: File): Promise<{ path?: string; scan_id?: string }> {
+  const compressed = await compressImage(file);
+  const form = new FormData();
+  form.append('file', compressed);
+  const res = await fetch(`${API_URL}/uploads/id-photo`, { method: 'POST', body: form });
+  if (!res.ok) return {};
+  const data = await res.json();
+  return { path: data.path, scan_id: data.scan_id };
 }
 
 export default function ScanStep({ draft, onUpdate, onContinue, onBack, onEdit, theme, bookingName }: Props) {
@@ -58,7 +69,18 @@ export default function ScanStep({ draft, onUpdate, onContinue, onBack, onEdit, 
     }
   }, []);
 
-  const applyAndVerify = React.useCallback((p: ParsedLicense) => {
+  const recordScan = React.useCallback((
+    p: ParsedLicense,
+    method: ScanMethod,
+    photoPath?: string,
+    scanId?: string,
+    match?: 'match' | 'mismatch' | null,
+  ) => {
+    const scannedName = [p.firstName, p.lastName].filter(Boolean).join(' ').trim() || undefined;
+    const paths = photoPath && !draft.licensePhotoPaths.includes(photoPath)
+      ? [...draft.licensePhotoPaths, photoPath]
+      : draft.licensePhotoPaths;
+
     onUpdate({
       license: {
         number: p.licenseNumber || draft.license.number,
@@ -72,11 +94,42 @@ export default function ScanStep({ draft, onUpdate, onContinue, onBack, onEdit, 
         state: p.jurisdiction || draft.address.state,
         zip: p.zip || draft.address.zip,
       },
+      licensePhotoPaths: paths,
+      licenseScanMetadata: {
+        scan_id: scanId || crypto.randomUUID(),
+        method,
+        scanned_at: new Date().toISOString(),
+        name_match: match ?? compareName(p, bookingName),
+        ...(photoPath ? { photo_path: photoPath } : {}),
+        ...(scannedName ? { scanned_name: scannedName } : {}),
+      },
     });
     setScanned(p);
-    setNameMatch(compareName(p, bookingName));
+    setNameMatch(match ?? compareName(p, bookingName));
     setMode('success');
-  }, [draft.address, draft.license, onUpdate, bookingName]);
+  }, [draft.address, draft.license, draft.licensePhotoPaths, onUpdate, bookingName]);
+
+  const storePhoto = React.useCallback(async (file: File): Promise<string | undefined> => {
+    try {
+      const { path } = await uploadIdPhoto(file);
+      return path;
+    } catch {
+      return undefined;
+    }
+  }, []);
+
+  const captureFrameFile = React.useCallback(async (): Promise<File | null> => {
+    const v = videoRef.current;
+    if (!v || !v.videoWidth) return null;
+    const canvas = document.createElement('canvas');
+    canvas.width = v.videoWidth;
+    canvas.height = v.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(v, 0, 0);
+    const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, 'image/jpeg', 0.95));
+    return blob ? new File([blob], 'license-scan.jpg', { type: 'image/jpeg' }) : null;
+  }, []);
 
   // Live rear-camera barcode decode. Auto-fires on the first readable frame.
   React.useEffect(() => {
@@ -91,7 +144,6 @@ export default function ScanStep({ draft, onUpdate, onContinue, onBack, onEdit, 
         if (cancelled || !videoRef.current) return;
         const reader = new BrowserPDF417Reader();
         const controls = await reader.decodeFromConstraints(
-          // High-res rear stream — PDF417 is dense and won't resolve at default res.
           { video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } },
           videoRef.current,
           (result) => {
@@ -99,7 +151,11 @@ export default function ScanStep({ draft, onUpdate, onContinue, onBack, onEdit, 
             const parsed = parseAamva(result.getText());
             if (parsed.licenseNumber || parsed.lastName) {
               controls.stop();
-              applyAndVerify(parsed);
+              void (async () => {
+                const frame = await captureFrameFile();
+                const photoPath = frame ? await storePhoto(frame) : undefined;
+                if (!cancelled) recordScan(parsed, 'barcode_live', photoPath);
+              })();
             }
           }
         );
@@ -110,7 +166,7 @@ export default function ScanStep({ draft, onUpdate, onContinue, onBack, onEdit, 
       }
     })();
     return () => { cancelled = true; stopCamera(); };
-  }, [mode, applyAndVerify, stopCamera]);
+  }, [mode, recordScan, stopCamera, captureFrameFile, storePhoto]);
 
   React.useEffect(() => () => stopCamera(), [stopCamera]);
 
@@ -124,13 +180,20 @@ export default function ScanStep({ draft, onUpdate, onContinue, onBack, onEdit, 
       const data = res.ok ? await res.json() : null;
       if (data?.ok && data.fields) {
         const fx = data.fields;
-        applyAndVerify({
+        recordScan({
           firstName: fx.firstName, lastName: fx.lastName,
           licenseNumber: fx.licenseNumber, jurisdiction: fx.state,
           dob: fx.dob, expiry: fx.expiry,
           addressLine1: fx.addressLine1, city: fx.city, zip: fx.zip,
-        });
+        }, 'azure_ocr', data.photo_path, data.scan_id);
         return true;
+      }
+      if (data?.photo_path) {
+        onUpdate({
+          licensePhotoPaths: draft.licensePhotoPaths.includes(data.photo_path)
+            ? draft.licensePhotoPaths
+            : [...draft.licensePhotoPaths, data.photo_path],
+        });
       }
     } catch { /* fall through */ }
     return false;
@@ -139,10 +202,11 @@ export default function ScanStep({ draft, onUpdate, onContinue, onBack, onEdit, 
   // Run a still through both decoders: barcode (back) first, then Azure (front).
   const processStill = async (file: File) => {
     setMode('analyzing');
+    const photoPath = await storePhoto(file);
     try {
       const { scanLicenseBarcode } = await import('../../../../utils/scanLicenseBarcode');
       const parsed = await scanLicenseBarcode(file);
-      if (parsed) { applyAndVerify(parsed); return; }
+      if (parsed) { recordScan(parsed, 'barcode_still', photoPath); return; }
     } catch { /* try Azure */ }
     const ok = await runAzure(file);
     if (!ok) {
@@ -153,20 +217,11 @@ export default function ScanStep({ draft, onUpdate, onContinue, onBack, onEdit, 
 
   const handleFrontPhoto = (file: File) => { stopCamera(); void processStill(file); };
 
-  // Grab a full-resolution still from the live feed (sharper than a live frame).
   const captureFrame = async () => {
-    const v = videoRef.current;
-    if (!v || !v.videoWidth) return;
-    const canvas = document.createElement('canvas');
-    canvas.width = v.videoWidth;
-    canvas.height = v.videoHeight;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.drawImage(v, 0, 0);
-    const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, 'image/jpeg', 0.95));
+    const file = await captureFrameFile();
     stopCamera();
-    if (!blob) { setMode('live'); return; }
-    void processStill(new File([blob], 'license.jpg', { type: 'image/jpeg' }));
+    if (!file) { setMode('live'); return; }
+    void processStill(file);
   };
 
   const card: React.CSSProperties = { backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' };
@@ -179,7 +234,6 @@ export default function ScanStep({ draft, onUpdate, onContinue, onBack, onEdit, 
       aria-label="Tap to capture your license"
       className="relative w-full overflow-hidden rounded-2xl border cursor-pointer" style={{ borderColor: 'var(--accent-color)', aspectRatio: '1.586 / 1', backgroundColor: '#0b0b0d' }}>
       <video ref={videoRef} playsInline muted autoPlay className="w-full h-full object-cover" aria-label="Live camera preview for scanning your license" />
-      {/* dim mask + corner reticle */}
       <div className="absolute inset-0 pointer-events-none" style={{ boxShadow: 'inset 0 0 0 9999px rgba(0,0,0,0.28)' }} />
       <div className="absolute inset-[12%] pointer-events-none">
         {([['top','left'],['top','right'],['bottom','left'],['bottom','right']] as const).map(([v, h]) => (
@@ -221,11 +275,10 @@ export default function ScanStep({ draft, onUpdate, onContinue, onBack, onEdit, 
           <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Scan your license</h3>
         </div>
         <p className="text-[13px] mb-4 ml-0.5" style={{ color: 'var(--text-tertiary)', lineHeight: 1.5 }}>
-          Point your camera at the barcode on the <strong>back</strong> — we'll fill in the rest. Your photo is read on your device.
+          Point your camera at the barcode on the <strong>back</strong> — we'll fill in the rest and save a photo of your ID for verification.
         </p>
 
         <AnimatePresence mode="wait">
-          {/* LIVE */}
           {mode === 'live' && (
             <motion.div key="live" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }} className="space-y-4">
               {viewport}
@@ -242,7 +295,6 @@ export default function ScanStep({ draft, onUpdate, onContinue, onBack, onEdit, 
             </motion.div>
           )}
 
-          {/* ANALYZING */}
           {mode === 'analyzing' && (
             <motion.div key="analyzing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center justify-center gap-3 py-12">
               <span className="w-7 h-7 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--accent-color)', borderTopColor: 'transparent' }} />
@@ -250,7 +302,6 @@ export default function ScanStep({ draft, onUpdate, onContinue, onBack, onEdit, 
             </motion.div>
           )}
 
-          {/* SUCCESS */}
           {mode === 'success' && (
             <motion.div key="success" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
               <div className="flex flex-col items-center text-center py-2">
@@ -297,7 +348,6 @@ export default function ScanStep({ draft, onUpdate, onContinue, onBack, onEdit, 
             </motion.div>
           )}
 
-          {/* ERROR */}
           {mode === 'error' && (
             <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} role="alert" className="flex flex-col items-center text-center gap-3 py-8">
               <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(239,68,68,0.12)' }}>
@@ -307,7 +357,6 @@ export default function ScanStep({ draft, onUpdate, onContinue, onBack, onEdit, 
             </motion.div>
           )}
 
-          {/* DENIED (no camera / permission) */}
           {mode === 'denied' && (
             <motion.div key="denied" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center text-center gap-3 py-8">
               <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }}>
@@ -320,11 +369,9 @@ export default function ScanStep({ draft, onUpdate, onContinue, onBack, onEdit, 
           )}
         </AnimatePresence>
 
-        {/* Hidden front-photo input (Azure fallback) */}
         <input ref={frontRef} type="file" accept="image/*" capture="environment" className="hidden"
           onChange={e => { const f = e.target.files?.[0]; if (f) handleFrontPhoto(f); e.target.value = ''; }} />
 
-        {/* Secondary actions */}
         {mode !== 'analyzing' && mode !== 'success' && (
           <div className="mt-4 flex flex-col gap-2">
             <button type="button" onClick={() => frontRef.current?.click()}
@@ -348,7 +395,6 @@ export default function ScanStep({ draft, onUpdate, onContinue, onBack, onEdit, 
         )}
       </div>
 
-      {/* Footer nav */}
       <div className="flex gap-3">
         <button type="button" onClick={onBack}
           className="px-6 py-4 rounded-full font-medium transition-all duration-300 cursor-pointer border"
