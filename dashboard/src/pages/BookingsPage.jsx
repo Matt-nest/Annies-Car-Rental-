@@ -11,6 +11,7 @@ import DataError from '../components/shared/DataError';
 import NewBookingModal from '../components/bookings/NewBookingModal';
 import ApproveBookingModal from '../components/shared/ApproveBookingModal';
 import { format } from 'date-fns';
+import { formatDateOnly } from '../lib/dates';
 
 const EASE = [0.25, 1, 0.5, 1];
 const STATUSES = ['', 'pending_approval', 'approved', 'confirmed', 'active', 'returned', 'completed', 'declined', 'cancelled'];
@@ -144,7 +145,7 @@ export default function BookingsPage() {
     )},
     { key: 'dates', label: 'Dates', render: b => (
       <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-        <p>{format(new Date(b.pickup_date), 'MMM d')} → {format(new Date(b.return_date), 'MMM d, yyyy')}</p>
+        <p>{formatDateOnly(b.pickup_date, 'MMM d')} → {formatDateOnly(b.return_date)}</p>
         <p style={{ color: 'var(--text-tertiary)' }}>{b.rental_days}d</p>
       </div>
     )},
@@ -262,7 +263,7 @@ export default function BookingsPage() {
                 <span className="ml-auto text-sm font-bold tabular-nums shrink-0" style={{ color: 'var(--text-primary)' }}>${Number(b.total_cost).toLocaleString()}</span>
               </div>
               <div className="flex items-center justify-between text-xs" style={{ color: 'var(--text-secondary)' }}>
-                <span>{format(new Date(b.pickup_date), 'MMM d')} → {format(new Date(b.return_date), 'MMM d')}</span>
+                <span>{formatDateOnly(b.pickup_date, 'MMM d')} → {formatDateOnly(b.return_date, 'MMM d')}</span>
                 <span>{b.rental_days}d</span>
               </div>
               {b.status === 'pending_approval' && (

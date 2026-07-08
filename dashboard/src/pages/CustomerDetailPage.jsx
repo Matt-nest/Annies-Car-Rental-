@@ -6,7 +6,8 @@ import { useAuth } from '../auth/AuthProvider';
 import StatusBadge from '../components/shared/StatusBadge';
 import CustomerDeleteSection from '../components/customers/CustomerDeleteSection';
 import { SkeletonDashboard } from '../components/shared/Skeleton';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format } from 'date-fns';
+import { formatDateOnly } from '../lib/dates';
 
 function Section({ title, icon: Icon, children }) {
   return (
@@ -455,7 +456,7 @@ export default function CustomerDetailPage() {
                       {b.vehicles ? `${b.vehicles.year} ${b.vehicles.make} ${b.vehicles.model}` : '—'}
                     </td>
                     <td className="px-3 py-2.5 text-[var(--text-secondary)] text-xs">
-                      {format(new Date(b.pickup_date), 'MMM d')} → {format(new Date(b.return_date), 'MMM d, yyyy')}
+                      {formatDateOnly(b.pickup_date, 'MMM d')} → {formatDateOnly(b.return_date)}
                     </td>
                     <td className="px-3 py-2.5"><StatusBadge status={b.status} /></td>
                     <td className="px-3 py-2.5 font-medium text-[var(--text-primary)]">${Number(b.total_cost || 0).toLocaleString()}</td>

@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Phone, Mail, Car, Calendar, Clock, CheckCircle2, XCircle, MessageSquare } from 'lucide-react';
 import { api } from '../api/client';
 import { SkeletonDashboard } from '../components/shared/Skeleton';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
+import { formatDateOnly } from '../lib/dates';
 
 const STATUS_OPTIONS = ['new', 'contacted', 'converted', 'closed'];
 const STATUS_COLORS = {
@@ -158,7 +159,7 @@ export default function MonthlyInquiriesPage() {
                 )}
                 {inq.start_date && (
                   <span className="flex items-center gap-1.5">
-                    <Calendar size={11} /> Needs from {format(parseISO(inq.start_date), 'MMM d, yyyy')}
+                    <Calendar size={11} /> Needs from {formatDateOnly(inq.start_date)}
                   </span>
                 )}
               </div>

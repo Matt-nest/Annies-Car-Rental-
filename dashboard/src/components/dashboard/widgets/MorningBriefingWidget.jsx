@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
+import { parseDateOnly } from '../../../lib/dates';
 import { api } from '../../../api/client';
 import { cachedQuery } from '../../../lib/queryCache';
 
@@ -64,9 +65,10 @@ export default function MorningBriefingWidget() {
   const returnsToday = overview?.returns_today?.length || 0;
   const revenueMonth = parseFloat(overview?.revenue_this_month || 0);
   const tomorrowPickups = upcoming?.pickups?.filter(b => {
-    const d = new Date(b.pickup_date);
-    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
-    return d.toDateString() === tomorrow.toDateString();
+    const d = parseDateOnly(b.pickup_date);
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return d && d.toDateString() === tomorrow.toDateString();
   }).length || 0;
 
   return (

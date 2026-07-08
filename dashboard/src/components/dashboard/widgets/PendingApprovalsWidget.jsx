@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { CheckCircle2, XCircle, Car, Calendar, DollarSign } from 'lucide-react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { formatDistanceToNow, format } from 'date-fns';
+import { formatDateOnly } from '../../../lib/dates';
 import { api } from '../../../api/client';
 import { cachedQuery, invalidateCache } from '../../../lib/queryCache';
 import { useAlerts } from '../../../lib/alertsContext';
@@ -231,8 +232,8 @@ function BookingCard({ booking, onApprove, onDeclineClick, approving }) {
             {booking.pickup_date && (
               <span className="flex items-center gap-1">
                 <Calendar size={10} />
-                {format(new Date(booking.pickup_date), 'MMM d')}
-                {booking.return_date && ` — ${format(new Date(booking.return_date), 'MMM d')}`}
+                {formatDateOnly(booking.pickup_date, 'MMM d')}
+                {booking.return_date && ` — ${formatDateOnly(booking.return_date, 'MMM d')}`}
               </span>
             )}
             {booking.total_cost && (

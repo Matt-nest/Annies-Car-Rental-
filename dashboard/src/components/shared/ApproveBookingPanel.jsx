@@ -1,5 +1,6 @@
 import { Mail, Phone, User, Car, Calendar, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
+import { formatDateOnly } from '../../lib/dates';
 
 function money(n) {
   const v = Number(n);
@@ -106,7 +107,7 @@ function CustomerDetails({ booking }) {
       {booking?.pickup_date && (
         <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
           <Calendar size={12} />
-          {format(new Date(booking.pickup_date), 'MMM d, yyyy')} → {format(new Date(booking.return_date), 'MMM d, yyyy')}
+          {formatDateOnly(booking.pickup_date)} → {formatDateOnly(booking.return_date)}
         </div>
       )}
     </div>

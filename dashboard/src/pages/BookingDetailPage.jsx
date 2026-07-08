@@ -19,6 +19,7 @@ import InvoiceTab from '../components/booking-tabs/InvoiceTab';
 import BookingActionBar from '../components/booking-tabs/BookingActionBar';
 import { useAlerts } from '../lib/alertsContext';
 import { format } from 'date-fns';
+import { formatDateOnly } from '../lib/dates';
 
 /* ────────────────────────────────────────────────────────
    Tab Configuration
@@ -304,7 +305,7 @@ function ExtendRentalModal({ booking, onClose, onDone }) {
           <h3 className="text-base font-semibold text-[var(--text-primary)]">Extend Rental</h3>
         </div>
         <p className="text-xs text-[var(--text-tertiary)]">
-          Currently due {format(new Date(currentReturn), 'MMM d, yyyy')}. Pick a later return date — extra days are priced at this booking's rate ({booking.rate_type || 'daily'}).
+          Currently due {formatDateOnly(currentReturn)}. Pick a later return date — extra days are priced at this booking's rate ({booking.rate_type || 'daily'}).
         </p>
 
         <div>
@@ -849,7 +850,7 @@ function RentalExtensionsSection({ bookingId }) {
           <div key={x.id} className="flex justify-between items-start text-sm py-1.5 border-b border-[var(--border-subtle)] last:border-0">
             <div>
               <p className="font-medium text-[var(--text-primary)]">
-                +{x.additional_days} day{x.additional_days === 1 ? '' : 's'} · {format(new Date(x.previous_return_date), 'MMM d')} → {format(new Date(x.new_return_date), 'MMM d, yyyy')}
+                +{x.additional_days} day{x.additional_days === 1 ? '' : 's'} · {formatDateOnly(x.previous_return_date, 'MMM d')} → {formatDateOnly(x.new_return_date)}
               </p>
               <div className="flex items-center gap-2 text-xs text-[var(--text-tertiary)]">
                 <span className={`capitalize font-medium ${statusColor(x.status)}`}>{x.status.replace('_', ' ')}</span>
@@ -1114,9 +1115,9 @@ function OverviewTab({ booking, c, v, id, load, setModal, setPaymentForm, setLig
       {/* Rental Details */}
       <Section title="Rental Details">
         <div className="grid sm:grid-cols-2 gap-3">
-          <Field label="Check-In Date" value={format(new Date(booking.pickup_date), 'MMM d, yyyy')} />
+          <Field label="Check-In Date" value={formatDateOnly(booking.pickup_date)} />
           <Field label="Check-In Time" value={booking.pickup_time} />
-          <Field label="Check-Out Date" value={format(new Date(booking.return_date), 'MMM d, yyyy')} />
+          <Field label="Check-Out Date" value={formatDateOnly(booking.return_date)} />
           <Field label="Check-Out Time" value={booking.return_time} />
         </div>
         <div className="flex items-start gap-2 text-sm text-[var(--text-secondary)]">
