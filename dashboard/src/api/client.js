@@ -76,6 +76,8 @@ export const api = {
   getSmsOptOuts: () => request('/customers/sms-opt-outs'),
   smsOptInCustomer: (id, note) => request(`/customers/${id}/sms-opt-in`, { method: 'POST', body: JSON.stringify({ note }) }),
   setCustomerTrust: (id, is_trusted, note) => request(`/customers/${id}/trust`, { method: 'PATCH', body: JSON.stringify({ is_trusted, note }) }),
+  getCustomerDeletionPreview: (id) => request(`/customers/${id}/deletion-preview`),
+  deleteCustomer: (id, confirm_email) => request(`/customers/${id}`, { method: 'DELETE', body: JSON.stringify({ confirm_email }) }),
 
   // Payments
   getAllPayments: (params = {}) => request(`/payments?${new URLSearchParams(params)}`),

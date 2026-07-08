@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Phone, Mail, User, Calendar, DollarSign, FileText, CreditCard, MapPin, Home, ShieldCheck, Zap, Shield, ScanLine } from 'lucide-react';
 import { api } from '../api/client';
+import { useAuth } from '../auth/AuthProvider';
 import StatusBadge from '../components/shared/StatusBadge';
+import CustomerDeleteSection from '../components/customers/CustomerDeleteSection';
 import { SkeletonDashboard } from '../components/shared/Skeleton';
 import { format, formatDistanceToNow } from 'date-fns';
 
@@ -234,6 +236,7 @@ function CustomerIdPhoto({ url, onView }) {
 export default function CustomerDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { hasRole } = useAuth();
   const [customer, setCustomer] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -463,6 +466,12 @@ export default function CustomerDetailPage() {
           </div>
         )}
       </Section>
+
+      <CustomerDeleteSection
+        customer={customer}
+        canDelete={hasRole('owner', 'admin')}
+        onDeleted={() => navigate('/customers')}
+      />
 
       {/* Photo Lightbox */}
       {lightboxUrl && (
