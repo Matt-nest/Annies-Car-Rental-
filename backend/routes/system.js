@@ -3,6 +3,9 @@ import { supabase } from '../db/supabase.js';
 import { getStripe } from '../utils/stripe.js';
 import { squareRequest } from '../utils/square.js';
 import { PAYMENT_PROVIDER, isStripeProvider, isSquareProvider } from '../config/paymentProvider.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
+import { asyncHandler } from '../middleware/errorHandler.js';
+import { purgeTestCustomers } from '../services/testDataPurgeService.js';
 
 const router = express.Router();
 
@@ -74,5 +77,15 @@ router.get('/health', async (req, res) => {
     checks,
   });
 });
+
+/**
+ * POST /system/purge-test-data — owner-only cleanup of test customers/bookings.
+ * Runs against whatever Supabase project the API is connected to; service layer
+ * refuses unless project ref is Annie's (yrerxvuyeglrypeufjpy).
+ */
+router.post('/purge-test-data', requireAuth, requireRole('owner'), asyncHandler(async (req, res) => {
+  const result = await purgeTestCustomers();
+  res.json({ success: true, ...result });
+}));
 
 export default router;
