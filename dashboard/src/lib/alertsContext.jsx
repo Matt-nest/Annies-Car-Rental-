@@ -29,6 +29,8 @@ export function AlertsProvider({ children }) {
     pending_reviews: 0,
     active_rentals: 0,
     pending_inspections: 0,
+    deposits_held: 0,
+    deposits_held_total: '0.00',
     pickups_today_count: 0,
     has_unacknowledged_active: false,
   });
@@ -57,6 +59,8 @@ export function AlertsProvider({ children }) {
           pending_reviews: ov.pending_reviews || 0,
           active_rentals: nextActive,
           pending_inspections: ov.pending_inspections || 0,
+          deposits_held: ov.deposits_held || 0,
+          deposits_held_total: ov.deposits_held_total || '0.00',
           pickups_today_count: pickupsToday,
           has_unacknowledged_active: hasUnack,
         };

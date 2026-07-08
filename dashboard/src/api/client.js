@@ -189,6 +189,8 @@ export const api = {
   // Deposits
   getVehicleDeposit: (vehicleId) => request(`/vehicles/${vehicleId}/deposit`),
   getBookingDeposit: (bookingId) => request(`/bookings/${bookingId}/deposit`),
+  listDeposits: (params = {}) => request(`/deposits?${new URLSearchParams(params)}`),
+  recordManualDeposit: (bookingId, body) => request(`/bookings/${bookingId}/deposit/record`, { method: 'POST', body: JSON.stringify(body) }),
   releaseDeposit: (bookingId) => request(`/bookings/${bookingId}/deposit/release`, { method: 'POST' }),
   settleDeposit: (bookingId, body) => request(`/bookings/${bookingId}/deposit/settle`, { method: 'POST', body: JSON.stringify(body) }),
 

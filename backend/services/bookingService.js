@@ -8,6 +8,7 @@ import { sendBookingConfirmation } from './emailService.js';
 import { createNotification } from './notificationService.js';
 import { sendTeamAlertAsync, TEAM_ALERT_EVENTS } from './teamAlertService.js';
 import { cancelPolicy as cancelBonzahPolicy } from './bonzahService.js';
+import { getVehicleDepositAmount } from './depositService.js';
 
 // Valid one-way status transitions
 const TRANSITIONS = {
@@ -206,6 +207,9 @@ export async function createBooking(payload) {
     totalCostOverrideLabel: 'Admin exact price override',
   });
 
+  const depositCents = await getVehicleDepositAmount(vehicle.id);
+  const depositDollars = depositCents / 100;
+
   // 5. Generate booking code (retry on collision)
   let booking_code = generateBookingCode();
   let attempts = 0;
@@ -255,7 +259,7 @@ export async function createBooking(payload) {
       line_items:              pricing.line_items,
       unlimited_miles: pricing.mileage_allowance === 'unlimited' || !!unlimited_miles,
       unlimited_tolls: !!unlimited_tolls,
-      deposit_amount: vehicle.deposit_amount || 0,
+      deposit_amount: depositDollars,
       insurance_provider,
       insurance_status: insurance_status || 'pending',
       bonzah_policy_id,

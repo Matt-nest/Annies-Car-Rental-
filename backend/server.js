@@ -121,7 +121,7 @@ app.use('/api/v1/agreements', agreementRoutes);
 app.use('/api/v1/cron', cronRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/portal', portalRoutes);
-app.use('/api/v1/deposits', depositRoutes);
+app.use('/api/v1', depositRoutes);
 app.use('/api/v1', checkinRoutes);
 app.use('/api/v1/disputes', disputeRoutes);
 app.use('/api/v1', incidentalRoutes);

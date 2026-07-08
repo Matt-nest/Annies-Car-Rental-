@@ -374,7 +374,7 @@ export async function settleDeposit(bookingId, { incidentalTotal = 0, refundedBy
   // Update legacy column
   await supabase
     .from('bookings')
-    .update({ deposit_status: refundAmount > 0 ? 'refunded' : 'forfeited' })
+    .update({ deposit_status: refundAmount > 0 ? 'refunded' : (appliedAmount > 0 ? 'applied' : 'forfeited') })
     .eq('id', bookingId);
 
   // Notify customer (fire-and-forget)
@@ -439,4 +439,112 @@ export async function settleDeposit(bookingId, { incidentalTotal = 0, refundedBy
     amountOwed,
     overageScheduledId,
   };
+}
+
+/**
+ * List deposits across all bookings for dashboard reporting.
+ * @param {{ status?: string }} opts — 'held' (default), 'all', or a specific status
+ */
+export async function listDeposits({ status = 'held' } = {}) {
+  let query = supabase
+    .from('booking_deposits')
+    .select(`
+      id, booking_id, amount, status, stripe_charge_id,
+      refund_amount, applied_amount, refunded_at, created_at,
+      bookings!inner (
+        id, booking_code, status, pickup_date, return_date,
+        customers ( first_name, last_name, email ),
+        vehicles ( year, make, model, vehicle_code )
+      )
+    `)
+    .order('created_at', { ascending: false });
+
+  if (status && status !== 'all') {
+    if (status === 'held') {
+      query = query.in('status', ['held', 'partial_refund']);
+    } else {
+      query = query.eq('status', status);
+    }
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Record a manually-collected deposit (cash, Zelle, Venmo, etc.).
+ * Creates booking_deposits + payments ledger entry.
+ */
+export async function recordManualDeposit(bookingId, {
+  amountCents,
+  method = 'cash',
+  referenceId = null,
+  notes = null,
+  recordedBy = 'admin',
+} = {}) {
+  const { data: booking, error } = await supabase
+    .from('bookings')
+    .select('id, booking_code, vehicle_id, deposit_amount, deposit_status')
+    .eq('id', bookingId)
+    .single();
+
+  if (error || !booking) {
+    throw Object.assign(new Error('Booking not found'), { status: 404 });
+  }
+
+  const { data: existing } = await supabase
+    .from('booking_deposits')
+    .select('*')
+    .eq('booking_id', bookingId)
+    .maybeSingle();
+
+  if (existing?.status === 'held') {
+    throw Object.assign(new Error('Deposit is already held for this booking'), { status: 400 });
+  }
+
+  const cents = amountCents ?? await getVehicleDepositAmount(booking.vehicle_id);
+  if (cents <= 0) {
+    throw Object.assign(new Error('Deposit amount must be greater than zero'), { status: 400 });
+  }
+
+  const dollars = cents / 100;
+
+  if (existing) {
+    const { error: updErr } = await supabase
+      .from('booking_deposits')
+      .update({
+        amount: cents,
+        status: 'held',
+        stripe_charge_id: referenceId || existing.stripe_charge_id,
+      })
+      .eq('id', existing.id);
+    if (updErr) throw updErr;
+  } else {
+    const { error: insErr } = await supabase.from('booking_deposits').insert({
+      booking_id: bookingId,
+      amount: cents,
+      status: 'held',
+      stripe_charge_id: referenceId || null,
+    });
+    if (insErr) throw insErr;
+  }
+
+  await supabase.from('payments').insert({
+    booking_id: bookingId,
+    payment_type: 'deposit',
+    amount: dollars,
+    method,
+    reference_id: referenceId || `manual_deposit_${Date.now()}`,
+    notes: notes || `Security deposit collected manually by ${recordedBy}`,
+    status: 'completed',
+    paid_at: new Date().toISOString(),
+  });
+
+  await supabase
+    .from('bookings')
+    .update({ deposit_amount: dollars, deposit_status: 'paid' })
+    .eq('id', bookingId);
+
+  return { success: true, amount: cents, status: 'held', dollars: dollars.toFixed(2) };
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { Link } from 'react-router-dom';
-import { Search, DollarSign, Download, CreditCard, RefreshCw, AlertCircle } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Search, DollarSign, Download, CreditCard, RefreshCw, AlertCircle, Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { api } from '../api/client';
 import { SkeletonTable } from '../components/shared/Skeleton';
@@ -9,6 +9,7 @@ import EmptyState from '../components/shared/EmptyState';
 import Modal from '../components/shared/Modal';
 import DataError from '../components/shared/DataError';
 import InlineBanner from '../components/shared/InlineBanner';
+import DepositsPanel from '../components/payments/DepositsPanel';
 
 const EASE = [0.25, 1, 0.5, 1];
 
@@ -26,6 +27,8 @@ function providerLabel(method) {
 }
 
 export default function PaymentsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') === 'deposits' ? 'deposits' : 'ledger';
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -93,13 +96,43 @@ export default function PaymentsPage() {
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
       >
         <div>
-          <h1 className="text-2xl font-bold tracking-tight tabular-nums" style={{ color: 'var(--text-primary)' }}>Payments Ledger</h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>Review all transactions and manage refunds</p>
+          <h1 className="text-2xl font-bold tracking-tight tabular-nums" style={{ color: 'var(--text-primary)' }}>Payments</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+            {tab === 'deposits' ? 'Held deposits, settlement, and refunds' : 'Review all transactions and manage refunds'}
+          </p>
         </div>
-        <button className="btn-secondary" onClick={loadData}>
-          <RefreshCw size={14} /> Sync
-        </button>
+        {tab === 'ledger' && (
+          <button className="btn-secondary" onClick={loadData}>
+            <RefreshCw size={14} /> Sync
+          </button>
+        )}
       </motion.div>
+
+      <div className="flex gap-2 border-b border-[var(--border-subtle)] pb-1">
+        {[
+          { key: 'ledger', label: 'Ledger', icon: CreditCard },
+          { key: 'deposits', label: 'Deposits', icon: Shield },
+        ].map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setSearchParams(key === 'ledger' ? {} : { tab: key })}
+            className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-t-lg transition-colors"
+            style={{
+              color: tab === key ? 'var(--accent-color)' : 'var(--text-tertiary)',
+              borderBottom: tab === key ? '2px solid var(--accent-color)' : '2px solid transparent',
+            }}
+          >
+            <Icon size={15} />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'deposits' ? (
+        <DepositsPanel />
+      ) : (
+        <>
 
       <DataError error={error} />
       <InlineBanner message={notice} onDismiss={() => setNotice('')} />
@@ -318,6 +351,8 @@ export default function PaymentsPage() {
           </div>
         </form>
       </Modal>
+        </>
+      )}
     </div>
   );
 }
