@@ -81,7 +81,7 @@ export default function AlertPillBar({ onActiveAlertClick, variant = 'inline' })
 
   const isStrip = variant === 'strip';
   const containerClass = isStrip
-    ? 'lg:hidden flex items-center gap-2 scroll-x-contained no-scrollbar -mx-6 px-6 py-0.5 max-w-[100vw]'
+    ? 'lg:hidden flex items-center gap-2 scroll-x-contained no-scrollbar bleed-x py-0.5'
     : 'flex items-center gap-2';
 
   return (

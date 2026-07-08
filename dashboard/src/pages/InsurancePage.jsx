@@ -117,7 +117,7 @@ export default function InsurancePage() {
   const allTimeMarkup = stats?.markup_all_time_cents || 0;
 
   return (
-    <div className="p-6 lg:p-8 space-y-6">
+    <div className="page-shell lg:p-8 space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>

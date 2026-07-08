@@ -146,7 +146,7 @@ export default function BottomNav({ onOpenMore, compact = false }) {
           type="button"
           onClick={() => { haptic('tap'); onOpenMore(); }}
           aria-label="Open full navigation menu"
-          className="tap-target flex-1 flex flex-col items-center justify-center gap-1 py-2.5 transition-[color,transform] duration-150 active:scale-[0.88]"
+          className="tap-target flex-1 flex flex-col items-center justify-center gap-1 py-2 transition-[color,transform] duration-150 active:scale-[0.88]"
           style={{ color: 'var(--text-secondary)' }}
         >
           <Menu size={23} strokeWidth={2} style={{ color: 'var(--text-secondary)' }} />

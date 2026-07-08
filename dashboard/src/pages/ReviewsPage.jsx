@@ -82,7 +82,7 @@ export default function ReviewsPage() {
   const list = tab === 'pending' ? pending : approved;
 
   return (
-    <div className="p-6 lg:p-8 space-y-6">
+    <div className="page-shell lg:p-8 space-y-6">
       <DataError message={loadError} onRetry={load} />
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
