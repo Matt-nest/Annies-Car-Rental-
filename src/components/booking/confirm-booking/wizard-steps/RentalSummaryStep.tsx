@@ -1,5 +1,5 @@
 import React from 'react';
-import { Car, Calendar, MapPin, Truck, Clock } from 'lucide-react';
+import { Car, Calendar, MapPin, Truck, Clock, DollarSign } from 'lucide-react';
 import { formatCurrency, formatDate } from '../constants';
 import PricingBreakdown, { mileageAllowanceNote } from '../PricingBreakdown';
 import { brand } from '../../../../config/brand';
@@ -28,6 +28,8 @@ export default function RentalSummaryStep({ autoFilled: af, theme, onContinue }:
   const locationLabel = isDelivery ? 'Delivery to' : 'Pickup at';
   const locationValue = isDelivery ? af.deliveryAddress : (af.pickupLocation || brand.location.city);
   const depositAmount = Number(af.depositAmount || 0);
+  const rentalTotal = Number(af.totalCost || 0);
+  const dueAtCheckout = rentalTotal + depositAmount;
 
   const DateTile = ({ label, date, time }: { label: string; date: string; time?: string }) => (
     <div className="rounded-xl px-3.5 py-3" style={{ backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}>
@@ -81,12 +83,41 @@ export default function RentalSummaryStep({ autoFilled: af, theme, onContinue }:
           </div>
 
           {/* Itemized pricing — uses stored line_items when present */}
-          <div className="mt-4 pt-3" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-            <PricingBreakdown pricing={af} />
-            <p className="text-xs mt-2" style={{ color: 'var(--text-tertiary)' }}>
+          <div className="mt-4 pt-3 space-y-2" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+            <PricingBreakdown pricing={af} showTotal={false} />
+
+            <div className="flex justify-between text-sm font-medium pt-1" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+              <span style={{ color: 'var(--text-primary)' }}>Rental Total</span>
+              <span style={{ color: 'var(--text-primary)' }}>{formatCurrency(rentalTotal)}</span>
+            </div>
+
+            <div className="flex justify-between items-center text-sm">
+              <div className="flex items-center gap-1.5">
+                <DollarSign size={14} style={{ color: 'var(--accent-color)' }} />
+                <span style={{ color: 'var(--text-secondary)' }}>Refundable Deposit</span>
+              </div>
+              <span style={{ color: 'var(--text-primary)' }}>
+                {depositAmount > 0 ? formatCurrency(depositAmount) : 'At checkout'}
+              </span>
+            </div>
+            <p className="text-[10px] ml-[22px]" style={{ color: 'var(--text-tertiary)' }}>
+              Fully refunded after post-return vehicle inspection (typically 3–5 business days)
+            </p>
+
+            {depositAmount > 0 && (
+              <div
+                className="flex justify-between text-sm font-semibold pt-2"
+                style={{ borderTop: '2px solid var(--border-subtle)' }}
+              >
+                <span style={{ color: 'var(--text-primary)' }}>Due at Checkout</span>
+                <span style={{ color: 'var(--accent-color)' }}>{formatCurrency(dueAtCheckout)}</span>
+              </div>
+            )}
+
+            <p className="text-xs pt-1" style={{ color: 'var(--text-tertiary)' }}>
               {mileageAllowanceNote(af)}
               {depositAmount > 0
-                ? ` · Refundable ${formatCurrency(depositAmount)} deposit collected at payment`
+                ? ` · Insurance (if selected) is added at checkout`
                 : ' · Security deposit collected at payment'}
             </p>
           </div>
