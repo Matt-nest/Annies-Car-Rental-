@@ -133,7 +133,7 @@ export default function OrderSummary({ bookingSummary: bs, draft, depositAmount,
           <span style={{ color: 'var(--text-primary)' }}>{formatCurrency(depositAmount)}</span>
         </div>
         <p className="text-[10px] ml-[22px]" style={{ color: 'var(--text-tertiary)' }}>
-          Returned after vehicle inspection at check-in
+          Fully refunded after post-return vehicle inspection (typically 3–5 business days)
         </p>
 
         {/* Grand Total */}
