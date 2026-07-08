@@ -1,4 +1,4 @@
--- Migration 028: Persist delivery type, license scan metadata, and normalize add-on rows.
+-- Migration 028: Persist delivery type, license scan metadata, customer receipt, and normalize add-on rows.
 -- Run in Supabase SQL editor for Annie's Car Rental.
 
 ALTER TABLE bookings
