@@ -118,8 +118,13 @@ router.get('/:bookingCode', asyncHandler(async (req, res) => {
       subtotal: Number(booking.subtotal),
       deliveryFee: Number(booking.delivery_fee || 0),
       discountAmount: Number(booking.discount_amount || 0),
+      mileageAddonFee: Number(booking.mileage_addon_fee || 0),
+      tollAddonFee: Number(booking.toll_addon_fee || 0),
       taxAmount: Number(booking.tax_amount || 0),
       totalCost: Number(booking.total_cost),
+      depositAmount: Number(booking.deposit_amount || 0),
+      hasUnlimitedMiles: !!booking.unlimited_miles || booking.mileage_allowance === 'unlimited',
+      hasUnlimitedTolls: !!booking.unlimited_tolls,
     },
     // Pre-fill from admin pre-fill first (booking-scoped, authoritative for this
     // booking), then fall back to the customer record's stored data.

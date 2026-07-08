@@ -1,6 +1,7 @@
 import React from 'react';
 import { Car, Calendar, MapPin, Truck, Clock } from 'lucide-react';
 import { formatCurrency, formatDate } from '../constants';
+import PricingBreakdown, { mileageAllowanceNote } from '../PricingBreakdown';
 import { brand } from '../../../../config/brand';
 
 interface Props {
@@ -26,6 +27,7 @@ export default function RentalSummaryStep({ autoFilled: af, theme, onContinue }:
   const LocationIcon = isDelivery ? Truck : MapPin;
   const locationLabel = isDelivery ? 'Delivery to' : 'Pickup at';
   const locationValue = isDelivery ? af.deliveryAddress : (af.pickupLocation || brand.location.city);
+  const depositAmount = Number(af.depositAmount || 0);
 
   const DateTile = ({ label, date, time }: { label: string; date: string; time?: string }) => (
     <div className="rounded-xl px-3.5 py-3" style={{ backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}>
@@ -78,36 +80,14 @@ export default function RentalSummaryStep({ autoFilled: af, theme, onContinue }:
             <DateTile label="Return" date={formatDate(af.dateDueIn)} time={af.returnTime} />
           </div>
 
-          {/* Pricing */}
-          <div className="mt-4 pt-3 space-y-1.5" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-            <div className="flex justify-between text-sm">
-              <span style={{ color: 'var(--text-secondary)' }}>{af.rentalDays} day{af.rentalDays !== 1 ? 's' : ''} × {formatCurrency(af.dailyRate)}/day</span>
-              <span style={{ color: 'var(--text-primary)' }}>{formatCurrency(af.subtotal)}</span>
-            </div>
-            {af.deliveryFee > 0 && (
-              <div className="flex justify-between text-sm">
-                <span style={{ color: 'var(--text-secondary)' }}>Delivery fee</span>
-                <span style={{ color: 'var(--text-primary)' }}>{formatCurrency(af.deliveryFee)}</span>
-              </div>
-            )}
-            {af.discountAmount > 0 && (
-              <div className="flex justify-between text-sm">
-                <span style={{ color: 'var(--text-secondary)' }}>Discount</span>
-                <span style={{ color: '#22c55e' }}>-{formatCurrency(af.discountAmount)}</span>
-              </div>
-            )}
-            {af.taxAmount > 0 && (
-              <div className="flex justify-between text-sm">
-                <span style={{ color: 'var(--text-secondary)' }}>Tax</span>
-                <span style={{ color: 'var(--text-primary)' }}>{formatCurrency(af.taxAmount)}</span>
-              </div>
-            )}
-            <div className="flex justify-between text-sm font-semibold pt-1.5" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-              <span style={{ color: 'var(--text-primary)' }}>Rental Total</span>
-              <span style={{ color: 'var(--accent-color)' }}>{formatCurrency(af.totalCost)}</span>
-            </div>
-            <p className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
-              Miles allowed: {af.milesPerDay}/day · Security deposit collected at payment
+          {/* Itemized pricing — uses stored line_items when present */}
+          <div className="mt-4 pt-3" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+            <PricingBreakdown pricing={af} />
+            <p className="text-xs mt-2" style={{ color: 'var(--text-tertiary)' }}>
+              {mileageAllowanceNote(af)}
+              {depositAmount > 0
+                ? ` · Refundable ${formatCurrency(depositAmount)} deposit collected at payment`
+                : ' · Security deposit collected at payment'}
             </p>
           </div>
         </div>
