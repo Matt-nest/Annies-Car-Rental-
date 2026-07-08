@@ -12,6 +12,12 @@ ALTER TABLE rental_agreements
 COMMENT ON COLUMN rental_agreements.license_scan_metadata IS
   'License scan audit: scan_id, method, scanned_at, name_match, photo_path, scanned_name';
 
+ALTER TABLE bookings
+  ADD COLUMN IF NOT EXISTS customer_receipt_snapshot JSONB;
+
+COMMENT ON COLUMN bookings.customer_receipt_snapshot IS
+  'Frozen itemized receipt the customer confirmed at checkout (line items, insurance, deposit, grand total)';
+
 -- Backfill delivery_type from special_requests text where possible.
 UPDATE bookings
 SET delivery_type = CASE
