@@ -76,7 +76,6 @@ export const api = {
   getSmsOptOuts: () => request('/customers/sms-opt-outs'),
   smsOptInCustomer: (id, note) => request(`/customers/${id}/sms-opt-in`, { method: 'POST', body: JSON.stringify({ note }) }),
   setCustomerTrust: (id, is_trusted, note) => request(`/customers/${id}/trust`, { method: 'PATCH', body: JSON.stringify({ is_trusted, note }) }),
-  createCustomerPortalSession: (id, body = {}) => request(`/customers/${id}/portal-session`, { method: 'POST', body: JSON.stringify(body) }),
 
   // Payments
   getAllPayments: (params = {}) => request(`/payments?${new URLSearchParams(params)}`),

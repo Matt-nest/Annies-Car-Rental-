@@ -2,8 +2,6 @@ import { Router } from 'express';
 import { supabase } from '../db/supabase.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
-import { createAdminPortalSession } from '../services/portalAuthService.js';
-import brand from '../config/brand.js';
 
 const router = Router();
 
@@ -81,17 +79,6 @@ router.patch('/:id/trust', requireAuth, requireRole('owner', 'admin'), asyncHand
   if (error) throw error;
   if (!data) return res.status(404).json({ error: 'Customer not found' });
   res.json(data);
-}));
-
-/** POST /customers/:id/portal-session — Admin handoff into customer portal */
-router.post('/:id/portal-session', requireAuth, requireRole('owner', 'admin'), asyncHandler(async (req, res) => {
-  const { booking_id: bookingId } = req.body || {};
-  const session = await createAdminPortalSession(req.params.id, {
-    bookingId,
-    adminEmail: req.user?.email,
-  });
-  const portalUrl = `${brand.siteUrl}/portal?handoff=${encodeURIComponent(session.token)}`;
-  res.json({ ...session, portal_url: portalUrl });
 }));
 
 /** GET /customers — list with search, includes booking stats */

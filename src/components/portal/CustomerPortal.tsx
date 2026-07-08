@@ -288,28 +288,6 @@ export default function CustomerPortal() {
      back to the login screen. */
   useEffect(() => {
     if (token) return;
-
-    const handoff = params.get('handoff');
-    if (handoff) {
-      try {
-        if (isTokenExpired(handoff)) {
-          setError('This admin login link has expired. Ask your rental office for a new one.');
-          return;
-        }
-        const payload = JSON.parse(atob(handoff.split('.')[1]));
-        setToken(handoff);
-        if (payload.bookingCode) setBookingCode(payload.bookingCode);
-        if (payload.email) setEmail(payload.email);
-        saveSession(handoff, payload.bookingCode || '', payload.email || '');
-        setView('dashboard');
-        window.history.replaceState({}, '', '/portal');
-        return;
-      } catch {
-        setError('Invalid portal login link.');
-        return;
-      }
-    }
-
     try {
       const raw = localStorage.getItem(SESSION_KEY);
       if (!raw) return;

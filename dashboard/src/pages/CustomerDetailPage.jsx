@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Phone, Mail, User, Calendar, DollarSign, FileText, CreditCard, MapPin, Home, ShieldCheck, Zap, ExternalLink, Loader2 } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, User, Calendar, DollarSign, FileText, CreditCard, MapPin, Home, ShieldCheck, Zap } from 'lucide-react';
 import { api } from '../api/client';
 import StatusBadge from '../components/shared/StatusBadge';
 import { SkeletonDashboard } from '../components/shared/Skeleton';
@@ -197,11 +197,6 @@ export default function CustomerDetailPage() {
   const [loading, setLoading] = useState(true);
   const [notes, setNotes] = useState('');
   const [lightboxUrl, setLightboxUrl] = useState(null);
-  const [portalLoading, setPortalLoading] = useState(false);
-  const [portalError, setPortalError] = useState('');
-
-  const PORTAL_ELIGIBLE = ['pending_approval', 'approved', 'confirmed', 'ready_for_pickup', 'active', 'returned', 'completed'];
-  const hasPortalBooking = bookings.some(b => PORTAL_ELIGIBLE.includes(b.status));
 
   useEffect(() => {
     async function load() {
@@ -233,19 +228,6 @@ export default function CustomerDetailPage() {
     }
   }
 
-  async function openCustomerPortal(bookingId) {
-    setPortalLoading(true);
-    setPortalError('');
-    try {
-      const body = bookingId ? { booking_id: bookingId } : {};
-      const res = await api.createCustomerPortalSession(id, body);
-      window.open(res.portal_url, '_blank', 'noopener,noreferrer');
-    } catch (err) {
-      setPortalError(err?.message || 'Could not open customer portal');
-    }
-    setPortalLoading(false);
-  }
-
   if (loading) return <SkeletonDashboard />;
   if (!customer) return <div className="p-6 text-[var(--text-secondary)]">Customer not found</div>;
 
@@ -261,28 +243,13 @@ export default function CustomerDetailPage() {
         <button onClick={() => navigate('/customers')} className="btn-ghost py-1.5 px-2">
           <ArrowLeft size={16} />
         </button>
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 flex-1 min-w-0">
-          <div>
-            <h1 className="text-xl font-semibold text-[var(--text-primary)]">
-              {customer.first_name} {customer.last_name}
-            </h1>
-            <p className="text-xs text-[var(--text-tertiary)]">
-              Customer since {format(new Date(customer.created_at), 'MMMM yyyy')}
-            </p>
-          </div>
-          <div className="flex flex-col items-stretch sm:items-end gap-1 shrink-0">
-            <button
-              type="button"
-              className="btn-primary text-xs py-2"
-              disabled={portalLoading || !hasPortalBooking}
-              onClick={() => openCustomerPortal()}
-              title={hasPortalBooking ? 'Sign in to this customer\'s portal as admin' : 'No active booking for portal access'}
-            >
-              {portalLoading ? <Loader2 size={14} className="animate-spin" /> : <ExternalLink size={14} />}
-              Open Customer Portal
-            </button>
-            {portalError && <p className="text-xs text-[#ef4444] max-w-xs text-right">{portalError}</p>}
-          </div>
+        <div>
+          <h1 className="text-xl font-semibold text-[var(--text-primary)]">
+            {customer.first_name} {customer.last_name}
+          </h1>
+          <p className="text-xs text-[var(--text-tertiary)]">
+            Customer since {format(new Date(customer.created_at), 'MMMM yyyy')}
+          </p>
         </div>
       </div>
 
@@ -393,8 +360,8 @@ export default function CustomerDetailPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border-subtle)]">
-                  {['Booking', 'Vehicle', 'Dates', 'Status', 'Total', ''].map(h => (
-                    <th key={h || 'actions'} className="text-left text-xs font-medium text-[var(--text-tertiary)] px-3 py-2">{h}</th>
+                  {['Booking', 'Vehicle', 'Dates', 'Status', 'Total'].map(h => (
+                    <th key={h} className="text-left text-xs font-medium text-[var(--text-tertiary)] px-3 py-2">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -414,19 +381,6 @@ export default function CustomerDetailPage() {
                     </td>
                     <td className="px-3 py-2.5"><StatusBadge status={b.status} /></td>
                     <td className="px-3 py-2.5 font-medium text-[var(--text-primary)]">${Number(b.total_cost || 0).toLocaleString()}</td>
-                    <td className="px-3 py-2.5">
-                      {PORTAL_ELIGIBLE.includes(b.status) && (
-                        <button
-                          type="button"
-                          className="btn-ghost text-xs py-1 px-2"
-                          disabled={portalLoading}
-                          onClick={(e) => { e.stopPropagation(); openCustomerPortal(b.id); }}
-                          title="Open portal for this booking"
-                        >
-                          <ExternalLink size={13} />
-                        </button>
-                      )}
-                    </td>
                   </tr>
                 ))}
               </tbody>
