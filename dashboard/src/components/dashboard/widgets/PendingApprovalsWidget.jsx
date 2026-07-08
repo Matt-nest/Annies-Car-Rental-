@@ -8,8 +8,10 @@ import { useAlerts } from '../../../lib/alertsContext';
 import { haptic } from '../../../lib/haptic';
 import Modal from '../../shared/Modal';
 import InlineBanner from '../../shared/InlineBanner';
+import ApproveBookingModal from '../../shared/ApproveBookingModal';
 import WidgetWrapper from '../WidgetWrapper';
 
+// Sprint 10: how far the user must drag horizontally before a swipe commits.
 const SWIPE_THRESHOLD = 90;
 
 function DeclineModal({ booking, onDecline, onClose }) {
@@ -102,6 +104,10 @@ function BookingCard({ booking, onApprove, onDeclineClick, approving }) {
   const vehicle = booking.vehicles;
   const customer = booking.customers;
 
+  // Sprint 10: swipe-to-act. Drag the card right → approve. Drag left → decline.
+  // The motion value drives action-reveal opacity + scale. Threshold cross fires
+  // a haptic (Android only). Cards still keep the explicit buttons so desktop
+  // and accessibility users have a non-gestural path.
   const x = useMotionValue(0);
   const lastHaptic = useRef(0);
   const approveOpacity = useTransform(x, [0, SWIPE_THRESHOLD], [0, 1]);
@@ -117,9 +123,11 @@ function BookingCard({ booking, onApprove, onDeclineClick, approving }) {
       haptic('commit');
       onDeclineClick(booking);
     }
+    // Always snap back; the card may also be removed by the parent on success.
     x.set(0);
   }
 
+  // Haptic when the user crosses the threshold during drag (subtle "click").
   function onDrag(_e, info) {
     const ax = Math.abs(info.offset.x);
     const crossed = ax > SWIPE_THRESHOLD * 0.9;
@@ -138,6 +146,8 @@ function BookingCard({ booking, onApprove, onDeclineClick, approving }) {
       className="relative"
       style={{ borderBottom: '1px solid var(--border-subtle)' }}
     >
+      {/* Action-reveal panels behind the card. They become visible as the user
+          drags. Pointer-events none so they never intercept taps. */}
       <motion.div
         className="absolute inset-0 flex items-center justify-start pl-6 pointer-events-none"
         style={{
@@ -179,6 +189,7 @@ function BookingCard({ booking, onApprove, onDeclineClick, approving }) {
         </motion.div>
       </motion.div>
 
+      {/* The card surface. Draggable on x. dragElastic gives a rubber-band feel. */}
       <motion.div
         drag="x"
         dragConstraints={{ left: 0, right: 0 }}
@@ -190,89 +201,92 @@ function BookingCard({ booking, onApprove, onDeclineClick, approving }) {
         style={{ x, backgroundColor: 'var(--bg-card)', touchAction: 'pan-y' }}
         className="relative px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3 cursor-grab"
       >
-      {/* Avatar */}
-      <div
-        className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 self-start sm:self-center"
-        style={{ backgroundColor: 'var(--accent-glow)', color: 'var(--accent-color)' }}
-      >
-        {customer?.first_name?.[0]}{customer?.last_name?.[0]}
-      </div>
-
-      {/* Info */}
-      <div className="flex-1 min-w-0 space-y-0.5">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-            {customer?.first_name} {customer?.last_name}
-          </span>
-          {booking.booking_code && (
-            <span className="mono-code text-[11px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--bg-card-hover)', color: 'var(--text-tertiary)' }}>
-              {booking.booking_code}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-3 flex-wrap text-xs" style={{ color: 'var(--text-tertiary)' }}>
-          {vehicle && (
-            <span className="flex items-center gap-1">
-              <Car size={10} />
-              {vehicle.year} {vehicle.make} {vehicle.model}
-            </span>
-          )}
-          {booking.pickup_date && (
-            <span className="flex items-center gap-1">
-              <Calendar size={10} />
-              {format(new Date(booking.pickup_date), 'MMM d')}
-              {booking.return_date && ` — ${format(new Date(booking.return_date), 'MMM d')}`}
-            </span>
-          )}
-          {booking.total_cost && (
-            <span className="flex items-center gap-1">
-              <DollarSign size={10} />
-              {Number(booking.total_cost).toLocaleString()}
-            </span>
-          )}
-          {booking.created_at && (
-            <span className="opacity-60">
-              {formatDistanceToNow(new Date(booking.created_at), { addSuffix: true })}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div className="flex gap-2 sm:shrink-0 sm:ml-2">
-        <button
-          onClick={() => onDeclineClick(booking)}
-          disabled={approving === booking.id}
-          className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all"
-          style={{
-            backgroundColor: 'rgba(239,68,68,0.08)',
-            border: '1px solid rgba(239,68,68,0.2)',
-            color: '#ef4444',
-            minHeight: 44,
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.14)')}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.08)')}
+        {/* Avatar */}
+        <div
+          className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 self-start sm:self-center"
+          style={{ backgroundColor: 'var(--accent-glow)', color: 'var(--accent-color)' }}
         >
-          <XCircle size={13} /> Decline
-        </button>
-        <button
-          onClick={() => onApprove(booking.id)}
-          disabled={approving === booking.id}
-          className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all"
-          style={{
-            backgroundColor: approving === booking.id ? 'rgba(34,197,94,0.05)' : 'rgba(34,197,94,0.1)',
-            border: '1px solid rgba(34,197,94,0.25)',
-            color: '#22c55e',
-            minHeight: 44,
-            opacity: approving === booking.id ? 0.6 : 1,
-          }}
-          onMouseEnter={(e) => { if (approving !== booking.id) e.currentTarget.style.backgroundColor = 'rgba(34,197,94,0.16)'; }}
-          onMouseLeave={(e) => { if (approving !== booking.id) e.currentTarget.style.backgroundColor = 'rgba(34,197,94,0.1)'; }}
-        >
-          <CheckCircle2 size={13} />
-          {approving === booking.id ? 'Approving…' : 'Approve'}
-        </button>
-      </div>
+          {customer?.first_name?.[0]}{customer?.last_name?.[0]}
+        </div>
+
+        {/* Info */}
+        <div className="flex-1 min-w-0 space-y-0.5">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+              {customer?.first_name} {customer?.last_name}
+            </span>
+            {booking.booking_code && (
+              <span className="mono-code text-[11px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--bg-card-hover)', color: 'var(--text-tertiary)' }}>
+                {booking.booking_code}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3 flex-wrap text-xs" style={{ color: 'var(--text-tertiary)' }}>
+            {vehicle && (
+              <span className="flex items-center gap-1">
+                <Car size={10} />
+                {vehicle.year} {vehicle.make} {vehicle.model}
+              </span>
+            )}
+            {booking.pickup_date && (
+              <span className="flex items-center gap-1">
+                <Calendar size={10} />
+                {format(new Date(booking.pickup_date), 'MMM d')}
+                {booking.return_date && ` — ${format(new Date(booking.return_date), 'MMM d')}`}
+              </span>
+            )}
+            {booking.total_cost && (
+              <span className="flex items-center gap-1">
+                <DollarSign size={10} />
+                {Number(booking.total_cost).toLocaleString()}
+              </span>
+            )}
+            {booking.created_at && (
+              <span className="opacity-60">
+                {formatDistanceToNow(new Date(booking.created_at), { addSuffix: true })}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Actions — tap buttons are the reliable primary path on every device
+            (full-width + 44px on mobile). Swipe-to-act stays available as a
+            silent power gesture, but we don't advertise it so the two paths
+            don't compete for the user's attention. */}
+        <div className="flex gap-2 sm:shrink-0 sm:ml-2">
+          <button
+            onClick={() => onDeclineClick(booking)}
+            disabled={approving === booking.id}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all"
+            style={{
+              backgroundColor: 'rgba(239,68,68,0.08)',
+              border: '1px solid rgba(239,68,68,0.2)',
+              color: '#ef4444',
+              minHeight: 44,
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.14)')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.08)')}
+          >
+            <XCircle size={13} /> Decline
+          </button>
+          <button
+            onClick={() => onApprove(booking.id)}
+            disabled={approving === booking.id}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all"
+            style={{
+              backgroundColor: approving === booking.id ? 'rgba(34,197,94,0.05)' : 'rgba(34,197,94,0.1)',
+              border: '1px solid rgba(34,197,94,0.25)',
+              color: '#22c55e',
+              minHeight: 44,
+              opacity: approving === booking.id ? 0.6 : 1,
+            }}
+            onMouseEnter={(e) => { if (approving !== booking.id) e.currentTarget.style.backgroundColor = 'rgba(34,197,94,0.16)'; }}
+            onMouseLeave={(e) => { if (approving !== booking.id) e.currentTarget.style.backgroundColor = 'rgba(34,197,94,0.1)'; }}
+          >
+            <CheckCircle2 size={13} />
+            {approving === booking.id ? 'Approving…' : 'Approve'}
+          </button>
+        </div>
       </motion.div>
     </motion.div>
   );
@@ -284,6 +298,8 @@ export default function PendingApprovalsWidget() {
   const [error, setError] = useState(null);
   const [approveError, setApproveError] = useState('');
   const [approving, setApproving] = useState(null);
+  const [approveBooking, setApproveBooking] = useState(null);
+  const [approveLoading, setApproveLoading] = useState(false);
   const [declining, setDeclining] = useState(null);
   const { refresh: refreshAlerts } = useAlerts();
 
@@ -304,23 +320,30 @@ export default function PendingApprovalsWidget() {
   // Don't render when there's nothing pending
   if (!loading && !error && bookings.length === 0) return null;
 
-  async function handleApprove(id) {
-    setApproving(id);
+  async function handleApproveClick(id) {
     setApproveError('');
+    setApproving(id);
+    setApproveLoading(true);
     try {
-      await api.approveBooking(id);
-      // Invalidate dashboard cache + force the global alerts context to
-      // re-pull so the top-bar pill, sidebar badge, and any open booking
-      // detail page all update within ~300ms.
-      invalidateCache('overview');
-      refreshAlerts();
-      setBookings((prev) => prev.filter((b) => b.id !== id));
+      const b = await api.getBooking(id);
+      if (b?.rental_agreements && !Array.isArray(b.rental_agreements)) {
+        b.rental_agreements = [b.rental_agreements];
+      }
+      setApproveBooking(b);
     } catch (e) {
       console.error(e);
-      setApproveError(e?.data?.error || 'Failed to approve booking');
+      setApproveError(e?.data?.error || 'Could not load booking details');
     } finally {
       setApproving(null);
+      setApproveLoading(false);
     }
+  }
+
+  function handleApproved(id) {
+    invalidateCache('overview');
+    refreshAlerts();
+    setBookings((prev) => prev.filter((b) => b.id !== id));
+    setApproveBooking(null);
   }
 
   function handleDeclined(id) {
@@ -403,7 +426,7 @@ export default function PendingApprovalsWidget() {
             <BookingCard
               key={b.id}
               booking={b}
-              onApprove={handleApprove}
+              onApprove={handleApproveClick}
               onDeclineClick={setDeclining}
               approving={approving}
               isLast={i === bookings.length - 1}
@@ -417,6 +440,13 @@ export default function PendingApprovalsWidget() {
           </div>
         )}
       </motion.div>
+
+      <ApproveBookingModal
+        open={!!approveBooking}
+        booking={approveBooking}
+        onClose={() => setApproveBooking(null)}
+        onApproved={() => handleApproved(approveBooking?.id)}
+      />
 
       <AnimatePresence>
         {declining && (

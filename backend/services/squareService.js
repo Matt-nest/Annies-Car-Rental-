@@ -7,6 +7,7 @@ import { createNotification } from './notificationService.js';
 import { sendTeamAlertAsync, TEAM_ALERT_EVENTS } from './teamAlertService.js';
 import { sendBookingNotification, buildBookingPayload } from './notifyService.js';
 import { calcInsuranceCost } from './pricingService.js';
+import { resolveBookingDepositCents } from './depositService.js';
 import { bindPolicy as bindBonzahPolicy, BonzahError } from './bonzahService.js';
 
 function centsToDollars(cents) {
@@ -44,7 +45,7 @@ async function getPaymentTotals(booking) {
   const rentalCents = Math.round(Number(booking.total_cost || 0) * 100);
   if (rentalCents <= 0) throw Object.assign(new Error('Invalid booking total'), { status: 400 });
   const insuranceCents = Math.round(calcInsuranceCost(booking) * 100);
-  const depositCents = await getDepositCentsForVehicle(booking.vehicle_id);
+  const depositCents = await resolveBookingDepositCents(booking);
   return {
     rentalCents,
     insuranceCents,
@@ -230,7 +231,7 @@ async function recordSuccessfulSquarePayment(payment, bookingOverride = null) {
 }
 
 async function formatSquareBookingSummary(booking) {
-  const depositAmount = centsToDollars(await getDepositCentsForVehicle(booking.vehicle_id));
+  const depositAmount = centsToDollars(await resolveBookingDepositCents(booking));
   const insuranceSource = booking.insurance_provider || null;
   const insuranceTier = booking.bonzah_tier_id || null;
   const insuranceCost = calcInsuranceCost(booking);

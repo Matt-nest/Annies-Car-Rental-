@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
-import { ArrowLeft, Phone, Mail, Car, MapPin, CheckCircle, XCircle, Package, RotateCcw, Flag, DollarSign, FileText, Shield, CreditCard, User, ClipboardCheck, Receipt, Navigation, RefreshCw, AlertCircle, Loader2, CalendarPlus, Clock } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, Car, MapPin, CheckCircle, XCircle, Package, RotateCcw, Flag, DollarSign, FileText, Shield, CreditCard, User, ClipboardCheck, Receipt, Navigation, RefreshCw, AlertCircle, Loader2, CalendarPlus } from 'lucide-react';
 import { api } from '../api/client';
 import { bonzahApi } from '../api/bonzah';
 import { supabase } from '../auth/supabaseClient';
@@ -8,6 +8,7 @@ import StatusBadge from '../components/shared/StatusBadge';
 import { SkeletonDashboard } from '../components/shared/Skeleton';
 import AgreementSection from '../components/shared/AgreementSection';
 import BookingModals from '../components/shared/BookingModals';
+import ApproveBookingModal, { PaymentLinkBanner } from '../components/shared/ApproveBookingModal';
 import BookingTimeline from '../components/shared/BookingTimeline';
 import Section from '../components/shared/Section';
 import InlineBanner from '../components/shared/InlineBanner';
@@ -207,312 +208,7 @@ function ConditionPhotosSection({ records, onView }) {
 }
 
 /* ────────────────────────────────────────────────────────
-   Rental Extensions — customer-initiated, self-contained fetch.
-   Renders nothing until at least one extension exists, so it stays
-   invisible on the vast majority of bookings.
-   ──────────────────────────────────────────────────────── */
-function RentalExtensionsSection({ bookingId }) {
-  const [rows, setRows] = useState([]);
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const data = await api.getBookingExtensions(bookingId);
-        if (!cancelled) setRows(Array.isArray(data) ? data : []);
-      } catch { /* table may not be migrated yet — stay hidden */ }
-    })();
-    return () => { cancelled = true; };
-  }, [bookingId]);
-
-  if (rows.length === 0) return null;
-
-  const statusColor = (s) => (
-    s === 'paid' ? 'text-[#22c55e]'
-    : s === 'failed' ? 'text-[var(--danger-color)]'
-    : s === 'cancelled' ? 'text-[var(--text-tertiary)]'
-    : 'text-amber-500'
-  );
-
-  return (
-    <Section title="Rental Extensions">
-      <div className="space-y-2">
-        {rows.map(x => (
-          <div key={x.id} className="flex justify-between items-start text-sm py-1.5 border-b border-[var(--border-subtle)] last:border-0">
-            <div>
-              <p className="font-medium text-[var(--text-primary)]">
-                +{x.additional_days} day{x.additional_days === 1 ? '' : 's'} · {format(new Date(x.previous_return_date), 'MMM d')} → {format(new Date(x.new_return_date), 'MMM d, yyyy')}
-              </p>
-              <div className="flex items-center gap-2 text-xs text-[var(--text-tertiary)]">
-                <span className={`capitalize font-medium ${statusColor(x.status)}`}>{x.status.replace('_', ' ')}</span>
-                <span>·</span>
-                <span className="capitalize">{(x.created_by || 'customer').split(':')[0]}</span>
-                {x.created_at && <><span>·</span><span>{new Date(x.created_at).toLocaleDateString()}</span></>}
-              </div>
-            </div>
-            <span className="font-semibold tabular-nums text-[#22c55e]">
-              +${(Number(x.amount_cents || 0) / 100).toFixed(2)}
-            </span>
-          </div>
-        ))}
-      </div>
-    </Section>
-  );
-}
-
-/* ────────────────────────────────────────────────────────
-   Overage Charges — admin view of scheduled/auto card-on-file charges.
-   Self-contained; hidden unless the booking has any. Supports cancelling a
-   pending/disputed charge before it fires.
-   ──────────────────────────────────────────────────────── */
-function OverageChargesSection({ bookingId }) {
-  const [rows, setRows] = useState([]);
-  const [busyId, setBusyId] = useState(null);
-  const [error, setError] = useState('');
-
-  const reload = async () => {
-    try {
-      const data = await api.getOverageCharges(bookingId);
-      setRows(Array.isArray(data) ? data : []);
-    } catch { /* table may not be migrated — stay hidden */ }
-  };
-  useEffect(() => { reload(); }, [bookingId]);
-
-  if (rows.length === 0) return null;
-
-  const statusColor = (s) => (
-    s === 'succeeded' ? 'text-[#22c55e]'
-    : s === 'failed' ? 'text-[var(--danger-color)]'
-    : s === 'cancelled' ? 'text-[var(--text-tertiary)]'
-    : s === 'disputed' ? 'text-[#63b3ed]'
-    : 'text-amber-500'
-  );
-
-  const handleCancel = async (id) => {
-    if (!window.confirm('Cancel this scheduled overage charge? It will not be charged to the customer.')) return;
-    setBusyId(id);
-    setError('');
-    try {
-      await api.cancelOverageCharge(id);
-      await reload();
-    } catch (e) {
-      setError(e.message);
-    }
-    setBusyId(null);
-  };
-
-  return (
-    <Section title="Overage Charges">
-      {error && (
-        <div className="rounded-lg p-2 text-xs mb-2 bg-[rgba(239,68,68,0.07)] border border-[rgba(239,68,68,0.2)] text-[#ef4444]">{error}</div>
-      )}
-      <div className="space-y-2">
-        {rows.map(x => {
-          const scheduled = x.scheduled_for ? new Date(x.scheduled_for) : null;
-          const canCancel = ['pending', 'disputed'].includes(x.status);
-          return (
-            <div key={x.id} className="flex justify-between items-start gap-3 text-sm py-1.5 border-b border-[var(--border-subtle)] last:border-0">
-              <div className="min-w-0">
-                <p className="font-medium text-[var(--text-primary)]">{x.description}</p>
-                <div className="flex items-center flex-wrap gap-x-2 text-xs text-[var(--text-tertiary)]">
-                  <span className={`capitalize font-medium ${statusColor(x.status)}`}>{x.status}</span>
-                  {scheduled && x.status === 'pending' && (
-                    <><span>·</span><span className="flex items-center gap-1"><Clock size={11} /> fires {scheduled.toLocaleString()}</span></>
-                  )}
-                  {x.failure_reason && <><span>·</span><span>{x.failure_reason}</span></>}
-                </div>
-                {x.dispute_message && (
-                  <p className="text-xs italic text-[var(--text-tertiary)] mt-0.5">Disputed: “{x.dispute_message}”</p>
-                )}
-              </div>
-              <div className="flex flex-col items-end gap-1 shrink-0">
-                <span className="font-semibold tabular-nums text-[var(--text-primary)]">
-                  ${(Number(x.amount_cents || 0) / 100).toFixed(2)}
-                </span>
-                {canCancel && (
-                  <button
-                    onClick={() => handleCancel(x.id)}
-                    disabled={busyId === x.id}
-                    className="text-[11px] font-medium text-[var(--danger-color)] hover:underline disabled:opacity-50 flex items-center gap-1"
-                  >
-                    {busyId === x.id ? <Loader2 size={11} className="animate-spin" /> : <XCircle size={11} />} Cancel
-                  </button>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </Section>
-  );
-}
-
-/* ────────────────────────────────────────────────────────
-   Payment Plan — recurring/installment billing (admin).
-   Shows an existing plan (with per-installment "charge now" + cancel), or a
-   create form when the booking is billable and has no active plan.
-   ──────────────────────────────────────────────────────── */
-function PaymentPlanSection({ booking }) {
-  const bookingId = booking.id;
-  const [data, setData] = useState(null);
-  const [loaded, setLoaded] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [busyInst, setBusyInst] = useState(null);
-  const [error, setError] = useState('');
-  const [form, setForm] = useState({
-    interval: 'monthly',
-    installmentCount: 3,
-    startDate: new Date().toISOString().slice(0, 10),
-  });
-
-  const reload = async () => {
-    try {
-      const d = await api.getPaymentPlan(bookingId);
-      setData(d);
-    } catch { /* tables may not be migrated — stay hidden */ }
-    setLoaded(true);
-  };
-  useEffect(() => { reload(); }, [bookingId]);
-
-  const money = (cents) => `$${(Number(cents || 0) / 100).toFixed(2)}`;
-  const plan = data?.plan;
-  const activePlan = plan && plan.status === 'active';
-  const canCreate = ['confirmed', 'ready_for_pickup', 'active'].includes(booking.status) && !activePlan;
-
-  if (!loaded) return null;
-  if (!plan && !canCreate) return null;
-
-  const statusColor = (s) => (
-    s === 'paid' ? 'text-[#22c55e]'
-    : s === 'failed' ? 'text-[var(--danger-color)]'
-    : s === 'cancelled' ? 'text-[var(--text-tertiary)]'
-    : s === 'processing' ? 'text-[#63b3ed]'
-    : 'text-amber-500'
-  );
-
-  const doCreate = async () => {
-    setBusy(true); setError('');
-    try {
-      await api.createPaymentPlan(bookingId, {
-        interval: form.interval,
-        installmentCount: Number(form.installmentCount),
-        startDate: form.startDate,
-      });
-      setCreating(false);
-      await reload();
-    } catch (e) { setError(e.data?.error || e.message); }
-    setBusy(false);
-  };
-
-  const doCancel = async () => {
-    if (!window.confirm('Cancel this payment plan? Remaining installments will be cancelled.')) return;
-    setBusy(true); setError('');
-    try { await api.cancelPaymentPlan(plan.id); await reload(); }
-    catch (e) { setError(e.data?.error || e.message); }
-    setBusy(false);
-  };
-
-  const chargeNow = async (id) => {
-    setBusyInst(id); setError('');
-    try { await api.chargeInstallment(id); await reload(); }
-    catch (e) { setError(e.data?.error || e.message); }
-    setBusyInst(null);
-  };
-
-  return (
-    <Section title="Payment Plan">
-      {error && (
-        <div className="rounded-lg p-2 text-xs mb-2 bg-[rgba(239,68,68,0.07)] border border-[rgba(239,68,68,0.2)] text-[#ef4444]">{error}</div>
-      )}
-
-      {plan && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-[var(--text-secondary)]">
-              <span className="capitalize font-medium text-[var(--text-primary)]">{plan.interval}</span> · {data.summary.count} installments · <span className="capitalize">{plan.status}</span>
-            </div>
-            {activePlan && (
-              <button onClick={doCancel} disabled={busy} className="text-[11px] font-medium text-[var(--danger-color)] hover:underline disabled:opacity-50">
-                Cancel plan
-              </button>
-            )}
-          </div>
-          <div className="text-xs text-[var(--text-tertiary)]">
-            {money(data.summary.paidCents)} of {money(data.summary.totalCents)} paid
-            {data.summary.nextDueDate && ` · next ${money(data.summary.nextAmountCents)} on ${format(new Date(data.summary.nextDueDate), 'MMM d, yyyy')}`}
-          </div>
-          <div className="space-y-1.5">
-            {data.installments.map(inst => {
-              const chargeable = ['scheduled', 'failed'].includes(inst.status);
-              return (
-                <div key={inst.id} className="flex justify-between items-center text-sm py-1.5 border-b border-[var(--border-subtle)] last:border-0">
-                  <div>
-                    <span className="text-[var(--text-primary)]">#{inst.sequence} · {format(new Date(inst.due_date), 'MMM d, yyyy')}</span>
-                    <div className="text-xs">
-                      <span className={`capitalize font-medium ${statusColor(inst.status)}`}>{inst.status}</span>
-                      {inst.last_error && <span className="text-[var(--text-tertiary)]"> · {inst.last_error}</span>}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="tabular-nums text-[var(--text-primary)]">{money(inst.amount_cents)}</span>
-                    {chargeable && activePlan && (
-                      <button onClick={() => chargeNow(inst.id)} disabled={busyInst === inst.id}
-                        className="text-[11px] font-medium text-[var(--accent-color)] hover:underline disabled:opacity-50 flex items-center gap-1">
-                        {busyInst === inst.id ? <Loader2 size={11} className="animate-spin" /> : null} Charge now
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {canCreate && !creating && (
-        <button onClick={() => setCreating(true)} className="btn-secondary mt-2">
-          <CalendarPlus size={14} /> Set up payment plan
-        </button>
-      )}
-
-      {canCreate && creating && (
-        <div className="mt-2 space-y-3 rounded-xl p-3 bg-[var(--bg-card)] border border-[var(--border-subtle)]">
-          <p className="text-xs text-[var(--text-tertiary)]">Splits the current outstanding balance into installments charged to the card on file.</p>
-          <div className="grid grid-cols-3 gap-2">
-            <div>
-              <label className="text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">Cadence</label>
-              <select className="input text-sm" value={form.interval} onChange={e => setForm(f => ({ ...f, interval: e.target.value }))}>
-                <option value="weekly">Weekly</option>
-                <option value="biweekly">Biweekly</option>
-                <option value="monthly">Monthly</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]"># Payments</label>
-              <input type="number" min="1" max="60" className="input text-sm" value={form.installmentCount}
-                onChange={e => setForm(f => ({ ...f, installmentCount: e.target.value }))} />
-            </div>
-            <div>
-              <label className="text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">First due</label>
-              <input type="date" className="input text-sm" value={form.startDate}
-                onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))} />
-            </div>
-          </div>
-          <div className="flex gap-2 justify-end">
-            <button onClick={() => setCreating(false)} className="btn-ghost">Cancel</button>
-            <button onClick={doCreate} disabled={busy} className="btn-primary">
-              {busy ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />} Create plan
-            </button>
-          </div>
-        </div>
-      )}
-    </Section>
-  );
-}
-
-/* ────────────────────────────────────────────────────────
    Extend Rental Modal — admin-initiated extension.
-   Quote → confirm; optionally record a manual payment or waive.
    ──────────────────────────────────────────────────────── */
 function ExtendRentalModal({ booking, onClose, onDone }) {
   const currentReturn = String(booking.return_date).slice(0, 10);
@@ -684,13 +380,15 @@ export default function BookingDetailPage() {
 
   useEffect(() => { load(); }, [id]);
 
+  // Clear any stale action error whenever the open modal changes (opening a
+  // different action or closing). A failure leaves `modal` unchanged, so this
+  // never wipes the error the user needs to see.
   useEffect(() => { setActionError(null); }, [modal]);
 
   async function doAction(action) {
     setActioning(true);
     setActionError(null);
     try {
-      if (action === 'approve')  await api.approveBooking(id);
       if (action === 'decline')  await api.declineBooking(id, modalInput);
       if (action === 'cancel')   await api.cancelBooking(id, modalInput);
       if (action === 'pickup')   await api.recordPickup(id, {
@@ -708,14 +406,19 @@ export default function BookingDetailPage() {
       if (action === 'complete') await api.completeBooking(id);
       if (action === 'payment')  await api.recordPayment(id, paymentForm);
       if (action === 'damage')   await api.fileDamageReport(id, damageForm);
+      // Reload booking + dashboard alert badges in parallel so the top-bar
+      // pills, sidebar badges, and detail page all reflect the new state.
       await Promise.all([load(), refreshAlerts()]);
+      // Success — close the modal and reset its forms.
       setModal(null);
       setModalInput('');
       setConditionForm({ fuel: 'full', notes: '', photoUrl: '' });
       setDamageForm({ description: '', severity: 'minor', estimated_cost: '', photo_url: '' });
     } catch (e) {
+      // Keep the modal open and tell the user — previously this swallowed the
+      // error and closed the modal as if the action had succeeded.
       console.error(e);
-      setActionError(e?.data?.error || e?.message || 'That action could not be completed. Please try again.');
+      setActionError(e?.data?.error || 'That action could not be completed. Please try again.');
     } finally {
       setActioning(false);
     }
@@ -836,17 +539,23 @@ export default function BookingDetailPage() {
         }
 
         if (needsPayment) {
+          const depositDue = Number(booking.deposit_amount) || 0;
+          const estTotal = Number(booking.total_cost) + depositDue;
           return (
-            <div className="bg-[rgba(99,179,237,0.07)] border border-[rgba(99,179,237,0.15)] rounded-xl p-4 flex items-center gap-3">
-              <div className="w-10 h-10 bg-[rgba(99,179,237,0.15)] rounded-full flex items-center justify-center shrink-0">
-                <CreditCard size={18} className="text-[#63b3ed]" />
+            <div className="bg-[rgba(99,179,237,0.07)] border border-[rgba(99,179,237,0.15)] rounded-xl p-4 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[rgba(99,179,237,0.15)] rounded-full flex items-center justify-center shrink-0">
+                  <CreditCard size={18} className="text-[#63b3ed]" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-[#63b3ed]">Waiting for Customer Payment</p>
+                  <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                    Approved — customer owes ~${estTotal.toFixed(2)} (rental + ${depositDue.toFixed(2)} deposit, plus insurance if selected).
+                    {booking.is_high_risk ? ' Flagged high-risk.' : ''}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-semibold text-[#63b3ed]">Waiting for Customer Payment</p>
-                <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                  Booking has been approved. The customer needs to complete payment of ${booking.total_cost} to proceed.
-                </p>
-              </div>
+              <PaymentLinkBanner bookingCode={booking.booking_code} />
             </div>
           );
         }
@@ -934,7 +643,11 @@ export default function BookingDetailPage() {
       })()}
 
       {/* ── Tab Navigation ──────────────────────────────────────────── */}
-      <div className="flex gap-1 scroll-x-contained no-scrollbar pb-1 border-b border-[var(--border-subtle)] max-w-full">
+      {/* Sprint 8: mobile = 4 equal-width grid with icon stacked above label
+          (Material Design tab pattern). Desktop = original horizontal scroll
+          with icon-left-of-label. .tap-target ensures every tab is 44+ px
+          tall on touch. */}
+      <div className="flex gap-1 scroll-x-contained no-scrollbar pb-1 border-b border-[var(--border-subtle)] max-w-full md:flex-wrap">
         {TABS.map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -942,14 +655,21 @@ export default function BookingDetailPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex shrink-0 items-center gap-1.5 px-4 py-2.5 min-h-[44px] sm:min-h-0 text-sm font-medium rounded-t-lg transition-all whitespace-nowrap ${
+              className={`tap-target flex flex-col md:flex-row items-center justify-center gap-1 md:gap-1.5 px-2 md:px-4 py-3 md:py-2.5 text-[11px] md:text-sm font-medium md:rounded-t-lg transition-all whitespace-nowrap relative ${
                 isActive
-                  ? 'text-[var(--accent-color)] bg-[var(--bg-elevated)] border border-[var(--border-subtle)] border-b-transparent -mb-px'
+                  ? 'text-[var(--accent-color)] md:bg-[var(--bg-elevated)] md:border md:border-[var(--border-subtle)] md:border-b-transparent md:-mb-px'
                   : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-card)]'
               }`}
             >
-              <Icon size={14} />
-              {tab.label}
+              <Icon size={18} className="md:!w-[14px] md:!h-[14px]" />
+              <span>{tab.label}</span>
+              {/* Mobile-only active indicator bar (md+ uses the bordered tab look) */}
+              {isActive && (
+                <span
+                  className="md:hidden absolute bottom-0 inset-x-2 h-[2px] rounded-t"
+                  style={{ backgroundColor: 'var(--accent-color)' }}
+                />
+              )}
             </button>
           );
         })}
@@ -1000,13 +720,16 @@ export default function BookingDetailPage() {
         actioning={actioning} doAction={doAction} actionError={actionError}
       />
 
-      <BookingActionBar
-        status={status}
-        onAction={(action) => setModal(action)}
-        disabled={actioning}
+      <ApproveBookingModal
+        open={modal === 'approve'}
+        booking={booking}
+        onClose={() => setModal(null)}
+        onApproved={async () => {
+          await Promise.all([load(), refreshAlerts()]);
+          setModal(null);
+        }}
       />
 
-      {/* Extend Rental modal */}
       {showExtend && (
         <ExtendRentalModal
           booking={booking}
@@ -1014,6 +737,16 @@ export default function BookingDetailPage() {
           onDone={async () => { setShowExtend(false); await Promise.all([load(), refreshAlerts()]); }}
         />
       )}
+
+      {/* Sprint 8b: phone-only sticky bottom CTA — single primary action per
+          booking state. Triggers the existing setModal flow so all existing
+          modals (decline reason, pickup mileage, return condition, etc.)
+          remain the source of truth. Hidden at md+. */}
+      <BookingActionBar
+        status={status}
+        onAction={(action) => setModal(action)}
+        disabled={actioning}
+      />
 
       {/* Photo Lightbox */}
       {lightboxUrl && (
@@ -1045,11 +778,56 @@ export default function BookingDetailPage() {
 }
 
 
+function RentalExtensionsSection({ bookingId }) {
+  const [rows, setRows] = useState([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await api.getBookingExtensions(bookingId);
+        if (!cancelled) setRows(Array.isArray(data) ? data : []);
+      } catch { /* table may not be migrated yet — stay hidden */ }
+    })();
+    return () => { cancelled = true; };
+  }, [bookingId]);
+
+  if (rows.length === 0) return null;
+
+  const statusColor = (s) => (
+    s === 'paid' ? 'text-[#22c55e]'
+    : s === 'failed' ? 'text-[var(--danger-color)]'
+    : s === 'cancelled' ? 'text-[var(--text-tertiary)]'
+    : 'text-amber-500'
+  );
+
+  return (
+    <Section title="Rental Extensions">
+      <div className="space-y-2">
+        {rows.map(x => (
+          <div key={x.id} className="flex justify-between items-start text-sm py-1.5 border-b border-[var(--border-subtle)] last:border-0">
+            <div>
+              <p className="font-medium text-[var(--text-primary)]">
+                +{x.additional_days} day{x.additional_days === 1 ? '' : 's'} · {format(new Date(x.previous_return_date), 'MMM d')} → {format(new Date(x.new_return_date), 'MMM d, yyyy')}
+              </p>
+              <div className="flex items-center gap-2 text-xs text-[var(--text-tertiary)]">
+                <span className={`capitalize font-medium ${statusColor(x.status)}`}>{x.status.replace('_', ' ')}</span>
+                <span>·</span>
+                <span className="capitalize">{(x.created_by || 'customer').split(':')[0]}</span>
+                {x.created_at && <><span>·</span><span>{new Date(x.created_at).toLocaleDateString()}</span></>}
+              </div>
+            </div>
+            <span className="font-semibold tabular-nums text-[#22c55e]">
+              +${(Number(x.amount_cents || 0) / 100).toFixed(2)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
 /* ────────────────────────────────────────────────────────
    Overview Tab — extracted from the original monolith
-   ──────────────────────────────────────────────────────── */
-/* ────────────────────────────────────────────────────────
-   Deposit panel — record manual deposits + show status
    ──────────────────────────────────────────────────────── */
 function DepositSection({ booking, onUpdated }) {
   const [deposit, setDeposit] = useState(null);
@@ -1395,14 +1173,7 @@ function OverviewTab({ booking, c, v, id, load, setModal, setPaymentForm, setLig
         </div>
       </Section>
 
-      {/* Rental Extensions (customer- or admin-initiated) — hidden unless any exist */}
       <RentalExtensionsSection bookingId={id} />
-
-      {/* Overage Charges (auto card-on-file) — hidden unless any exist */}
-      <OverageChargesSection bookingId={id} />
-
-      {/* Payment Plan (installments) — create/manage recurring billing */}
-      <PaymentPlanSection booking={booking} />
 
       {/* Vehicle Condition */}
       {(booking.pickup_mileage || booking.return_mileage) && (
@@ -1492,7 +1263,7 @@ function BookingInsuranceSection({ booking, bookingId, reload }) {
   async function handleCancel() {
     if (!window.confirm(
       'Cancel this Bonzah policy?\n\nThis files a cancel endorsement with Bonzah. ' +
-      'Refund (if any) goes to Annie\'s broker credit — NOT the customer. ' +
+      'Refund (if any) goes to the broker credit — NOT the customer. ' +
       'Underwriter approval is async; the polling job will pick up the final status.'
     )) return;
 
@@ -1557,7 +1328,7 @@ function BookingInsuranceSection({ booking, bookingId, reload }) {
             <p className="text-sm font-medium text-[var(--text-primary)] mt-0.5 flex items-center gap-2">
               {isBonzah ? 'Bonzah' : isOwn ? "Customer's Own" : booking.insurance_provider || '—'}
               {tierLabel && (
-                <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-[rgba(70,95,255,0.15)] text-[#465FFF]">
+                <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-[rgba(19,41,75,0.15)] text-[#13294B]">
                   {tierLabel}
                 </span>
               )}
@@ -1629,7 +1400,7 @@ function BookingInsuranceSection({ booking, bookingId, reload }) {
             <Field label="Policy #" value={booking.bonzah_policy_no || '—'} />
             <Field label="Policy ID" value={booking.bonzah_policy_id} />
             {premium != null && <Field label="Premium (Bonzah base)" value={`$${premium.toFixed(2)}`} />}
-            {markup != null && <Field label="Markup (Annie's)" value={`$${markup.toFixed(2)}`} />}
+            {markup != null && <Field label="Markup (JD)" value={`$${markup.toFixed(2)}`} />}
             {totalCharged != null && <Field label="Total charged" value={`$${totalCharged.toFixed(2)}`} />}
             <Field
               label="Last synced"
@@ -1697,7 +1468,7 @@ function BookingInsuranceSection({ booking, bookingId, reload }) {
                 />
                 <button
                   onClick={handleSaveOverride}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#465FFF] text-white hover:opacity-90"
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#13294B] text-white hover:opacity-90"
                 >
                   Save
                 </button>

@@ -9,6 +9,7 @@ import DataTable from '../components/shared/DataTable';
 import Modal from '../components/shared/Modal';
 import DataError from '../components/shared/DataError';
 import NewBookingModal from '../components/bookings/NewBookingModal';
+import ApproveBookingModal from '../components/shared/ApproveBookingModal';
 import { format } from 'date-fns';
 
 const EASE = [0.25, 1, 0.5, 1];
@@ -25,6 +26,8 @@ export default function BookingsPage() {
   const [actioning, setActioning] = useState(false);
   const [actionModalError, setActionModalError] = useState(null);
   const [newBookingOpen, setNewBookingOpen] = useState(false);
+
+  const [approveBooking, setApproveBooking] = useState(null);
 
   const { refresh: refreshAlerts } = useAlerts();
   const status = searchParams.get('status') || '';
@@ -45,18 +48,22 @@ export default function BookingsPage() {
 
   useEffect(() => { fetchBookings(); }, [fetchBookings]);
 
-  async function handleApprove(booking) {
-    setActioning(true);
+  async function openApproveModal(booking) {
     setActionModalError(null);
     try {
-      await api.approveBooking(booking.id);
-      setActionModal(null);
-      await Promise.all([fetchBookings(), refreshAlerts()]);
+      const b = await api.getBooking(booking.id);
+      if (b?.rental_agreements && !Array.isArray(b.rental_agreements)) {
+        b.rental_agreements = [b.rental_agreements];
+      }
+      setApproveBooking(b);
     } catch (e) {
-      setActionModalError(e?.data?.error || e?.message || 'Could not approve booking');
-    } finally {
-      setActioning(false);
+      setActionModalError(e?.data?.error || e?.message || 'Could not load booking');
     }
+  }
+
+  async function handleApproved() {
+    setApproveBooking(null);
+    await Promise.all([fetchBookings(), refreshAlerts()]);
   }
 
   async function handleDecline() {
@@ -83,7 +90,7 @@ export default function BookingsPage() {
         <div
           className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shrink-0"
           style={{
-            background: 'linear-gradient(135deg, #465FFF, #8B5CF6)',
+            background: 'linear-gradient(135deg, #13294B, #8B5CF6)',
             color: 'var(--accent-fg)',
           }}
         >
@@ -163,8 +170,8 @@ export default function BookingsPage() {
       <DataError error={error} />
 
       {/* Filter bar */}
-      <div className="card p-4 flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 min-w-0">
-        <div className="flex items-center gap-2 rounded-xl px-4 py-3 flex-1 min-w-0"
+      <div className="card p-4 flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2 rounded-xl px-4 py-3 flex-1 min-w-[200px]"
           style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)' }}>
           <Search size={15} style={{ color: 'var(--text-tertiary)' }} />
           <input
@@ -175,10 +182,10 @@ export default function BookingsPage() {
             onChange={e => setSearchParams({ status, q: e.target.value })}
           />
         </div>
-        <div className="flex items-center gap-2 w-full sm:w-auto min-w-0">
-          <Filter size={14} style={{ color: 'var(--text-tertiary)' }} className="shrink-0" />
+        <div className="flex items-center gap-2">
+          <Filter size={14} style={{ color: 'var(--text-tertiary)' }} />
           <select
-            className="input w-full sm:max-w-[200px] min-w-0"
+            className="input max-w-[200px]"
             value={status}
             onChange={e => setSearchParams({ status: e.target.value, q })}
           >
@@ -207,7 +214,7 @@ export default function BookingsPage() {
               <div className="flex items-center gap-2.5">
                 <div
                   className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shrink-0"
-                  style={{ background: 'linear-gradient(135deg, #465FFF, #8B5CF6)', color: '#fff' }}
+                  style={{ background: 'linear-gradient(135deg, #13294B, #8B5CF6)', color: '#fff' }}
                 >
                   {b.customers?.first_name?.[0]}{b.customers?.last_name?.[0]}
                 </div>
@@ -224,7 +231,7 @@ export default function BookingsPage() {
               {b.status === 'pending_approval' && (
                 <div className="flex gap-2 pt-1" onClick={e => e.stopPropagation()}>
                   <button
-                    onClick={() => setActionModal({ type: 'approve', booking: b })}
+                    onClick={() => openApproveModal(b)}
                     className="flex-1 h-10 rounded-lg flex items-center justify-center gap-1.5 text-xs font-semibold text-white bg-emerald-500 active:bg-emerald-600"
                   >
                     <CheckCircle size={14} /> Approve
@@ -242,27 +249,12 @@ export default function BookingsPage() {
         />
       </div>
 
-      {/* Approve modal */}
-      <Modal open={actionModal?.type === 'approve'} onClose={() => { setActionModal(null); setActionModalError(null); }} title="Approve Booking">
-        <div className="space-y-4">
-          <DataError error={actionModalError} />
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            You're about to approve{' '}
-            <span className="mono-code text-sm font-semibold px-2 py-0.5 rounded-lg"
-              style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)' }}>
-              {actionModal?.booking?.booking_code}
-            </span>{' '}
-            for {actionModal?.booking?.customers?.first_name} {actionModal?.booking?.customers?.last_name}.
-            They'll be notified via SMS/email.
-          </p>
-          <div className="flex gap-3">
-            <button onClick={() => setActionModal(null)} className="btn-secondary flex-1 justify-center">Cancel</button>
-            <button onClick={() => handleApprove(actionModal.booking)} disabled={actioning} className="btn-primary flex-1 justify-center">
-              {actioning ? 'Approving…' : 'Approve Booking'}
-            </button>
-          </div>
-        </div>
-      </Modal>
+      <ApproveBookingModal
+        open={!!approveBooking}
+        booking={approveBooking}
+        onClose={() => setApproveBooking(null)}
+        onApproved={handleApproved}
+      />
 
       {/* Decline modal */}
       <Modal open={actionModal?.type === 'decline'} onClose={() => { setActionModal(null); setActionModalError(null); }} title="Decline Booking">
