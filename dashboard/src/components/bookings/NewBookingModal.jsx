@@ -2,12 +2,14 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Loader2, AlertCircle, CheckCircle, ChevronLeft, ChevronRight, Copy, Send,
-  Car, Calendar, User, Sparkles, ScanLine, ArrowRight, Check, CreditCard, UserPlus, DollarSign,
+  Car, Calendar, User, Sparkles, ScanLine, ArrowRight, Check, CreditCard, UserPlus,
 } from 'lucide-react';
 import { api } from '../../api/client';
+import { calcAdminQuote, calcRentalDays, formatMoney } from '../../lib/bookingPricing';
 import Modal from '../shared/Modal';
 import RangeCalendar, { prettyDate, parseYMD } from './RangeCalendar';
 import VehiclePickCard from './VehiclePickCard';
+import BookingPricingPanel from './BookingPricingPanel';
 import AdminScanStep from './AdminScanStep';
 
 /**
@@ -98,6 +100,10 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
   const [vehicles, setVehicles] = useState([]);
   const [vehiclesLoading, setVehiclesLoading] = useState(false);
   const [vehicleId, setVehicleId] = useState('');
+  const [dailyRate, setDailyRate] = useState('');
+  const [applyWeeklyDiscount, setApplyWeeklyDiscount] = useState(false);
+  const [weeklyDiscountPct, setWeeklyDiscountPct] = useState('15');
+  const [depositAmount, setDepositAmount] = useState('150');
   const [exactPriceEnabled, setExactPriceEnabled] = useState(false);
   const [exactPrice, setExactPrice] = useState('');
 
@@ -130,7 +136,8 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
     setPickupDate(''); setReturnDate(''); setPickupTime('10:00'); setReturnTime('10:00');
     setDeliveryType('pickup'); setDeliveryAddress('');
     setVehicles([]); setVehicleId('');
-    setExactPriceEnabled(false); setExactPrice('');
+    setDailyRate(''); setApplyWeeklyDiscount(false); setWeeklyDiscountPct('15');
+    setDepositAmount('150'); setExactPriceEnabled(false); setExactPrice('');
     setUnlimitedMiles(false); setUnlimitedTolls(false); setSpecialRequests('');
     setFirstName(''); setLastName(''); setEmail(''); setPhone('');
     setIdMode(null); setShowScanner(true);
@@ -154,19 +161,38 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
   const selectedVehicle = useMemo(() => vehicles.find(v => v.id === vehicleId) || null, [vehicles, vehicleId]);
 
   useEffect(() => {
+    if (!selectedVehicle) return;
+    setDailyRate(String(selectedVehicle.daily_rate ?? ''));
+    setWeeklyDiscountPct(String(selectedVehicle.weekly_discount_percent ?? 15));
+    setApplyWeeklyDiscount(calcRentalDays(pickupDate, returnDate) >= 7);
     setExactPriceEnabled(false);
     setExactPrice('');
-  }, [selectedVehicle]);
+    const vehicleDeposit = Number(selectedVehicle.deposit_amount);
+    setDepositAmount(String(Number.isFinite(vehicleDeposit) && vehicleDeposit > 0 ? vehicleDeposit : 150));
+  }, [selectedVehicle, pickupDate, returnDate]);
 
-  const rentalDays = useMemo(() => {
-    if (!pickupDate || !returnDate || returnDate <= pickupDate) return 0;
-    return Math.round((parseYMD(returnDate) - parseYMD(pickupDate)) / 86400000);
-  }, [pickupDate, returnDate]);
+  const rentalDays = useMemo(
+    () => calcRentalDays(pickupDate, returnDate),
+    [pickupDate, returnDate],
+  );
 
-  const estimate = useMemo(() => {
-    if (!selectedVehicle?.daily_rate || rentalDays <= 0) return null;
-    return Number(selectedVehicle.daily_rate) * rentalDays;
-  }, [selectedVehicle, rentalDays]);
+  const quote = useMemo(() => {
+    if (!selectedVehicle || rentalDays <= 0 || !dailyRate) return null;
+    return calcAdminQuote({
+      dailyRate,
+      pickupDate,
+      returnDate,
+      applyWeeklyDiscount,
+      weeklyDiscountPct,
+      unlimitedMileageEnabled: selectedVehicle.weekly_unlimited_mileage_enabled !== false,
+      unlimitedMiles,
+      unlimitedTolls,
+    });
+  }, [selectedVehicle, rentalDays, dailyRate, pickupDate, returnDate, applyWeeklyDiscount, weeklyDiscountPct, unlimitedMiles, unlimitedTolls]);
+
+  const rentalTotal = exactPriceEnabled && Number(exactPrice) > 0
+    ? Number(exactPrice)
+    : quote?.rentalTotal ?? null;
 
   const bookingName = `${firstName} ${lastName}`.trim();
 
@@ -200,6 +226,11 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
       if (deliveryType !== 'pickup' && !deliveryAddress.trim()) { setError('Delivery address required for delivery options.'); return false; }
     } else if (step === 1) {
       if (!vehicleId) { setError('Select a vehicle.'); return false; }
+      if (!dailyRate || Number(dailyRate) <= 0) { setError('Enter a valid daily rate.'); return false; }
+      if (depositAmount === '' || Number(depositAmount) < 0 || !Number.isFinite(Number(depositAmount))) {
+        setError('Enter a valid deposit amount.');
+        return false;
+      }
       if (exactPriceEnabled && (!Number(exactPrice) || Number(exactPrice) <= 0)) {
         setError('Enter a valid exact rental total or turn off the override.');
         return false;
@@ -244,6 +275,26 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
     setError('');
     try {
       const prefill = buildPrefill();
+      const vehicleDaily = Number(selectedVehicle?.daily_rate);
+      const usingCustomDaily = Number.isFinite(vehicleDaily) && Number(dailyRate) !== vehicleDaily;
+      const vehicleWeeklyPct = Number(selectedVehicle?.weekly_discount_percent ?? 15);
+      const weeklyPct = Number(weeklyDiscountPct);
+
+      let admin_total_cost_override;
+      let admin_weekly_discount_percent;
+
+      if (exactPriceEnabled) {
+        admin_total_cost_override = Number(exactPrice);
+      } else if (usingCustomDaily && quote?.rentalTotal) {
+        admin_total_cost_override = quote.rentalTotal;
+      } else if (rentalDays >= 7) {
+        if (applyWeeklyDiscount) {
+          if (weeklyPct !== vehicleWeeklyPct) admin_weekly_discount_percent = weeklyPct;
+        } else {
+          admin_weekly_discount_percent = 0;
+        }
+      }
+
       const payload = {
         first_name: firstName.trim(),
         last_name: lastName.trim(),
@@ -258,7 +309,9 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
         delivery_address: deliveryType !== 'pickup' ? deliveryAddress.trim() : undefined,
         unlimited_miles: !!unlimitedMiles,
         unlimited_tolls: !!unlimitedTolls,
-        admin_total_cost_override: exactPriceEnabled ? Number(exactPrice) : undefined,
+        admin_total_cost_override,
+        admin_weekly_discount_percent,
+        admin_deposit_amount: Number(depositAmount),
         special_requests: specialRequests.trim() || undefined,
         ...(prefill ? { agreement_prefill: prefill } : {}),
       };
@@ -411,41 +464,26 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
                       ))}
                     </div>
                   )}
-                  {selectedVehicle && estimate != null && (
-                    <div className="flex justify-between items-center text-sm px-3 py-2.5 rounded-xl"
-                      style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)' }}>
-                      <span className="text-[var(--text-tertiary)]">Est. rental ({rentalDays} day{rentalDays !== 1 ? 's' : ''})</span>
-                      <span className="font-bold tabular-nums text-[var(--text-primary)]">${estimate.toLocaleString()}</span>
-                    </div>
-                  )}
                   {selectedVehicle && (
-                    <div className="p-3 rounded-xl space-y-3" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
-                      <label className="flex items-center gap-3 p-3 rounded-xl cursor-pointer" style={{ backgroundColor: 'var(--bg-card-hover)' }}>
-                        <input type="checkbox" checked={exactPriceEnabled} onChange={e => setExactPriceEnabled(e.target.checked)} />
-                        <div className="flex-1">
-                          <p className="text-sm font-semibold text-[var(--text-primary)]">Set exact rental total</p>
-                          <p className="text-xs text-[var(--text-tertiary)]">Manual quote for this booking before deposit and insurance.</p>
-                        </div>
-                      </label>
-
-                      {exactPriceEnabled && (
-                        <div>
-                          <label className={fieldLabel}>Exact rental total</label>
-                          <div className="relative">
-                            <DollarSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
-                            <input
-                              type="number"
-                              min="1"
-                              step="0.01"
-                              className="input w-full pl-8"
-                              value={exactPrice}
-                              onChange={e => setExactPrice(e.target.value)}
-                              placeholder={estimate != null ? estimate.toFixed(2) : ''}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                    <BookingPricingPanel
+                      vehicle={selectedVehicle}
+                      pickupDate={pickupDate}
+                      returnDate={returnDate}
+                      dailyRate={dailyRate}
+                      onDailyRateChange={setDailyRate}
+                      applyWeeklyDiscount={applyWeeklyDiscount}
+                      onApplyWeeklyDiscountChange={setApplyWeeklyDiscount}
+                      weeklyDiscountPct={weeklyDiscountPct}
+                      onWeeklyDiscountPctChange={setWeeklyDiscountPct}
+                      depositAmount={depositAmount}
+                      onDepositAmountChange={setDepositAmount}
+                      exactPriceEnabled={exactPriceEnabled}
+                      onExactPriceEnabledChange={setExactPriceEnabled}
+                      exactPrice={exactPrice}
+                      onExactPriceChange={setExactPrice}
+                      unlimitedMiles={unlimitedMiles}
+                      unlimitedTolls={unlimitedTolls}
+                    />
                   )}
                 </div>
               )}
@@ -620,7 +658,22 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
                     {(unlimitedMiles || unlimitedTolls) && (
                       <Row k="Add-ons" v={[unlimitedMiles && 'Unlimited miles', unlimitedTolls && 'Unlimited tolls'].filter(Boolean).join(', ')} />
                     )}
-                    {estimate != null && <Row k="Est. rental" v={`$${estimate.toLocaleString()}`} />}
+                    {rentalTotal != null && (
+                      <Row
+                        k={exactPriceEnabled ? 'Rental total (override)' : 'Rental total'}
+                        v={`$${formatMoney(rentalTotal)}`}
+                      />
+                    )}
+                    <Row k="Deposit" v={`$${formatMoney(depositAmount)}`} />
+                    {rentalTotal != null && (
+                      <Row
+                        k="Est. checkout"
+                        v={`$${formatMoney(rentalTotal + (Number(depositAmount) || 0))}`}
+                      />
+                    )}
+                    {applyWeeklyDiscount && rentalDays >= 7 && (
+                      <Row k="Weekly discount" v={`${weeklyDiscountPct}%`} />
+                    )}
                   </div>
 
                   <div className="p-3 rounded-xl flex items-start gap-2"
