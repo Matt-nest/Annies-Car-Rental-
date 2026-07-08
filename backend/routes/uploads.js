@@ -87,17 +87,52 @@ router.post('/scan-id', upload.single('file'), asyncHandler(async (req, res) => 
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded. Field name must be "file".' });
   }
+
+  const scan_id = crypto.randomUUID();
+  let photo_path = null;
+  let photo_url = null;
+
+  // Always persist the scan image so the dashboard can display the captured ID photo.
+  try {
+    const stored = await uploadToStorage('id-photos', req.file, 'ids/scans');
+    photo_path = stored.path;
+    photo_url = stored.url;
+  } catch (err) {
+    console.warn('[scan-id] Photo storage failed:', err.message);
+  }
+
   const { scanIdDocument, AZURE_ID_SCAN_ENABLED } = await import('../services/idScanService.js');
-  if (!AZURE_ID_SCAN_ENABLED) return res.json({ ok: false, reason: 'not_configured' });
+  if (!AZURE_ID_SCAN_ENABLED) {
+    return res.json({
+      ok: false,
+      reason: 'not_configured',
+      scan_id,
+      photo_path,
+      photo_url,
+    });
+  }
+
   try {
     const fields = await scanIdDocument(req.file.buffer);
     if (!fields || (!fields.licenseNumber && !fields.lastName)) {
-      return res.json({ ok: false, reason: 'no_id_found' });
+      return res.json({
+        ok: false,
+        reason: 'no_id_found',
+        scan_id,
+        photo_path,
+        photo_url,
+      });
     }
-    res.json({ ok: true, fields });
+    res.json({ ok: true, scan_id, photo_path, photo_url, fields });
   } catch (err) {
     console.warn('[scan-id] Azure OCR failed:', err.message);
-    res.json({ ok: false, reason: 'error' });
+    res.json({
+      ok: false,
+      reason: 'error',
+      scan_id,
+      photo_path,
+      photo_url,
+    });
   }
 }));
 

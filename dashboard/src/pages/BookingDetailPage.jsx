@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
-import { ArrowLeft, Phone, Mail, Car, MapPin, CheckCircle, XCircle, Package, RotateCcw, Flag, DollarSign, FileText, Shield, CreditCard, User, ClipboardCheck, Receipt, Navigation, RefreshCw, AlertCircle, Loader2, CalendarPlus } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, Car, MapPin, CheckCircle, XCircle, Package, RotateCcw, Flag, DollarSign, FileText, Shield, CreditCard, User, ClipboardCheck, Receipt, Navigation, RefreshCw, AlertCircle, Loader2, CalendarPlus, ScanLine, Truck, PlusCircle } from 'lucide-react';
 import { api } from '../api/client';
 import { bonzahApi } from '../api/bonzah';
 import { supabase } from '../auth/supabaseClient';
@@ -29,6 +29,48 @@ const TABS = [
   { id: 'checkout',   label: 'Check-Out',  icon: ClipboardCheck },
   { id: 'invoice',    label: 'Invoice',    icon: Receipt     },
 ];
+
+const DELIVERY_LABELS = {
+  pickup: 'Customer Pickup (Port St. Lucie)',
+  psl_delivery: 'PSL Delivery',
+  surrounding_delivery: 'Surrounding Area Delivery',
+};
+
+const ADDON_LABELS = {
+  unlimited_miles: 'Unlimited Miles',
+  unlimited_tolls: 'Unlimited Tolls',
+  delivery: 'Delivery',
+};
+
+function resolveDeliveryType(booking) {
+  if (booking.delivery_type) return booking.delivery_type;
+  const m = booking.special_requests?.match(/Delivery type:\s*(\w+)/i);
+  return m?.[1] || (booking.delivery_requested ? 'delivery' : 'pickup');
+}
+
+function formatDeliveryLabel(booking) {
+  const type = resolveDeliveryType(booking);
+  return DELIVERY_LABELS[type] || type.replace(/_/g, ' ');
+}
+
+function parseCustomerNotes(specialRequests) {
+  if (!specialRequests) return '';
+  return specialRequests
+    .split(' | ')
+    .filter(part => part && !/^Delivery type:/i.test(part) && !/^Rate preference:/i.test(part)
+      && !/^Admin weekly discount:/i.test(part) && !/^Admin exact rental total:/i.test(part))
+    .join(' | ');
+}
+
+function formatScanMethod(method) {
+  const labels = {
+    barcode_live: 'Live barcode scan',
+    barcode_still: 'Barcode (photo)',
+    azure_ocr: 'OCR scan',
+    manual: 'Manual entry',
+  };
+  return labels[method] || method || '—';
+}
 
 /* ────────────────────────────────────────────────────────
    ID Photo Gallery — handles new multi-path + legacy single URL
@@ -998,6 +1040,30 @@ function OverviewTab({ booking, c, v, id, load, setModal, setPaymentForm, setLig
                 />
               </div>
             )}
+            {ag?.license_scan_metadata && (
+              <div className={(hasDL || hasAddress || hasIdPhoto) ? 'pt-3 border-t border-[var(--border-subtle)]' : ''}>
+                <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <ScanLine size={12} /> License Scan Record
+                </p>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <Field label="Scan ID" value={ag.license_scan_metadata.scan_id} />
+                  <Field label="Method" value={formatScanMethod(ag.license_scan_metadata.method)} />
+                  <Field label="Scanned At" value={ag.license_scan_metadata.scanned_at
+                    ? format(new Date(ag.license_scan_metadata.scanned_at), 'MMM d, yyyy h:mm a')
+                    : '—'} />
+                  <Field label="Name on ID" value={ag.license_scan_metadata.scanned_name} />
+                  <Field label="Name Match" value={ag.license_scan_metadata.name_match || '—'} />
+                </div>
+                {ag.license_scan_metadata.name_match === 'mismatch' && (
+                  <p className="text-xs text-[#b45309] mt-2">Scanned name differs from booking name — verify at pickup.</p>
+                )}
+              </div>
+            )}
+            {ag?.customer_ip && (
+              <div className="pt-3 border-t border-[var(--border-subtle)]">
+                <Field label="Agreement signed from IP" value={ag.customer_ip} />
+              </div>
+            )}
           </Section>
         );
       })()}
@@ -1057,11 +1123,50 @@ function OverviewTab({ booking, c, v, id, load, setModal, setPaymentForm, setLig
           <MapPin size={14} className="mt-0.5 shrink-0" />
           {booking.pickup_location}
         </div>
-        {booking.delivery_requested && (
+        <div className="grid sm:grid-cols-2 gap-3 pt-2">
+          <Field label="Delivery Type" value={formatDeliveryLabel(booking)} />
+          {booking.delivery_address && (
+            <Field label="Delivery Address" value={booking.delivery_address} />
+          )}
+        </div>
+        {booking.delivery_requested && !booking.delivery_address && (
           <p className="text-xs text-[#63b3ed] bg-[rgba(99,179,237,0.07)] px-3 py-1.5 rounded-lg">
-            Delivery requested: {booking.delivery_address}
+            Delivery requested — address pending
           </p>
         )}
+      </Section>
+
+      {/* Selected Add-ons */}
+      <Section title="Selected Add-ons">
+        {(() => {
+          const addons = booking.booking_addons?.length
+            ? booking.booking_addons
+            : [
+              booking.unlimited_miles || booking.has_unlimited_miles ? { addon_type: 'unlimited_miles', amount: Math.round(Number(booking.mileage_addon_fee || 0) * 100) } : null,
+              booking.unlimited_tolls || booking.has_unlimited_tolls ? { addon_type: 'unlimited_tolls', amount: Math.round(Number(booking.toll_addon_fee || 0) * 100) } : null,
+              booking.delivery_requested || booking.has_delivery ? { addon_type: 'delivery', amount: Math.round(Number(booking.delivery_fee || 0) * 100) } : null,
+            ].filter(Boolean);
+
+          if (!addons.length) {
+            return <p className="text-sm text-[var(--text-tertiary)]">No add-ons selected</p>;
+          }
+
+          return (
+            <div className="space-y-2">
+              {addons.map((addon, i) => (
+                <div key={addon.id || `${addon.addon_type}-${i}`} className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-[var(--bg-elevated)] text-sm">
+                  <span className="flex items-center gap-2 text-[var(--text-primary)]">
+                    <PlusCircle size={14} className="text-[var(--accent-color)]" />
+                    {ADDON_LABELS[addon.addon_type] || addon.addon_type}
+                  </span>
+                  <span className="font-medium tabular-nums text-[var(--text-secondary)]">
+                    ${(Number(addon.amount || 0) / 100).toFixed(2)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
       </Section>
 
       {/* Security Deposit */}
@@ -1194,10 +1299,19 @@ function OverviewTab({ booking, c, v, id, load, setModal, setPaymentForm, setLig
 
       {/* Notes */}
       <Section title="Notes">
-        {booking.special_requests && (
+        {parseCustomerNotes(booking.special_requests) && (
           <div>
-            <p className="text-xs text-[var(--text-tertiary)] mb-1">Customer requests</p>
-            <p className="text-sm text-[var(--text-secondary)]">{booking.special_requests}</p>
+            <p className="text-xs text-[var(--text-tertiary)] mb-1">Customer notes</p>
+            <p className="text-sm text-[var(--text-secondary)]">{parseCustomerNotes(booking.special_requests)}</p>
+          </div>
+        )}
+        {(booking.delivery_type || booking.special_requests?.includes('Delivery type:')) && (
+          <div className={parseCustomerNotes(booking.special_requests) ? 'pt-3 border-t border-[var(--border-subtle)]' : ''}>
+            <p className="text-xs text-[var(--text-tertiary)] mb-1">Delivery preference</p>
+            <p className="text-sm text-[var(--text-secondary)] flex items-center gap-2">
+              <Truck size={14} /> {formatDeliveryLabel(booking)}
+              {booking.delivery_address ? ` — ${booking.delivery_address}` : ''}
+            </p>
           </div>
         )}
         <div>
@@ -1494,6 +1608,9 @@ function BookingInsuranceSection({ booking, bookingId, reload }) {
             )}
             {booking.rental_agreements[0].insurance_agent_phone && (
               <Field label="Agent Phone" value={booking.rental_agreements[0].insurance_agent_phone} />
+            )}
+            {booking.rental_agreements[0].insurance_vehicle_description && (
+              <Field label="Insured Vehicle" value={booking.rental_agreements[0].insurance_vehicle_description} />
             )}
           </div>
         </div>

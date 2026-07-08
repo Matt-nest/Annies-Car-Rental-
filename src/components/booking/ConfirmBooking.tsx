@@ -23,6 +23,7 @@ import ReviewStep from './confirm-booking/wizard-steps/ReviewStep';
 import OrderSummary from './confirm-booking/wizard-steps/OrderSummary';
 import SubmitLoader from './confirm-booking/wizard-steps/SubmitLoader';
 
+import { buildCustomerReceiptSnapshot } from '../../utils/buildCustomerReceiptSnapshot';
 import {
   API_URL, PHONE_NUMBER,
   PAYMENT_PROVIDER, CARD_ON_FILE_ENABLED,
@@ -317,6 +318,7 @@ function PaymentGate({
   theme,
   cardOnFileEnabled,
   alreadySigned,
+  autoFilled,
   onUpdate,
   onBack,
   onSuccess,
@@ -329,6 +331,7 @@ function PaymentGate({
   theme: string;
   cardOnFileEnabled: boolean;
   alreadySigned: boolean;
+  autoFilled?: any;
   onUpdate: (patch: Partial<WizardDraft>) => void;
   onBack: () => void;
   onSuccess: () => void;
@@ -380,6 +383,7 @@ function PaymentGate({
         signature_data: draft.signature.data,
         signature_type: draft.signature.mode === 'draw' ? 'drawn' : 'typed',
         license_photo_paths: draft.licensePhotoPaths?.length ? draft.licensePhotoPaths : undefined,
+        license_scan_metadata: draft.licenseScanMetadata || undefined,
       };
       const agRes = await fetch(`${API_URL}/agreements/${refCode}/sign`, {
         method: 'POST',
@@ -391,8 +395,22 @@ function PaymentGate({
         throw new Error(agJson.error || 'Failed to submit agreement');
       }
 
-      // 2. Persist the insurance choice
-      const insurancePayload: any = { source: draft.insuranceChoice };
+      // 2. Persist the insurance choice + frozen itemized receipt
+      const receiptSnapshot = buildCustomerReceiptSnapshot(
+        bookingSummary,
+        draft,
+        depositAmount,
+        {
+          pickupTime: autoFilled?.pickupTime,
+          returnTime: autoFilled?.returnTime,
+          deliveryType: autoFilled?.deliveryType,
+          deliveryAddress: autoFilled?.deliveryAddress,
+        },
+      );
+      const insurancePayload: any = {
+        source: draft.insuranceChoice,
+        customer_receipt_snapshot: receiptSnapshot,
+      };
       if (draft.insuranceChoice === 'bonzah') insurancePayload.tier_id = draft.bonzahTierId;
       const insRes = await fetch(`${API_URL}/bookings/${refCode}/insurance`, {
         method: 'PATCH',
@@ -414,7 +432,7 @@ function PaymentGate({
       setError(e.message || 'Something went wrong');
       setPhase('error');
     }
-  }, [draft, refCode, fetchStatus, alreadySigned]);
+  }, [draft, refCode, fetchStatus, alreadySigned, bookingSummary, depositAmount, autoFilled]);
 
   // Persist once when the gate first mounts
   useEffect(() => {
@@ -980,6 +998,7 @@ export default function ConfirmBooking() {
                   theme={theme}
                   cardOnFileEnabled={cardOnFileEnabled}
                   alreadySigned={!!agreementData?.alreadySigned}
+                  autoFilled={agreementData?.autoFilled}
                   onUpdate={updateDraft}
                   onBack={() => goToStage(3)}
                   onSuccess={() => setConfirmed(true)}

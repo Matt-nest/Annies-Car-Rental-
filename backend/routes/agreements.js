@@ -71,66 +71,21 @@ router.get('/:bookingCode', asyncHandler(async (req, res) => {
     .select('id, customer_signed_at, owner_signed_at')
     .eq('booking_id', booking.id)
     .maybeSingle();
-  const { data: completedRentalPayment } = await supabase
-    .from('payments')
-    .select('id')
-    .eq('booking_id', booking.id)
-    .eq('payment_type', 'rental')
-    .eq('status', 'completed')
-    .limit(1);
 
   const customer = booking.customers || {};
   const vehicle = booking.vehicles || {};
+
+  // Admin-entered pre-fill (from POST /bookings/admin-create). Overlays the
+  // customer record for these defaults and drives which steps the customer link
+  // can skip. Null/absent for customer-originated bookings → behaves as before.
   const prefill = booking.admin_prefill || null;
   const prefillAddr = prefill?.address || {};
   const prefillLic = prefill?.license || {};
-  const { data: vehicleDeposit } = await supabase
-    .from('vehicle_deposits')
-    .select('amount')
-    .eq('vehicle_id', booking.vehicle_id)
-    .maybeSingle();
-  const depositAmount = vehicleDeposit?.amount != null
-    ? Number(vehicleDeposit.amount) / 100
-    : 150;
-  const bookingSummary = {
-    bookingCode: booking.booking_code,
-    status: booking.status,
-    customerName: `${customer.first_name || ''} ${customer.last_name || ''}`.trim(),
-    customerEmail: customer.email || '',
-    vehicle: vehicle.year && vehicle.make ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : null,
-    pickupDate: booking.pickup_date,
-    returnDate: booking.return_date,
-    rentalDays: booking.rental_days,
-    dailyRate: Number(booking.daily_rate),
-    subtotal: Number(booking.subtotal),
-    deliveryFee: Number(booking.delivery_fee || 0),
-    discountAmount: Number(booking.discount_amount || 0),
-    mileageAddonFee: Number(booking.mileage_addon_fee || 0),
-    tollAddonFee: Number(booking.toll_addon_fee || 0),
-    taxAmount: Number(booking.tax_amount || 0),
-    totalCost: Number(booking.total_cost),
-    rateType: booking.rate_type || 'daily',
-    lineItems: booking.line_items || null,
-    mileageAllowance: booking.mileage_allowance || null,
-    insuranceSource: booking.insurance_provider || null,
-    insuranceTier: booking.bonzah_tier_id || null,
-    insuranceCost: booking.insurance_provider === 'bonzah'
-      ? (Number(booking.bonzah_premium_cents || 0) + Number(booking.bonzah_markup_cents || 0)) / 100
-      : 0,
-    depositAmount,
-    depositIncludedInCharge: true,
-    totalChargedWithDeposit: Number(booking.total_cost || 0) + depositAmount,
-    hasDelivery: !!booking.delivery_requested,
-    hasUnlimitedMiles: !!booking.unlimited_miles,
-    hasUnlimitedTolls: !!booking.unlimited_tolls,
-  };
 
   res.json({
     alreadySigned: !!existing?.customer_signed_at,
-    alreadyPaid: !!completedRentalPayment?.length,
     ownerCounterSigned: !!existing?.owner_signed_at,
     bookingId: booking.id,
-    bookingSummary,
     autoFilled: {
       customerName: `${customer.first_name || ''} ${customer.last_name || ''}`.trim(),
       phone: customer.phone || '',
@@ -142,7 +97,9 @@ router.get('/:bookingCode', asyncHandler(async (req, res) => {
       pickupLocation: booking.pickup_location || '',
       deliveryType: booking.delivery_type || 'pickup',
       deliveryAddress: booking.delivery_address || '',
-      vehicleImage: Array.isArray(vehicle.images) && vehicle.images.length ? vehicle.images[0] : (vehicle.thumbnail_url || ''),
+      // Resolve the image from the VIN (mirrors the catalog in routes/vehicles.js)
+      // so a vehicle added data-only — no thumbnail_url set — still shows its photo.
+      vehicleImage: vehicle.vin ? `/fleet/${vehicle.vin}/hero.png` : (vehicle.thumbnail_url || ''),
       vehicle: vehicle.year && vehicle.make ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : '',
       vin: vehicle.vin || '',
       licensePlate: vehicle.license_plate || '',
@@ -164,7 +121,8 @@ router.get('/:bookingCode', asyncHandler(async (req, res) => {
       taxAmount: Number(booking.tax_amount || 0),
       totalCost: Number(booking.total_cost),
     },
-    // Pre-fill from admin pre-fill first, then customer record
+    // Pre-fill from admin pre-fill first (booking-scoped, authoritative for this
+    // booking), then fall back to the customer record's stored data.
     customerDefaults: {
       address_line1: prefillAddr.line1 || customer.address_line1 || '',
       city: prefillAddr.city || customer.city || '',
@@ -175,8 +133,12 @@ router.get('/:bookingCode', asyncHandler(async (req, res) => {
       driver_license_state: prefillLic.state || customer.driver_license_state || '',
       driver_license_expiry: prefillLic.expiry || customer.driver_license_expiry || '',
     },
+    // Steps the admin already completed — the customer wizard skips these.
+    // Empty array when there's no admin pre-fill (normal customer booking).
     prefilledSteps: Array.isArray(prefill?.steps) ? prefill.steps : [],
-    prefilledLicensePhotoPaths: Array.isArray(prefill?.license_photo_paths) ? prefill.license_photo_paths : [],
+    // Admin-captured signature (in-person bookings) and ID photo paths, if any.
+    prefilledSignature: prefill?.signature || null,
+    prefilledLicensePhotos: Array.isArray(prefill?.license_photo_paths) ? prefill.license_photo_paths : null,
   });
 }));
 
@@ -214,6 +176,7 @@ router.post('/:bookingCode/sign', asyncHandler(async (req, res) => {
     insurance_agent_name, insurance_agent_phone, insurance_vehicle_description,
     signature_data, signature_type,
     license_photo_paths,
+    license_scan_metadata,
   } = req.body;
 
   // Validate required fields
@@ -255,6 +218,9 @@ router.post('/:bookingCode/sign', asyncHandler(async (req, res) => {
       customer_ip: signerIp,
       license_photo_paths: Array.isArray(license_photo_paths) && license_photo_paths.length
         ? license_photo_paths
+        : null,
+      license_scan_metadata: license_scan_metadata && typeof license_scan_metadata === 'object'
+        ? license_scan_metadata
         : null,
     })
     .select()

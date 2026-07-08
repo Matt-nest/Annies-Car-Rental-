@@ -38,7 +38,8 @@ export async function getBookingDetail(bookingId) {
       vehicles (*),
       payments (*),
       booking_status_log (*),
-      rental_agreements (*)
+      rental_agreements (*),
+      booking_addons (*)
     `)
     .eq('id', bookingId)
     .single();
@@ -243,7 +244,11 @@ export async function createBooking(payload) {
       pickup_location,
       return_location: pickup_location,
       delivery_requested: deliveryRequested,
+      delivery_type,
       delivery_address: deliveryRequested ? delivery_address : null,
+      has_delivery: deliveryRequested,
+      has_unlimited_miles: pricing.mileage_allowance === 'unlimited' || !!unlimited_miles,
+      has_unlimited_tolls: !!unlimited_tolls,
       daily_rate:              pricing.daily_rate,
       rental_days:             pricing.rental_days,
       rate_type:               pricing.rate_type,
@@ -263,6 +268,10 @@ export async function createBooking(payload) {
       insurance_provider,
       insurance_status: insurance_status || 'pending',
       bonzah_policy_id,
+      // Admin-created bookings (walk-ins / phone) skip the approval gate — the
+      // admin is vetting the renter in person — so they're born 'approved' and
+      // can go straight to payment. Public/website submissions require explicit
+      // admin approval before the payment step unlocks.
       status: created_by_admin ? 'approved' : 'pending_approval',
       ...(created_by_admin ? { owner_approved_at: new Date().toISOString() } : {}),
       created_by_admin: !!created_by_admin,
@@ -281,6 +290,33 @@ export async function createBooking(payload) {
     .single();
 
   if (bErr) throw bErr;
+
+  // 6b. Normalized add-on rows for dashboard reporting
+  const addonRows = [];
+  if (Number(pricing.mileage_addon_fee) > 0) {
+    addonRows.push({
+      booking_id: booking.id,
+      addon_type: 'unlimited_miles',
+      amount: Math.round(Number(pricing.mileage_addon_fee) * 100),
+    });
+  }
+  if (Number(pricing.toll_addon_fee) > 0) {
+    addonRows.push({
+      booking_id: booking.id,
+      addon_type: 'unlimited_tolls',
+      amount: Math.round(Number(pricing.toll_addon_fee) * 100),
+    });
+  }
+  if (deliveryRequested && Number(pricing.delivery_fee) > 0) {
+    addonRows.push({
+      booking_id: booking.id,
+      addon_type: 'delivery',
+      amount: Math.round(Number(pricing.delivery_fee) * 100),
+    });
+  }
+  if (addonRows.length) {
+    await supabase.from('booking_addons').insert(addonRows);
+  }
 
   // 7. Status log
   await supabase.from('booking_status_log').insert({
@@ -445,7 +481,9 @@ export async function transitionBooking(bookingId, newStatus, { changedBy = 'own
       handoffRecord = prepRecord;
     }
 
-    sendBookingNotification(stageMap[newStatus], buildBookingPayload(updated, { handoffRecord }));
+    // Awaited so the approval/decline push lands within this request instead of
+    // being frozen with the serverless lambda after the response returns.
+    await sendBookingNotification(stageMap[newStatus], buildBookingPayload(updated, { handoffRecord }));
   }
 
   // Dashboard notification for status changes

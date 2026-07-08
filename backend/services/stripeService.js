@@ -779,5 +779,7 @@ async function formatBookingSummary(booking) {
     hasDelivery: !!booking.delivery_requested,
     hasUnlimitedMiles: !!booking.unlimited_miles,
     hasUnlimitedTolls: !!booking.unlimited_tolls,
+    deliveryType: booking.delivery_type || null,
+    deliveryAddress: booking.delivery_address || null,
   };
 }

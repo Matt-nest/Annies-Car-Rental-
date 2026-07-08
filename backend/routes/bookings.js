@@ -614,7 +614,11 @@ router.post('/:code/insurance/quote', asyncHandler(async (req, res) => {
 
 /** PATCH /bookings/:code/insurance — public (customer submits insurance choice from unified wizard) */
 router.patch('/:code/insurance', asyncHandler(async (req, res) => {
-  const { source, tier_id, bonzah_policy_number } = req.body;
+  const { source, tier_id, bonzah_policy_number, customer_receipt_snapshot } = req.body;
+
+  const receiptFields = customer_receipt_snapshot && typeof customer_receipt_snapshot === 'object'
+    ? { customer_receipt_snapshot }
+    : {};
 
   // Look up booking by booking_code (public route — no auth)
   const { data: booking, error } = await supabase
@@ -677,6 +681,7 @@ router.patch('/:code/insurance', asyncHandler(async (req, res) => {
         bonzah_markup_cents: markupCents,
         bonzah_coverage_json: quote.coverage_information,
         bonzah_quote_expires_at: expiresAtIso,
+        ...receiptFields,
       })
       .eq('id', booking.id);
     if (updErr) return res.status(500).json({ error: `Failed to record insurance choice: ${updErr.message}` });
@@ -703,6 +708,7 @@ router.patch('/:code/insurance', asyncHandler(async (req, res) => {
         bonzah_premium_cents: null,
         bonzah_markup_cents: null,
         bonzah_quote_expires_at: null,
+        ...receiptFields,
       })
       .eq('id', booking.id);
     if (updErr) return res.status(500).json({ error: `Failed to record insurance choice: ${updErr.message}` });
