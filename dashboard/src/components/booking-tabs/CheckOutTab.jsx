@@ -486,7 +486,7 @@ export default function CheckOutTab({ booking, onReload }) {
       } else if (booking.deposit_amount) {
         setDeposit({
           amount: Math.round(booking.deposit_amount * 100),
-          status: booking.deposit_status || 'held',
+          status: ['paid', 'collected'].includes(booking.deposit_status) ? 'held' : (booking.deposit_status || 'held'),
         });
       }
       setInvoice(inv);

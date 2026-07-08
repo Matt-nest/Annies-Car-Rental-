@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle2, ClipboardCheck, Sparkles, PenLine, ArrowUpFromLine } from 'lucide-react';
+import { CheckCircle2, ClipboardCheck, Sparkles, PenLine, ArrowUpFromLine, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAlerts } from '../../lib/alertsContext';
 
@@ -73,6 +73,18 @@ export default function AlertPillBar({ onActiveAlertClick, variant = 'inline' })
       pulse: 'pulsePurple 2s ease-in-out infinite',
       onClick: () => navigate('/bookings?status=returned'),
       title: 'Returns awaiting inspection',
+    },
+    {
+      key: 'deposits',
+      count: alerts.deposits_held || 0,
+      label: 'Deposits',
+      icon: Shield,
+      color: '#6366f1',
+      bg: 'rgba(99,102,241,0.12)',
+      border: 'rgba(99,102,241,0.24)',
+      pulse: 'pulseBlue 2s ease-in-out infinite',
+      onClick: () => navigate('/payments?tab=deposits'),
+      title: `Security deposits held ($${alerts.deposits_held_total || '0.00'})`,
     },
   ];
 

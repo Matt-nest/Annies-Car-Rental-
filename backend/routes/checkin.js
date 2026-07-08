@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { supabase } from '../db/supabase.js';
 import { transitionBooking, getBookingDetail } from '../services/bookingService.js';
+import { performInspection } from '../services/inspectionService.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 
 const router = Router();
@@ -100,6 +101,31 @@ router.post('/bookings/:id/checkout', requireAuth, asyncHandler(async (req, res)
   }
 
   res.json({ success: true });
+}));
+
+/**
+ * POST /bookings/:id/inspection — Run post-return inspection + auto-calculate incidentals
+ * Body: { checkoutOdometer, fuelLevel, conditionNotes, photoUrls, incidentals? }
+ */
+router.post('/bookings/:id/inspection', requireAuth, asyncHandler(async (req, res) => {
+  const {
+    checkoutOdometer,
+    fuelLevel,
+    conditionNotes,
+    photoUrls,
+    incidentals,
+  } = req.body || {};
+
+  const settlement = await performInspection(req.params.id, {
+    checkoutOdometer,
+    fuelLevel,
+    conditionNotes,
+    photoUrls,
+    incidentals: incidentals || [],
+    inspectedBy: req.user?.email || 'admin',
+  });
+
+  res.json(settlement);
 }));
 
 /**

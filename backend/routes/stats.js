@@ -23,6 +23,7 @@ router.get('/overview', requireAuth, asyncHandler(async (req, res) => {
     { count: pendingAgreements },
     { data: returnedBookings },
     { data: completedInspections },
+    { data: heldDeposits },
   ] = await Promise.all([
     supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'pending_approval'),
     supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'active'),
@@ -44,6 +45,8 @@ router.get('/overview', requireAuth, asyncHandler(async (req, res) => {
     // admin_inspection record. Two-step query (no LEFT JOIN in PostgREST).
     supabase.from('bookings').select('id').eq('status', 'returned'),
     supabase.from('checkin_records').select('booking_id').eq('record_type', 'admin_inspection'),
+    supabase.from('booking_deposits').select('amount, refund_amount, applied_amount, status')
+      .in('status', ['held', 'partial_refund']),
   ]);
 
   // Net revenue = rental payments minus refunds (deposits excluded)
@@ -57,6 +60,12 @@ router.get('/overview', requireAuth, asyncHandler(async (req, res) => {
   const inspectedIds = new Set((completedInspections || []).map(r => r.booking_id));
   const pendingInspections = (returnedBookings || []).filter(b => !inspectedIds.has(b.id)).length;
 
+  const depositsHeldCount = (heldDeposits || []).length;
+  const depositsHeldTotal = (heldDeposits || []).reduce((sum, d) => {
+    const refundable = Math.max(0, Number(d.amount || 0) - Number(d.refund_amount || 0) - Number(d.applied_amount || 0));
+    return sum + refundable;
+  }, 0);
+
   res.json({
     pending_approvals: pendingCount || 0,
     active_rentals: activeCount || 0,
@@ -68,6 +77,8 @@ router.get('/overview', requireAuth, asyncHandler(async (req, res) => {
     pending_agreements: pendingAgreements || 0,
     pending_reviews: pendingReviewsCount || 0,
     pending_inspections: pendingInspections,
+    deposits_held: depositsHeldCount,
+    deposits_held_total: (depositsHeldTotal / 100).toFixed(2),
   });
 }));
 

@@ -1048,6 +1048,106 @@ export default function BookingDetailPage() {
 /* ────────────────────────────────────────────────────────
    Overview Tab — extracted from the original monolith
    ──────────────────────────────────────────────────────── */
+/* ────────────────────────────────────────────────────────
+   Deposit panel — record manual deposits + show status
+   ──────────────────────────────────────────────────────── */
+function DepositSection({ booking, onUpdated }) {
+  const [deposit, setDeposit] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [recording, setRecording] = useState(false);
+  const [method, setMethod] = useState('cash');
+  const [amount, setAmount] = useState('');
+  const [error, setError] = useState('');
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const dep = await api.getBookingDeposit(booking.id);
+      if (dep?.status !== 'none') setDeposit(dep);
+      else setDeposit(null);
+    } catch { setDeposit(null); }
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, [booking.id]);
+
+  const handleRecord = async () => {
+    setError('');
+    setRecording(true);
+    try {
+      const body = { method };
+      if (amount) body.amountCents = Math.round(parseFloat(amount) * 100);
+      await api.recordManualDeposit(booking.id, body);
+      await load();
+      onUpdated?.();
+    } catch (err) {
+      setError(err.message || 'Failed to record deposit');
+    }
+    setRecording(false);
+  };
+
+  const expected = Number(booking.deposit_amount) || 0;
+  const held = deposit?.status === 'held';
+  const settled = deposit && ['refunded', 'applied', 'partial_refund'].includes(deposit.status);
+
+  return (
+    <Section title="Security Deposit">
+      {loading ? (
+        <p className="text-sm text-[var(--text-tertiary)]">Loading deposit…</p>
+      ) : held ? (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-[var(--text-secondary)]">Held</span>
+            <span className="text-lg font-bold tabular-nums text-indigo-500">${((deposit.amount || 0) / 100).toFixed(2)}</span>
+          </div>
+          <p className="text-xs text-[var(--text-tertiary)]">Settle or release from the Check-Out or Invoice tab after return.</p>
+        </div>
+      ) : settled ? (
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-[var(--text-secondary)] capitalize">{deposit.status.replace('_', ' ')}</span>
+          <span className="font-semibold tabular-nums">${((deposit.amount || 0) / 100).toFixed(2)}</span>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-sm text-[var(--text-secondary)]">
+            {expected > 0
+              ? `Expected deposit: $${expected.toFixed(2)} — not yet recorded.`
+              : 'No deposit on file. Record one if collected in person.'}
+          </p>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div>
+              <label className="label">Amount ($)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                className="input"
+                placeholder={expected > 0 ? expected.toFixed(2) : '150.00'}
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="label">Method</label>
+              <select className="input" value={method} onChange={e => setMethod(e.target.value)}>
+                <option value="cash">Cash</option>
+                <option value="zelle">Zelle</option>
+                <option value="venmo">Venmo</option>
+                <option value="card">Card (manual)</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+          {error && <p className="text-xs text-red-500">{error}</p>}
+          <button type="button" className="btn-primary" disabled={recording} onClick={handleRecord}>
+            {recording ? <><Loader2 size={14} className="animate-spin" /> Recording…</> : <><Shield size={14} /> Record Deposit</>}
+          </button>
+        </div>
+      )}
+    </Section>
+  );
+}
+
 function OverviewTab({ booking, c, v, id, load, setModal, setPaymentForm, setLightboxUrl, checkinRecords }) {
   return (
     <div className="grid md:grid-cols-2 gap-5">
@@ -1186,6 +1286,9 @@ function OverviewTab({ booking, c, v, id, load, setModal, setPaymentForm, setLig
         )}
       </Section>
 
+      {/* Security Deposit */}
+      <DepositSection booking={booking} onUpdated={load} />
+
       {/* Pricing */}
       <Section title="Pricing">
         <div className="space-y-1.5 text-sm">
@@ -1227,7 +1330,12 @@ function OverviewTab({ booking, c, v, id, load, setModal, setPaymentForm, setLig
           </div>
           <div className="flex justify-between text-[var(--text-secondary)]">
             <span>Deposit</span>
-            <span>${booking.deposit_amount} ({booking.deposit_status})</span>
+            <span>
+              ${Number(booking.deposit_amount || 0).toFixed(2)}
+              {booking.deposit_status && booking.deposit_status !== 'pending' && (
+                <span className="ml-1 text-xs capitalize">({booking.deposit_status === 'paid' ? 'held' : booking.deposit_status})</span>
+              )}
+            </span>
           </div>
         </div>
       </Section>

@@ -1,9 +1,34 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { supabase } from '../db/supabase.js';
-import { getVehicleDepositAmount, releaseDeposit, settleDeposit } from '../services/depositService.js';
+import { getVehicleDepositAmount, releaseDeposit, settleDeposit, listDeposits, recordManualDeposit } from '../services/depositService.js';
 
 const router = Router();
+
+/**
+ * GET /deposits — List deposits for dashboard reporting
+ * Query: ?status=held|all|refunded|applied
+ */
+router.get('/deposits', requireAuth, async (req, res) => {
+  try {
+    const status = req.query.status || 'held';
+    const rows = await listDeposits({ status });
+    const totalHeldCents = rows.reduce((sum, row) => {
+      const refundable = Math.max(0, Number(row.amount || 0) - Number(row.refund_amount || 0) - Number(row.applied_amount || 0));
+      return sum + refundable;
+    }, 0);
+    res.json({
+      data: rows,
+      summary: {
+        count: rows.length,
+        total_held_cents: totalHeldCents,
+        total_held_dollars: (totalHeldCents / 100).toFixed(2),
+      },
+    });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
 
 /**
  * GET /vehicles/:id/deposit — Get deposit config for a vehicle
@@ -29,7 +54,25 @@ router.get('/bookings/:id/deposit', requireAuth, async (req, res) => {
       .maybeSingle();
 
     if (error) throw error;
-    res.json(data || { status: 'none' });
+
+    if (data) return res.json(data);
+
+    // Fallback: legacy bookings.deposit_amount when booking_deposits row is missing
+    const { data: booking } = await supabase
+      .from('bookings')
+      .select('deposit_amount, deposit_status')
+      .eq('id', req.params.id)
+      .maybeSingle();
+
+    if (booking && Number(booking.deposit_amount) > 0) {
+      return res.json({
+        status: ['paid', 'collected'].includes(booking.deposit_status) ? 'held' : booking.deposit_status,
+        amount: Math.round(Number(booking.deposit_amount) * 100),
+        source: 'booking_legacy',
+      });
+    }
+
+    res.json({ status: 'none' });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }
@@ -56,6 +99,26 @@ router.post('/bookings/:id/deposit/settle', requireAuth, async (req, res) => {
     const result = await settleDeposit(req.params.id, {
       incidentalTotal,
       refundedBy: req.user?.email || 'admin',
+    });
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /bookings/:id/deposit/record — Record a manually-collected deposit
+ * Body: { amountCents?, method?, referenceId?, notes? }
+ */
+router.post('/bookings/:id/deposit/record', requireAuth, async (req, res) => {
+  try {
+    const { amountCents, method, referenceId, notes } = req.body || {};
+    const result = await recordManualDeposit(req.params.id, {
+      amountCents,
+      method,
+      referenceId,
+      notes,
+      recordedBy: req.user?.email || 'admin',
     });
     res.json(result);
   } catch (err) {
