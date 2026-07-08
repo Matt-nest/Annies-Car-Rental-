@@ -702,6 +702,11 @@ export default function ConfirmBooking() {
 
         setAgreementData(agJson);
 
+        const agreementDeposit = Number(agJson.autoFilled?.depositAmount);
+        if (Number.isFinite(agreementDeposit) && agreementDeposit > 0) {
+          setDepositAmount(agreementDeposit);
+        }
+
         // Pre-fill draft from customer defaults (only if draft is fresh)
         if (agJson.customerDefaults && !draft.address.line1) {
           const cd = agJson.customerDefaults;
