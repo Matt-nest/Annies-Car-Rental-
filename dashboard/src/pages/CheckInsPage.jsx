@@ -4,7 +4,7 @@ import { api } from '../api/client';
 import StatusBadge from '../components/shared/StatusBadge';
 import DataError from '../components/shared/DataError';
 import { ArrowUpFromLine, ArrowDownToLine, Car, Calendar, Clock, ChevronRight, Search } from 'lucide-react';
-import { format, isToday, isTomorrow, isYesterday, parseISO } from 'date-fns';
+import { localTodayYMD, formatDateOnlyRelative } from '../lib/dates';
 
 export default function CheckInsPage() {
   const navigate = useNavigate();
@@ -30,7 +30,7 @@ export default function CheckInsPage() {
     setLoading(false);
   }
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = localTodayYMD();
 
   // Categorize bookings
   const pickups = bookings.filter(b => b.pickup_date && ['confirmed', 'ready_for_pickup', 'approved'].includes(b.status));
@@ -43,14 +43,7 @@ export default function CheckInsPage() {
   const pastReturns = bookings.filter(b => b.status === 'returned' || b.status === 'completed').sort((a, b) => (b.return_date || '').localeCompare(a.return_date || '')).slice(0, 10);
 
   function formatDate(dateStr) {
-    if (!dateStr) return '—';
-    try {
-      const d = parseISO(dateStr);
-      if (isToday(d)) return 'Today';
-      if (isTomorrow(d)) return 'Tomorrow';
-      if (isYesterday(d)) return 'Yesterday';
-      return format(d, 'MMM d');
-    } catch { return dateStr; }
+    return formatDateOnlyRelative(dateStr);
   }
 
   function BookingRow({ booking, type }) {

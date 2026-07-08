@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { toYMDParts as toYMD, parseYMD } from '../../lib/dates';
 
 /**
  * RangeCalendar — the customer site's two-click range calendar, ported to the
@@ -11,9 +12,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
  * which the dashboard doesn't define — mapped to `var(--accent-color)` here.
  */
 
-const pad = (n) => String(n).padStart(2, '0');
-export const toYMD = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
-export const parseYMD = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+export { toYMD, parseYMD };
 const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 export const prettyDate = (s) => { if (!s) return ''; const d = parseYMD(s); return `${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}`; };

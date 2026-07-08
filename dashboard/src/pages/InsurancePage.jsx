@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { format } from 'date-fns';
+import { formatDateOnly } from '../lib/dates';
 import {
   Shield, AlertTriangle, CheckCircle2, RefreshCw, DollarSign,
   Loader2, ExternalLink, Activity, Clock, XCircle,
@@ -258,9 +258,9 @@ export default function InsurancePage() {
                       <td className="px-4 py-3 text-[var(--text-primary)]">{customerName}</td>
                       <td className="px-4 py-3">{vehicleName}</td>
                       <td className="px-4 py-3 text-xs">
-                        {p.pickup_date && format(new Date(p.pickup_date + 'T12:00:00'), 'MMM d')}
+                        {p.pickup_date && formatDateOnly(p.pickup_date, 'MMM d')}
                         {' → '}
-                        {p.return_date && format(new Date(p.return_date + 'T12:00:00'), 'MMM d')}
+                        {p.return_date && formatDateOnly(p.return_date, 'MMM d')}
                       </td>
                       <td className="px-4 py-3">{tier}</td>
                       <td className="px-4 py-3"><StatusBadge status={p.insurance_status} /></td>
@@ -298,9 +298,9 @@ export default function InsurancePage() {
                     <span>{tier}</span>
                     <span>·</span>
                     <span>
-                      {p.pickup_date && format(new Date(p.pickup_date + 'T12:00:00'), 'MMM d')}
+                      {p.pickup_date && formatDateOnly(p.pickup_date, 'MMM d')}
                       {' → '}
-                      {p.return_date && format(new Date(p.return_date + 'T12:00:00'), 'MMM d')}
+                      {p.return_date && formatDateOnly(p.return_date, 'MMM d')}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-xs font-mono">

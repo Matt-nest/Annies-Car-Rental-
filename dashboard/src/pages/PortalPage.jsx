@@ -4,7 +4,8 @@ import {
   DoorOpen, UserPlus, Copy, Check, ExternalLink, CalendarPlus,
   MessageSquare, ChevronRight, Loader2, RefreshCw,
 } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
+import { formatDateOnly } from '../lib/dates';
 import { api } from '../api/client';
 import brand from '../config/brand';
 import StatusBadge from '../components/shared/StatusBadge';
@@ -64,7 +65,7 @@ function RenterCard({ booking, onRefresh }) {
           </p>
           <p className="text-xs text-[var(--text-tertiary)] mt-1">
             {booking.pickup_date && booking.return_date
-              ? `${format(parseISO(booking.pickup_date), 'MMM d, yyyy')} → ${format(parseISO(booking.return_date), 'MMM d, yyyy')}`
+              ? `${formatDateOnly(booking.pickup_date)} → ${formatDateOnly(booking.return_date)}`
               : 'Dates TBD'}
             {booking.total_cost != null && (
               <> · <span className="tabular-nums font-medium">${Number(booking.total_cost).toFixed(2)}</span></>

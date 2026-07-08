@@ -10,6 +10,7 @@ import InlineBanner from '../components/shared/InlineBanner';
 import Field from '../components/shared/Field';
 import WeeklyPricingSection from '../components/vehicles/WeeklyPricingSection';
 import { format } from 'date-fns';
+import { formatDateOnly } from '../lib/dates';
 import brand from '../config/brand';
 
 const MAIN_SITE = brand.siteUrl;
@@ -341,7 +342,7 @@ export default function VehicleDetailPage() {
               <div key={b.id} className="flex items-center justify-between py-2 px-3 bg-[var(--bg-card)] rounded-lg">
                 <div>
                   <p className="text-sm font-medium text-[var(--text-primary)]">
-                    {format(new Date(b.start_date), 'MMM d, yyyy')} — {format(new Date(b.end_date), 'MMM d, yyyy')}
+                    {formatDateOnly(b.start_date)} — {formatDateOnly(b.end_date)}
                   </p>
                   <p className="text-xs text-[var(--text-tertiary)] capitalize">{b.reason?.replace('_', ' ')}{b.notes ? ` · ${b.notes}` : ''}</p>
                 </div>
@@ -376,7 +377,7 @@ export default function VehicleDetailPage() {
                   </div>
                 </div>
                 <p className="text-xs text-[var(--text-secondary)]">
-                  {format(new Date(b.pickup_date), 'MMM d')} → {format(new Date(b.return_date), 'MMM d, yyyy')}
+                  {formatDateOnly(b.pickup_date, 'MMM d')} → {formatDateOnly(b.return_date)}
                 </p>
               </Link>
             ))}

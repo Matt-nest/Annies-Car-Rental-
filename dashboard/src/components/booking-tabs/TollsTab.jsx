@@ -3,6 +3,7 @@ import { api } from '../../api/client';
 import Section from '../shared/Section';
 import InlineBanner from '../shared/InlineBanner';
 import { MapPin, Plus, Trash2, DollarSign, Calendar } from 'lucide-react';
+import { formatDateOnly } from '../../lib/dates';
 
 export default function TollsTab({ booking }) {
   const [tolls, setTolls] = useState([]);
@@ -95,7 +96,7 @@ export default function TollsTab({ booking }) {
                     <p className="text-sm text-[var(--text-primary)]">{toll.description || 'Toll charge'}</p>
                     <p className="text-xs text-[var(--text-tertiary)]">
                       <Calendar size={10} className="inline mr-1" />
-                      {new Date(toll.toll_date).toLocaleDateString()}
+                      {formatDateOnly(toll.toll_date)}
                       {toll.logged_by && ` · by ${toll.logged_by}`}
                     </p>
                   </div>
@@ -165,7 +166,7 @@ export default function TollsTab({ booking }) {
                 <div>
                   <span className="text-[var(--text-secondary)]">{toll.description || 'Toll'}</span>
                   <span className="text-xs text-[var(--text-tertiary)] ml-2">
-                    {new Date(toll.toll_date).toLocaleDateString()}
+                    {formatDateOnly(toll.toll_date)}
                     {toll.bookings?.booking_code && ` · ${toll.bookings.booking_code}`}
                   </span>
                 </div>
