@@ -96,7 +96,7 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-full space-y-6">
+    <div className="page-shell lg:p-8 max-w-full space-y-6">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
@@ -150,7 +150,7 @@ export default function CalendarPage() {
       ) : (
         <>
         <div className="lg:hidden space-y-4">
-          <div className="flex gap-1.5 scroll-x-contained no-scrollbar -mx-6 px-6 max-w-[100vw]">
+          <div className="flex gap-1.5 scroll-x-contained no-scrollbar bleed-x">
             {days.map(day => {
               const sel = isSameDay(day, selectedDay);
               const today = isToday(day);

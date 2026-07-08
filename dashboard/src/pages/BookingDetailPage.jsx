@@ -749,7 +749,7 @@ export default function BookingDetailPage() {
   const { status, customers: c, vehicles: v } = booking;
 
   return (
-    <div className="p-6 lg:p-8 pb-[calc(140px+env(safe-area-inset-bottom,0px))] lg:pb-8 space-y-6 min-w-0 max-w-full overflow-x-clip">
+    <div className="page-shell lg:p-8 pb-[calc(140px+env(safe-area-inset-bottom,0px))] lg:pb-8 space-y-6 min-w-0 max-w-full overflow-x-clip">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -942,7 +942,7 @@ export default function BookingDetailPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium rounded-t-lg transition-all whitespace-nowrap ${
+              className={`flex shrink-0 items-center gap-1.5 px-4 py-2.5 min-h-[44px] sm:min-h-0 text-sm font-medium rounded-t-lg transition-all whitespace-nowrap ${
                 isActive
                   ? 'text-[var(--accent-color)] bg-[var(--bg-elevated)] border border-[var(--border-subtle)] border-b-transparent -mb-px'
                   : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-card)]'

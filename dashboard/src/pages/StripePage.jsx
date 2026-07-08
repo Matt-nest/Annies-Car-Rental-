@@ -70,7 +70,7 @@ export default function StripePage() {
 
   if (loading) {
     return (
-      <div className="p-6 lg:p-8 space-y-6">
+      <div className="page-shell lg:p-8 space-y-6">
         <div className="skeleton skeleton-text" style={{ width: 120, height: 28 }} />
         <SkeletonKpi count={3} />
         <SkeletonTable rows={8} cols={6} />
@@ -79,7 +79,7 @@ export default function StripePage() {
   }
 
   return (
-    <div className="p-6 lg:p-8 space-y-6">
+    <div className="page-shell lg:p-8 space-y-6">
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}

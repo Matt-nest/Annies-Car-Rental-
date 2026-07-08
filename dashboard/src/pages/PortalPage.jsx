@@ -150,7 +150,7 @@ export default function PortalPage() {
   const newLeadCount = inquiries.length;
 
   return (
-    <div className="p-6 lg:p-8 space-y-6 pb-[calc(100px+env(safe-area-inset-bottom))] md:pb-8">
+    <div className="page-shell lg:p-8 space-y-6 pb-[calc(100px+env(safe-area-inset-bottom))] md:pb-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2 text-[var(--text-primary)]">

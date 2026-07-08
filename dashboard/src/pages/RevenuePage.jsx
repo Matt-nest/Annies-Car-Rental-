@@ -108,7 +108,7 @@ export default function RevenuePage() {
 
   if (loading) {
     return (
-      <div className="p-6 lg:p-8 space-y-6">
+      <div className="page-shell lg:p-8 space-y-6">
         <div className="space-y-2">
           <div className="skeleton skeleton-text" style={{ width: 120, height: 28 }} />
           <div className="skeleton skeleton-text" style={{ width: 200, height: 14 }} />
@@ -147,7 +147,7 @@ export default function RevenuePage() {
   });
 
   return (
-    <div className="p-6 lg:p-8 space-y-6">
+    <div className="page-shell lg:p-8 space-y-6">
       <motion.div
         {...fadeUp(0)}
         className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"

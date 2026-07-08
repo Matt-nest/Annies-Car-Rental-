@@ -104,7 +104,7 @@ export default function CheckInsPage() {
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-4xl mx-auto space-y-8">
+    <div className="page-shell lg:p-8 max-w-4xl mx-auto space-y-8">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-[var(--text-primary)]">Check-Ins & Check-Outs</h1>

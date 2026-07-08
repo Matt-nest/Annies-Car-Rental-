@@ -103,7 +103,7 @@ export default function LoyaltyPage() {
   };
 
   return (
-    <div className="p-6 lg:p-8 space-y-6">
+    <div className="page-shell lg:p-8 space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Customer Loyalty</h1>

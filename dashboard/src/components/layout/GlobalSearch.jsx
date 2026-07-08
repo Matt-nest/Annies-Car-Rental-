@@ -325,9 +325,9 @@ export default function GlobalSearch() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[999999] bg-white dark:bg-gray-900 flex flex-col"
+            className="fixed inset-0 z-[999999] bg-white dark:bg-gray-900 flex flex-col safe-top safe-bottom"
           >
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-800 safe-x shrink-0">
               <Search size={20} className="text-gray-400 shrink-0" />
               <input
                 autoFocus
@@ -340,7 +340,8 @@ export default function GlobalSearch() {
               />
               <button
                 onClick={() => { setMobileOpen(false); setQuery(''); setResults(null); }}
-                className="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-white"
+                className="tap-target rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-white shrink-0"
+                aria-label="Close search"
               >
                 <X size={20} />
               </button>

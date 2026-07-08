@@ -44,8 +44,8 @@
   --shadow-xl: 0px 20px 24px -4px rgba(0, 0, 0, 0.10), 0px 8px 8px -4px rgba(0, 0, 0, 0.04);
   --shadow-focus-ring: 0px 0px 0px 4px rgba(70, 95, 255, 0.18);
 
-  /* Mobile layout — bottom nav pill + home-indicator clearance */
-  --bottom-nav-offset: calc(72px + env(safe-area-inset-bottom, 0px));
+  /* Mobile layout — bottom nav pill (~58px) + home-indicator clearance */
+  --bottom-nav-offset: calc(58px + max(env(safe-area-inset-bottom), 12px));
 
   /* Safe-area env aliases for sticky overlays */
   --app-safe-top:    env(safe-area-inset-top, 0px);
@@ -563,6 +563,15 @@ html.dark {
 }
 @media (min-width: 1024px) {
   .page-shell { padding: 2rem; }
+}
+
+/* Full-bleed horizontal strip inside page-shell (alert pills, calendar chips) */
+.bleed-x {
+  margin-left: -1.5rem;
+  margin-right: -1.5rem;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  max-width: calc(100% + 3rem);
 }
 
 /* ─── Animations ────────────────────────────────────────────────────────────── */

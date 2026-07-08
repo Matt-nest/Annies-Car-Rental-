@@ -152,7 +152,7 @@ function DashboardLayoutInner() {
               WebkitBackdropFilter: 'blur(20px) saturate(180%)',
             }}
           >
-            <div className="flex flex-grow items-center gap-3 px-4 py-4 sm:px-6">
+            <div className="flex flex-grow items-center gap-2 sm:gap-3 px-4 py-3 sm:py-4 sm:px-6">
               {/* ── Sidebar toggle button (TailAdmin style) ──────────── */}
               {/* Mobile: opens drawer   •   Desktop: toggles pinned/unpinned */}
               <button

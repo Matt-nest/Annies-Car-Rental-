@@ -169,7 +169,7 @@ export default function FleetPage() {
   }
 
   return (
-    <div className="p-6 lg:p-8 space-y-6">
+    <div className="page-shell lg:p-8 space-y-6">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
@@ -189,8 +189,8 @@ export default function FleetPage() {
       <DataError message={loadError} onRetry={loadVehicles} />
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3">
-        <div className="flex items-center gap-2 rounded-xl px-4 py-3 flex-1 min-w-[200px]"
+        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 min-w-0">
+        <div className="flex items-center gap-2 rounded-xl px-4 py-3 flex-1 min-w-0 w-full sm:min-w-[12rem]"
           style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
           <Search size={15} style={{ color: 'var(--text-tertiary)' }} />
           <input
@@ -202,7 +202,7 @@ export default function FleetPage() {
           />
         </div>
         <select
-          className="input max-w-[180px]"
+          className="input w-full sm:max-w-[180px] shrink-0"
           value={filter.status}
           onChange={e => setFilter(f => ({ ...f, status: e.target.value }))}
         >

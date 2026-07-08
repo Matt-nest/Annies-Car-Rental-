@@ -72,7 +72,7 @@ export default function MonthlyInquiriesPage() {
   if (loading) return <SkeletonDashboard />;
 
   return (
-    <div className="p-6 lg:p-8 space-y-6">
+    <div className="page-shell lg:p-8 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>

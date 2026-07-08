@@ -155,7 +155,7 @@ export default function MessagingPage() {
                   }}
                 >
                   <Icon size={isMobile ? 15 : 13} />
-                  {isMobile ? (isActive ? label : null) : label}
+                  <span>{isMobile ? label : fullLabel}</span>
                 </motion.button>
               );
             })}

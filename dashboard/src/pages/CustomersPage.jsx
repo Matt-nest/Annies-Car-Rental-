@@ -35,7 +35,7 @@ export default function CustomersPage() {
   }, [q, retryTick]);
 
   return (
-    <div className="p-6 lg:p-8 space-y-6">
+    <div className="page-shell lg:p-8 space-y-6">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
