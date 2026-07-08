@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { supabase } from '../db/supabase.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
+import { deleteCustomerCompletely, getCustomerDeletionPreview } from '../services/customerService.js';
 
 const router = Router();
 
@@ -180,6 +181,30 @@ router.put('/:id', requireAuth, asyncHandler(async (req, res) => {
 
   if (error) throw error;
   res.json(data);
+}));
+
+/** GET /customers/:id/deletion-preview — counts of related data that will be removed */
+router.get('/:id/deletion-preview', requireAuth, requireRole('owner', 'admin'), asyncHandler(async (req, res) => {
+  const preview = await getCustomerDeletionPreview(req.params.id);
+  res.json(preview);
+}));
+
+/** DELETE /customers/:id — permanently delete customer and all related records */
+router.delete('/:id', requireAuth, requireRole('owner', 'admin'), asyncHandler(async (req, res) => {
+  const { confirm_email } = req.body || {};
+  const preview = await getCustomerDeletionPreview(req.params.id);
+
+  if (!confirm_email || String(confirm_email).trim().toLowerCase() !== preview.customer.email.toLowerCase()) {
+    return res.status(400).json({
+      error: 'Type the customer email to confirm deletion',
+      expected_email: preview.customer.email,
+    });
+  }
+
+  const result = await deleteCustomerCompletely(req.params.id, {
+    actorEmail: req.user?.email,
+  });
+  res.json(result);
 }));
 
 export default router;
