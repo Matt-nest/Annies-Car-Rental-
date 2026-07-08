@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
 import { useAlerts } from '../../lib/alertsContext';
 import { invalidateCache } from '../../lib/queryCache';
+import ApproveBookingModal from './ApproveBookingModal';
 
 /**
  * QuickActionModal — opens when admin clicks a high-priority dashboard
@@ -24,6 +25,7 @@ export default function QuickActionModal({ notification, onClose }) {
   const [error, setError] = useState('');
   const [declineReason, setDeclineReason] = useState('');
   const [showDecline, setShowDecline] = useState(false);
+  const [showApproveModal, setShowApproveModal] = useState(false);
 
   const bookingId = notification?.metadata?.booking_id;
 
@@ -51,16 +53,15 @@ export default function QuickActionModal({ notification, onClose }) {
     refreshAlerts();
   }
 
-  async function handleApprove() {
-    if (!bookingId) return;
-    setActing('approve'); setError('');
-    try {
-      await api.approveBooking(bookingId);
-      await dismissAndRefresh();
-      onClose();
-    } catch (e) {
-      setError(e?.data?.error || e?.message || 'Failed to approve');
-    } finally { setActing(null); }
+  function handleApproveClick() {
+    setError('');
+    setShowApproveModal(true);
+  }
+
+  async function handleApproved() {
+    await dismissAndRefresh();
+    setShowApproveModal(false);
+    onClose();
   }
 
   async function handleDecline() {
@@ -219,7 +220,7 @@ export default function QuickActionModal({ notification, onClose }) {
                   <XCircle size={12} /> Decline
                 </button>
                 <button
-                  onClick={handleApprove}
+                  onClick={handleApproveClick}
                   disabled={!!acting}
                   className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-transform hover:scale-[1.03] disabled:opacity-50"
                   style={{ backgroundColor: 'var(--accent-color)', color: '#1c1917' }}
@@ -253,6 +254,13 @@ export default function QuickActionModal({ notification, onClose }) {
           </div>
         </motion.div>
       </motion.div>
+
+      <ApproveBookingModal
+        open={showApproveModal}
+        booking={booking}
+        onClose={() => setShowApproveModal(false)}
+        onApproved={handleApproved}
+      />
     </AnimatePresence>
   );
 }

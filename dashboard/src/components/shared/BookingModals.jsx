@@ -1,5 +1,7 @@
 import Modal from './Modal';
 
+/** Inline failure banner — shown inside whichever modal is open when an
+ *  action fails, so a failed decline/cancel/etc. no longer closes silently. */
 function ActionError({ msg }) {
   if (!msg) return null;
   return (
@@ -24,26 +26,6 @@ export default function BookingModals({
 }) {
   return (
     <>
-      <Modal open={modal === 'approve'} onClose={() => setModal(null)} title="Approve Booking">
-        <div className="space-y-4">
-          <ActionError msg={actionError} />
-          <p className="text-sm text-stone-600">
-            You're about to approve{' '}
-            <span className="font-mono text-sm font-semibold text-stone-900 bg-stone-100 px-2 py-0.5 rounded">
-              {booking?.booking_code}
-            </span>{' '}
-            for {booking?.customers?.first_name} {booking?.customers?.last_name}.
-            The customer will be notified via SMS/email.
-          </p>
-          <div className="flex gap-3">
-            <button onClick={() => setModal(null)} className="btn-secondary flex-1 justify-center">Cancel</button>
-            <button onClick={() => doAction('approve')} disabled={actioning} className="btn-primary flex-1 justify-center">
-              {actioning ? 'Approving…' : 'Approve Booking'}
-            </button>
-          </div>
-        </div>
-      </Modal>
-
       <Modal open={modal === 'decline'} onClose={() => setModal(null)} title="Decline Booking">
         <div className="space-y-4">
           <ActionError msg={actionError} />
@@ -82,7 +64,7 @@ export default function BookingModals({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Mileage Out</label>
-              <input className="input" type="number" value={modalInput} onChange={e => setModalInput(e.target.value)} placeholder="15000" />
+              <input className="input" type="number" inputMode="numeric" value={modalInput} onChange={e => setModalInput(e.target.value)} placeholder="15000" />
             </div>
             <div>
               <label className="label">Fuel Level</label>
@@ -115,7 +97,7 @@ export default function BookingModals({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Mileage In</label>
-              <input className="input" type="number" value={modalInput} onChange={e => setModalInput(e.target.value)} placeholder="15450" />
+              <input className="input" type="number" inputMode="numeric" value={modalInput} onChange={e => setModalInput(e.target.value)} placeholder="15450" />
             </div>
             <div>
               <label className="label">Fuel Level</label>
@@ -158,7 +140,7 @@ export default function BookingModals({
             </div>
             <div>
               <label className="label">Estimated Cost ($)</label>
-              <input className="input" type="number" step="0.01" placeholder="0.00" value={damageForm.estimated_cost} onChange={e => setDamageForm(f => ({ ...f, estimated_cost: e.target.value }))} />
+              <input className="input" type="number" inputMode="decimal" step="0.01" placeholder="0.00" value={damageForm.estimated_cost} onChange={e => setDamageForm(f => ({ ...f, estimated_cost: e.target.value }))} />
             </div>
           </div>
           <div>
@@ -187,7 +169,7 @@ export default function BookingModals({
             </div>
             <div>
               <label className="label">Amount</label>
-              <input className="input" type="number" step="0.01" value={paymentForm.amount} onChange={e => setPaymentForm(p => ({ ...p, amount: e.target.value }))} placeholder="0.00" />
+              <input className="input" type="number" inputMode="decimal" step="0.01" value={paymentForm.amount} onChange={e => setPaymentForm(p => ({ ...p, amount: e.target.value }))} placeholder="0.00" />
             </div>
             <div>
               <label className="label">Method</label>

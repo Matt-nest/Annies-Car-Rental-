@@ -149,6 +149,22 @@ export async function getVehicleDepositAmount(vehicleId) {
 }
 
 /**
+ * Resolve the deposit for checkout — prefer the snapshot on the booking row
+ * (admin may have increased it at approval) and fall back to vehicle config.
+ * Returns amount in cents.
+ */
+export async function resolveBookingDepositCents(booking) {
+  const snap = Number(booking?.deposit_amount);
+  if (Number.isFinite(snap) && snap > 0) {
+    return Math.round(snap * 100);
+  }
+  if (booking?.vehicle_id) {
+    return getVehicleDepositAmount(booking.vehicle_id);
+  }
+  return 15000;
+}
+
+/**
  * Create a Stripe PaymentIntent for the security deposit.
  * This is a SEPARATE charge from the rental payment.
  */

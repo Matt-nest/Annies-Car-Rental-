@@ -45,7 +45,7 @@ export const api = {
   getBooking: (id) => request(`/bookings/${id}`),
   updateBooking: (id, body) => request(`/bookings/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   updateInsuranceStatus: (id, status, policyId) => request(`/bookings/${id}`, { method: 'PUT', body: JSON.stringify({ insurance_status: status, ...(policyId ? { bonzah_policy_id: policyId } : {}) }) }),
-  approveBooking: (id) => request(`/bookings/${id}/approve`, { method: 'POST' }),
+  approveBooking: (id, body) => request(`/bookings/${id}/approve`, { method: 'POST', body: JSON.stringify(body || {}) }),
   declineBooking: (id, reason) => request(`/bookings/${id}/decline`, { method: 'POST', body: JSON.stringify({ reason }) }),
   cancelBooking: (id, reason, cancelled_by = 'owner') => request(`/bookings/${id}/cancel`, { method: 'POST', body: JSON.stringify({ reason, cancelled_by }) }),
   checkoutOverride: (id, body) => request(`/bookings/${id}/checkout-override`, { method: 'POST', body: JSON.stringify(body) }),

@@ -9,6 +9,7 @@ import DataTable from '../components/shared/DataTable';
 import Modal from '../components/shared/Modal';
 import DataError from '../components/shared/DataError';
 import NewBookingModal from '../components/bookings/NewBookingModal';
+import ApproveBookingModal from '../components/shared/ApproveBookingModal';
 import { format } from 'date-fns';
 
 const EASE = [0.25, 1, 0.5, 1];
@@ -43,6 +44,8 @@ export default function BookingsPage() {
   const [actionModalError, setActionModalError] = useState(null);
   const [newBookingOpen, setNewBookingOpen] = useState(false);
 
+  const [approveBooking, setApproveBooking] = useState(null);
+
   const { refresh: refreshAlerts } = useAlerts();
   const status = searchParams.get('status') || '';
   const q = searchParams.get('q') || '';
@@ -62,18 +65,22 @@ export default function BookingsPage() {
 
   useEffect(() => { fetchBookings(); }, [fetchBookings]);
 
-  async function handleApprove(booking) {
-    setActioning(true);
+  async function openApproveModal(booking) {
     setActionModalError(null);
     try {
-      await api.approveBooking(booking.id);
-      setActionModal(null);
-      await Promise.all([fetchBookings(), refreshAlerts()]);
+      const b = await api.getBooking(booking.id);
+      if (b?.rental_agreements && !Array.isArray(b.rental_agreements)) {
+        b.rental_agreements = [b.rental_agreements];
+      }
+      setApproveBooking(b);
     } catch (e) {
-      setActionModalError(e?.data?.error || e?.message || 'Could not approve booking');
-    } finally {
-      setActioning(false);
+      setActionModalError(e?.data?.error || e?.message || 'Could not load booking');
     }
+  }
+
+  async function handleApproved() {
+    setApproveBooking(null);
+    await Promise.all([fetchBookings(), refreshAlerts()]);
   }
 
   async function handleDecline() {
@@ -261,7 +268,7 @@ export default function BookingsPage() {
               {b.status === 'pending_approval' && (
                 <div className="flex gap-2 pt-1" onClick={e => e.stopPropagation()}>
                   <button
-                    onClick={() => setActionModal({ type: 'approve', booking: b })}
+                    onClick={() => openApproveModal(b)}
                     className="flex-1 h-10 rounded-lg flex items-center justify-center gap-1.5 text-xs font-semibold text-white bg-emerald-500 active:bg-emerald-600"
                   >
                     <CheckCircle size={14} /> Approve
@@ -279,27 +286,12 @@ export default function BookingsPage() {
         />
       </div>
 
-      {/* Approve modal */}
-      <Modal open={actionModal?.type === 'approve'} onClose={() => { setActionModal(null); setActionModalError(null); }} title="Approve Booking">
-        <div className="space-y-4">
-          <DataError error={actionModalError} />
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            You're about to approve{' '}
-            <span className="mono-code text-sm font-semibold px-2 py-0.5 rounded-lg"
-              style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)' }}>
-              {actionModal?.booking?.booking_code}
-            </span>{' '}
-            for {actionModal?.booking?.customers?.first_name} {actionModal?.booking?.customers?.last_name}.
-            They'll be notified via SMS/email.
-          </p>
-          <div className="flex gap-3">
-            <button onClick={() => setActionModal(null)} className="btn-secondary flex-1 justify-center">Cancel</button>
-            <button onClick={() => handleApprove(actionModal.booking)} disabled={actioning} className="btn-primary flex-1 justify-center">
-              {actioning ? 'Approving…' : 'Approve Booking'}
-            </button>
-          </div>
-        </div>
-      </Modal>
+      <ApproveBookingModal
+        open={!!approveBooking}
+        booking={approveBooking}
+        onClose={() => setApproveBooking(null)}
+        onApproved={handleApproved}
+      />
 
       {/* Decline modal */}
       <Modal open={actionModal?.type === 'decline'} onClose={() => { setActionModal(null); setActionModalError(null); }} title="Decline Booking">

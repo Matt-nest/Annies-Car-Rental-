@@ -20,6 +20,7 @@ import AcknowledgementsStep from './confirm-booking/wizard-steps/Acknowledgement
 import SignatureStep from './confirm-booking/wizard-steps/SignatureStep';
 import InsuranceStep from './confirm-booking/wizard-steps/InsuranceStep';
 import ReviewStep from './confirm-booking/wizard-steps/ReviewStep';
+import OrderSummary from './confirm-booking/wizard-steps/OrderSummary';
 import SubmitLoader from './confirm-booking/wizard-steps/SubmitLoader';
 
 import { buildCustomerReceiptSnapshot } from '../../utils/buildCustomerReceiptSnapshot';
@@ -321,6 +322,7 @@ function PaymentGate({
   onUpdate,
   onBack,
   onSuccess,
+  onSummaryUpdate,
 }: {
   refCode: string;
   draft: WizardDraft;
@@ -333,10 +335,12 @@ function PaymentGate({
   onUpdate: (patch: Partial<WizardDraft>) => void;
   onBack: () => void;
   onSuccess: () => void;
+  onSummaryUpdate?: (booking: any, deposit: number) => void;
 }) {
   // 'persisting' → saving agreement + insurance; 'awaiting' → pending approval;
-  // 'ready' → approved, show payment; 'error' → persist failed / declined.
+  // 'ready' → approved, show receipt then payment; 'error' → persist failed / declined.
   const [phase, setPhase] = useState<'persisting' | 'awaiting' | 'ready' | 'error'>('persisting');
+  const [showPayment, setShowPayment] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const persistedRef = useRef(false);
@@ -453,6 +457,30 @@ function PaymentGate({
     return () => window.clearInterval(id);
   }, [phase, fetchStatus]);
 
+  // Refresh pricing when approval unlocks payment (admin may have adjusted deposit)
+  useEffect(() => {
+    if (phase !== 'ready') {
+      setShowPayment(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const path = PAYMENT_PROVIDER === 'square'
+          ? `${API_URL}/square/booking-summary/${refCode}`
+          : `${API_URL}/stripe/booking-summary/${refCode}`;
+        const res = await fetch(path);
+        const json = await res.json();
+        if (!cancelled && json.booking) {
+          onSummaryUpdate?.(json.booking, json.booking.depositAmount || depositAmount);
+        }
+      } catch {
+        /* non-fatal — existing summary still works */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [phase, refCode, depositAmount, onSummaryUpdate]);
+
   const handleCheckNow = async () => {
     setChecking(true);
     const status = await fetchStatus();
@@ -527,8 +555,40 @@ function PaymentGate({
     );
   }
 
-  // ── Ready: approved → render payment ──
-  if (PAYMENT_PROVIDER === 'square') {
+  // ── Ready: approved → itemized receipt, then payment ──
+  if (phase === 'ready' && !showPayment) {
+    return (
+      <div className="space-y-5">
+        <div className="rounded-2xl border p-5 sm:p-6 text-center"
+          style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+          <h2 className="text-xl font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Your booking is approved</h2>
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+            Review your itemized receipt below, then continue to complete payment and lock in your dates.
+          </p>
+        </div>
+        <OrderSummary
+          bookingSummary={bookingSummary}
+          draft={draft}
+          depositAmount={depositAmount}
+          theme={theme}
+        />
+        <div className="flex gap-3">
+          <button type="button" onClick={onBack}
+            className="px-6 py-4 rounded-full font-medium transition-all duration-300 cursor-pointer border"
+            style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)', backgroundColor: 'transparent' }}>
+            Back
+          </button>
+          <button type="button" onClick={() => setShowPayment(true)}
+            className="flex-1 py-4 rounded-full font-medium transition-all duration-300 cursor-pointer hover:scale-[1.02]"
+            style={{ backgroundColor: 'var(--accent-color)', color: 'var(--accent-fg)' }}>
+            Continue to payment
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === 'ready' && PAYMENT_PROVIDER === 'square') {
     return (
       <React.Suspense fallback={
         <div className="flex items-center justify-center py-10">
@@ -541,7 +601,7 @@ function PaymentGate({
             draft={draft}
             depositAmount={depositAmount}
             bookingCode={refCode}
-            onBack={onBack}
+            onBack={() => setShowPayment(false)}
             onSuccess={onSuccess}
             theme={theme}
           />
@@ -577,7 +637,7 @@ function PaymentGate({
         depositAmount={depositAmount}
         bookingCode={refCode}
         onUpdate={onUpdate}
-        onBack={onBack}
+        onBack={() => setShowPayment(false)}
         onSuccess={onSuccess}
         theme={theme}
       />
@@ -942,6 +1002,10 @@ export default function ConfirmBooking() {
                   onUpdate={updateDraft}
                   onBack={() => goToStage(3)}
                   onSuccess={() => setConfirmed(true)}
+                  onSummaryUpdate={(b, dep) => {
+                    setBookingSummary(b);
+                    setDepositAmount(dep);
+                  }}
                 />
               )}
             </motion.div>

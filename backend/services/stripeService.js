@@ -6,6 +6,7 @@ import { createNotification } from './notificationService.js';
 import { sendTeamAlertAsync, TEAM_ALERT_EVENTS } from './teamAlertService.js';
 import { sendBookingNotification, buildBookingPayload } from './notifyService.js';
 import { calcInsuranceCost } from './pricingService.js';
+import { resolveBookingDepositCents } from './depositService.js';
 import { bindPolicy as bindBonzahPolicy, BonzahError } from './bonzahService.js';
 import {
   FEATURE_AUTO_OVERAGE_CHARGES,
@@ -211,16 +212,8 @@ export async function createPaymentIntent(bookingCode, { expected_total_cents } 
   const insSource = booking.insurance_provider || null;
   const insTier = booking.bonzah_tier_id || null;
 
-  // Look up vehicle-specific deposit (defaults to $150 / 15000 cents)
-  let depositCents = 15000;
-  if (booking.vehicle_id) {
-    const { data: vd } = await supabase
-      .from('vehicle_deposits')
-      .select('amount')
-      .eq('vehicle_id', booking.vehicle_id)
-      .maybeSingle();
-    if (vd) depositCents = vd.amount;
-  }
+  // Security deposit — prefer booking snapshot (admin may have raised at approval)
+  const depositCents = await resolveBookingDepositCents(booking);
 
   const totalChargeCents = rentalCents + insuranceCents + depositCents;
 
@@ -746,16 +739,8 @@ export async function getBookingSummary(bookingCode) {
  * Format a booking into a summary for the frontend checkout page
  */
 async function formatBookingSummary(booking) {
-  // Fetch the deposit amount for this vehicle
-  let depositAmount = 150; // default $150
-  if (booking.vehicle_id) {
-    const { data: vd } = await supabase
-      .from('vehicle_deposits')
-      .select('amount')
-      .eq('vehicle_id', booking.vehicle_id)
-      .maybeSingle();
-    if (vd) depositAmount = vd.amount / 100;
-  }
+  const depositCents = await resolveBookingDepositCents(booking);
+  const depositAmount = depositCents / 100;
 
   // Calculate insurance cost from stored booking data (Bonzah quote columns)
   const insuranceSource = booking.insurance_provider || null;

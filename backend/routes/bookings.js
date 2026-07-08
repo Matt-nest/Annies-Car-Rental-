@@ -304,11 +304,36 @@ router.put('/:id', requireAuth, asyncHandler(async (req, res) => {
 
 /** POST /bookings/:id/approve */
 router.post('/:id/approve', requireAuth, asyncHandler(async (req, res) => {
+  const { is_high_risk, deposit_amount, reason } = req.body || {};
+  const extraFields = {};
+
+  if (is_high_risk != null) {
+    extraFields.is_high_risk = !!is_high_risk;
+  }
+
+  if (deposit_amount != null && deposit_amount !== '') {
+    const amt = Number(deposit_amount);
+    if (!Number.isFinite(amt) || amt < 0) {
+      return res.status(400).json({ error: 'Deposit amount must be zero or greater' });
+    }
+    extraFields.deposit_amount = amt;
+  }
+
   const result = await transitionBooking(req.params.id, 'approved', {
     changedBy: req.user?.email || 'owner',
-    reason: req.body.reason,
+    reason,
+    extraFields,
   });
-  res.json(result);
+
+  const booking = await getBookingDetail(req.params.id);
+  const payment_link = `${brand.siteUrl}/confirm?code=${booking.booking_code}`;
+
+  res.json({
+    ...result,
+    payment_link,
+    deposit_amount: booking.deposit_amount,
+    is_high_risk: booking.is_high_risk,
+  });
 }));
 
 /** POST /bookings/:id/decline */

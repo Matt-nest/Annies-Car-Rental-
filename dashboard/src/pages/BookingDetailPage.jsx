@@ -8,6 +8,7 @@ import StatusBadge from '../components/shared/StatusBadge';
 import { SkeletonDashboard } from '../components/shared/Skeleton';
 import AgreementSection from '../components/shared/AgreementSection';
 import BookingModals from '../components/shared/BookingModals';
+import ApproveBookingModal, { PaymentLinkBanner } from '../components/shared/ApproveBookingModal';
 import BookingTimeline from '../components/shared/BookingTimeline';
 import Section from '../components/shared/Section';
 import InlineBanner from '../components/shared/InlineBanner';
@@ -430,7 +431,6 @@ export default function BookingDetailPage() {
     setActioning(true);
     setActionError(null);
     try {
-      if (action === 'approve')  await api.approveBooking(id);
       if (action === 'decline')  await api.declineBooking(id, modalInput);
       if (action === 'cancel')   await api.cancelBooking(id, modalInput);
       if (action === 'pickup')   await api.recordPickup(id, {
@@ -581,17 +581,23 @@ export default function BookingDetailPage() {
         }
 
         if (needsPayment) {
+          const depositDue = Number(booking.deposit_amount) || 0;
+          const estTotal = Number(booking.total_cost) + depositDue;
           return (
-            <div className="bg-[rgba(99,179,237,0.07)] border border-[rgba(99,179,237,0.15)] rounded-xl p-4 flex items-center gap-3">
-              <div className="w-10 h-10 bg-[rgba(99,179,237,0.15)] rounded-full flex items-center justify-center shrink-0">
-                <CreditCard size={18} className="text-[#63b3ed]" />
+            <div className="bg-[rgba(99,179,237,0.07)] border border-[rgba(99,179,237,0.15)] rounded-xl p-4 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[rgba(99,179,237,0.15)] rounded-full flex items-center justify-center shrink-0">
+                  <CreditCard size={18} className="text-[#63b3ed]" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-[#63b3ed]">Waiting for Customer Payment</p>
+                  <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                    Approved — customer owes ~${estTotal.toFixed(2)} (rental + ${depositDue.toFixed(2)} deposit, plus insurance if selected).
+                    {booking.is_high_risk ? ' Flagged high-risk.' : ''}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-semibold text-[#63b3ed]">Waiting for Customer Payment</p>
-                <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                  Booking has been approved. The customer needs to complete payment of ${booking.total_cost} to proceed.
-                </p>
-              </div>
+              <PaymentLinkBanner bookingCode={booking.booking_code} />
             </div>
           );
         }
@@ -754,6 +760,16 @@ export default function BookingDetailPage() {
         damageForm={damageForm} setDamageForm={setDamageForm}
         paymentForm={paymentForm} setPaymentForm={setPaymentForm}
         actioning={actioning} doAction={doAction} actionError={actionError}
+      />
+
+      <ApproveBookingModal
+        open={modal === 'approve'}
+        booking={booking}
+        onClose={() => setModal(null)}
+        onApproved={async () => {
+          await Promise.all([load(), refreshAlerts()]);
+          setModal(null);
+        }}
       />
 
       {showExtend && (
