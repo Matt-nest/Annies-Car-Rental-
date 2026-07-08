@@ -94,6 +94,86 @@ export async function refreshPortalToken(decoded) {
   return { token };
 }
 
+const PORTAL_ELIGIBLE_STATUSES = [
+  'pending_approval', 'approved', 'confirmed', 'ready_for_pickup', 'active', 'returned', 'completed',
+];
+
+/**
+ * Admin-only: mint a portal JWT for a customer's booking (impersonation / support login).
+ * Picks the most recent portal-eligible booking unless bookingId is provided.
+ */
+export async function createAdminPortalSession(customerId, { bookingId, adminEmail } = {}) {
+  if (!PORTAL_SECRET) {
+    throw Object.assign(new Error('Portal authentication not configured'), { status: 500 });
+  }
+
+  const { data: customer, error: cErr } = await supabase
+    .from('customers')
+    .select('id, email, first_name, last_name')
+    .eq('id', customerId)
+    .single();
+
+  if (cErr || !customer) {
+    throw Object.assign(new Error('Customer not found'), { status: 404 });
+  }
+
+  let booking;
+
+  if (bookingId) {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('id, booking_code, customer_id, status')
+      .eq('id', bookingId)
+      .eq('customer_id', customerId)
+      .single();
+    if (error || !data) {
+      throw Object.assign(new Error('Booking not found for this customer'), { status: 404 });
+    }
+    booking = data;
+  } else {
+    const { data: bookings, error: bErr } = await supabase
+      .from('bookings')
+      .select('id, booking_code, customer_id, status')
+      .eq('customer_id', customerId)
+      .in('status', PORTAL_ELIGIBLE_STATUSES)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (bErr) throw bErr;
+    booking = bookings?.[0];
+    if (!booking) {
+      throw Object.assign(new Error('No portal-eligible booking found for this customer'), { status: 404 });
+    }
+  }
+
+  if (['declined', 'cancelled'].includes(booking.status)) {
+    throw Object.assign(new Error('This booking is no longer active'), { status: 403 });
+  }
+
+  const token = jwt.sign(
+    {
+      bookingId: booking.id,
+      bookingCode: booking.booking_code,
+      customerId: customer.id,
+      email: customer.email,
+      adminHandoff: true,
+      impersonatedBy: adminEmail || 'admin',
+    },
+    PORTAL_SECRET,
+    { expiresIn: '15m' }
+  );
+
+  return {
+    token,
+    booking: {
+      id: booking.id,
+      bookingCode: booking.booking_code,
+      status: booking.status,
+      customerName: `${customer.first_name} ${customer.last_name}`,
+    },
+    customer_email: customer.email,
+  };
+}
+
 /**
  * Verify a portal JWT token.
  * Returns the decoded payload or throws.
