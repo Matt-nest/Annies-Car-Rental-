@@ -13,6 +13,35 @@ export function calcRentalDays(pickupDate, returnDate) {
   return Math.max(1, Math.ceil((ret - pickup) / msPerDay) + 1);
 }
 
+/** True when stored rental_days does not match inclusive day count for the dates. */
+export function hasPricingDateDrift(booking) {
+  if (!booking?.pickup_date || !booking?.return_date) return false;
+  const expected = calcRentalDays(booking.pickup_date, booking.return_date);
+  const stored = Number(booking.rental_days);
+  return Number.isFinite(stored) && stored !== expected;
+}
+
+export function pricingDriftSummary(booking) {
+  const expectedDays = calcRentalDays(booking.pickup_date, booking.return_date);
+  const storedDays = Number(booking.rental_days);
+  return {
+    hasDrift: hasPricingDateDrift(booking),
+    expectedDays,
+    storedDays,
+    pickupDate: String(booking.pickup_date).split('T')[0],
+    returnDate: String(booking.return_date).split('T')[0],
+  };
+}
+
+const TERMINAL_PRICING_LOCKED_STATUSES = new Set(['active', 'returned', 'completed', 'cancelled', 'declined', 'no_show']);
+
+/** True when dates/pricing must not change (paid, picked up, or terminal). */
+export function isBookingPricingLocked(booking, rentalPaid = false) {
+  if (rentalPaid) return true;
+  if (TERMINAL_PRICING_LOCKED_STATUSES.has(booking?.status)) return true;
+  return false;
+}
+
 // Fee schedule for delivery options
 export const DELIVERY_FEES = {
   pickup:               0,

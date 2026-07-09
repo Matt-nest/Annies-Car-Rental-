@@ -7,6 +7,7 @@ import { sendTeamAlertAsync, TEAM_ALERT_EVENTS } from './teamAlertService.js';
 import { sendBookingNotification, buildBookingPayload } from './notifyService.js';
 import { calcInsuranceCost } from './pricingService.js';
 import { resolveBookingDepositCents } from './depositService.js';
+import { ensureBookingPricingSynced } from './bookingPricingSyncService.js';
 import { bindPolicy as bindBonzahPolicy, BonzahError } from './bonzahService.js';
 import {
   FEATURE_AUTO_OVERAGE_CHARGES,
@@ -707,7 +708,7 @@ export async function confirmPayment(paymentIntentId) {
  * actual charge still goes exclusively through createPaymentIntent.
  */
 export async function getBookingSummary(bookingCode) {
-  const { data: booking, error } = await supabase
+  let { data: booking, error } = await supabase
     .from('bookings')
     .select('*, customers(first_name, last_name, email, phone), vehicles(year, make, model, vehicle_code)')
     .eq('booking_code', bookingCode)
@@ -716,6 +717,8 @@ export async function getBookingSummary(bookingCode) {
   if (error || !booking) {
     throw Object.assign(new Error('Booking not found'), { status: 404 });
   }
+
+  booking = await ensureBookingPricingSynced(booking);
 
   // Preserve the "already paid" short-circuit the old create-payment-intent
   // load provided, so reopening a paid booking still jumps to the confirmed

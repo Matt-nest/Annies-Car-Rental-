@@ -171,6 +171,12 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
     setDepositAmount(String(Number.isFinite(vehicleDeposit) && vehicleDeposit > 0 ? vehicleDeposit : 150));
   }, [selectedVehicle, pickupDate, returnDate]);
 
+  // Changing dates invalidates any exact-price override from a prior step.
+  useEffect(() => {
+    setExactPriceEnabled(false);
+    setExactPrice('');
+  }, [pickupDate, returnDate]);
+
   const rentalDays = useMemo(
     () => calcRentalDays(pickupDate, returnDate),
     [pickupDate, returnDate],
@@ -274,6 +280,15 @@ export default function NewBookingModal({ open, onClose, onCreated }) {
     setSubmitting(true);
     setError('');
     try {
+      if (exactPriceEnabled && quote?.rentalTotal != null) {
+        const diff = Math.abs(Number(exactPrice) - quote.rentalTotal);
+        if (!Number.isFinite(Number(exactPrice)) || diff > 0.02) {
+          setError('Exact price no longer matches the selected dates. Update the amount or turn off exact price.');
+          setSubmitting(false);
+          return;
+        }
+      }
+
       const prefill = buildPrefill();
       const vehicleDaily = Number(selectedVehicle?.daily_rate);
       const usingCustomDaily = Number.isFinite(vehicleDaily) && Number(dailyRate) !== vehicleDaily;

@@ -7,6 +7,10 @@ import brand from '../config/brand.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { validateBookingPayload } from '../utils/validators.js';
 import { createBooking, transitionBooking, getBookingDetail, applyCheckoutOverride } from '../services/bookingService.js';
+import {
+  PRICING_SNAPSHOT_FIELDS,
+  repriceBookingFromDates,
+} from '../services/bookingPricingSyncService.js';
 import { createNotification } from '../services/notificationService.js';
 import { sendTeamAlertAsync, TEAM_ALERT_EVENTS } from '../services/teamAlertService.js';
 import { sendBookingNotification, buildBookingPayload } from '../services/notifyService.js';
@@ -288,10 +292,58 @@ router.post('/:id/long-term', requireAuth, requireRole('owner', 'admin'), asyncH
   res.json({ ...data, portal_url: portalUrl });
 }));
 
+/** PATCH /bookings/:id/dates — change dates and automatically reprice (admin) */
+router.patch('/:id/dates', requireAuth, requireRole('owner', 'admin'), asyncHandler(async (req, res) => {
+  const { pickup_date, return_date } = req.body || {};
+  if (!pickup_date && !return_date) {
+    return res.status(400).json({ error: 'pickup_date or return_date is required' });
+  }
+  const booking = await getBookingDetail(req.params.id);
+  const updated = await repriceBookingFromDates(req.params.id, {
+    pickupDate: pickup_date ?? booking.pickup_date,
+    returnDate: return_date ?? booking.return_date,
+  });
+  res.json(updated);
+}));
+
 /** PUT /bookings/:id — update booking details (admin) */
 router.put('/:id', requireAuth, asyncHandler(async (req, res) => {
   // Strip fields that should only change via transitions
-  const { status, customer_id, vehicle_id, ...updates } = req.body;
+  const {
+    status,
+    customer_id,
+    vehicle_id,
+    pickup_date,
+    return_date,
+    ...updates
+  } = req.body;
+
+  const pricingFieldsInBody = PRICING_SNAPSHOT_FIELDS.filter((f) => req.body[f] !== undefined);
+  if (pricingFieldsInBody.length > 0) {
+    return res.status(400).json({
+      error: 'Pricing fields cannot be updated directly. Use PATCH /bookings/:id/dates to change dates and recalculate pricing.',
+      fields: pricingFieldsInBody,
+    });
+  }
+
+  if (pickup_date != null || return_date != null) {
+    const booking = await getBookingDetail(req.params.id);
+    const repriced = await repriceBookingFromDates(req.params.id, {
+      pickupDate: pickup_date ?? booking.pickup_date,
+      returnDate: return_date ?? booking.return_date,
+    });
+    if (Object.keys(updates).length === 0) {
+      return res.json(repriced);
+    }
+    const { data, error } = await supabase
+      .from('bookings')
+      .update(updates)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    if (error) throw error;
+    return res.json(data);
+  }
 
   const { data, error } = await supabase
     .from('bookings')

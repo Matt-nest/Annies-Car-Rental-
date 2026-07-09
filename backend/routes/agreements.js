@@ -4,6 +4,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { generateRentalAgreementPdf } from '../utils/pdfGenerator.js';
 import { transitionBooking } from '../services/bookingService.js';
+import { ensureBookingPricingSynced } from '../services/bookingPricingSyncService.js';
 import { sendCounterSignNotification } from '../services/emailService.js';
 import { createNotification } from '../services/notificationService.js';
 import { sendTeamAlertAsync, TEAM_ALERT_EVENTS } from '../services/teamAlertService.js';
@@ -51,7 +52,7 @@ router.get('/pending-counter-sign', requireAuth, asyncHandler(async (req, res) =
 // Public — fetches agreement data for a booking (auto-filled fields + status)
 // ══════════════════════════════════════════════════════════════════════════════
 router.get('/:bookingCode', asyncHandler(async (req, res) => {
-  const { data: booking, error } = await supabase
+  let { data: booking, error } = await supabase
     .from('bookings')
     .select(`
       *,
@@ -64,6 +65,8 @@ router.get('/:bookingCode', asyncHandler(async (req, res) => {
   if (error || !booking) {
     return res.status(404).json({ error: 'Booking not found' });
   }
+
+  booking = await ensureBookingPricingSynced(booking);
 
   // Check if already signed
   const { data: existing } = await supabase

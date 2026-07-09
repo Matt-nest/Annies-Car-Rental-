@@ -1,7 +1,7 @@
 import { supabase } from '../db/supabase.js';
 import { generateBookingCode } from '../utils/generateBookingCode.js';
 import { checkAvailability } from './availabilityService.js';
-import { computeRentalPricing, DELIVERY_FEES, resolveMultiplier } from './pricingService.js';
+import { computeRentalPricing, DELIVERY_FEES, resolveMultiplier, calcRentalDays } from './pricingService.js';
 import { resolveCustomerLoyalty, LOYALTY_TIERS } from './loyaltyService.js';
 import { sendBookingNotification, buildBookingPayload } from './notifyService.js';
 import { sendBookingConfirmation } from './emailService.js';
@@ -216,6 +216,13 @@ export async function createBooking(payload) {
     totalCostOverride: adminTotalCostOverride,
     totalCostOverrideLabel: 'Admin exact price override',
   });
+
+  const expectedDays = calcRentalDays(pickup_date, return_date);
+  if (pricing.rental_days !== expectedDays) {
+    const err = new Error(`Pricing day count (${pricing.rental_days}) does not match selected dates (${expectedDays} days)`);
+    err.status = 500;
+    throw err;
+  }
 
   const depositCents = adminDepositAmount != null
     ? Math.round(adminDepositAmount * 100)
