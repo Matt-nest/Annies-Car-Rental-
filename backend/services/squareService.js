@@ -8,6 +8,7 @@ import { sendTeamAlertAsync, TEAM_ALERT_EVENTS } from './teamAlertService.js';
 import { sendBookingNotification, buildBookingPayload } from './notifyService.js';
 import { calcInsuranceCost } from './pricingService.js';
 import { resolveBookingDepositCents } from './depositService.js';
+import { ensureBookingPricingSynced } from './bookingPricingSyncService.js';
 import { bindPolicy as bindBonzahPolicy, BonzahError } from './bonzahService.js';
 
 function centsToDollars(cents) {
@@ -274,7 +275,8 @@ async function formatSquareBookingSummary(booking) {
 
 export async function getSquareBookingSummary(bookingCode) {
   requireProvider('square');
-  const booking = await getBookingByCode(bookingCode);
+  let booking = await getBookingByCode(bookingCode);
+  booking = await ensureBookingPricingSynced(booking);
   const { data: existingPayment } = await supabase
     .from('payments')
     .select('status')
