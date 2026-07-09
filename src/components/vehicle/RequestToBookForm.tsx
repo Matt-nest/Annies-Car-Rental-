@@ -202,6 +202,10 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!validate()) { setSubmitError('Some required details are missing. Please step back and complete them.'); return; }
+    if (!RECAPTCHA_SITE_KEY) {
+      setSubmitError(`Online booking is temporarily unavailable. Please call us at ${brand.phone} and we'll help you reserve.`);
+      return;
+    }
     setIsSubmitting(true);
     setSubmitError('');
 
@@ -268,6 +272,8 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
       console.error('[Booking Submit Error]', err);
       if (err instanceof TypeError && err.message === 'Failed to fetch') {
         setSubmitError('Unable to reach our server. Please check your internet connection and try again.');
+      } else if (err instanceof Error && err.message) {
+        setSubmitError(err.message);
       } else {
         setSubmitError(`Something went wrong submitting your request. Please try again or call us at ${brand.phone}.`);
       }

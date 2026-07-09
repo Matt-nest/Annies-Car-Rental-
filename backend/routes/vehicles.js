@@ -52,7 +52,7 @@ router.get('/catalog', asyncHandler(async (req, res) => {
     if (PREMIUM_VINS.has(vin)) tags.push('Premium');
 
     return {
-      id: v.vehicle_code,
+      id: v.vehicle_code || vin,
       vehicleId: v.id,
       vin: vin || '',
       make: v.make,
