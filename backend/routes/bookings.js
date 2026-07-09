@@ -791,6 +791,42 @@ router.patch('/:code/insurance', asyncHandler(async (req, res) => {
     return res.json({ success: true, booking_code: booking.booking_code });
   }
 
+  if (source === 'none') {
+    const { error: updErr } = await supabase
+      .from('bookings')
+      .update({
+        insurance_provider: null,
+        insurance_status: 'none',
+        bonzah_tier_id: null,
+        bonzah_quote_id: null,
+        bonzah_premium_cents: null,
+        bonzah_markup_cents: null,
+        bonzah_quote_expires_at: null,
+        ...receiptFields,
+      })
+      .eq('id', booking.id);
+    if (updErr) return res.status(500).json({ error: `Failed to record insurance choice: ${updErr.message}` });
+
+    const { data: fullBooking } = await supabase
+      .from('bookings')
+      .select('*, customers(first_name, last_name, email, phone), vehicles(year, make, model, vehicle_code)')
+      .eq('id', booking.id)
+      .single();
+    if (fullBooking) {
+      createNotification(
+        'insurance_review_needed',
+        `No insurance provided: ${booking.booking_code}`,
+        `${fullBooking.customers?.first_name} ${fullBooking.customers?.last_name} continued without insurance coverage.`,
+        `/bookings/${booking.id}`,
+        { booking_id: booking.id, booking_code: booking.booking_code },
+      ).catch(() => {});
+      sendTeamAlertAsync(TEAM_ALERT_EVENTS.INSURANCE_REVIEW, fullBooking);
+    }
+
+    console.log(`[Booking] Customer declined insurance for ${booking.booking_code}`);
+    return res.json({ success: true, booking_code: booking.booking_code });
+  }
+
   if (bonzah_policy_number) {
     // Legacy admin-paste path — keeps working in case any internal tool calls it.
     const { error: updErr } = await supabase
@@ -806,7 +842,7 @@ router.patch('/:code/insurance', asyncHandler(async (req, res) => {
     return res.json({ success: true, booking_code: booking.booking_code });
   }
 
-  return res.status(400).json({ error: 'Insurance source is required (bonzah with tier_id, or own)' });
+  return res.status(400).json({ error: 'Insurance source is required (bonzah with tier_id, own, or none)' });
 }));
 
 /** POST /bookings/:id/approve-insurance — admin approves or rejects a customer's own insurance.
