@@ -128,7 +128,7 @@ export interface WizardDraft {
   };
 
   // Stage 2 - Insurance choice
-  insuranceChoice: 'own' | 'bonzah' | null;
+  insuranceChoice: 'own' | 'bonzah' | 'none' | null;
   bonzahTierId: string | null;
   bonzahQuote: BonzahQuote | null;     // last-displayed quote (for fallback if /quote re-call fails on Continue)
 

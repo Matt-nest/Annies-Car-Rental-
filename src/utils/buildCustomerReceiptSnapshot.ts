@@ -19,7 +19,7 @@ export interface CustomerReceiptSnapshot {
   line_items: ReceiptLineItem[];
   rental_total: number;
   insurance: {
-    choice: 'bonzah' | 'own' | null;
+    choice: 'bonzah' | 'own' | 'none' | null;
     label: string;
     amount: number;
     tier_id?: string | null;
@@ -82,6 +82,8 @@ export function buildCustomerReceiptSnapshot(
     tierId = draft.bonzahTierId;
   } else if (draft.insuranceChoice === 'own') {
     insuranceLabel = 'Your own insurance (no charge)';
+  } else if (draft.insuranceChoice === 'none') {
+    insuranceLabel = 'No insurance provided';
   }
 
   const grandTotal = rentalTotal + insuranceCost + depositAmount;

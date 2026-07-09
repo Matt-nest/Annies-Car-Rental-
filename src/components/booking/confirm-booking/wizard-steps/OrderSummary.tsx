@@ -24,6 +24,8 @@ export default function OrderSummary({ bookingSummary: bs, draft, depositAmount,
     insuranceLabel = `Bonzah Insurance: ${tierLabel} (${rentalDays} day${rentalDays === 1 ? '' : 's'})`;
   } else if (draft.insuranceChoice === 'own') {
     insuranceLabel = 'Your own insurance (no charge)';
+  } else if (draft.insuranceChoice === 'none') {
+    insuranceLabel = 'No insurance provided';
   }
 
   const rentalTotal = bs?.totalCost || 0;

@@ -54,6 +54,23 @@ function ageFrom(dob?: string): number | null {
 
 type View = 'choice' | 'own' | 'bonzah';
 
+function NoneBypassButton({ onClick, theme }: { onClick: () => void; theme: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full rounded-xl border px-4 py-3.5 text-sm font-medium transition-all duration-200 hover:shadow-sm cursor-pointer"
+      style={{
+        borderColor: 'var(--border-subtle)',
+        color: 'var(--text-secondary)',
+        backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+      }}
+    >
+      I don&apos;t have insurance — continue without coverage
+    </button>
+  );
+}
+
 export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupState, onUpdate, onContinue, onBack, theme }: Props) {
   // Whether Bonzah is disabled site-wide (admin toggle). Fetched once on mount.
   const [bonzahDisabled, setBonzahDisabled] = useState<boolean | null>(null);
@@ -89,15 +106,6 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
         if (cancelled) return;
         const disabled = !json.enabled;
         setBonzahDisabled(disabled);
-        // Auto-route to own-insurance if Bonzah is disabled and no choice made yet
-        if (disabled && !draft.insuranceChoice) {
-          onUpdate({
-            insuranceChoice: 'own',
-            bonzahTierId: null,
-            bonzahQuote: null,
-          });
-          setView('own');
-        }
       } catch {
         // If we can't check, default to showing the choice screen
         if (!cancelled) setBonzahDisabled(false);
@@ -244,6 +252,16 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
     setView('bonzah');
   };
 
+  const handleChooseNone = () => {
+    onUpdate({
+      insuranceChoice: 'none',
+      bonzahTierId: null,
+      bonzahQuote: null,
+    });
+    setError('');
+    onContinue();
+  };
+
   const handleBackToChoice = () => {
     setError('');
     setFieldErrors({});
@@ -281,14 +299,6 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
      View 1 - Choice screen (two side-by-side rectangles)
      ════════════════════════════════════════════════════════ */
   if (view === 'choice') {
-    // When Bonzah is disabled, skip choice and go straight to own insurance
-    // (this shouldn't normally render because we auto-route on mount, but
-    // acts as a safety net if state gets out of sync).
-    if (bonzahDisabled) {
-      handleChooseOwn();
-      return null;
-    }
-
     // Still loading the Bonzah config check - show a brief loader
     if (bonzahDisabled === null) {
       return (
@@ -320,7 +330,7 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
         </div>
 
         {/* Two equal cards, side-by-side on tablet+ */}
-        <div className="grid sm:grid-cols-2 gap-3">
+        <div className={`grid gap-3 ${bonzahDisabled ? 'grid-cols-1' : 'sm:grid-cols-2'}`}>
           {/* Own insurance */}
           <button
             type="button"
@@ -347,7 +357,8 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
             </p>
           </button>
 
-          {/* Buy from us */}
+          {/* Buy from us — hidden when Bonzah is disabled site-wide */}
+          {!bonzahDisabled && (
           <button
             type="button"
             onClick={handleChooseBonzah}
@@ -372,7 +383,10 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
               View coverage options <span aria-hidden>→</span>
             </p>
           </button>
+          )}
         </div>
+
+        <NoneBypassButton onClick={handleChooseNone} theme={theme} />
 
         <div className="flex gap-3">
           <button type="button" onClick={onBack}
@@ -474,6 +488,8 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
             <span>{error}</span>
           </div>
         )}
+
+        <NoneBypassButton onClick={handleChooseNone} theme={theme} />
 
         <div className="flex gap-3">
           <button type="button" onClick={handleBackToChoice}
@@ -717,6 +733,8 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
           <span>{error}</span>
         </div>
       )}
+
+      <NoneBypassButton onClick={handleChooseNone} theme={theme} />
 
       <div className="flex gap-3">
         <button type="button" onClick={handleBackToChoice}
