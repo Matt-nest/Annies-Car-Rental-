@@ -54,6 +54,24 @@ function ageFrom(dob?: string): number | null {
 
 type View = 'choice' | 'own' | 'bonzah';
 
+const INSURANCE_FETCH_TIMEOUT_MS = 8000;
+
+async function fetchJsonWithTimeout(
+  url: string,
+  init?: RequestInit,
+  timeoutMs = INSURANCE_FETCH_TIMEOUT_MS,
+): Promise<{ res: Response; json: any }> {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { ...init, signal: controller.signal });
+    const json = await res.json();
+    return { res, json };
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
 function NoneBypassButton({ onClick, theme }: { onClick: () => void; theme: string }) {
   return (
     <button
@@ -101,14 +119,12 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`${API_URL}/bookings/insurance/config`);
-        const json = await res.json();
+        const { json } = await fetchJsonWithTimeout(`${API_URL}/bookings/insurance/config`);
         if (cancelled) return;
-        const disabled = !json.enabled;
-        setBonzahDisabled(disabled);
+        setBonzahDisabled(!json.enabled);
       } catch {
-        // If we can't check, default to showing the choice screen
-        if (!cancelled) setBonzahDisabled(false);
+        // Slow/unreachable config check — don't block the customer; hide Bonzah for now.
+        if (!cancelled) setBonzahDisabled(true);
       }
     })();
     return () => { cancelled = true; };
@@ -158,13 +174,17 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
     setConfigLoading(true);
     (async () => {
       try {
-        const res = await fetch(`${API_URL}/bookings/insurance/config`);
-        const json = await res.json();
+        const { res, json } = await fetchJsonWithTimeout(`${API_URL}/bookings/insurance/config`);
         if (cancelled) return;
         if (!res.ok) throw new Error(json.error || 'Failed to load insurance options');
         setConfig(json);
       } catch (e: any) {
-        if (!cancelled) setConfigError(e.message || 'Failed to load insurance options');
+        if (!cancelled) {
+          const message = e?.name === 'AbortError'
+            ? 'Insurance options took too long to load'
+            : (e.message || 'Failed to load insurance options');
+          setConfigError(message);
+        }
       } finally {
         if (!cancelled) setConfigLoading(false);
       }
@@ -177,7 +197,7 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
     setTierLoading(prev => ({ ...prev, [tierId]: true }));
     setTierErrors(prev => { const next = { ...prev }; delete next[tierId]; return next; });
     try {
-      const res = await fetch(`${API_URL}/bookings/${bookingCode}/insurance/quote`, {
+      const { res, json } = await fetchJsonWithTimeout(`${API_URL}/bookings/${bookingCode}/insurance/quote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -192,13 +212,13 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
           },
         }),
       });
-      const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to load price');
       const quote: BonzahQuote = json;
       setTierQuotes(prev => ({ ...prev, [tierId]: quote }));
       return quote;
     } catch (e: any) {
-      setTierErrors(prev => ({ ...prev, [tierId]: e.message || 'Unavailable' }));
+      const message = e?.name === 'AbortError' ? 'Timed out' : (e.message || 'Unavailable');
+      setTierErrors(prev => ({ ...prev, [tierId]: message }));
       return null;
     } finally {
       setTierLoading(prev => ({ ...prev, [tierId]: false }));
@@ -299,18 +319,7 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
      View 1 - Choice screen (two side-by-side rectangles)
      ════════════════════════════════════════════════════════ */
   if (view === 'choice') {
-    // Still loading the Bonzah config check - show a brief loader
-    if (bonzahDisabled === null) {
-      return (
-        <div className="space-y-5">
-          <div className="rounded-xl border p-6 flex items-center justify-center gap-2.5"
-            style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
-            <Loader2 className="animate-spin" size={18} style={{ color: 'var(--accent-color)' }} />
-            <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Loading insurance options…</span>
-          </div>
-        </div>
-      );
-    }
+    const showBonzahChoice = bonzahDisabled === false;
 
     return (
       <div className="space-y-5">
@@ -330,7 +339,7 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
         </div>
 
         {/* Two equal cards, side-by-side on tablet+ */}
-        <div className={`grid gap-3 ${bonzahDisabled ? 'grid-cols-1' : 'sm:grid-cols-2'}`}>
+        <div className={`grid gap-3 ${showBonzahChoice ? 'sm:grid-cols-2' : 'grid-cols-1'}`}>
           {/* Own insurance */}
           <button
             type="button"
@@ -358,7 +367,7 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
           </button>
 
           {/* Buy from us — hidden when Bonzah is disabled site-wide */}
-          {!bonzahDisabled && (
+          {showBonzahChoice && (
           <button
             type="button"
             onClick={handleChooseBonzah}
@@ -512,23 +521,6 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
      View 3 - Bonzah tier selection (CDW Essential mandatory within this path)
      ════════════════════════════════════════════════════════ */
 
-  if (configLoading) {
-    return (
-      <div className="space-y-5">
-        <button type="button" onClick={handleBackToChoice}
-          className="inline-flex items-center gap-1.5 text-xs hover:underline cursor-pointer"
-          style={{ color: 'var(--text-tertiary)' }}>
-          <ArrowLeft size={12} /> Choose a different option
-        </button>
-        <div className="rounded-xl border p-6 flex items-center justify-center gap-2.5"
-          style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
-          <Loader2 className="animate-spin" size={18} style={{ color: 'var(--accent-color)' }} />
-          <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Loading insurance options…</span>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-5">
       {/* Breadcrumb back to choice */}
@@ -575,6 +567,14 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
           Bonzah is not available for rentals picked up in {stateName}. You may use your own insurance instead. Click "Choose a different option" above.
         </div>
       )}
+      {configLoading && (
+        <div className="rounded-xl border p-6 flex items-center justify-center gap-2.5"
+          style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+          <Loader2 className="animate-spin" size={18} style={{ color: 'var(--accent-color)' }} />
+          <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Loading insurance options…</span>
+        </div>
+      )}
+
       {configError && (
         <div className="rounded-xl border p-3 text-xs"
           style={{ backgroundColor: 'rgba(239,68,68,0.08)', borderColor: 'rgba(239,68,68,0.25)', color: '#ef4444' }}>
@@ -599,7 +599,7 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
       )}
 
       {/* Bonzah coverage tiers */}
-      {bonzahAvailable && (
+      {!configLoading && bonzahAvailable && (
         <div className="rounded-xl border overflow-hidden"
           style={{
             backgroundColor: 'var(--bg-card)',
