@@ -24,7 +24,7 @@ export default defineConfig(({ mode }) => {
         srcDir: 'src',
         filename: 'sw.js',
         injectManifest: {
-          globPatterns: ['**/*.{js,css,html,svg,ico,png,woff2}'],
+          globPatterns: ['**/*.{js,css,html,svg,ico,woff2}'],
           globIgnores: [
             '**/mapbox-gl-*.js',
             '**/mapbox-gl-*.css',
@@ -44,6 +44,20 @@ export default defineConfig(({ mode }) => {
     ],
     build: {
       sourcemap: false,
+      rollupOptions: {
+        output: {
+          manualChunks: (id) => {
+            if (id.includes('node_modules')) {
+              if (id.includes('framer-motion') || id.includes('motion-dom') || id.includes('motion-utils')) return 'vendor-motion';
+              if (id.includes('react-router')) return 'vendor-router';
+              if (id.includes('lucide-react')) return 'vendor-icons';
+              if (id.includes('@supabase')) return 'vendor-supabase';
+              if (id.includes('react-dom') || id.includes('/react/')) return 'vendor-react';
+            }
+            return undefined;
+          },
+        },
+      },
     },
     server: {
       port: 5174,

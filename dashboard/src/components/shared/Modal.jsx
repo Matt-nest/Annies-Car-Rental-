@@ -14,7 +14,7 @@ export default function Modal({ open, onClose, title, children, maxWidth = 'max-
   return (
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 safe-x" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+        <div className="fixed inset-0 z-[100002] flex items-end sm:items-center justify-center p-4 safe-x" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}

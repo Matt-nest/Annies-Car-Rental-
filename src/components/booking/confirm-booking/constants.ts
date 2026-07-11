@@ -18,7 +18,7 @@ export const STAGES = [
 // Legacy alias for backward compatibility
 export const STEPS = STAGES;
 
-export const PAYMENT_PROVIDER = (import.meta.env.VITE_PAYMENT_PROVIDER || 'stripe').toLowerCase();
+export const PAYMENT_PROVIDER = (import.meta.env.VITE_PAYMENT_PROVIDER || brand.paymentProvider || 'square').toLowerCase();
 export const STRIPE_CONFIGURED = PAYMENT_PROVIDER === 'stripe';
 /** Must match backend FEATURE_AUTO_OVERAGE_CHARGES — drives Stripe Elements setupFutureUsage. */
 export const CARD_ON_FILE_ENABLED =
