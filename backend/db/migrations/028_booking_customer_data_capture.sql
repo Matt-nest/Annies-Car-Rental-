@@ -31,10 +31,29 @@ UPDATE bookings
 SET has_delivery = COALESCE(delivery_requested, false)
 WHERE has_delivery IS DISTINCT FROM COALESCE(delivery_requested, false);
 
-UPDATE bookings
-SET has_unlimited_miles = COALESCE(unlimited_miles, false)
-WHERE has_unlimited_miles IS DISTINCT FROM COALESCE(unlimited_miles, false);
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'bookings'
+      AND column_name = 'unlimited_miles'
+  ) THEN
+    UPDATE bookings
+    SET has_unlimited_miles = COALESCE(unlimited_miles, false)
+    WHERE has_unlimited_miles IS DISTINCT FROM COALESCE(unlimited_miles, false);
+  END IF;
 
-UPDATE bookings
-SET has_unlimited_tolls = COALESCE(unlimited_tolls, false)
-WHERE has_unlimited_tolls IS DISTINCT FROM COALESCE(unlimited_tolls, false);
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'bookings'
+      AND column_name = 'unlimited_tolls'
+  ) THEN
+    UPDATE bookings
+    SET has_unlimited_tolls = COALESCE(unlimited_tolls, false)
+    WHERE has_unlimited_tolls IS DISTINCT FROM COALESCE(unlimited_tolls, false);
+  END IF;
+END $$;

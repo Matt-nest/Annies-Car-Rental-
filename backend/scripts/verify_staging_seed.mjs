@@ -13,6 +13,11 @@ const expectedBookings = [
   [`${codePrefix}-DONE`, 'completed'],
 ];
 
+function hasRelatedRow(value) {
+  if (Array.isArray(value)) return value.length > 0;
+  return Boolean(value?.id);
+}
+
 async function requireRows(label, query, minCount) {
   const { data, error } = await query;
   if (error) {
@@ -56,8 +61,8 @@ async function main() {
     if (booking.status !== status) {
       throw new Error(`bookings: ${code} expected status ${status}, found ${booking.status}`);
     }
-    if (!booking.payments?.length) throw new Error(`bookings: ${code} missing payment ledger row`);
-    if (!booking.booking_deposits?.length) throw new Error(`bookings: ${code} missing booking deposit row`);
+    if (!hasRelatedRow(booking.payments)) throw new Error(`bookings: ${code} missing payment ledger row`);
+    if (!hasRelatedRow(booking.booking_deposits)) throw new Error(`bookings: ${code} missing booking deposit row`);
     console.log(`OK booking ${code}: ${status}`);
   }
 

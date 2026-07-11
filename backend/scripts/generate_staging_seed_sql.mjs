@@ -238,7 +238,7 @@ function bookingInsert(booking) {
   created_at, updated_at
 ) VALUES (
   ${sqlString(booking.id)}, ${sqlString(booking.code)}, ${sqlString(booking.customer.id)}, ${sqlString(booking.vehicle.id)},
-  ${booking.pickup}::date, ${booking.dropoff}::date,
+  (${booking.pickup})::date, (${booking.dropoff})::date,
   '09:00', '09:00', ${sqlString(`${brand.location.city}, ${brand.location.state}`)}, ${sqlString(`${brand.location.city}, ${brand.location.state}`)},
   false, ${money(booking.vehicle.daily)}, ${days}, ${money(subtotal)}, ${money(tax)},
   ${money(booking.total)}, ${money(booking.vehicle.deposit)}, ${sqlString(booking.depositStatus)}, 'own_policy',

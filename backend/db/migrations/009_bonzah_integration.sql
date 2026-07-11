@@ -40,9 +40,11 @@ ALTER TABLE bookings
 
 -- Note: bonzah_policy_id VARCHAR(100) already exists from 001_initial_schema.sql
 
--- Index for the polling job's WHERE clause (active policies, recent trips)
+-- Index for the polling job's WHERE clause (active policies, recent trips).
+-- Uses return_date (the bookings trip-end column); the polling job filters
+-- `.gte('return_date', ...)`. ("trip_end_date" is only a Bonzah API payload field.)
 CREATE INDEX IF NOT EXISTS idx_bookings_bonzah_policy_active
-  ON bookings (insurance_status, trip_end_date)
+  ON bookings (insurance_status, return_date)
   WHERE bonzah_policy_id IS NOT NULL;
 
 -- ────────────────────────────────────────────────────────────

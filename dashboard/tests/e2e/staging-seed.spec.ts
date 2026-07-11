@@ -15,6 +15,11 @@ const expectedStatuses = [
 
 const headers = () => ({ Authorization: `Bearer ${adminToken}` });
 
+async function readBookings(response: any) {
+  const body = await response.json();
+  return Array.isArray(body) ? body : body.data;
+}
+
 test.skip(
   !enabled,
   'Set STAGING_E2E=1, STAGING_E2E_API_URL, and STAGING_E2E_ADMIN_TOKEN to verify seeded staging dashboard data.'
@@ -25,7 +30,7 @@ test.describe('staging seed dashboard API', () => {
     const response = await request.get(`${apiUrl}/bookings`, { headers: headers() });
 
     expect(response.ok()).toBeTruthy();
-    const bookings = await response.json();
+    const bookings = await readBookings(response);
     expect(Array.isArray(bookings)).toBeTruthy();
 
     for (const expected of expectedStatuses) {
@@ -38,7 +43,7 @@ test.describe('staging seed dashboard API', () => {
   test('seeded booking details expose customer, vehicle, payment, and deposit surfaces', async ({ request }) => {
     const listResponse = await request.get(`${apiUrl}/bookings`, { headers: headers() });
     expect(listResponse.ok()).toBeTruthy();
-    const bookings = await listResponse.json();
+    const bookings = await readBookings(listResponse);
 
     for (const expected of expectedStatuses) {
       const listed = bookings.find((item: any) => item.booking_code === expected.code);
