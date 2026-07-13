@@ -111,6 +111,10 @@ export async function listMoneyActions({
   bookingId,
   customerId,
   actionKey,
+  status,
+  operator,
+  actorEmail,
+  actorId,
   limit = 25,
 } = {}) {
   let query = supabase
@@ -122,6 +126,10 @@ export async function listMoneyActions({
   if (bookingId) query = query.eq('booking_id', bookingId);
   if (customerId) query = query.eq('customer_id', customerId);
   if (actionKey) query = query.eq('action_key', actionKey);
+  if (status) query = query.eq('status', status);
+  if (actorId) query = query.eq('actor_id', actorId);
+  if (actorEmail) query = query.ilike('actor_email', `%${actorEmail}%`);
+  if (operator) query = query.ilike('actor_email', `%${operator}%`);
 
   const { data, error } = await query;
   if (error) {

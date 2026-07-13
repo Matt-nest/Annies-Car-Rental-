@@ -18,6 +18,7 @@ import CheckOutTab from '../components/booking-tabs/CheckOutTab';
 import InvoiceTab from '../components/booking-tabs/InvoiceTab';
 import BookingActionBar from '../components/booking-tabs/BookingActionBar';
 import BookingLifecycleStrip from '../components/shared/BookingLifecycleStrip';
+import { AuditTrailPanel, normalizeAuditEntries } from '../components/shared/MoneyActionGuardrails';
 import { useAlerts } from '../lib/alertsContext';
 import { hasCompletedRentalPayment, isReadyForHandoff, needsOwnerCounterSignature } from '../lib/bookingOps';
 import { format } from 'date-fns';
@@ -396,6 +397,8 @@ export default function BookingDetailPage() {
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'overview');
   const [checkinRecords, setCheckinRecords] = useState([]);
+  const [auditEntries, setAuditEntries] = useState([]);
+  const [auditLoading, setAuditLoading] = useState(false);
   const [showExtend, setShowExtend] = useState(false);
   const { refresh: refreshAlerts } = useAlerts();
 
@@ -419,6 +422,15 @@ export default function BookingDetailPage() {
         const records = await api.getCheckinRecords(id);
         setCheckinRecords(Array.isArray(records) ? records : []);
       } catch { /* non-fatal */ }
+      setAuditLoading(true);
+      try {
+        const audit = await api.getMoneyActions({ booking_id: id, limit: 50 });
+        setAuditEntries(normalizeAuditEntries(audit?.data || []));
+      } catch {
+        setAuditEntries([]);
+      } finally {
+        setAuditLoading(false);
+      }
     } catch (e) { console.error(e); }
     setLoading(false);
   };
@@ -788,6 +800,8 @@ export default function BookingDetailPage() {
           setModal={setModal} setPaymentForm={setPaymentForm}
           setLightboxUrl={setLightboxUrl}
           checkinRecords={checkinRecords}
+          auditEntries={auditEntries}
+          auditLoading={auditLoading}
         />
       )}
 
@@ -1034,7 +1048,7 @@ function DepositSection({ booking, onUpdated }) {
   );
 }
 
-function OverviewTab({ booking, c, v, id, load, setModal, setPaymentForm, setLightboxUrl, checkinRecords }) {
+function OverviewTab({ booking, c, v, id, load, setModal, setPaymentForm, setLightboxUrl, checkinRecords, auditEntries, auditLoading }) {
   return (
     <div className="grid md:grid-cols-2 gap-5">
       {/* Customer */}
@@ -1343,6 +1357,13 @@ function OverviewTab({ booking, c, v, id, load, setModal, setPaymentForm, setLig
           </Link>
         </div>
       </Section>
+
+      <AuditTrailPanel
+        entries={auditEntries}
+        title="Booking money audit trail"
+        emptyText={auditLoading ? 'Loading audit records...' : 'No persisted money actions recorded for this booking yet.'}
+        max={20}
+      />
 
       <RentalExtensionsSection bookingId={id} />
 
