@@ -33,7 +33,7 @@ export default function BookingLifecycleStrip({ booking, onPrimaryAction }) {
         )}
       </div>
 
-      <div className="mt-4 grid grid-cols-4 gap-2 lg:grid-cols-8" aria-label="Booking lifecycle progress">
+      <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-9" aria-label="Booking lifecycle progress">
         {BOOKING_LIFECYCLE_STEPS.map((step, idx) => {
           const stepNumber = idx + 1;
           const complete = activeStep > stepNumber;
@@ -69,4 +69,3 @@ export default function BookingLifecycleStrip({ booking, onPrimaryAction }) {
     </section>
   );
 }
-

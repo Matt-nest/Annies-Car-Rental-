@@ -1,5 +1,6 @@
 import { Check, Key, Package, Flag, X } from 'lucide-react';
 import { haptic } from '../../lib/haptic';
+import { hasCompletedRentalPayment, isReadyForHandoff, needsOwnerCounterSignature } from '../../lib/bookingOps';
 
 /**
  * BookingActionBar — sticky bottom primary-action CTA for the admin booking
@@ -24,7 +25,7 @@ const STATUS_ACTIONS = {
     secondary: { action: 'decline', label: 'Decline',  icon: X,     tone: 'danger'  },
   },
   approved: {
-    primary: { action: 'checkin', label: 'Prep Pickup', icon: Package, tone: 'accent' },
+    primary: { action: 'overview', label: 'Send Continue Link', icon: Package, tone: 'accent' },
   },
   confirmed: {
     primary: { action: 'checkin', label: 'Prep Pickup', icon: Package, tone: 'accent' },
@@ -47,8 +48,21 @@ const TONE_STYLE = {
   danger:  { backgroundColor: 'transparent', color: '#ef4444', border: '1px solid rgba(239,68,68,0.35)' },
 };
 
-export default function BookingActionBar({ status, onAction, disabled = false }) {
-  const cfg = STATUS_ACTIONS[status];
+function getConfig(status, booking) {
+  if (status === 'approved' && !hasCompletedRentalPayment(booking)) {
+    return { primary: { action: 'overview', label: 'Send Continue Link', icon: Package, tone: 'accent' } };
+  }
+  if (['approved', 'confirmed'].includes(status) && needsOwnerCounterSignature(booking)) {
+    return { primary: { action: 'overview', label: 'Counter-Sign', icon: Check, tone: 'success' } };
+  }
+  if (status === 'confirmed' && !isReadyForHandoff(booking)) {
+    return { primary: { action: 'overview', label: 'Finish Documents', icon: Package, tone: 'accent' } };
+  }
+  return STATUS_ACTIONS[status];
+}
+
+export default function BookingActionBar({ booking, status, onAction, disabled = false }) {
+  const cfg = getConfig(status, booking);
   if (!cfg) return null;
 
   function handlePrimary() {

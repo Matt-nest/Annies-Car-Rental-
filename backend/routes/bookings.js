@@ -30,7 +30,13 @@ const bookingRateLimit = rateLimit({
 router.get('/', requireAuth, asyncHandler(async (req, res) => {
   let query = supabase
     .from('bookings')
-    .select('*, customers(first_name, last_name, email, phone), vehicles(year, make, model, vehicle_code)')
+    .select(`
+      *,
+      customers(first_name, last_name, email, phone),
+      vehicles(year, make, model, vehicle_code),
+      rental_agreements(customer_signed_at, owner_signed_at),
+      payments(payment_type, status)
+    `)
     .order('created_at', { ascending: false });
 
   if (req.query.status)     query = query.eq('status', req.query.status);

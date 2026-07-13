@@ -60,12 +60,41 @@ export function getVehicleName(booking) {
   return name || booking?.vehicle_name || 'Vehicle not assigned';
 }
 
-export function getBookingLifecycle(booking) {
-  const status = booking?.status || 'unknown';
-  const depositStatus = booking?.deposit_status;
-  const agreement = Array.isArray(booking?.rental_agreements)
+export function getAgreement(booking) {
+  return Array.isArray(booking?.rental_agreements)
     ? booking.rental_agreements[0]
     : booking?.rental_agreements;
+}
+
+export function hasCompletedRentalPayment(booking) {
+  const payments = Array.isArray(booking?.payments) ? booking.payments : [];
+  if (payments.some((p) => p.payment_type === 'rental' && ['completed', 'paid', 'succeeded'].includes(p.status))) {
+    return true;
+  }
+  return ['paid', 'held', 'collected', 'refunded', 'applied', 'partial_refund'].includes(booking?.deposit_status);
+}
+
+export function hasCustomerSignedAgreement(booking) {
+  return Boolean(getAgreement(booking)?.customer_signed_at);
+}
+
+export function needsOwnerCounterSignature(booking) {
+  const agreement = getAgreement(booking);
+  return Boolean(agreement?.customer_signed_at && !agreement?.owner_signed_at);
+}
+
+export function isReadyForHandoff(booking) {
+  if (!booking) return false;
+  if (booking.status === 'ready_for_pickup') return true;
+  if (booking.status !== 'confirmed') return false;
+  return hasCompletedRentalPayment(booking) && hasCustomerSignedAgreement(booking) && !needsOwnerCounterSignature(booking);
+}
+
+export function getBookingLifecycle(booking) {
+  const status = booking?.status || 'unknown';
+  const paid = hasCompletedRentalPayment(booking);
+  const signed = hasCustomerSignedAgreement(booking);
+  const needsCounterSign = needsOwnerCounterSignature(booking);
 
   if (status === 'pending_approval') {
     return {
@@ -78,37 +107,68 @@ export function getBookingLifecycle(booking) {
     };
   }
 
-  if (status === 'approved' && depositStatus !== 'paid') {
+  if (status === 'approved' && !paid) {
     return {
       key: 'payment_due',
       label: 'Payment due',
       tone: 'sky',
       step: 2,
-      action: 'Send payment link',
-      description: 'Booking is approved. Customer still needs to pay before the trip is operationally safe.',
+      action: 'Send continue link',
+      description: 'Booking is approved, but the customer still needs to complete payment before the trip is operationally safe.',
     };
   }
 
-  if (['approved', 'confirmed', 'ready_for_pickup'].includes(status)) {
+  if (['approved', 'confirmed'].includes(status) && !signed) {
+    return {
+      key: 'agreement_due',
+      label: 'Agreement due',
+      tone: 'violet',
+      step: 3,
+      action: 'Send continue link',
+      description: 'Payment is handled, but the customer still needs to complete the rental agreement, license, insurance, and signature.',
+    };
+  }
+
+  if (['approved', 'confirmed'].includes(status) && needsCounterSign) {
+    return {
+      key: 'counter_sign_needed',
+      label: 'Counter-sign needed',
+      tone: 'amber',
+      step: 4,
+      action: 'Counter-sign',
+      description: 'Customer completed their agreement. Owner counter-signature is the last document step before handoff.',
+    };
+  }
+
+  if (status === 'ready_for_pickup') {
+    return {
+      key: 'ready_for_pickup',
+      label: 'Ready for pickup',
+      tone: 'emerald',
+      step: 5,
+      action: 'Open check-in',
+      description: 'Vehicle is prepped. Confirm handoff details, lockbox/code, photos, fuel, and customer pickup instructions.',
+    };
+  }
+
+  if (status === 'confirmed') {
     if (isSameLocalDay(booking?.pickup_date)) {
       return {
         key: 'pickup_today',
         label: 'Pickup today',
         tone: 'blue',
-        step: 4,
+        step: 5,
         action: 'Prep handoff',
         description: 'Vehicle handoff is due today. Confirm photos, fuel, odometer, lockbox, and instructions.',
       };
     }
     return {
       key: 'confirmed',
-      label: agreement?.customer_signed_at ? 'Confirmed' : 'Agreement pending',
-      tone: agreement?.customer_signed_at ? 'emerald' : 'violet',
-      step: 3,
-      action: 'Check readiness',
-      description: agreement?.customer_signed_at
-        ? 'Booking is confirmed. Watch for pickup prep and customer instructions.'
-        : 'Booking is confirmed but agreement completion still needs attention.',
+      label: 'Confirmed',
+      tone: 'emerald',
+      step: 4,
+      action: 'Prep handoff',
+      description: 'Booking is paid, signed, and confirmed. Prep vehicle handoff before pickup day.',
     };
   }
 
@@ -118,7 +178,7 @@ export function getBookingLifecycle(booking) {
         key: 'overdue_return',
         label: 'Overdue return',
         tone: 'red',
-        step: 6,
+        step: 7,
         action: 'Contact renter',
         description: 'Return time has passed. Prioritize customer contact and vehicle recovery/extension decision.',
       };
@@ -128,7 +188,7 @@ export function getBookingLifecycle(booking) {
         key: 'return_today',
         label: 'Return today',
         tone: 'purple',
-        step: 6,
+        step: 7,
         action: 'Prepare checkout',
         description: 'Trip is active and due back today. Prepare return inspection and deposit decision.',
       };
@@ -137,7 +197,7 @@ export function getBookingLifecycle(booking) {
       key: 'active_trip',
       label: 'Active trip',
       tone: 'emerald',
-      step: 5,
+      step: 6,
       action: 'Monitor trip',
       description: 'Rental is active. Watch return timing, extensions, mileage, and customer messages.',
     };
@@ -148,7 +208,7 @@ export function getBookingLifecycle(booking) {
       key: 'needs_checkout',
       label: 'Needs checkout',
       tone: 'orange',
-      step: 7,
+      step: 8,
       action: 'Inspect and settle',
       description: 'Customer return is recorded. Complete inspection, incidentals, and deposit settlement.',
     };
@@ -159,7 +219,7 @@ export function getBookingLifecycle(booking) {
       key: 'complete',
       label: 'Complete',
       tone: 'slate',
-      step: 8,
+      step: 9,
       action: 'View record',
       description: 'Booking is complete. Use it for customer history and reporting.',
     };
@@ -190,6 +250,7 @@ export const BOOKING_LIFECYCLE_STEPS = [
   'Approval',
   'Payment',
   'Agreement',
+  'Counter-sign',
   'Pickup',
   'Active',
   'Return',
@@ -211,4 +272,3 @@ export function toneClasses(tone) {
   };
   return tones[tone] || tones.slate;
 }
-

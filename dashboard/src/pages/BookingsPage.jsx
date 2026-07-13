@@ -12,10 +12,19 @@ import NewBookingModal from '../components/bookings/NewBookingModal';
 import ApproveBookingModal from '../components/shared/ApproveBookingModal';
 import { format } from 'date-fns';
 import { formatDateOnly } from '../lib/dates';
-import { getBookingLifecycle, isReturnOverdue, isSameLocalDay, toneClasses } from '../lib/bookingOps';
+import {
+  getBookingLifecycle,
+  hasCompletedRentalPayment,
+  hasCustomerSignedAgreement,
+  isReadyForHandoff,
+  isReturnOverdue,
+  isSameLocalDay,
+  needsOwnerCounterSignature,
+  toneClasses,
+} from '../lib/bookingOps';
 
 const EASE = [0.25, 1, 0.5, 1];
-const STATUSES = ['', 'pending_approval', 'approved', 'confirmed', 'active', 'returned', 'completed', 'declined', 'cancelled'];
+const STATUSES = ['', 'pending_approval', 'approved', 'confirmed', 'ready_for_pickup', 'active', 'returned', 'completed', 'declined', 'cancelled'];
 
 const DELIVERY_LABELS = {
   pickup: 'Customer Pickup',
@@ -29,8 +38,10 @@ const DELIVERY_LABELS = {
 const LIFECYCLE_FILTERS = [
   { key: '', label: 'All' },
   { key: 'needs_approval', label: 'Needs approval', match: b => b.status === 'pending_approval' },
-  { key: 'payment_due', label: 'Payment due', match: b => b.status === 'approved' && b.deposit_status !== 'paid' },
-  { key: 'pickup_today', label: 'Pickup today', match: b => ['approved', 'confirmed', 'ready_for_pickup'].includes(b.status) && isSameLocalDay(b.pickup_date) },
+  { key: 'payment_due', label: 'Payment due', match: b => b.status === 'approved' && !hasCompletedRentalPayment(b) },
+  { key: 'agreement_due', label: 'Agreement due', match: b => ['approved', 'confirmed'].includes(b.status) && hasCompletedRentalPayment(b) && !hasCustomerSignedAgreement(b) },
+  { key: 'counter_sign', label: 'Counter-sign', match: b => needsOwnerCounterSignature(b) },
+  { key: 'pickup_today', label: 'Pickup today', match: b => ['confirmed', 'ready_for_pickup'].includes(b.status) && isReadyForHandoff(b) && isSameLocalDay(b.pickup_date) },
   { key: 'active', label: 'Active', match: b => b.status === 'active' && !isReturnOverdue(b) },
   { key: 'overdue', label: 'Overdue', match: b => isReturnOverdue(b) },
   { key: 'needs_checkout', label: 'Needs checkout', match: b => b.status === 'returned' },

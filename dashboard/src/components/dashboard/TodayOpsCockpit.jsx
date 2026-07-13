@@ -18,9 +18,13 @@ import {
   getBookingLifecycle,
   getCustomerName,
   getVehicleName,
+  hasCustomerSignedAgreement,
+  hasCompletedRentalPayment,
+  isReadyForHandoff,
   isReturnOverdue,
   isSameLocalDay,
   isWithinDays,
+  needsOwnerCounterSignature,
   toneClasses,
 } from '../../lib/bookingOps';
 
@@ -89,6 +93,8 @@ export default function TodayOpsCockpit() {
     pending: [],
     approved: [],
     active: [],
+    confirmed: [],
+    readyForPickup: [],
     returned: [],
     webhookFailures: [],
   });
@@ -96,15 +102,17 @@ export default function TodayOpsCockpit() {
   const load = useCallback(async () => {
     setState((prev) => ({ ...prev, loading: true, error: null }));
     try {
-      const [overview, pending, approved, active, returned, webhookFailures] = await Promise.all([
+      const [overview, pending, approved, confirmed, readyForPickup, active, returned, webhookFailures] = await Promise.all([
         api.getOverview().catch(() => null),
         api.getBookings({ status: 'pending_approval', limit: 20 }).then(normalizeList).catch(() => []),
         api.getBookings({ status: 'approved', limit: 50 }).then(normalizeList).catch(() => []),
+        api.getBookings({ status: 'confirmed', limit: 100 }).then(normalizeList).catch(() => []),
+        api.getBookings({ status: 'ready_for_pickup', limit: 100 }).then(normalizeList).catch(() => []),
         api.getBookings({ status: 'active', limit: 100 }).then(normalizeList).catch(() => []),
         api.getBookings({ status: 'returned', limit: 50 }).then(normalizeList).catch(() => []),
         api.getWebhookFailures(10).then(normalizeList).catch(() => []),
       ]);
-      setState({ loading: false, error: null, overview, pending, approved, active, returned, webhookFailures });
+      setState({ loading: false, error: null, overview, pending, approved, confirmed, readyForPickup, active, returned, webhookFailures });
     } catch (e) {
       setState((prev) => ({ ...prev, loading: false, error: e?.message || 'Could not load operations cockpit' }));
     }
@@ -113,18 +121,20 @@ export default function TodayOpsCockpit() {
   useEffect(() => { load(); }, [load]);
 
   const lanes = useMemo(() => {
-    const pickups = [
-      ...(state.overview?.pickups_today || []).map((booking) => ({
+    const handoffBookings = [...state.confirmed, ...state.readyForPickup].filter(isReadyForHandoff);
+
+    const pickups = handoffBookings
+      .filter((booking) => isSameLocalDay(booking.pickup_date))
+      .map((booking) => ({
         id: `pickup-${booking.id}`,
         booking,
         icon: ArrowUpFromLine,
         title: getCustomerName(booking),
         meta: `${pickTime(booking, 'pickup')} pickup - ${getVehicleName(booking)}`,
-        label: 'Pickup today',
+        label: booking.status === 'ready_for_pickup' ? 'Ready for pickup' : 'Pickup today',
         detail: booking.booking_code,
         tone: 'blue',
-      })),
-    ];
+      }));
 
     const returns = [
       ...(state.overview?.returns_today || []).map((booking) => ({
@@ -164,7 +174,7 @@ export default function TodayOpsCockpit() {
     }));
 
     const paymentDue = state.approved
-      .filter((booking) => booking.deposit_status !== 'paid')
+      .filter((booking) => !hasCompletedRentalPayment(booking))
       .map((booking) => ({
         id: `payment-${booking.id}`,
         booking,
@@ -174,6 +184,32 @@ export default function TodayOpsCockpit() {
         label: 'Payment due',
         detail: booking.booking_code,
         tone: 'sky',
+      }));
+
+    const agreementDue = [...state.approved, ...state.confirmed]
+      .filter((booking) => hasCompletedRentalPayment(booking) && !hasCustomerSignedAgreement(booking))
+      .map((booking) => ({
+        id: `agreement-${booking.id}`,
+        booking,
+        icon: ShieldAlert,
+        title: getCustomerName(booking),
+        meta: `${getVehicleName(booking)} - agreement, license, insurance, or signature missing`,
+        label: 'Agreement due',
+        detail: booking.booking_code,
+        tone: 'violet',
+      }));
+
+    const counterSign = [...state.approved, ...state.confirmed]
+      .filter(needsOwnerCounterSignature)
+      .map((booking) => ({
+        id: `counter-sign-${booking.id}`,
+        booking,
+        icon: ShieldAlert,
+        title: getCustomerName(booking),
+        meta: `${getVehicleName(booking)} - owner signature needed before handoff`,
+        label: 'Counter-sign needed',
+        detail: booking.booking_code,
+        tone: 'amber',
       }));
 
     const checkouts = state.returned.map((booking) => ({
@@ -187,8 +223,8 @@ export default function TodayOpsCockpit() {
       tone: 'orange',
     }));
 
-    const upcoming = state.approved
-      .filter((booking) => booking.deposit_status === 'paid' && !isSameLocalDay(booking.pickup_date) && isWithinDays(booking.pickup_date, 7))
+    const upcoming = handoffBookings
+      .filter((booking) => !isSameLocalDay(booking.pickup_date) && isWithinDays(booking.pickup_date, 7))
       .slice(0, 6)
       .map((booking) => {
         const lifecycle = getBookingLifecycle(booking);
@@ -205,7 +241,7 @@ export default function TodayOpsCockpit() {
       });
 
     return {
-      needsAction: [...overdue, ...needsApproval, ...paymentDue, ...checkouts].slice(0, 8),
+      needsAction: [...overdue, ...needsApproval, ...paymentDue, ...agreementDue, ...counterSign, ...checkouts].slice(0, 8),
       pickups: pickups.slice(0, 6),
       returns: returns.slice(0, 6),
       upcoming,
@@ -298,4 +334,3 @@ export default function TodayOpsCockpit() {
     </section>
   );
 }
-

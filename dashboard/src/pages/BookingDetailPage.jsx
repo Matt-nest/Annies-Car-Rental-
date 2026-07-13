@@ -19,6 +19,7 @@ import InvoiceTab from '../components/booking-tabs/InvoiceTab';
 import BookingActionBar from '../components/booking-tabs/BookingActionBar';
 import BookingLifecycleStrip from '../components/shared/BookingLifecycleStrip';
 import { useAlerts } from '../lib/alertsContext';
+import { hasCompletedRentalPayment, isReadyForHandoff, needsOwnerCounterSignature } from '../lib/bookingOps';
 import { format } from 'date-fns';
 import { formatDateOnly } from '../lib/dates';
 
@@ -469,6 +470,11 @@ export default function BookingDetailPage() {
   }
 
   function handleActionBarAction(action) {
+    if (action === 'overview') {
+      setActiveTab('overview');
+      handleLifecycleAction();
+      return;
+    }
     if (action === 'checkin') {
       setActiveTab('checkin');
       return;
@@ -511,11 +517,15 @@ export default function BookingDetailPage() {
       setModal('approve');
       return;
     }
-    if (status === 'approved' && booking.deposit_status !== 'paid') {
+    if (status === 'approved' && !hasCompletedRentalPayment(booking)) {
       document.querySelector('[data-payment-link-banner]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
-    if (['approved', 'confirmed', 'ready_for_pickup'].includes(status)) {
+    if (needsOwnerCounterSignature(booking)) {
+      document.querySelector('[data-section="agreement"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    if (['confirmed', 'ready_for_pickup'].includes(status)) {
       setActiveTab('checkin');
       return;
     }
@@ -559,7 +569,23 @@ export default function BookingDetailPage() {
               </button>
             </>
           )}
-          {['approved', 'confirmed'].includes(status) && (
+          {status === 'approved' && !hasCompletedRentalPayment(booking) && (
+            <button
+              onClick={() => document.querySelector('[data-payment-link-banner]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+              className="btn-primary"
+            >
+              <CreditCard size={15} /> Send Continue Link
+            </button>
+          )}
+          {status === 'confirmed' && !isReadyForHandoff(booking) && (
+            <button
+              onClick={() => document.querySelector('[data-section="agreement"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+              className="btn-primary"
+            >
+              <FileText size={15} /> Finish Documents
+            </button>
+          )}
+          {['confirmed', 'ready_for_pickup'].includes(status) && isReadyForHandoff(booking) && (
             <button onClick={() => setActiveTab('checkin')} className="btn-primary">
               <Package size={15} /> Go to Check-In
             </button>
@@ -824,6 +850,7 @@ export default function BookingDetailPage() {
           modals (decline reason, pickup mileage, return condition, etc.)
           remain the source of truth. Hidden at md+. */}
       <BookingActionBar
+        booking={booking}
         status={status}
         onAction={handleActionBarAction}
         disabled={actioning}
