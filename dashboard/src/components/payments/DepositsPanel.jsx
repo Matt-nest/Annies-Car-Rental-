@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
-import { Shield, RefreshCw, ExternalLink, DollarSign } from 'lucide-react';
+import { Shield, RefreshCw, ExternalLink, DollarSign, ClipboardCheck, Clock } from 'lucide-react';
 import { api } from '../../api/client';
 import { SkeletonTable } from '../shared/Skeleton';
 import EmptyState from '../shared/EmptyState';
@@ -16,6 +16,22 @@ const STATUS_STYLES = {
 
 function depositRefundable(row) {
   return Math.max(0, Number(row.amount || 0) - Number(row.refund_amount || 0) - Number(row.applied_amount || 0));
+}
+
+function settlementLabel(row) {
+  const status = row.bookings?.status;
+  if (row.status !== 'held') return STATUS_STYLES[row.status]?.label || row.status;
+  if (status === 'returned') return 'Settle now';
+  if (status === 'active') return 'Hold until return';
+  return 'Pre-trip hold';
+}
+
+function settlementTone(row) {
+  const status = row.bookings?.status;
+  if (row.status !== 'held') return STATUS_STYLES[row.status] || STATUS_STYLES.held;
+  if (status === 'returned') return { label: 'Settle now', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' };
+  if (status === 'active') return { label: 'Hold until return', color: '#6366f1', bg: 'rgba(99,102,241,0.12)' };
+  return { label: 'Pre-trip hold', color: '#64748b', bg: 'rgba(148,163,184,0.12)' };
 }
 
 export default function DepositsPanel() {
@@ -55,14 +71,26 @@ export default function DepositsPanel() {
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
           <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Deposits Held</p>
           <p className="text-2xl font-bold tabular-nums mt-1 text-[var(--text-primary)]">{summary.count}</p>
         </div>
-        <div className="rounded-xl p-4 col-span-1 sm:col-span-2" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+        <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
           <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Total Held</p>
           <p className="text-2xl font-bold tabular-nums mt-1 text-indigo-500">${summary.total_held_dollars}</p>
+        </div>
+        <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Settle Now</p>
+          <p className="text-2xl font-bold tabular-nums mt-1 text-amber-500">
+            {rows.filter(row => row.status === 'held' && row.bookings?.status === 'returned').length}
+          </p>
+        </div>
+        <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Active Holds</p>
+          <p className="text-2xl font-bold tabular-nums mt-1 text-[var(--text-primary)]">
+            {rows.filter(row => row.status === 'held' && row.bookings?.status === 'active').length}
+          </p>
         </div>
       </div>
 
@@ -109,7 +137,7 @@ export default function DepositsPanel() {
           <table className="w-full text-sm min-w-[720px]">
             <thead>
               <tr style={{ backgroundColor: 'var(--bg-card-hover)' }}>
-                {['Booking', 'Customer', 'Vehicle', 'Amount', 'Status', ''].map(h => (
+                {['Booking', 'Customer', 'Vehicle', 'Amount', 'Decision', ''].map(h => (
                   <th key={h} className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">{h}</th>
                 ))}
               </tr>
@@ -119,8 +147,9 @@ export default function DepositsPanel() {
                 const b = row.bookings;
                 const cust = b?.customers;
                 const veh = b?.vehicles;
-                const st = STATUS_STYLES[row.status] || STATUS_STYLES.held;
+                const st = settlementTone(row);
                 const refundable = depositRefundable(row);
+                const settlement = settlementLabel(row);
                 return (
                   <tr key={row.id} className="border-t border-[var(--border-subtle)]" style={{ backgroundColor: 'var(--bg-card)' }}>
                     <td className="px-4 py-3">
@@ -143,8 +172,14 @@ export default function DepositsPanel() {
                     </td>
                     <td className="px-4 py-3">
                       <span className="text-xs font-semibold px-2 py-1 rounded-full" style={{ color: st.color, backgroundColor: st.bg }}>
-                        {st.label}
+                        {settlement}
                       </span>
+                      {row.status === 'held' && b?.status === 'returned' && (
+                        <p className="text-[11px] text-amber-500 mt-1 flex items-center gap-1"><ClipboardCheck size={11} /> Inspect, apply charges, or refund.</p>
+                      )}
+                      {row.status === 'held' && b?.status === 'active' && (
+                        <p className="text-[11px] text-[var(--text-tertiary)] mt-1 flex items-center gap-1"><Clock size={11} /> Keep held until check-out.</p>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2 justify-end">
