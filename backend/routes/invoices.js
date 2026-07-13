@@ -4,6 +4,7 @@ import { generateInvoice, getInvoice, markInvoiceSent, sendInvoiceEmail } from '
 import { getBookingDetail } from '../services/bookingService.js';
 import { generateInvoicePdf, generateInvoiceNumber } from '../utils/invoicePdfGenerator.js';
 import { supabase } from '../db/supabase.js';
+import { safeRecordMoneyAction } from '../services/moneyActionAuditService.js';
 
 const router = Router();
 
@@ -13,6 +14,19 @@ const router = Router();
 router.post('/bookings/:id/invoice', requireAuth, async (req, res) => {
   try {
     const invoice = await generateInvoice(req.params.id);
+    await safeRecordMoneyAction({
+      req,
+      actionKey: 'invoice_generated',
+      title: 'Invoice generated',
+      detail: 'Operator generated a booking settlement invoice.',
+      bookingId: req.params.id,
+      invoiceId: invoice?.id,
+      amountCents: invoice?.amount_due,
+      metadata: {
+        invoice_number: invoice?.invoice_number || null,
+        status: invoice?.status || null,
+      },
+    });
     res.json(invoice);
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
@@ -104,7 +118,26 @@ router.get('/bookings/:id/invoice/pdf', requireAuth, async (req, res) => {
  */
 router.post('/invoices/:id/send', requireAuth, async (req, res) => {
   try {
+    const { data: invoiceBefore } = await supabase
+      .from('invoices')
+      .select('id, booking_id, amount_due, invoice_number, status')
+      .eq('id', req.params.id)
+      .maybeSingle();
     const result = await sendInvoiceEmail(req.params.id);
+    await safeRecordMoneyAction({
+      req,
+      actionKey: 'invoice_sent',
+      title: 'Invoice sent',
+      detail: `Invoice emailed to ${result?.sentTo || 'customer'}.`,
+      bookingId: invoiceBefore?.booking_id,
+      invoiceId: req.params.id,
+      amountCents: invoiceBefore?.amount_due,
+      metadata: {
+        invoice_number: invoiceBefore?.invoice_number || null,
+        sent_to: result?.sentTo || null,
+        previous_status: invoiceBefore?.status || null,
+      },
+    });
     res.json(result);
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });

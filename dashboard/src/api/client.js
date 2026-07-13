@@ -84,6 +84,8 @@ export const api = {
   getPayments: (bookingId) => request(`/bookings/${bookingId}/payments`),
   recordPayment: (bookingId, body) => request(`/bookings/${bookingId}/payments`, { method: 'POST', body: JSON.stringify(body) }),
   issueRefund: (paymentId, body) => request(`/payments/${paymentId}/refund`, { method: 'POST', body: JSON.stringify(body) }),
+  getMoneyActions: (params = {}) => request(`/money-actions?${new URLSearchParams(params)}`),
+  recordMoneyAction: (body) => request('/money-actions', { method: 'POST', body: JSON.stringify(body) }),
 
   // Damage
   fileDamageReport: (bookingId, body) => request(`/bookings/${bookingId}/damage`, { method: 'POST', body: JSON.stringify(body) }),

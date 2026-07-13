@@ -37,6 +37,7 @@ import bouncieWebhookRoutes from './routes/bouncieWebhooks.js';
 import pushRoutes from './routes/push.js';
 import brandRoutes from './routes/brands.js';
 import paymentPlanRoutes from './routes/paymentPlans.js';
+import moneyActionRoutes from './routes/moneyActions.js';
 import { isStripeProvider, isSquareProvider } from './config/paymentProvider.js';
 
 const stripeRoutes = isStripeProvider() ? (await import('./routes/stripe.js')).default : null;
@@ -139,6 +140,7 @@ app.use('/api/v1/bouncie', bouncieWebhookRoutes);
 app.use('/api/v1/push', pushRoutes);
 app.use('/api/v1/brands', brandRoutes);
 app.use('/api/v1', paymentPlanRoutes);
+app.use('/api/v1', moneyActionRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ error: `${req.method} ${req.path} not found` }));

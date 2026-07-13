@@ -12,6 +12,7 @@ import {
   storeLocalMessage,
 } from '../services/messagingService.js';
 import brand from '../config/brand.js';
+import { safeRecordMoneyAction } from '../services/moneyActionAuditService.js';
 
 const router = Router();
 
@@ -58,7 +59,7 @@ router.get('/conversations/:customerId/messages', requireAuth, asyncHandler(asyn
 
 /** POST /conversations/:customerId/send — send a message */
 router.post('/conversations/:customerId/send', requireAuth, asyncHandler(async (req, res) => {
-  const { channel = 'email', subject, body, html } = req.body;
+  const { channel = 'email', subject, body, html, moneyAction } = req.body;
   const customerId = req.params.customerId;
 
   if (!body) {
@@ -94,6 +95,25 @@ router.post('/conversations/:customerId/send', requireAuth, asyncHandler(async (
     externalId: sendResult?.id || sendResult?.sid || null,
     metadata: { send_result: sendResult },
   });
+
+  if (moneyAction?.actionKey) {
+    await safeRecordMoneyAction({
+      req,
+      actionKey: moneyAction.actionKey,
+      title: moneyAction.title || 'Customer message sent',
+      detail: moneyAction.detail || subject || 'Outbound customer message sent.',
+      bookingId: moneyAction.bookingId,
+      customerId,
+      amountCents: moneyAction.amountCents,
+      metadata: {
+        channel,
+        subject,
+        message_id: stored?.id || null,
+        external_id: sendResult?.id || sendResult?.sid || null,
+        ...(moneyAction.metadata || {}),
+      },
+    });
+  }
 
   // F-14: surface the storage gap to the frontend so the UI can flag
   // "sent but not in thread" instead of treating null as silent success.
