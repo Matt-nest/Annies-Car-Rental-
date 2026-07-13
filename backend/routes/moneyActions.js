@@ -10,6 +10,10 @@ router.get('/money-actions', requireAuth, asyncHandler(async (req, res) => {
     bookingId: req.query.booking_id,
     customerId: req.query.customer_id,
     actionKey: req.query.action_key,
+    status: req.query.status,
+    operator: req.query.operator,
+    actorEmail: req.query.actor_email,
+    actorId: req.query.actor_id,
     limit: req.query.limit,
   });
   res.json(result);
