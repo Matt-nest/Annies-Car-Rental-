@@ -25,6 +25,8 @@ import brand from '../config/brand';
 import StatusBadge from '../components/shared/StatusBadge';
 import DataError from '../components/shared/DataError';
 import { SkeletonTable } from '../components/shared/Skeleton';
+import Modal from '../components/shared/Modal';
+import InlineBanner from '../components/shared/InlineBanner';
 import LongTermOnboardModal from '../components/portal/LongTermOnboardModal';
 import { getCustomerName, getVehicleName, toneClasses } from '../lib/bookingOps';
 
@@ -181,22 +183,32 @@ function StatTile({ icon: Icon, label, value, subtext, tone = 'slate' }) {
   );
 }
 
-function PaymentPlanBadge({ bookingId }) {
+function PaymentPlanActions({ booking, onRefresh }) {
   const [state, setState] = useState({ loading: true, label: 'Checking plan', tone: 'slate', detail: '' });
+  const [planData, setPlanData] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [interval, setInterval] = useState('monthly');
+  const [installmentCount, setInstallmentCount] = useState('1');
+  const [startDate, setStartDate] = useState(localTodayYMD());
+  const [acting, setActing] = useState('');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
 
-  useEffect(() => {
-    let mounted = true;
+  const bookingId = booking.id;
+
+  const loadPlan = useCallback(() => {
     setState({ loading: true, label: 'Checking plan', tone: 'slate', detail: '' });
+    setError('');
     api.getPaymentPlan(bookingId)
       .then((plan) => {
-        if (!mounted) return;
+        setPlanData(plan);
         const installments = Array.isArray(plan?.installments) ? plan.installments : [];
-        const unpaid = installments.filter((item) => !['paid', 'completed', 'succeeded'].includes(item.status));
+        const unpaid = installments.filter((item) => !['paid', 'completed', 'succeeded', 'cancelled'].includes(item.status));
         const overdue = unpaid.filter((item) => item.due_date && item.due_date < localTodayYMD());
-        if (!plan?.id) {
-          setState({ loading: false, label: 'No payment plan', tone: 'slate', detail: 'Use for monthly split-pay or exception accounts.' });
+        if (!plan?.plan?.id) {
+          setState({ loading: false, label: 'No payment plan', tone: 'slate', detail: 'Create for split-pay or exception accounts.' });
         } else if (overdue.length) {
-          const amount = overdue.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+          const amount = overdue.reduce((sum, item) => sum + Number(item.amount_cents || item.amount || 0), 0);
           setState({ loading: false, label: 'Plan overdue', tone: 'red', detail: `${overdue.length} installment${overdue.length === 1 ? '' : 's'} · ${money(amount / 100, 2)}` });
         } else if (unpaid.length) {
           setState({ loading: false, label: 'Plan active', tone: 'purple', detail: `${unpaid.length} installment${unpaid.length === 1 ? '' : 's'} remaining` });
@@ -205,20 +217,139 @@ function PaymentPlanBadge({ bookingId }) {
         }
       })
       .catch(() => {
-        if (mounted) setState({ loading: false, label: 'Plan unavailable', tone: 'slate', detail: 'Open booking to manage payments.' });
+        setState({ loading: false, label: 'Plan unavailable', tone: 'slate', detail: 'Open booking to manage payments.' });
       });
-    return () => { mounted = false; };
   }, [bookingId]);
 
+  useEffect(() => {
+    let mounted = true;
+    if (mounted) loadPlan();
+    return () => { mounted = false; };
+  }, [loadPlan]);
+
   const tone = toneClasses(state.tone);
+  const chargeable = (planData?.installments || []).find((item) => ['failed', 'scheduled'].includes(item.status));
+  const hasActivePlan = !!planData?.plan?.id && planData.plan.status === 'active';
+
+  async function createPlan(event) {
+    event.preventDefault();
+    setActing('create');
+    setError('');
+    setMessage('');
+    try {
+      await api.createPaymentPlan(bookingId, { interval, installmentCount: Number(installmentCount), startDate });
+      setModalOpen(false);
+      setMessage('Payment plan created.');
+      await loadPlan();
+      onRefresh?.();
+    } catch (err) {
+      setError(err?.message || 'Could not create payment plan.');
+    }
+    setActing('');
+  }
+
+  async function chargeNext() {
+    if (!chargeable?.id) return;
+    const amount = Number(chargeable.amount_cents || chargeable.amount || 0) / 100;
+    if (!confirm(`Charge ${money(amount, 2)} now to the card on file for ${booking.booking_code}?`)) return;
+    setActing('charge');
+    setError('');
+    setMessage('');
+    try {
+      const result = await api.chargeInstallment(chargeable.id);
+      if (result?.status === 'failed') setError(result.reason || 'Installment charge failed.');
+      else setMessage('Installment charge submitted.');
+      await loadPlan();
+      onRefresh?.();
+    } catch (err) {
+      setError(err?.message || 'Installment charge failed.');
+    }
+    setActing('');
+  }
+
+  async function sendRenewalInvoice() {
+    if (!confirm(`Generate and send renewal invoice for ${booking.booking_code}?`)) return;
+    setActing('invoice');
+    setError('');
+    setMessage('');
+    try {
+      const invoice = await api.generateInvoice(bookingId);
+      const invoiceId = invoice?.id || invoice?.invoice?.id;
+      if (invoiceId) await api.sendInvoice(invoiceId);
+      setMessage('Renewal invoice generated and sent.');
+      onRefresh?.();
+    } catch (err) {
+      setError(err?.message || 'Invoice send failed.');
+    }
+    setActing('');
+  }
+
   return (
-    <div className="rounded-lg bg-[var(--bg-card-hover)] px-3 py-2">
+    <div className="rounded-lg bg-[var(--bg-card-hover)] px-3 py-2 space-y-2">
       <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Payment Plan</p>
       <p className={`text-xs font-semibold mt-0.5 flex items-center gap-1 ${tone.text}`}>
         {state.loading ? <Loader2 size={12} className="animate-spin" /> : <CreditCard size={12} />}
         {state.label}
       </p>
       {state.detail && <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5">{state.detail}</p>}
+      <InlineBanner message={error} onDismiss={() => setError('')} />
+      <InlineBanner message={message} tone="success" onDismiss={() => setMessage('')} />
+      <div className="flex flex-wrap gap-1.5">
+        {!hasActivePlan && (
+          <button type="button" className="btn-secondary text-[11px] py-1 px-2" onClick={() => setModalOpen(true)}>
+            Create plan
+          </button>
+        )}
+        {chargeable && (
+          <button type="button" className="btn-primary text-[11px] py-1 px-2" disabled={acting === 'charge'} onClick={chargeNext}>
+            {acting === 'charge' && <Loader2 size={11} className="animate-spin" />} Charge next
+          </button>
+        )}
+        <button type="button" className="btn-ghost text-[11px] py-1 px-2" disabled={acting === 'invoice'} onClick={sendRenewalInvoice}>
+          {acting === 'invoice' && <Loader2 size={11} className="animate-spin" />} Send invoice
+        </button>
+      </div>
+
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Create Payment Plan">
+        <form onSubmit={createPlan} className="space-y-5">
+          <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card-hover)] p-3">
+            <p className="text-sm font-semibold text-[var(--text-primary)]">{getCustomerName(booking)} · {booking.booking_code}</p>
+            <p className="text-xs text-[var(--text-tertiary)] mt-1">
+              Splits the current outstanding rental balance into scheduled charges.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div>
+              <label className="label">Cadence</label>
+              <select className="input" value={interval} onChange={(e) => setInterval(e.target.value)}>
+                <option value="weekly">Weekly</option>
+                <option value="biweekly">Biweekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </div>
+            <div>
+              <label className="label">Installments</label>
+              <input className="input" type="number" min="1" max="60" value={installmentCount} onChange={(e) => setInstallmentCount(e.target.value)} />
+            </div>
+            <div>
+              <label className="label">First due</label>
+              <input className="input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            </div>
+          </div>
+          <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3">
+            <p className="text-xs font-semibold text-amber-600">Collection workflow</p>
+            <p className="text-xs text-[var(--text-secondary)] mt-1">
+              Charging an installment later may charge the saved card immediately. Use only after the renter has agreed to these terms.
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <button type="button" className="btn-secondary flex-1 justify-center" onClick={() => setModalOpen(false)}>Cancel</button>
+            <button type="submit" className="btn-primary flex-1 justify-center" disabled={acting === 'create'}>
+              {acting === 'create' && <Loader2 size={14} className="animate-spin" />} Create Plan
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
@@ -323,7 +454,7 @@ function RenterCard({ booking, today, onRefresh }) {
           <p className={`text-xs font-semibold mt-0.5 tabular-nums ${moneyTone.text}`}>{money(moneyState.amount, 2)}</p>
           <p className="text-[11px] mt-0.5 text-[var(--text-tertiary)]">{moneyState.description}</p>
         </div>
-        <PaymentPlanBadge bookingId={booking.id} />
+        <PaymentPlanActions booking={booking} onRefresh={onRefresh} />
       </div>
 
       <div className="flex flex-wrap gap-2">

@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
-import { Shield, RefreshCw, ExternalLink, DollarSign, ClipboardCheck, Clock } from 'lucide-react';
+import { Shield, RefreshCw, ExternalLink, DollarSign, ClipboardCheck, Clock, Calculator } from 'lucide-react';
 import { api } from '../../api/client';
 import { SkeletonTable } from '../shared/Skeleton';
 import EmptyState from '../shared/EmptyState';
 import DataError from '../shared/DataError';
+import Modal from '../shared/Modal';
+import InlineBanner from '../shared/InlineBanner';
 
 const STATUS_STYLES = {
   held: { label: 'Held', color: '#6366f1', bg: 'rgba(99,102,241,0.12)' },
@@ -41,6 +43,10 @@ export default function DepositsPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [acting, setActing] = useState(null);
+  const [settleRow, setSettleRow] = useState(null);
+  const [incidentalTotal, setIncidentalTotal] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [notice, setNotice] = useState('');
 
   const load = async () => {
     setLoading(true);
@@ -60,11 +66,45 @@ export default function DepositsPanel() {
   const handleRelease = async (bookingId) => {
     if (!confirm('Refund the full deposit to the customer?')) return;
     setActing(bookingId);
+    setActionError('');
     try {
       await api.releaseDeposit(bookingId);
+      setNotice('Deposit release started. Refresh if the gateway needs a few seconds to settle.');
       await load();
     } catch (err) {
-      alert(err.message || 'Release failed');
+      setActionError(err.message || 'Release failed');
+    }
+    setActing(null);
+  };
+
+  const openSettle = (row) => {
+    setSettleRow(row);
+    setIncidentalTotal('');
+    setActionError('');
+  };
+
+  const handleSettle = async (event) => {
+    event.preventDefault();
+    const amount = Number(incidentalTotal || 0);
+    if (!Number.isFinite(amount) || amount < 0) {
+      setActionError('Applied charge must be zero or greater.');
+      return;
+    }
+    const bookingId = settleRow?.bookings?.id;
+    if (!bookingId) return;
+    const refundable = depositRefundable(settleRow);
+    const refundEstimate = Math.max(0, refundable - Math.round(amount * 100));
+    const ok = confirm(`Apply $${amount.toFixed(2)} against the deposit and refund about $${(refundEstimate / 100).toFixed(2)}?`);
+    if (!ok) return;
+    setActing(bookingId);
+    setActionError('');
+    try {
+      await api.settleDeposit(bookingId, { incidentalTotal: amount });
+      setSettleRow(null);
+      setNotice('Deposit settlement recorded.');
+      await load();
+    } catch (err) {
+      setActionError(err.message || 'Settlement failed');
     }
     setActing(null);
   };
@@ -121,6 +161,8 @@ export default function DepositsPanel() {
       </div>
 
       {error && <DataError message={error} onRetry={load} />}
+      <InlineBanner message={actionError} onDismiss={() => setActionError('')} />
+      <InlineBanner message={notice} tone="success" onDismiss={() => setNotice('')} />
 
       {loading ? (
         <SkeletonTable rows={4} cols={5} />
@@ -187,14 +229,24 @@ export default function DepositsPanel() {
                           <ExternalLink size={13} /> Open
                         </Link>
                         {row.status === 'held' && refundable > 0 && (
-                          <button
-                            type="button"
-                            className="btn-secondary text-xs py-1.5 px-2"
-                            disabled={acting === b?.id}
-                            onClick={() => handleRelease(b?.id)}
-                          >
-                            <DollarSign size={13} /> Release
-                          </button>
+                          <>
+                            <button
+                              type="button"
+                              className="btn-secondary text-xs py-1.5 px-2"
+                              disabled={acting === b?.id}
+                              onClick={() => openSettle(row)}
+                            >
+                              <Calculator size={13} /> Apply
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-secondary text-xs py-1.5 px-2"
+                              disabled={acting === b?.id}
+                              onClick={() => handleRelease(b?.id)}
+                            >
+                              <DollarSign size={13} /> Release
+                            </button>
+                          </>
                         )}
                       </div>
                     </td>
@@ -205,6 +257,50 @@ export default function DepositsPanel() {
           </table>
         </div>
       )}
+
+      <Modal open={!!settleRow} onClose={() => setSettleRow(null)} title="Apply or Settle Deposit">
+        <form className="space-y-5" onSubmit={handleSettle}>
+          <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card-hover)] p-3">
+            <p className="text-sm font-semibold text-[var(--text-primary)]">
+              {settleRow?.bookings?.booking_code} · {settleRow?.bookings?.customers?.first_name} {settleRow?.bookings?.customers?.last_name}
+            </p>
+            <p className="text-xs text-[var(--text-tertiary)] mt-1">
+              Refundable balance: ${(depositRefundable(settleRow || {}) / 100).toFixed(2)}
+            </p>
+          </div>
+
+          <div>
+            <label className="label">Charges to apply from deposit ($)</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              className="input"
+              value={incidentalTotal}
+              onChange={(e) => setIncidentalTotal(e.target.value)}
+              placeholder="0.00"
+            />
+            <p className="text-xs mt-1.5 text-[var(--text-tertiary)]">
+              Use 0.00 for a full refund after inspection. Enter damage, tolls, fuel, cleaning, or late-return charges to apply.
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3">
+            <p className="text-xs font-semibold text-amber-600">Money movement</p>
+            <p className="text-xs text-[var(--text-secondary)] mt-1">
+              This records the settlement and may refund the remaining balance to the original payment method.
+            </p>
+          </div>
+
+          <div className="flex gap-3">
+            <button type="button" className="btn-secondary flex-1 justify-center" onClick={() => setSettleRow(null)}>Cancel</button>
+            <button type="submit" className="btn-primary flex-1 justify-center" disabled={acting === settleRow?.bookings?.id}>
+              {acting === settleRow?.bookings?.id && <RefreshCw size={14} className="animate-spin" />}
+              Settle Deposit
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

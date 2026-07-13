@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, DollarSign, Download, CreditCard, RefreshCw, AlertCircle, Shield, Clock, ClipboardCheck, ArrowRight } from 'lucide-react';
+import { Search, DollarSign, Download, CreditCard, RefreshCw, AlertCircle, Shield, Clock, ClipboardCheck, ArrowRight, Copy, Mail, ExternalLink } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { api } from '../api/client';
 import { SkeletonTable } from '../components/shared/Skeleton';
@@ -12,6 +12,7 @@ import InlineBanner from '../components/shared/InlineBanner';
 import DepositsPanel from '../components/payments/DepositsPanel';
 import { getBookingLifecycle, getCustomerName, getVehicleName } from '../lib/bookingOps';
 import { formatDateOnly, localTodayYMD } from '../lib/dates';
+import brand from '../config/brand';
 
 const EASE = [0.25, 1, 0.5, 1];
 
@@ -61,7 +62,17 @@ function RiskTile({ icon: Icon, label, value, subtext, tone = 'slate' }) {
   );
 }
 
-function RiskBookingRow({ booking, label, tone = 'amber', amount, action = 'Open booking' }) {
+function paymentLink(booking) {
+  return `${brand.siteUrl}/confirm?code=${encodeURIComponent(booking.booking_code)}`;
+}
+
+function reminderBody(booking) {
+  const customer = booking.customers || {};
+  const firstName = customer.first_name || 'there';
+  return `Hi ${firstName}, your ${brand.name} booking ${booking.booking_code} is approved but payment is still needed before pickup.\n\nComplete payment here: ${paymentLink(booking)}\n\nUnpaid bookings can expire after approval. Reply here if you need help.`;
+}
+
+function RiskBookingRow({ booking, label, tone = 'amber', amount, action = 'Open booking', children }) {
   const toneMap = {
     red: 'text-red-500 bg-red-500/10',
     amber: 'text-amber-500 bg-amber-500/10',
@@ -69,10 +80,7 @@ function RiskBookingRow({ booking, label, tone = 'amber', amount, action = 'Open
     slate: 'text-[var(--text-secondary)] bg-[var(--bg-card-hover)]',
   };
   return (
-    <Link
-      to={`/bookings/${booking.id}`}
-      className="block rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4 transition-colors hover:bg-[var(--bg-card-hover)]"
-    >
+    <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4 transition-colors hover:bg-[var(--bg-card-hover)]">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -88,16 +96,20 @@ function RiskBookingRow({ booking, label, tone = 'amber', amount, action = 'Open
         </div>
         <div className="shrink-0 text-right">
           <p className="text-base font-bold tabular-nums text-[var(--text-primary)]">{money(amount, 2)}</p>
-          <p className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-[var(--accent-color)]">
+          <Link to={`/bookings/${booking.id}`} className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-[var(--accent-color)]">
             {action} <ArrowRight size={12} />
-          </p>
+          </Link>
         </div>
       </div>
-    </Link>
+      {children && <div className="mt-3 flex flex-wrap gap-2">{children}</div>}
+    </div>
   );
 }
 
 function MoneyAtRiskPanel({ bookings, deposits, loading, error, onRetry }) {
+  const [acting, setActing] = useState('');
+  const [notice, setNotice] = useState('');
+  const [actionError, setActionError] = useState('');
   const today = localTodayYMD();
   const risk = useMemo(() => {
     const paymentDue = bookings
@@ -120,9 +132,39 @@ function MoneyAtRiskPanel({ bookings, deposits, loading, error, onRetry }) {
 
   if (loading) return <SkeletonTable rows={5} cols={3} />;
 
+  const copyPaymentLink = async (booking) => {
+    await navigator.clipboard.writeText(paymentLink(booking));
+    setActionError('');
+    setNotice(`Payment link copied for ${booking.booking_code}.`);
+  };
+
+  const sendPaymentReminder = async (booking) => {
+    if (!booking.customers?.id) {
+      setActionError('This booking has no linked customer to message.');
+      return;
+    }
+    if (!confirm(`Send payment reminder to ${getCustomerName(booking)} for ${booking.booking_code}?`)) return;
+    setActing(`reminder-${booking.id}`);
+    setActionError('');
+    try {
+      await api.sendMessage(booking.customers.id, {
+        channel: 'email',
+        subject: `${brand.name}: payment needed for ${booking.booking_code}`,
+        body: reminderBody(booking),
+      });
+      setNotice(`Payment reminder sent for ${booking.booking_code}.`);
+    } catch (err) {
+      setActionError(err?.message || 'Payment reminder failed.');
+    } finally {
+      setActing('');
+    }
+  };
+
   return (
     <div className="space-y-5">
       <DataError error={error} onRetry={onRetry} />
+      <InlineBanner message={actionError} onDismiss={() => setActionError('')} />
+      <InlineBanner message={notice} tone="success" onDismiss={() => setNotice('')} />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <RiskTile icon={DollarSign} label="Collection Queue" value={risk.paymentDue.length} subtext={`${money(risk.paymentDueTotal, 2)} payment due`} tone={risk.paymentDue.length ? 'amber' : 'slate'} />
         <RiskTile icon={Shield} label="Deposits Held" value={risk.heldDeposits.length} subtext={`${money(risk.heldDepositTotal, 2)} refundable exposure`} tone={risk.heldDeposits.length ? 'purple' : 'slate'} />
@@ -137,7 +179,17 @@ function MoneyAtRiskPanel({ bookings, deposits, loading, error, onRetry }) {
             <p className="text-xs text-[var(--text-tertiary)]">Approved bookings that are not operationally ready because payment is still due.</p>
           </div>
           {risk.paymentDue.slice(0, 6).map((booking) => (
-            <RiskBookingRow key={booking.id} booking={booking} label="Payment due" amount={riskAmount(booking)} action="Send link" />
+            <RiskBookingRow key={booking.id} booking={booking} label="Payment due" amount={riskAmount(booking)} action="Open">
+              <button type="button" className="btn-primary text-xs py-1.5" disabled={acting === `reminder-${booking.id}`} onClick={() => sendPaymentReminder(booking)}>
+                {acting === `reminder-${booking.id}` ? <RefreshCw size={13} className="animate-spin" /> : <Mail size={13} />} Send reminder
+              </button>
+              <button type="button" className="btn-secondary text-xs py-1.5" onClick={() => copyPaymentLink(booking)}>
+                <Copy size={13} /> Copy link
+              </button>
+              <a href={paymentLink(booking)} target="_blank" rel="noreferrer" className="btn-ghost text-xs py-1.5">
+                <ExternalLink size={13} /> Customer page
+              </a>
+            </RiskBookingRow>
           ))}
           {risk.paymentDue.length === 0 && <EmptyState icon={DollarSign} title="No collection blockers" description="Approved bookings with missing payment will appear here." />}
         </section>
@@ -159,7 +211,18 @@ function MoneyAtRiskPanel({ bookings, deposits, loading, error, onRetry }) {
             <p className="text-xs text-[var(--text-tertiary)]">Monthly renters past due or returned without settlement.</p>
           </div>
           {risk.longTermAtRisk.slice(0, 6).map((booking) => (
-            <RiskBookingRow key={booking.id} booking={booking} label={booking.status === 'returned' ? 'Settle account' : 'Past due'} tone="red" amount={Number(booking.total_cost || 0)} action="Manage account" />
+            <RiskBookingRow key={booking.id} booking={booking} label={booking.status === 'returned' ? 'Settle account' : 'Past due'} tone="red" amount={Number(booking.total_cost || 0)} action="Manage account">
+              {booking.status === 'active' && (
+                <>
+                  <button type="button" className="btn-primary text-xs py-1.5" disabled={acting === `reminder-${booking.id}`} onClick={() => sendPaymentReminder(booking)}>
+                    {acting === `reminder-${booking.id}` ? <RefreshCw size={13} className="animate-spin" /> : <Mail size={13} />} Send reminder
+                  </button>
+                  <button type="button" className="btn-secondary text-xs py-1.5" onClick={() => copyPaymentLink(booking)}>
+                    <Copy size={13} /> Copy link
+                  </button>
+                </>
+              )}
+            </RiskBookingRow>
           ))}
           {risk.longTermAtRisk.length === 0 && <EmptyState icon={Clock} title="No long-term collection risk" description="Past-due monthly accounts and unsettled long-term returns will appear here." />}
         </section>
