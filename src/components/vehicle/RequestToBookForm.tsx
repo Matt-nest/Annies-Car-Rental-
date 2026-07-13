@@ -100,6 +100,7 @@ function RangeCalendar({
             >
               <button
                 type="button" disabled={disabled} onClick={() => onSelect(ymd)}
+                aria-label={`Select ${ymd}`}
                 className={`w-9 h-9 text-[13px] flex items-center justify-center rounded-full transition-all duration-200 ${disabled ? 'cursor-not-allowed' : 'cursor-pointer hover:scale-105'}`}
                 style={{
                   backgroundColor: isEdge ? 'var(--accent)' : 'transparent',
@@ -769,6 +770,7 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
   return (
     <div
       className="relative rounded-3xl border overflow-hidden"
+      data-testid="request-booking-form"
       style={glassCard}
     >
       {/* Soft accent light effect */}

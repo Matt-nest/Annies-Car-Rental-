@@ -1,4 +1,10 @@
-export const PAYMENT_PROVIDER = (process.env.PAYMENT_PROVIDER || 'square').toLowerCase();
+export const DEFAULT_PAYMENT_PROVIDER = 'square';
+
+const rawProvider = (process.env.PAYMENT_PROVIDER || DEFAULT_PAYMENT_PROVIDER).toLowerCase();
+
+export const PAYMENT_PROVIDER = ['stripe', 'square'].includes(rawProvider)
+  ? rawProvider
+  : DEFAULT_PAYMENT_PROVIDER;
 
 export function isStripeProvider() {
   return PAYMENT_PROVIDER === 'stripe';

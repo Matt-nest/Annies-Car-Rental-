@@ -30,6 +30,7 @@ const VehicleCard = memo(function VehicleCard({ vehicle, onClick, index = 0, rat
       transition={{ delay: index < 3 ? index * STAGGER.normal : 0, duration: 0.6, ease: EASE.standard }}
       whileHover={window.matchMedia('(hover: hover)').matches ? { y: -6, transition: { duration: 0.4, ease: EASE.smooth } } : undefined}
       onClick={onClick}
+      data-testid="vehicle-card"
       className="vehicle-card group cursor-pointer rounded-3xl overflow-hidden border"
       style={{
         backgroundColor: 'var(--bg-card)',

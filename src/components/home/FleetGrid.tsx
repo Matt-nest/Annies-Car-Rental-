@@ -59,9 +59,12 @@ export default function FleetGrid({ onSelectVehicle, rateMode = 'daily', onRateM
     }
   };
 
+  const hasInventory = vehicles.length > 0;
   const monthlySubtitle = rateMode === 'monthly'
     ? `${displayableVehicles.length} vehicle${displayableVehicles.length !== 1 ? 's' : ''} available for monthly rental`
-    : `${vehicles.length} vehicle${vehicles.length !== 1 ? 's' : ''} ready to rent.`;
+    : hasInventory
+      ? `${displayableVehicles.length} vehicle${displayableVehicles.length !== 1 ? 's' : ''} ready to rent.`
+      : 'Tell us what you need and we will confirm current availability.';
 
   return (
     <section id="fleet" className="pt-16 pb-24 sm:pb-32 px-4 sm:px-6 max-w-7xl mx-auto">
@@ -255,18 +258,61 @@ export default function FleetGrid({ onSelectVehicle, rateMode = 'daily', onRateM
               </p>
             </motion.div>
           ) : (
-            <>
-              <p style={{ color: 'var(--text-tertiary)' }} className="text-lg text-center py-20">No vehicles match your current filters.</p>
-              <div className="text-center">
-                <button
-                  onClick={() => setFilterCategory('all')}
-                  className="mt-4 underline underline-offset-4"
-                  style={{ color: 'var(--text-primary)' }}
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, ease: EASE.standard }}
+              className="max-w-2xl mx-auto rounded-3xl p-8 sm:p-10 md:p-12 text-center border"
+              data-testid="fleet-recovery"
+              style={{
+                backgroundColor: 'var(--bg-card)',
+                borderColor: 'var(--border-subtle)',
+              }}
+            >
+              <span className="text-[11px] uppercase tracking-[0.3em] font-semibold mb-4 block" style={{ color: 'var(--accent-color)' }}>
+                Availability Check
+              </span>
+              <h3 className="text-3xl md:text-4xl font-light tracking-tight mb-5">
+                {hasInventory ? 'Nothing matches that filter.' : 'Need a vehicle? Tell us what you need.'}
+              </h3>
+              <p className="text-base leading-relaxed mb-8 max-w-lg mx-auto" style={{ color: 'var(--text-secondary)' }}>
+                {hasInventory
+                  ? 'Clear the filter to see the full fleet, or call us and we will match you with the closest available option.'
+                  : 'Live inventory is being confirmed. Call or text us with your dates, pickup area, and vehicle needs and we will respond with the best available option.'}
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                {hasInventory && filterCategory !== 'all' && (
+                  <button
+                    onClick={() => setFilterCategory('all')}
+                    className="px-8 py-4 rounded-full font-medium border transition-all duration-500 hover:scale-[1.02] active:scale-95 text-sm"
+                    style={{ borderColor: 'var(--border-medium)', color: 'var(--text-primary)' }}
+                  >
+                    View all vehicles
+                  </button>
+                )}
+                <a
+                  href={`tel:${brand.phone.replace(/[^\d+]/g, '')}`}
+                  className="px-8 py-4 rounded-full font-medium transition-all duration-500 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 text-sm"
+                  style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }}
                 >
-                  Clear filters
-                </button>
+                  <Phone size={15} />
+                  Call {brand.phone}
+                </a>
+                <a
+                  href={`sms:${brand.phone.replace(/[^\d+]/g, '')}`}
+                  className="px-8 py-4 rounded-full font-medium border transition-all duration-500 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 text-sm"
+                  style={{ borderColor: 'var(--border-medium)', color: 'var(--text-secondary)' }}
+                >
+                  <MessageSquare size={15} />
+                  Text Us
+                </a>
               </div>
-            </>
+
+              <p className="text-xs mt-8" style={{ color: 'var(--text-tertiary)' }}>
+                Same-day response · Serving {brand.location.city} and the surrounding area
+              </p>
+            </motion.div>
           )}
         </div>
       ) : (

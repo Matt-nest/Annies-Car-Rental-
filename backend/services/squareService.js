@@ -190,12 +190,13 @@ async function recordSuccessfulSquarePayment(payment, bookingOverride = null) {
       paid_at: paidAt,
       notes: 'Security deposit — refundable',
     });
-    await supabase.from('booking_deposits').upsert({
+    const { error: depositError } = await supabase.from('booking_deposits').upsert({
       booking_id: booking.id,
       amount: totals.depositCents,
       stripe_charge_id: payment.id,
       status: 'held',
-    }, { onConflict: 'booking_id' }).catch(() => {});
+    }, { onConflict: 'booking_id' });
+    if (depositError) throw depositError;
   }
 
   await supabase

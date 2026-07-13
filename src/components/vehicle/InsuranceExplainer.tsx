@@ -2,10 +2,14 @@ import { memo } from 'react';
 import { Info } from 'lucide-react';
 import bonzahLogo from '../../assets/bonzah-logo.svg';
 
-const InsuranceExplainer = memo(function InsuranceExplainer() {
+type InsuranceExplainerProps = {
+  horizontal?: boolean;
+};
+
+const InsuranceExplainer = memo(function InsuranceExplainer({ horizontal = false }: InsuranceExplainerProps) {
   return (
     <div
-      className="rounded-2xl border p-6 space-y-4"
+      className={`rounded-2xl border p-6 ${horizontal ? 'lg:flex lg:items-start lg:gap-6 lg:space-y-0' : 'space-y-4'}`}
       style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}
     >
       {/* Header: Bonzah logo + heading */}
@@ -50,7 +54,7 @@ const InsuranceExplainer = memo(function InsuranceExplainer() {
       </div>
 
       {/* Info bullets */}
-      <div className="space-y-3 pt-2">
+      <div className={`space-y-3 ${horizontal ? 'lg:flex-1 lg:pt-0' : 'pt-2'}`}>
         <div className="flex items-start gap-3 text-sm">
           <Info size={14} className="mt-0.5 shrink-0" style={{ color: 'var(--text-tertiary)' }} />
           <p style={{ color: 'var(--text-secondary)' }} className="leading-relaxed">

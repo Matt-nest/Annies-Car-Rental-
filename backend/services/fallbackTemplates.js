@@ -27,8 +27,8 @@ const ADDR = `${B.location.address}, ${B.location.city}, ${B.location.state} ${B
 
 // ── Email body building blocks (rendered inline; preserved by wrapInBrandedHTML) ──
 // Single, flat tables only — wrapInBrandedHTML's HTML-block extractor matches to
-// the first </table>, so nested tables would break. Values may contain {{merge}}
-// fields and a literal "$"; single-quoted args never trigger JS interpolation.
+// the first </table>, so nested tables would break. Values may contain template
+// merge fields and a literal "$"; single-quoted args never trigger JS interpolation.
 
 /** One label/value row. */
 function r(label, value) {
