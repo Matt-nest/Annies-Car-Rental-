@@ -13,6 +13,7 @@ export function formatMoney(value, maximumFractionDigits = 2) {
 export function buildActionEntry(action, status = 'Completed') {
   return {
     id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    source: action?.source || 'session',
     status,
     title: action?.title || 'Action recorded',
     detail: action?.auditDetail || action?.impact || '',
@@ -20,6 +21,20 @@ export function buildActionEntry(action, status = 'Completed') {
     amount: action?.amount,
     at: new Date().toISOString(),
   };
+}
+
+export function normalizeAuditEntries(entries = []) {
+  return entries.map((entry) => ({
+    id: entry.id,
+    source: 'persistent',
+    status: entry.status || 'completed',
+    title: entry.title || 'Action recorded',
+    detail: entry.detail || entry.metadata?.detail || '',
+    subject: entry.subject || entry.metadata?.subject || entry.metadata?.booking_code || '',
+    amount: entry.amount,
+    actorEmail: entry.actorEmail,
+    at: entry.at || entry.created_at,
+  }));
 }
 
 export function MoneyActionConfirm({ action, busy = false, onCancel, onConfirm }) {
@@ -83,14 +98,15 @@ export function MoneyActionConfirm({ action, busy = false, onCancel, onConfirm }
 }
 
 export function ActionHistoryPanel({ entries = [], title = 'Action history' }) {
+  const hasPersistent = entries.some((entry) => entry.source === 'persistent');
   return (
     <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-3">
       <div className="flex items-center justify-between gap-3">
         <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">{title}</p>
-        <span className="text-[10px] text-[var(--text-tertiary)]">This session</span>
+        <span className="text-[10px] text-[var(--text-tertiary)]">{hasPersistent ? 'Persistent' : 'This session'}</span>
       </div>
       {entries.length === 0 ? (
-        <p className="mt-2 text-xs text-[var(--text-tertiary)]">No money actions taken in this session.</p>
+        <p className="mt-2 text-xs text-[var(--text-tertiary)]">No money actions recorded yet.</p>
       ) : (
         <div className="mt-2 space-y-2">
           {entries.slice(0, 5).map((entry) => (
@@ -103,6 +119,9 @@ export function ActionHistoryPanel({ entries = [], title = 'Action history' }) {
                 </p>
                 {(entry.subject || entry.detail) && (
                   <p className="text-[11px] text-[var(--text-tertiary)] truncate">{entry.subject || entry.detail}</p>
+                )}
+                {entry.actorEmail && (
+                  <p className="text-[10px] text-[var(--text-tertiary)] truncate">By {entry.actorEmail}</p>
                 )}
               </div>
               <span className="text-[10px] text-[var(--text-tertiary)]">

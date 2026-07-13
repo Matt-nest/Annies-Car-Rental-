@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { supabase } from '../db/supabase.js';
 import { getVehicleDepositAmount, releaseDeposit, settleDeposit, listDeposits, recordManualDeposit } from '../services/depositService.js';
+import { safeRecordMoneyAction } from '../services/moneyActionAuditService.js';
 
 const router = Router();
 
@@ -84,6 +85,16 @@ router.get('/bookings/:id/deposit', requireAuth, async (req, res) => {
 router.post('/bookings/:id/deposit/release', requireAuth, async (req, res) => {
   try {
     const result = await releaseDeposit(req.params.id, { refundedBy: req.user?.email || 'admin' });
+    await safeRecordMoneyAction({
+      req,
+      actionKey: 'deposit_released',
+      title: result?.alreadyRefunded ? 'Deposit already released' : 'Deposit release submitted',
+      detail: 'Full refundable security deposit release was submitted from the dashboard.',
+      status: result?.alreadyRefunded ? 'skipped' : 'completed',
+      bookingId: req.params.id,
+      amountCents: result?.refundedAmount,
+      metadata: { result },
+    });
     res.json(result);
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
@@ -99,6 +110,16 @@ router.post('/bookings/:id/deposit/settle', requireAuth, async (req, res) => {
     const result = await settleDeposit(req.params.id, {
       incidentalTotal,
       refundedBy: req.user?.email || 'admin',
+    });
+    await safeRecordMoneyAction({
+      req,
+      actionKey: 'deposit_settled',
+      title: 'Deposit settled',
+      detail: 'Security deposit was settled against inspection charges.',
+      status: result?.noDeposit ? 'skipped' : 'completed',
+      bookingId: req.params.id,
+      amountCents: Math.round(Number(incidentalTotal || 0) * 100),
+      metadata: { result },
     });
     res.json(result);
   } catch (err) {
@@ -119,6 +140,15 @@ router.post('/bookings/:id/deposit/record', requireAuth, async (req, res) => {
       referenceId,
       notes,
       recordedBy: req.user?.email || 'admin',
+    });
+    await safeRecordMoneyAction({
+      req,
+      actionKey: 'deposit_recorded',
+      title: 'Manual deposit recorded',
+      detail: notes || 'Manual security deposit was recorded.',
+      bookingId: req.params.id,
+      amountCents: result?.amount || amountCents,
+      metadata: { method, referenceId, result },
     });
     res.json(result);
   } catch (err) {

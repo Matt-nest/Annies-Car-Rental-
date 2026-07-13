@@ -10,7 +10,7 @@ import Modal from '../components/shared/Modal';
 import DataError from '../components/shared/DataError';
 import InlineBanner from '../components/shared/InlineBanner';
 import DepositsPanel from '../components/payments/DepositsPanel';
-import { ActionHistoryPanel, MoneyActionConfirm, buildActionEntry } from '../components/shared/MoneyActionGuardrails';
+import { ActionHistoryPanel, MoneyActionConfirm, buildActionEntry, normalizeAuditEntries } from '../components/shared/MoneyActionGuardrails';
 import { getBookingLifecycle, getCustomerName, getVehicleName } from '../lib/bookingOps';
 import { formatDateOnly, localTodayYMD } from '../lib/dates';
 import brand from '../config/brand';
@@ -107,7 +107,7 @@ function RiskBookingRow({ booking, label, tone = 'amber', amount, action = 'Open
   );
 }
 
-function MoneyAtRiskPanel({ bookings, deposits, loading, error, onRetry }) {
+function MoneyAtRiskPanel({ bookings, deposits, loading, error, onRetry, persistedHistory = [] }) {
   const [acting, setActing] = useState('');
   const [notice, setNotice] = useState('');
   const [actionError, setActionError] = useState('');
@@ -141,6 +141,18 @@ function MoneyAtRiskPanel({ bookings, deposits, loading, error, onRetry }) {
 
   const copyPaymentLink = async (booking) => {
     await navigator.clipboard.writeText(paymentLink(booking));
+    api.recordMoneyAction({
+      actionKey: 'payment_link_copied',
+      title: 'Payment link copied',
+      detail: 'Operator copied the customer payment link.',
+      bookingId: booking.id,
+      customerId: booking.customers?.id,
+      amountCents: Math.round(riskAmount(booking) * 100),
+      metadata: {
+        subject: `${getCustomerName(booking)} · ${booking.booking_code}`,
+        booking_code: booking.booking_code,
+      },
+    }).catch(() => {});
     setActionError('');
     setNotice(`Payment link copied for ${booking.booking_code}.`);
     recordAction({
@@ -162,6 +174,17 @@ function MoneyAtRiskPanel({ bookings, deposits, loading, error, onRetry }) {
         channel: 'email',
         subject: `${brand.name}: payment needed for ${booking.booking_code}`,
         body: reminderBody(booking),
+        moneyAction: {
+          actionKey: 'payment_reminder_sent',
+          title: 'Payment reminder sent',
+          detail: 'Operator sent a payment reminder with the customer payment link.',
+          bookingId: booking.id,
+          amountCents: Math.round(riskAmount(booking) * 100),
+          metadata: {
+            subject: `${getCustomerName(booking)} · ${booking.booking_code}`,
+            booking_code: booking.booking_code,
+          },
+        },
       });
       setNotice(`Payment reminder sent for ${booking.booking_code}.`);
       recordAction(action || {
@@ -273,7 +296,7 @@ function MoneyAtRiskPanel({ bookings, deposits, loading, error, onRetry }) {
           {risk.longTermAtRisk.length === 0 && <EmptyState icon={Clock} title="No long-term collection risk" description="Past-due monthly accounts and unsettled long-term returns will appear here." />}
         </section>
       </div>
-      <ActionHistoryPanel entries={actionHistory} title="Collection action history" />
+      <ActionHistoryPanel entries={[...actionHistory, ...persistedHistory]} title="Collection action history" />
     </div>
   );
 }
@@ -297,12 +320,23 @@ export default function PaymentsPage() {
   const [refundError, setRefundError] = useState('');
   const [notice, setNotice] = useState('');
   const [ledgerHistory, setLedgerHistory] = useState([]);
+  const [moneyActions, setMoneyActions] = useState([]);
+
+  const loadMoneyActions = async () => {
+    try {
+      const res = await api.getMoneyActions({ limit: 30 });
+      setMoneyActions(normalizeAuditEntries(res?.data || []));
+    } catch {
+      setMoneyActions([]);
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
     try {
       const res = await api.getAllPayments({ limit: 100 });
       setPayments(res.data || []);
+      await loadMoneyActions();
       setError(null);
     } catch (err) { setError(err.message); }
     setLoading(false);
@@ -317,6 +351,7 @@ export default function PaymentsPage() {
       ]);
       setRiskBookings(Array.isArray(bookRes) ? bookRes : (bookRes?.data || []));
       setRiskDeposits(depRes?.data || []);
+      await loadMoneyActions();
       setRiskError(null);
     } catch (err) {
       setRiskError(err.message || 'Could not load money risk queues');
@@ -421,6 +456,7 @@ export default function PaymentsPage() {
           loading={riskLoading}
           error={riskError}
           onRetry={loadRiskData}
+          persistedHistory={moneyActions}
         />
       ) : tab === 'deposits' ? (
         <DepositsPanel />
@@ -429,7 +465,7 @@ export default function PaymentsPage() {
 
       <DataError error={error} />
       <InlineBanner message={notice} onDismiss={() => setNotice('')} />
-      <ActionHistoryPanel entries={ledgerHistory} title="Ledger action history" />
+      <ActionHistoryPanel entries={[...ledgerHistory, ...moneyActions]} title="Ledger action history" />
 
       {loading ? (
         <SkeletonTable rows={8} cols={7} />

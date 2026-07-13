@@ -5,6 +5,7 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 import { validatePaymentPayload } from '../utils/validators.js';
 import { getStripe } from '../utils/stripe.js';
 import { refundSquarePayment, getSquareRemainingRefundableDollars } from '../services/squareService.js';
+import { safeRecordMoneyAction } from '../services/moneyActionAuditService.js';
 
 const router = Router();
 
@@ -211,6 +212,24 @@ router.post('/payments/:id/refund', requireAuth, requireRole('owner', 'admin'), 
         .eq('id', payment.booking_id);
     }
   }
+
+  await safeRecordMoneyAction({
+    req,
+    actionKey: 'payment_refund_issued',
+    title: `${payment.method === 'square' ? 'Square' : payment.method === 'stripe' ? 'Stripe' : 'Manual'} refund issued`,
+    detail: reason ? `Reason: ${reason}` : 'Refund issued from payment ledger.',
+    bookingId: payment.booking_id,
+    paymentId: newRefund.id,
+    amountCents: Math.round(refundTarget * 100),
+    metadata: {
+      original_payment_id: payment.id,
+      original_reference_id: payment.reference_id,
+      refund_reference_id: newRefund.reference_id,
+      method: payment.method,
+      reason: reason || null,
+      subject: payment.booking_id,
+    },
+  });
 
   res.status(201).json({ success: true, refund: newRefund });
 }));

@@ -27,7 +27,7 @@ import DataError from '../components/shared/DataError';
 import { SkeletonTable } from '../components/shared/Skeleton';
 import Modal from '../components/shared/Modal';
 import InlineBanner from '../components/shared/InlineBanner';
-import { ActionHistoryPanel, DisabledReason, MoneyActionConfirm, buildActionEntry } from '../components/shared/MoneyActionGuardrails';
+import { ActionHistoryPanel, DisabledReason, MoneyActionConfirm, buildActionEntry, normalizeAuditEntries } from '../components/shared/MoneyActionGuardrails';
 import LongTermOnboardModal from '../components/portal/LongTermOnboardModal';
 import { getCustomerName, getVehicleName, toneClasses } from '../lib/bookingOps';
 
@@ -196,14 +196,19 @@ function PaymentPlanActions({ booking, onRefresh }) {
   const [error, setError] = useState('');
   const [confirmAction, setConfirmAction] = useState(null);
   const [actionHistory, setActionHistory] = useState([]);
+  const [persistedHistory, setPersistedHistory] = useState([]);
 
   const bookingId = booking.id;
 
   const loadPlan = useCallback(() => {
     setState({ loading: true, label: 'Checking plan', tone: 'slate', detail: '' });
     setError('');
-    api.getPaymentPlan(bookingId)
-      .then((plan) => {
+    Promise.all([
+      api.getPaymentPlan(bookingId),
+      api.getMoneyActions({ booking_id: bookingId, limit: 12 }).catch(() => ({ data: [] })),
+    ])
+      .then(([plan, audit]) => {
+        setPersistedHistory(normalizeAuditEntries(audit?.data || []));
         setPlanData(plan);
         const installments = Array.isArray(plan?.installments) ? plan.installments : [];
         const unpaid = installments.filter((item) => !['paid', 'completed', 'succeeded', 'cancelled'].includes(item.status));
@@ -418,7 +423,7 @@ function PaymentPlanActions({ booking, onRefresh }) {
         </button>
       </div>
       <DisabledReason reason={createBlockedReason || invoiceBlockedReason} />
-      <ActionHistoryPanel entries={actionHistory} title="Account action history" />
+      <ActionHistoryPanel entries={[...actionHistory, ...persistedHistory]} title="Account action history" />
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Create Payment Plan">
         <form onSubmit={createPlan} className="space-y-5">

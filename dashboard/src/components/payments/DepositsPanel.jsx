@@ -8,7 +8,7 @@ import EmptyState from '../shared/EmptyState';
 import DataError from '../shared/DataError';
 import Modal from '../shared/Modal';
 import InlineBanner from '../shared/InlineBanner';
-import { ActionHistoryPanel, DisabledReason, MoneyActionConfirm, buildActionEntry } from '../shared/MoneyActionGuardrails';
+import { ActionHistoryPanel, DisabledReason, MoneyActionConfirm, buildActionEntry, normalizeAuditEntries } from '../shared/MoneyActionGuardrails';
 
 const STATUS_STYLES = {
   held: { label: 'Held', color: '#6366f1', bg: 'rgba(99,102,241,0.12)' },
@@ -50,13 +50,18 @@ export default function DepositsPanel() {
   const [notice, setNotice] = useState('');
   const [confirmAction, setConfirmAction] = useState(null);
   const [actionHistory, setActionHistory] = useState([]);
+  const [persistedHistory, setPersistedHistory] = useState([]);
 
   const load = async () => {
     setLoading(true);
     try {
       const res = await api.listDeposits({ status });
+      const audit = await api.getMoneyActions({ limit: 20 }).catch(() => ({ data: [] }));
       setRows(res.data || []);
       setSummary(res.summary || { count: 0, total_held_dollars: '0.00' });
+      setPersistedHistory(normalizeAuditEntries(audit?.data || []).filter((entry) => (
+        ['deposit_released', 'deposit_settled', 'deposit_recorded', 'payment_refund_issued'].includes(entry.actionKey)
+      )));
       setError(null);
     } catch (err) {
       setError(err.message);
@@ -230,7 +235,7 @@ export default function DepositsPanel() {
         onCancel={() => setConfirmAction(null)}
         onConfirm={() => confirmAction?.onConfirm?.()}
       />
-      <ActionHistoryPanel entries={actionHistory} title="Deposit action history" />
+      <ActionHistoryPanel entries={[...actionHistory, ...persistedHistory]} title="Deposit action history" />
 
       {loading ? (
         <SkeletonTable rows={4} cols={5} />
