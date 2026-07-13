@@ -8,6 +8,7 @@ import EmptyState from '../shared/EmptyState';
 import DataError from '../shared/DataError';
 import Modal from '../shared/Modal';
 import InlineBanner from '../shared/InlineBanner';
+import { ActionHistoryPanel, DisabledReason, MoneyActionConfirm, buildActionEntry } from '../shared/MoneyActionGuardrails';
 
 const STATUS_STYLES = {
   held: { label: 'Held', color: '#6366f1', bg: 'rgba(99,102,241,0.12)' },
@@ -47,6 +48,8 @@ export default function DepositsPanel() {
   const [incidentalTotal, setIncidentalTotal] = useState('');
   const [actionError, setActionError] = useState('');
   const [notice, setNotice] = useState('');
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [actionHistory, setActionHistory] = useState([]);
 
   const load = async () => {
     setLoading(true);
@@ -63,18 +66,54 @@ export default function DepositsPanel() {
 
   useEffect(() => { load(); }, [status]);
 
-  const handleRelease = async (bookingId) => {
-    if (!confirm('Refund the full deposit to the customer?')) return;
+  const recordAction = (action, status) => {
+    setActionHistory((items) => [buildActionEntry(action, status), ...items].slice(0, 8));
+  };
+
+  const runRelease = async (row, action) => {
+    const bookingId = row?.bookings?.id;
+    if (!bookingId) return;
     setActing(bookingId);
     setActionError('');
     try {
       await api.releaseDeposit(bookingId);
       setNotice('Deposit release started. Refresh if the gateway needs a few seconds to settle.');
+      recordAction(action || {
+        title: 'Deposit release started',
+        subject: row?.bookings?.booking_code,
+        amount: depositRefundable(row) / 100,
+      });
       await load();
     } catch (err) {
       setActionError(err.message || 'Release failed');
     }
     setActing(null);
+    setConfirmAction(null);
+  };
+
+  const requestRelease = (row) => {
+    if (row?.bookings?.status !== 'returned') {
+      setActionError('Return and inspection must be complete before releasing a deposit.');
+      return;
+    }
+    const refundable = depositRefundable(row);
+    setConfirmAction({
+      title: 'Release Full Deposit',
+      subject: `${row?.bookings?.booking_code} · ${row?.bookings?.customers?.first_name || ''} ${row?.bookings?.customers?.last_name || ''}`.trim(),
+      amount: refundable / 100,
+      impact: 'Refunds the remaining security deposit to the original payment method when supported.',
+      checklist: ['Vehicle has been returned.', 'Inspection is complete.', 'No damage, fuel, toll, cleaning, or late-return charges are being applied.'],
+      warning: 'This may move money immediately and cannot be undone from the dashboard.',
+      auditDetail: 'Release will update deposit status, payment ledger, customer notifications, and this session action log.',
+      confirmLabel: 'Release Deposit',
+      tone: 'danger',
+      onConfirm: () => runRelease(row, {
+        title: 'Deposit release started',
+        subject: row?.bookings?.booking_code,
+        amount: refundable / 100,
+        auditDetail: 'Operator released the remaining security deposit.',
+      }),
+    });
   };
 
   const openSettle = (row) => {
@@ -94,19 +133,41 @@ export default function DepositsPanel() {
     if (!bookingId) return;
     const refundable = depositRefundable(settleRow);
     const refundEstimate = Math.max(0, refundable - Math.round(amount * 100));
-    const ok = confirm(`Apply $${amount.toFixed(2)} against the deposit and refund about $${(refundEstimate / 100).toFixed(2)}?`);
-    if (!ok) return;
+    setConfirmAction({
+      title: 'Settle Deposit',
+      subject: `${settleRow?.bookings?.booking_code} · ${settleRow?.bookings?.customers?.first_name || ''} ${settleRow?.bookings?.customers?.last_name || ''}`.trim(),
+      amount,
+      impact: `Applies ${amount.toFixed(2)} from the deposit and refunds about $${(refundEstimate / 100).toFixed(2)}.`,
+      checklist: ['Vehicle return is recorded.', 'Inspection charges are final.', 'Incidentals match photos, notes, tolls, fuel, or cleaning records.'],
+      warning: 'This may refund the remaining deposit and create settlement ledger rows.',
+      auditDetail: 'Settlement will be visible in deposit status, payment ledger, customer notification history, and this session action log.',
+      confirmLabel: 'Settle Deposit',
+      tone: amount > 0 ? 'danger' : 'amber',
+      onConfirm: () => runSettle(amount, refundEstimate),
+    });
+  };
+
+  const runSettle = async (amount, refundEstimate) => {
+    const bookingId = settleRow?.bookings?.id;
+    if (!bookingId) return;
     setActing(bookingId);
     setActionError('');
     try {
       await api.settleDeposit(bookingId, { incidentalTotal: amount });
       setSettleRow(null);
       setNotice('Deposit settlement recorded.');
+      recordAction({
+        title: 'Deposit settled',
+        subject: settleRow?.bookings?.booking_code,
+        amount,
+        auditDetail: `Estimated refund: $${(refundEstimate / 100).toFixed(2)}.`,
+      });
       await load();
     } catch (err) {
       setActionError(err.message || 'Settlement failed');
     }
     setActing(null);
+    setConfirmAction(null);
   };
 
   return (
@@ -163,6 +224,13 @@ export default function DepositsPanel() {
       {error && <DataError message={error} onRetry={load} />}
       <InlineBanner message={actionError} onDismiss={() => setActionError('')} />
       <InlineBanner message={notice} tone="success" onDismiss={() => setNotice('')} />
+      <MoneyActionConfirm
+        action={confirmAction}
+        busy={!!acting}
+        onCancel={() => setConfirmAction(null)}
+        onConfirm={() => confirmAction?.onConfirm?.()}
+      />
+      <ActionHistoryPanel entries={actionHistory} title="Deposit action history" />
 
       {loading ? (
         <SkeletonTable rows={4} cols={5} />
@@ -192,6 +260,10 @@ export default function DepositsPanel() {
                 const st = settlementTone(row);
                 const refundable = depositRefundable(row);
                 const settlement = settlementLabel(row);
+                const canMoneyMove = row.status === 'held' && refundable > 0 && b?.status === 'returned';
+                const disabledReason = row.status === 'held' && refundable > 0 && b?.status !== 'returned'
+                  ? 'Return and inspection required first.'
+                  : '';
                 return (
                   <tr key={row.id} className="border-t border-[var(--border-subtle)]" style={{ backgroundColor: 'var(--bg-card)' }}>
                     <td className="px-4 py-3">
@@ -233,7 +305,7 @@ export default function DepositsPanel() {
                             <button
                               type="button"
                               className="btn-secondary text-xs py-1.5 px-2"
-                              disabled={acting === b?.id}
+                              disabled={acting === b?.id || !canMoneyMove}
                               onClick={() => openSettle(row)}
                             >
                               <Calculator size={13} /> Apply
@@ -241,14 +313,15 @@ export default function DepositsPanel() {
                             <button
                               type="button"
                               className="btn-secondary text-xs py-1.5 px-2"
-                              disabled={acting === b?.id}
-                              onClick={() => handleRelease(b?.id)}
+                              disabled={acting === b?.id || !canMoneyMove}
+                              onClick={() => requestRelease(row)}
                             >
                               <DollarSign size={13} /> Release
                             </button>
                           </>
                         )}
                       </div>
+                      <DisabledReason reason={disabledReason} />
                     </td>
                   </tr>
                 );
