@@ -468,6 +468,18 @@ export default function BookingDetailPage() {
     }
   }
 
+  function handleActionBarAction(action) {
+    if (action === 'checkin') {
+      setActiveTab('checkin');
+      return;
+    }
+    if (action === 'checkout') {
+      setActiveTab('checkout');
+      return;
+    }
+    setModal(action);
+  }
+
   async function handleInsuranceAction(action) {
     if (action === 'reject' && !insuranceRejectReason.trim()) {
       setInsuranceActionError('Please provide a reason for rejecting this insurance.');
@@ -813,7 +825,7 @@ export default function BookingDetailPage() {
           remain the source of truth. Hidden at md+. */}
       <BookingActionBar
         status={status}
-        onAction={(action) => setModal(action)}
+        onAction={handleActionBarAction}
         disabled={actioning}
       />
 

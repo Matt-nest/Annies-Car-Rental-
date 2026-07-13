@@ -14,6 +14,9 @@ import { haptic } from '../../lib/haptic';
  *
  * Positioning: sits ABOVE the dashboard BottomNav (Sprint 3a) which is
  * 64 px + safe-area-bottom. Calculated via the same env() math.
+ *
+ * Sprint 8b. NEVER-TOUCH respected: doesn't change api/client.js, modal
+ * shapes, status state machine, or the BookingModals component itself.
  */
 const STATUS_ACTIONS = {
   pending_approval: {
@@ -21,20 +24,21 @@ const STATUS_ACTIONS = {
     secondary: { action: 'decline', label: 'Decline',  icon: X,     tone: 'danger'  },
   },
   approved: {
-    primary: { action: 'pickup', label: 'Mark Pickup', icon: Package, tone: 'accent' },
+    primary: { action: 'checkin', label: 'Prep Pickup', icon: Package, tone: 'accent' },
   },
   confirmed: {
-    primary: { action: 'pickup', label: 'Mark Pickup', icon: Package, tone: 'accent' },
+    primary: { action: 'checkin', label: 'Prep Pickup', icon: Package, tone: 'accent' },
   },
   ready_for_pickup: {
-    primary: { action: 'pickup', label: 'Mark Pickup', icon: Key, tone: 'accent' },
+    primary: { action: 'checkin', label: 'Open Check-In', icon: Key, tone: 'accent' },
   },
   active: {
-    primary: { action: 'return', label: 'Mark Returned', icon: Flag, tone: 'accent' },
+    primary: { action: 'checkout', label: 'Open Check-Out', icon: Flag, tone: 'accent' },
   },
   returned: {
-    primary: { action: 'complete', label: 'Complete Booking', icon: Check, tone: 'success' },
+    primary: { action: 'checkout', label: 'Settle Checkout', icon: Check, tone: 'success' },
   },
+  // completed / cancelled / declined → no action bar shown
 };
 
 const TONE_STYLE = {
@@ -63,6 +67,7 @@ export default function BookingActionBar({ status, onAction, disabled = false })
     <div
       className="md:hidden fixed inset-x-0 z-[80]"
       style={{
+        // Sit above the BottomNav (Sprint 3a is ~64 px tall + its own safe-area).
         bottom: 'var(--bottom-nav-offset)',
         backgroundColor: 'var(--bg-elevated)',
         borderTop: '1px solid var(--border-subtle)',
