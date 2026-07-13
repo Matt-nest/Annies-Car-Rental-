@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, DollarSign, Download, CreditCard, RefreshCw, AlertCircle, Shield } from 'lucide-react';
+import { Search, DollarSign, Download, CreditCard, RefreshCw, AlertCircle, Shield, Clock, ClipboardCheck, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { api } from '../api/client';
 import { SkeletonTable } from '../components/shared/Skeleton';
@@ -10,6 +10,8 @@ import Modal from '../components/shared/Modal';
 import DataError from '../components/shared/DataError';
 import InlineBanner from '../components/shared/InlineBanner';
 import DepositsPanel from '../components/payments/DepositsPanel';
+import { getBookingLifecycle, getCustomerName, getVehicleName } from '../lib/bookingOps';
+import { formatDateOnly, localTodayYMD } from '../lib/dates';
 
 const EASE = [0.25, 1, 0.5, 1];
 
@@ -26,12 +28,157 @@ function providerLabel(method) {
   return method || 'Payment';
 }
 
+function money(value, maximumFractionDigits = 0) {
+  const n = Number(value || 0);
+  return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits });
+}
+
+function depositCents(row) {
+  return Math.max(0, Number(row?.amount || 0) - Number(row?.refund_amount || 0) - Number(row?.applied_amount || 0));
+}
+
+function riskAmount(booking) {
+  return Number(booking?.total_cost || 0) + Number(booking?.deposit_amount || 0);
+}
+
+function RiskTile({ icon: Icon, label, value, subtext, tone = 'slate' }) {
+  const tones = {
+    red: 'border-red-500/20 bg-red-500/10 text-red-500',
+    amber: 'border-amber-500/20 bg-amber-500/10 text-amber-500',
+    purple: 'border-purple-500/20 bg-purple-500/10 text-purple-500',
+    emerald: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-500',
+    slate: 'border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-primary)]',
+  };
+  return (
+    <div className={`rounded-xl border px-4 py-3 ${tones[tone] || tones.slate}`}>
+      <div className="flex items-center justify-between gap-3">
+        <Icon size={17} />
+        <span className="text-xl font-bold tabular-nums">{value}</span>
+      </div>
+      <p className="mt-1 text-[11px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">{label}</p>
+      {subtext && <p className="mt-0.5 text-xs text-[var(--text-secondary)]">{subtext}</p>}
+    </div>
+  );
+}
+
+function RiskBookingRow({ booking, label, tone = 'amber', amount, action = 'Open booking' }) {
+  const toneMap = {
+    red: 'text-red-500 bg-red-500/10',
+    amber: 'text-amber-500 bg-amber-500/10',
+    purple: 'text-purple-500 bg-purple-500/10',
+    slate: 'text-[var(--text-secondary)] bg-[var(--bg-card-hover)]',
+  };
+  return (
+    <Link
+      to={`/bookings/${booking.id}`}
+      className="block rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4 transition-colors hover:bg-[var(--bg-card-hover)]"
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="font-semibold text-[var(--text-primary)] truncate">{getCustomerName(booking)}</p>
+            <span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${toneMap[tone] || toneMap.slate}`}>
+              {label}
+            </span>
+          </div>
+          <p className="mt-0.5 text-sm text-[var(--text-secondary)] truncate">{getVehicleName(booking)} · <span className="font-mono">{booking.booking_code}</span></p>
+          <p className="mt-1 text-xs text-[var(--text-tertiary)]">
+            {formatDateOnly(booking.pickup_date, 'MMM d')} to {formatDateOnly(booking.return_date, 'MMM d')}
+          </p>
+        </div>
+        <div className="shrink-0 text-right">
+          <p className="text-base font-bold tabular-nums text-[var(--text-primary)]">{money(amount, 2)}</p>
+          <p className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-[var(--accent-color)]">
+            {action} <ArrowRight size={12} />
+          </p>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function MoneyAtRiskPanel({ bookings, deposits, loading, error, onRetry }) {
+  const today = localTodayYMD();
+  const risk = useMemo(() => {
+    const paymentDue = bookings
+      .filter((booking) => getBookingLifecycle(booking).key === 'payment_due')
+      .sort((a, b) => riskAmount(b) - riskAmount(a));
+    const needsCheckout = bookings
+      .filter((booking) => booking.status === 'returned')
+      .sort((a, b) => (b.return_date || '').localeCompare(a.return_date || ''));
+    const longTermAtRisk = bookings
+      .filter((booking) => booking.rental_type === 'long_term' && ['active', 'returned'].includes(booking.status))
+      .filter((booking) => booking.status === 'returned' || (booking.status === 'active' && booking.return_date && booking.return_date < today))
+      .sort((a, b) => (a.return_date || '').localeCompare(b.return_date || ''));
+    const heldDeposits = deposits.filter((row) => row.status === 'held');
+    const heldDepositTotal = heldDeposits.reduce((sum, row) => sum + depositCents(row), 0) / 100;
+    const paymentDueTotal = paymentDue.reduce((sum, booking) => sum + riskAmount(booking), 0);
+    const checkoutExposure = needsCheckout.reduce((sum, booking) => sum + Number(booking.deposit_amount || 0), 0);
+    const longTermExposure = longTermAtRisk.reduce((sum, booking) => sum + Number(booking.total_cost || 0), 0);
+    return { paymentDue, needsCheckout, longTermAtRisk, heldDeposits, heldDepositTotal, paymentDueTotal, checkoutExposure, longTermExposure };
+  }, [bookings, deposits, today]);
+
+  if (loading) return <SkeletonTable rows={5} cols={3} />;
+
+  return (
+    <div className="space-y-5">
+      <DataError error={error} onRetry={onRetry} />
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <RiskTile icon={DollarSign} label="Collection Queue" value={risk.paymentDue.length} subtext={`${money(risk.paymentDueTotal, 2)} payment due`} tone={risk.paymentDue.length ? 'amber' : 'slate'} />
+        <RiskTile icon={Shield} label="Deposits Held" value={risk.heldDeposits.length} subtext={`${money(risk.heldDepositTotal, 2)} refundable exposure`} tone={risk.heldDeposits.length ? 'purple' : 'slate'} />
+        <RiskTile icon={ClipboardCheck} label="Needs Settlement" value={risk.needsCheckout.length} subtext={`${money(risk.checkoutExposure, 2)} deposit decisions`} tone={risk.needsCheckout.length ? 'amber' : 'slate'} />
+        <RiskTile icon={Clock} label="Long-Term At Risk" value={risk.longTermAtRisk.length} subtext={`${money(risk.longTermExposure, 2)} renewal value`} tone={risk.longTermAtRisk.length ? 'red' : 'slate'} />
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-3">
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-sm font-bold text-[var(--text-primary)]">Collect rental balance</h2>
+            <p className="text-xs text-[var(--text-tertiary)]">Approved bookings that are not operationally ready because payment is still due.</p>
+          </div>
+          {risk.paymentDue.slice(0, 6).map((booking) => (
+            <RiskBookingRow key={booking.id} booking={booking} label="Payment due" amount={riskAmount(booking)} action="Send link" />
+          ))}
+          {risk.paymentDue.length === 0 && <EmptyState icon={DollarSign} title="No collection blockers" description="Approved bookings with missing payment will appear here." />}
+        </section>
+
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-sm font-bold text-[var(--text-primary)]">Settle deposits</h2>
+            <p className="text-xs text-[var(--text-tertiary)]">Returned rentals and held deposits that need a refund, partial refund, or applied charge decision.</p>
+          </div>
+          {risk.needsCheckout.slice(0, 6).map((booking) => (
+            <RiskBookingRow key={booking.id} booking={booking} label="Needs checkout" tone="amber" amount={Number(booking.deposit_amount || 0)} action="Settle" />
+          ))}
+          {risk.needsCheckout.length === 0 && <EmptyState icon={ClipboardCheck} title="No deposits to settle" description="Returned rentals needing inspection and deposit decisions will appear here." />}
+        </section>
+
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-sm font-bold text-[var(--text-primary)]">Long-term collections</h2>
+            <p className="text-xs text-[var(--text-tertiary)]">Monthly renters past due or returned without settlement.</p>
+          </div>
+          {risk.longTermAtRisk.slice(0, 6).map((booking) => (
+            <RiskBookingRow key={booking.id} booking={booking} label={booking.status === 'returned' ? 'Settle account' : 'Past due'} tone="red" amount={Number(booking.total_cost || 0)} action="Manage account" />
+          ))}
+          {risk.longTermAtRisk.length === 0 && <EmptyState icon={Clock} title="No long-term collection risk" description="Past-due monthly accounts and unsettled long-term returns will appear here." />}
+        </section>
+      </div>
+    </div>
+  );
+}
+
 export default function PaymentsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab = searchParams.get('tab') === 'deposits' ? 'deposits' : 'ledger';
+  const rawTab = searchParams.get('tab');
+  const tab = ['risk', 'deposits', 'ledger'].includes(rawTab) ? rawTab : 'risk';
   const [payments, setPayments] = useState([]);
+  const [riskBookings, setRiskBookings] = useState([]);
+  const [riskDeposits, setRiskDeposits] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [riskLoading, setRiskLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [riskError, setRiskError] = useState(null);
 
   const [refundData, setRefundData] = useState(null);
   const [refundAmount, setRefundAmount] = useState('');
@@ -50,7 +197,26 @@ export default function PaymentsPage() {
     setLoading(false);
   };
 
-  useEffect(() => { loadData(); }, []);
+  const loadRiskData = async () => {
+    setRiskLoading(true);
+    try {
+      const [bookRes, depRes] = await Promise.all([
+        api.getBookings({ limit: 250 }),
+        api.listDeposits({ status: 'held' }).catch(() => ({ data: [] })),
+      ]);
+      setRiskBookings(Array.isArray(bookRes) ? bookRes : (bookRes?.data || []));
+      setRiskDeposits(depRes?.data || []);
+      setRiskError(null);
+    } catch (err) {
+      setRiskError(err.message || 'Could not load money risk queues');
+    }
+    setRiskLoading(false);
+  };
+
+  useEffect(() => {
+    loadData();
+    loadRiskData();
+  }, []);
 
   const openRefundModal = (payment) => {
     const childRefunds = payments.filter(p =>
@@ -98,11 +264,11 @@ export default function PaymentsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight tabular-nums" style={{ color: 'var(--text-primary)' }}>Payments</h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-            {tab === 'deposits' ? 'Held deposits, settlement, and refunds' : 'Review all transactions and manage refunds'}
+            {tab === 'risk' ? 'Collection, deposit, refund, and long-term money operations' : tab === 'deposits' ? 'Held deposits, settlement, and refunds' : 'Review all transactions and manage refunds'}
           </p>
         </div>
-        {tab === 'ledger' && (
-          <button className="btn-secondary" onClick={loadData}>
+        {(tab === 'ledger' || tab === 'risk') && (
+          <button className="btn-secondary" onClick={tab === 'risk' ? loadRiskData : loadData}>
             <RefreshCw size={14} /> Sync
           </button>
         )}
@@ -110,13 +276,14 @@ export default function PaymentsPage() {
 
       <div className="flex gap-2 border-b border-[var(--border-subtle)] pb-1">
         {[
+          { key: 'risk', label: 'Money at Risk', icon: AlertCircle },
           { key: 'ledger', label: 'Ledger', icon: CreditCard },
           { key: 'deposits', label: 'Deposits', icon: Shield },
         ].map(({ key, label, icon: Icon }) => (
           <button
             key={key}
             type="button"
-            onClick={() => setSearchParams(key === 'ledger' ? {} : { tab: key })}
+            onClick={() => setSearchParams(key === 'risk' ? {} : { tab: key })}
             className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-t-lg transition-colors"
             style={{
               color: tab === key ? 'var(--accent-color)' : 'var(--text-tertiary)',
@@ -129,7 +296,15 @@ export default function PaymentsPage() {
         ))}
       </div>
 
-      {tab === 'deposits' ? (
+      {tab === 'risk' ? (
+        <MoneyAtRiskPanel
+          bookings={riskBookings}
+          deposits={riskDeposits}
+          loading={riskLoading}
+          error={riskError}
+          onRetry={loadRiskData}
+        />
+      ) : tab === 'deposits' ? (
         <DepositsPanel />
       ) : (
         <>

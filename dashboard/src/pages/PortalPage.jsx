@@ -8,12 +8,14 @@ import {
   ChevronRight,
   ClipboardCheck,
   Copy,
+  CreditCard,
   DoorOpen,
   ExternalLink,
   Loader2,
   MessageSquare,
   RefreshCw,
   Search,
+  ReceiptText,
   UserPlus,
   WalletCards,
 } from 'lucide-react';
@@ -44,6 +46,49 @@ function daysUntil(dateStr, today = localTodayYMD()) {
   const start = new Date(`${today}T12:00:00`).getTime();
   if (Number.isNaN(end) || Number.isNaN(start)) return null;
   return Math.ceil((end - start) / DAY_MS);
+}
+
+function accountMoneyState(booking, today = localTodayYMD()) {
+  const renewalDays = daysUntil(booking.return_date, today);
+  const monthlyRent = Number(booking.total_cost || 0);
+  const deposit = Number(booking.deposit_amount || 0);
+  const isPastDue = booking.status === 'active' && renewalDays != null && renewalDays < 0;
+  const isReturned = booking.status === 'returned';
+  const needsCollection = getAccountState(booking, today).key === 'onboarding' || isPastDue;
+
+  if (isPastDue) {
+    return {
+      label: 'Collect renewal',
+      tone: 'red',
+      amount: monthlyRent,
+      description: `${Math.abs(renewalDays)} day${Math.abs(renewalDays) === 1 ? '' : 's'} past due`,
+    };
+  }
+
+  if (isReturned) {
+    return {
+      label: 'Settle deposit',
+      tone: 'amber',
+      amount: deposit,
+      description: 'Inspection, charges, refund, or close-out',
+    };
+  }
+
+  if (needsCollection) {
+    return {
+      label: 'Onboarding balance',
+      tone: 'amber',
+      amount: monthlyRent + deposit,
+      description: 'Payment, agreement, and handoff still open',
+    };
+  }
+
+  return {
+    label: 'Account value',
+    tone: renewalDays != null && renewalDays <= 7 ? 'purple' : 'slate',
+    amount: monthlyRent,
+    description: renewalDays == null ? 'No renewal date' : `${renewalDays} day${renewalDays === 1 ? '' : 's'} until renewal`,
+  };
 }
 
 function getAccountState(booking, today) {
@@ -136,6 +181,48 @@ function StatTile({ icon: Icon, label, value, subtext, tone = 'slate' }) {
   );
 }
 
+function PaymentPlanBadge({ bookingId }) {
+  const [state, setState] = useState({ loading: true, label: 'Checking plan', tone: 'slate', detail: '' });
+
+  useEffect(() => {
+    let mounted = true;
+    setState({ loading: true, label: 'Checking plan', tone: 'slate', detail: '' });
+    api.getPaymentPlan(bookingId)
+      .then((plan) => {
+        if (!mounted) return;
+        const installments = Array.isArray(plan?.installments) ? plan.installments : [];
+        const unpaid = installments.filter((item) => !['paid', 'completed', 'succeeded'].includes(item.status));
+        const overdue = unpaid.filter((item) => item.due_date && item.due_date < localTodayYMD());
+        if (!plan?.id) {
+          setState({ loading: false, label: 'No payment plan', tone: 'slate', detail: 'Use for monthly split-pay or exception accounts.' });
+        } else if (overdue.length) {
+          const amount = overdue.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+          setState({ loading: false, label: 'Plan overdue', tone: 'red', detail: `${overdue.length} installment${overdue.length === 1 ? '' : 's'} · ${money(amount / 100, 2)}` });
+        } else if (unpaid.length) {
+          setState({ loading: false, label: 'Plan active', tone: 'purple', detail: `${unpaid.length} installment${unpaid.length === 1 ? '' : 's'} remaining` });
+        } else {
+          setState({ loading: false, label: 'Plan paid', tone: 'emerald', detail: 'All installments collected.' });
+        }
+      })
+      .catch(() => {
+        if (mounted) setState({ loading: false, label: 'Plan unavailable', tone: 'slate', detail: 'Open booking to manage payments.' });
+      });
+    return () => { mounted = false; };
+  }, [bookingId]);
+
+  const tone = toneClasses(state.tone);
+  return (
+    <div className="rounded-lg bg-[var(--bg-card-hover)] px-3 py-2">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Payment Plan</p>
+      <p className={`text-xs font-semibold mt-0.5 flex items-center gap-1 ${tone.text}`}>
+        {state.loading ? <Loader2 size={12} className="animate-spin" /> : <CreditCard size={12} />}
+        {state.label}
+      </p>
+      {state.detail && <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5">{state.detail}</p>}
+    </div>
+  );
+}
+
 function RenterCard({ booking, today, onRefresh }) {
   const navigate = useNavigate();
   const [copied, setCopied] = useState('');
@@ -143,6 +230,8 @@ function RenterCard({ booking, today, onRefresh }) {
   const [notes, setNotes] = useState(booking.portal_notes || '');
   const c = booking.customers || {};
   const state = getAccountState(booking, today);
+  const moneyState = accountMoneyState(booking, today);
+  const moneyTone = toneClasses(moneyState.tone);
   const tone = toneClasses(state.tone);
   const url = portalUrl(booking.booking_code);
   const renewalDays = daysUntil(booking.return_date, today);
@@ -214,7 +303,7 @@ function RenterCard({ booking, today, onRefresh }) {
         </div>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-3">
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-lg bg-[var(--bg-card-hover)] px-3 py-2">
           <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Next Action</p>
           <p className="text-xs font-semibold mt-0.5 text-[var(--text-primary)]">{state.action}</p>
@@ -229,6 +318,12 @@ function RenterCard({ booking, today, onRefresh }) {
           <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Monthly Rent</p>
           <p className="text-xs font-semibold mt-0.5 text-[var(--text-primary)]">{money(booking.total_cost || 0, 2)}</p>
         </div>
+        <div className={`rounded-lg px-3 py-2 ${moneyTone.bg}`}>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">{moneyState.label}</p>
+          <p className={`text-xs font-semibold mt-0.5 tabular-nums ${moneyTone.text}`}>{money(moneyState.amount, 2)}</p>
+          <p className="text-[11px] mt-0.5 text-[var(--text-tertiary)]">{moneyState.description}</p>
+        </div>
+        <PaymentPlanBadge bookingId={booking.id} />
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -242,6 +337,9 @@ function RenterCard({ booking, today, onRefresh }) {
         )}
         <button type="button" className="btn-ghost text-xs py-1.5" onClick={() => navigate(`/bookings/${booking.id}`, { state: { openExtend: true } })}>
           <CalendarPlus size={12} className="inline mr-1" /> Renew / extend
+        </button>
+        <button type="button" className="btn-ghost text-xs py-1.5" onClick={() => navigate(`/bookings/${booking.id}`, { state: { activeTab: 'invoice' } })}>
+          <ReceiptText size={12} className="inline mr-1" /> Money
         </button>
         {['returned', 'active'].includes(booking.status) && (
           <button type="button" className="btn-ghost text-xs py-1.5" onClick={() => navigate(`/bookings/${booking.id}`, { state: { activeTab: 'checkout' } })}>
@@ -328,9 +426,15 @@ export default function PortalPage() {
     const activeAccounts = renters.filter((b) => b.status === 'active');
     const monthlyRunRate = activeAccounts.reduce((sum, b) => sum + Number(b.total_cost || 0), 0);
     const pastDue = renters.filter((b) => getAccountState(b, today).key === 'past_due').length;
+    const pastDueValue = renters
+      .filter((b) => getAccountState(b, today).key === 'past_due')
+      .reduce((sum, b) => sum + Number(b.total_cost || 0), 0);
     const renewalSoon = renters.filter((b) => getAccountState(b, today).key === 'renew_soon').length;
+    const renewalValue = renters
+      .filter((b) => getAccountState(b, today).key === 'renew_soon')
+      .reduce((sum, b) => sum + Number(b.total_cost || 0), 0);
     const attention = renters.filter((b) => ['past_due', 'onboarding', 'checkout'].includes(getAccountState(b, today).key)).length;
-    return { activeAccounts: activeAccounts.length, monthlyRunRate, pastDue, renewalSoon, attention };
+    return { activeAccounts: activeAccounts.length, monthlyRunRate, pastDue, pastDueValue, renewalSoon, renewalValue, attention };
   }, [renters, today]);
 
   const tabs = [
@@ -377,8 +481,8 @@ export default function PortalPage() {
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <StatTile icon={AlertTriangle} label="Attention" value={stats.attention} tone={stats.attention ? 'amber' : 'slate'} />
-        <StatTile icon={AlertTriangle} label="Past Due" value={stats.pastDue} tone={stats.pastDue ? 'red' : 'slate'} />
-        <StatTile icon={CalendarClock} label="Renew Soon" value={stats.renewalSoon} tone={stats.renewalSoon ? 'purple' : 'slate'} />
+        <StatTile icon={AlertTriangle} label="Past Due" value={stats.pastDue} subtext={stats.pastDue ? `${money(stats.pastDueValue, 2)} to collect` : 'No overdue accounts'} tone={stats.pastDue ? 'red' : 'slate'} />
+        <StatTile icon={CalendarClock} label="Renew Soon" value={stats.renewalSoon} subtext={stats.renewalSoon ? `${money(stats.renewalValue, 2)} renewal value` : 'No near renewals'} tone={stats.renewalSoon ? 'purple' : 'slate'} />
         <StatTile icon={DoorOpen} label="Active" value={stats.activeAccounts} tone="emerald" />
         <StatTile icon={WalletCards} label="Monthly Run Rate" value={money(stats.monthlyRunRate)} subtext="active accounts" tone="slate" />
       </div>
