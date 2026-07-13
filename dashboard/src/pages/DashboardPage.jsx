@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import brand from '../config/brand';
 import DashboardLayoutEngine from '../components/dashboard/DashboardLayoutEngine';
+import TodayOpsCockpit from '../components/dashboard/TodayOpsCockpit';
 import AlertPillBar from '../components/layout/AlertPillBar';
 
 const EASE = [0.25, 1, 0.5, 1];
@@ -58,6 +59,8 @@ export default function DashboardPage() {
 
       {/* Mobile alert strip — in-flow above widgets, not a second fixed bottom bar */}
       <AlertPillBar variant="strip" onActiveAlertClick={openActiveModal} />
+
+      <TodayOpsCockpit />
 
       <DashboardLayoutEngine />
     </div>

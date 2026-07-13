@@ -17,6 +17,7 @@ import CheckInPrepTab from '../components/booking-tabs/CheckInPrepTab';
 import CheckOutTab from '../components/booking-tabs/CheckOutTab';
 import InvoiceTab from '../components/booking-tabs/InvoiceTab';
 import BookingActionBar from '../components/booking-tabs/BookingActionBar';
+import BookingLifecycleStrip from '../components/shared/BookingLifecycleStrip';
 import { useAlerts } from '../lib/alertsContext';
 import { format } from 'date-fns';
 import { formatDateOnly } from '../lib/dates';
@@ -493,6 +494,27 @@ export default function BookingDetailPage() {
   if (!booking) return <div className="p-6 text-[var(--text-secondary)]">Booking not found</div>;
 
   const { status, customers: c, vehicles: v } = booking;
+  const handleLifecycleAction = () => {
+    if (status === 'pending_approval') {
+      setModal('approve');
+      return;
+    }
+    if (status === 'approved' && booking.deposit_status !== 'paid') {
+      document.querySelector('[data-payment-link-banner]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    if (['approved', 'confirmed', 'ready_for_pickup'].includes(status)) {
+      setActiveTab('checkin');
+      return;
+    }
+    if (['active', 'returned'].includes(status)) {
+      setActiveTab('checkout');
+      return;
+    }
+    if (status === 'completed') {
+      setActiveTab('invoice');
+    }
+  };
 
   return (
     <div className="page-shell lg:p-8 pb-[calc(140px+env(safe-area-inset-bottom,0px))] lg:pb-8 space-y-6 min-w-0 max-w-full overflow-x-clip">
@@ -553,6 +575,8 @@ export default function BookingDetailPage() {
         </div>
       </div>
 
+      <BookingLifecycleStrip booking={booking} onPrimaryAction={handleLifecycleAction} />
+
       {/* Action-needed banner */}
       {(() => {
         const ag = booking.rental_agreements?.[0];
@@ -598,7 +622,9 @@ export default function BookingDetailPage() {
                   </p>
                 </div>
               </div>
-              <PaymentLinkBanner bookingCode={booking.booking_code} />
+              <div data-payment-link-banner>
+                <PaymentLinkBanner bookingCode={booking.booking_code} />
+              </div>
             </div>
           );
         }

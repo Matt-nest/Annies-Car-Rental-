@@ -16,7 +16,7 @@ const MAIN_NAV = [
   { to: '/bookings',  label: 'Bookings',  icon: BookOpen, alertKey: 'pending_approvals' },
   { to: '/fleet',     label: 'Fleet',     icon: Car },
   { to: '/customers', label: 'Customers', icon: Users },
-  { to: '/portal',     label: 'Portal',    icon: DoorOpen },
+  { to: '/portal',     label: 'Long-Term', icon: DoorOpen },
   { to: '/calendar',  label: 'Calendar',  icon: Calendar },
   { to: '/check-ins', label: 'Check-Ins',  icon: ArrowUpFromLine },
   { to: '/payments',  label: 'Payments',  icon: CreditCard },
