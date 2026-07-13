@@ -12,15 +12,40 @@ import NewBookingModal from '../components/bookings/NewBookingModal';
 import ApproveBookingModal from '../components/shared/ApproveBookingModal';
 import { format } from 'date-fns';
 import { formatDateOnly } from '../lib/dates';
+import {
+  getBookingLifecycle,
+  hasCompletedRentalPayment,
+  hasCustomerSignedAgreement,
+  isReadyForHandoff,
+  isReturnOverdue,
+  isSameLocalDay,
+  needsOwnerCounterSignature,
+  toneClasses,
+} from '../lib/bookingOps';
 
 const EASE = [0.25, 1, 0.5, 1];
-const STATUSES = ['', 'pending_approval', 'approved', 'confirmed', 'active', 'returned', 'completed', 'declined', 'cancelled'];
+const STATUSES = ['', 'pending_approval', 'approved', 'confirmed', 'ready_for_pickup', 'active', 'returned', 'completed', 'declined', 'cancelled'];
 
 const DELIVERY_LABELS = {
   pickup: 'Customer Pickup',
   psl_delivery: 'PSL Delivery',
   surrounding_delivery: 'Surrounding Area Delivery',
+  home_delivery: 'Home Delivery',
+  airport_pickup: 'Airport Pickup',
+  delivery: 'Delivery',
 };
+
+const LIFECYCLE_FILTERS = [
+  { key: '', label: 'All' },
+  { key: 'needs_approval', label: 'Needs approval', match: b => b.status === 'pending_approval' },
+  { key: 'payment_due', label: 'Payment due', match: b => b.status === 'approved' && !hasCompletedRentalPayment(b) },
+  { key: 'agreement_due', label: 'Agreement due', match: b => ['approved', 'confirmed'].includes(b.status) && hasCompletedRentalPayment(b) && !hasCustomerSignedAgreement(b) },
+  { key: 'counter_sign', label: 'Counter-sign', match: b => needsOwnerCounterSignature(b) },
+  { key: 'pickup_today', label: 'Pickup today', match: b => ['confirmed', 'ready_for_pickup'].includes(b.status) && isReadyForHandoff(b) && isSameLocalDay(b.pickup_date) },
+  { key: 'active', label: 'Active', match: b => b.status === 'active' && !isReturnOverdue(b) },
+  { key: 'overdue', label: 'Overdue', match: b => isReturnOverdue(b) },
+  { key: 'needs_checkout', label: 'Needs checkout', match: b => b.status === 'returned' },
+];
 
 function resolveDeliveryType(booking) {
   if (booking.delivery_type) return booking.delivery_type;
@@ -50,6 +75,7 @@ export default function BookingsPage() {
   const { refresh: refreshAlerts } = useAlerts();
   const status = searchParams.get('status') || '';
   const q = searchParams.get('q') || '';
+  const stage = searchParams.get('stage') || '';
 
   const fetchBookings = useCallback(async () => {
     setLoading(true);
@@ -98,6 +124,17 @@ export default function BookingsPage() {
       setActioning(false);
     }
   }
+
+  const setFilters = (next) => {
+    const merged = { status, q, stage, ...next };
+    Object.keys(merged).forEach((key) => {
+      if (!merged[key]) delete merged[key];
+    });
+    setSearchParams(merged);
+  };
+
+  const stageFilter = LIFECYCLE_FILTERS.find(f => f.key === stage);
+  const visibleBookings = stageFilter?.match ? bookings.filter(stageFilter.match) : bookings;
 
   const columns = [
     { key: 'booking_code', label: 'Booking', render: b => (
@@ -149,7 +186,18 @@ export default function BookingsPage() {
         <p style={{ color: 'var(--text-tertiary)' }}>{b.rental_days}d</p>
       </div>
     )},
-    { key: 'status', label: 'Status', render: b => <StatusBadge status={b.status} /> },
+    { key: 'status', label: 'Status', render: b => {
+      const lifecycle = getBookingLifecycle(b);
+      const tone = toneClasses(lifecycle.tone);
+      return (
+        <div className="flex flex-col gap-1">
+          <StatusBadge status={b.status} />
+          <span className={`w-fit text-[11px] font-semibold px-2 py-0.5 rounded-full ${tone.bg} ${tone.text}`}>
+            {lifecycle.label}
+          </span>
+        </div>
+      );
+    }},
     { key: 'total_cost', label: 'Total', render: b => (
       <span className="font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>${Number(b.total_cost).toLocaleString()}</span>
     )},
@@ -215,9 +263,9 @@ export default function BookingsPage() {
           <input
             className="bg-transparent text-sm outline-none flex-1"
             style={{ color: 'var(--text-primary)' }}
-            placeholder="Search booking code…"
+            placeholder="Search booking, customer, phone, email, vehicle…"
             value={q}
-            onChange={e => setSearchParams({ status, q: e.target.value })}
+            onChange={e => setFilters({ q: e.target.value })}
           />
         </div>
         <div className="flex items-center gap-2">
@@ -225,12 +273,28 @@ export default function BookingsPage() {
           <select
             className="input max-w-[200px]"
             value={status}
-            onChange={e => setSearchParams({ status: e.target.value, q })}
+            onChange={e => setFilters({ status: e.target.value })}
           >
             {STATUSES.map(s => (
               <option key={s} value={s}>{s ? s.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'All statuses'}</option>
             ))}
           </select>
+        </div>
+        <div className="w-full flex gap-2 overflow-x-auto pt-1">
+          {LIFECYCLE_FILTERS.map(filter => (
+            <button
+              key={filter.key || 'all'}
+              type="button"
+              onClick={() => setFilters({ stage: filter.key })}
+              className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                stage === filter.key
+                  ? 'border-[var(--accent-color)] bg-[var(--accent-color)] text-[var(--accent-fg)]'
+                  : 'border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)]'
+              }`}
+            >
+              {filter.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -238,7 +302,7 @@ export default function BookingsPage() {
       <div className="card overflow-hidden">
         <DataTable
           columns={columns}
-          data={bookings}
+          data={visibleBookings}
           loading={loading}
           emptyMessage="No bookings found"
           emptyIcon={BookOpen}
@@ -247,7 +311,14 @@ export default function BookingsPage() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="mono-code text-xs font-semibold" style={{ color: 'var(--accent-color)' }}>{b.booking_code}</span>
-                <StatusBadge status={b.status} />
+                <div className="flex flex-col items-end gap-1">
+                  <StatusBadge status={b.status} />
+                  {(() => {
+                    const lifecycle = getBookingLifecycle(b);
+                    const tone = toneClasses(lifecycle.tone);
+                    return <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${tone.bg} ${tone.text}`}>{lifecycle.label}</span>;
+                  })()}
+                </div>
               </div>
               <div className="flex items-center gap-2.5">
                 <div

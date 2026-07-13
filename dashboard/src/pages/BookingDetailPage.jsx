@@ -17,7 +17,9 @@ import CheckInPrepTab from '../components/booking-tabs/CheckInPrepTab';
 import CheckOutTab from '../components/booking-tabs/CheckOutTab';
 import InvoiceTab from '../components/booking-tabs/InvoiceTab';
 import BookingActionBar from '../components/booking-tabs/BookingActionBar';
+import BookingLifecycleStrip from '../components/shared/BookingLifecycleStrip';
 import { useAlerts } from '../lib/alertsContext';
+import { hasCompletedRentalPayment, isReadyForHandoff, needsOwnerCounterSignature } from '../lib/bookingOps';
 import { format } from 'date-fns';
 import { formatDateOnly } from '../lib/dates';
 
@@ -467,6 +469,23 @@ export default function BookingDetailPage() {
     }
   }
 
+  function handleActionBarAction(action) {
+    if (action === 'overview') {
+      setActiveTab('overview');
+      handleLifecycleAction();
+      return;
+    }
+    if (action === 'checkin') {
+      setActiveTab('checkin');
+      return;
+    }
+    if (action === 'checkout') {
+      setActiveTab('checkout');
+      return;
+    }
+    setModal(action);
+  }
+
   async function handleInsuranceAction(action) {
     if (action === 'reject' && !insuranceRejectReason.trim()) {
       setInsuranceActionError('Please provide a reason for rejecting this insurance.');
@@ -493,6 +512,31 @@ export default function BookingDetailPage() {
   if (!booking) return <div className="p-6 text-[var(--text-secondary)]">Booking not found</div>;
 
   const { status, customers: c, vehicles: v } = booking;
+  const handleLifecycleAction = () => {
+    if (status === 'pending_approval') {
+      setModal('approve');
+      return;
+    }
+    if (status === 'approved' && !hasCompletedRentalPayment(booking)) {
+      document.querySelector('[data-payment-link-banner]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    if (needsOwnerCounterSignature(booking)) {
+      document.querySelector('[data-section="agreement"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    if (['confirmed', 'ready_for_pickup'].includes(status)) {
+      setActiveTab('checkin');
+      return;
+    }
+    if (['active', 'returned'].includes(status)) {
+      setActiveTab('checkout');
+      return;
+    }
+    if (status === 'completed') {
+      setActiveTab('invoice');
+    }
+  };
 
   return (
     <div className="page-shell lg:p-8 pb-[calc(140px+env(safe-area-inset-bottom,0px))] lg:pb-8 space-y-6 min-w-0 max-w-full overflow-x-clip">
@@ -525,7 +569,23 @@ export default function BookingDetailPage() {
               </button>
             </>
           )}
-          {['approved', 'confirmed'].includes(status) && (
+          {status === 'approved' && !hasCompletedRentalPayment(booking) && (
+            <button
+              onClick={() => document.querySelector('[data-payment-link-banner]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+              className="btn-primary"
+            >
+              <CreditCard size={15} /> Send Continue Link
+            </button>
+          )}
+          {status === 'confirmed' && !isReadyForHandoff(booking) && (
+            <button
+              onClick={() => document.querySelector('[data-section="agreement"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+              className="btn-primary"
+            >
+              <FileText size={15} /> Finish Documents
+            </button>
+          )}
+          {['confirmed', 'ready_for_pickup'].includes(status) && isReadyForHandoff(booking) && (
             <button onClick={() => setActiveTab('checkin')} className="btn-primary">
               <Package size={15} /> Go to Check-In
             </button>
@@ -552,6 +612,8 @@ export default function BookingDetailPage() {
           )}
         </div>
       </div>
+
+      <BookingLifecycleStrip booking={booking} onPrimaryAction={handleLifecycleAction} />
 
       {/* Action-needed banner */}
       {(() => {
@@ -598,7 +660,9 @@ export default function BookingDetailPage() {
                   </p>
                 </div>
               </div>
-              <PaymentLinkBanner bookingCode={booking.booking_code} />
+              <div data-payment-link-banner>
+                <PaymentLinkBanner bookingCode={booking.booking_code} />
+              </div>
             </div>
           );
         }
@@ -786,8 +850,9 @@ export default function BookingDetailPage() {
           modals (decline reason, pickup mileage, return condition, etc.)
           remain the source of truth. Hidden at md+. */}
       <BookingActionBar
+        booking={booking}
         status={status}
-        onAction={(action) => setModal(action)}
+        onAction={handleActionBarAction}
         disabled={actioning}
       />
 

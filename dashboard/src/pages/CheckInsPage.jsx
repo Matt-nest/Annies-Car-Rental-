@@ -3,16 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import StatusBadge from '../components/shared/StatusBadge';
 import DataError from '../components/shared/DataError';
-import { ArrowUpFromLine, ArrowDownToLine, Car, Calendar, Clock, ChevronRight, Search } from 'lucide-react';
+import { ArrowUpFromLine, ArrowDownToLine, AlertTriangle, Calendar, CheckCircle2, ChevronRight, ClipboardCheck } from 'lucide-react';
 import { localTodayYMD, formatDateOnlyRelative } from '../lib/dates';
+import { getBookingLifecycle, isReadyForHandoff, isReturnOverdue, toneClasses } from '../lib/bookingOps';
 
 export default function CheckInsPage() {
   const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
-  const [filter, setFilter] = useState('today');
-
   useEffect(() => {
     loadBookings();
   }, []);
@@ -32,14 +31,17 @@ export default function CheckInsPage() {
 
   const today = localTodayYMD();
 
-  // Categorize bookings
-  const pickups = bookings.filter(b => b.pickup_date && ['confirmed', 'ready_for_pickup', 'approved'].includes(b.status));
+  const pickupCandidates = bookings.filter(b => b.pickup_date && ['confirmed', 'ready_for_pickup'].includes(b.status));
+  const pickups = pickupCandidates.filter(isReadyForHandoff);
+  const needsPrep = pickupCandidates.filter(b => !isReadyForHandoff(b));
   const returns = bookings.filter(b => b.return_date && ['active'].includes(b.status));
 
   const todayPickups = pickups.filter(b => b.pickup_date === today);
   const todayReturns = returns.filter(b => b.return_date === today);
+  const overdueReturns = returns.filter(isReturnOverdue);
   const upcomingPickups = pickups.filter(b => b.pickup_date > today).sort((a, b) => a.pickup_date.localeCompare(b.pickup_date));
   const upcomingReturns = returns.filter(b => b.return_date > today).sort((a, b) => a.return_date.localeCompare(b.return_date));
+  const prepSoon = needsPrep.filter(b => b.pickup_date >= today).sort((a, b) => a.pickup_date.localeCompare(b.pickup_date)).slice(0, 8);
   const pastReturns = bookings.filter(b => b.status === 'returned' || b.status === 'completed').sort((a, b) => (b.return_date || '').localeCompare(a.return_date || '')).slice(0, 10);
 
   function formatDate(dateStr) {
@@ -53,6 +55,8 @@ export default function CheckInsPage() {
     const customerName = c ? `${c.first_name} ${c.last_name}` : 'Customer';
     const dateStr = type === 'pickup' ? booking.pickup_date : booking.return_date;
     const isPickup = type === 'pickup';
+    const lifecycle = getBookingLifecycle(booking);
+    const tone = toneClasses(lifecycle.tone);
 
     return (
       <div
@@ -67,6 +71,9 @@ export default function CheckInsPage() {
           <div className="flex items-center gap-2 mb-0.5">
             <span className="text-sm font-semibold text-[var(--text-primary)] truncate">{vehicleName}</span>
             <StatusBadge status={booking.status} size="xs" />
+            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${tone.bg} ${tone.text}`}>
+              {lifecycle.label}
+            </span>
           </div>
           <div className="flex items-center gap-3 text-xs text-[var(--text-tertiary)]">
             <span>{customerName}</span>
@@ -101,10 +108,44 @@ export default function CheckInsPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-[var(--text-primary)]">Check-Ins & Check-Outs</h1>
-        <p className="text-sm text-[var(--text-tertiary)] mt-1">Manage today's vehicle handoffs and returns</p>
+        <p className="text-sm text-[var(--text-tertiary)] mt-1">Manage handoffs, returns, overdue trips, and rentals that are not ready yet</p>
       </div>
 
       <DataError message={loadError} onRetry={loadBookings} />
+
+      {(overdueReturns.length > 0 || prepSoon.length > 0) && (
+        <section className="grid gap-4 md:grid-cols-2">
+          {overdueReturns.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <AlertTriangle size={16} className="text-red-500" />
+                <h2 className="text-lg font-semibold text-[var(--text-primary)]">Overdue Returns</h2>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/10 text-red-500 font-semibold">
+                  {overdueReturns.length}
+                </span>
+              </div>
+              <div className="space-y-3">
+                {overdueReturns.map(b => <BookingRow key={`od-${b.id}`} booking={b} type="return" />)}
+              </div>
+            </div>
+          )}
+
+          {prepSoon.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <ClipboardCheck size={16} className="text-amber-500" />
+                <h2 className="text-lg font-semibold text-[var(--text-primary)]">Not Ready Yet</h2>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 font-semibold">
+                  {prepSoon.length}
+                </span>
+              </div>
+              <div className="space-y-3">
+                {prepSoon.map(b => <BookingRow key={`prep-${b.id}`} booking={b} type="pickup" />)}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Today's Activity */}
       <section>
@@ -118,8 +159,8 @@ export default function CheckInsPage() {
 
         {todayPickups.length === 0 && todayReturns.length === 0 ? (
           <div className="text-center py-10 bg-[var(--bg-card)] rounded-xl border border-[var(--border-subtle)]">
-            <Clock size={32} className="mx-auto text-[var(--text-tertiary)] mb-3" />
-            <p className="text-sm text-[var(--text-tertiary)]">No check-ins or check-outs scheduled for today</p>
+            <CheckCircle2 size={32} className="mx-auto text-emerald-500/70 mb-3" />
+            <p className="text-sm text-[var(--text-tertiary)]">No ready handoffs or active returns scheduled for today</p>
           </div>
         ) : (
           <div className="space-y-3">

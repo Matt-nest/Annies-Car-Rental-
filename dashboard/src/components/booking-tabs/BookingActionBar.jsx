@@ -1,5 +1,6 @@
 import { Check, Key, Package, Flag, X } from 'lucide-react';
 import { haptic } from '../../lib/haptic';
+import { hasCompletedRentalPayment, isReadyForHandoff, needsOwnerCounterSignature } from '../../lib/bookingOps';
 
 /**
  * BookingActionBar — sticky bottom primary-action CTA for the admin booking
@@ -14,6 +15,9 @@ import { haptic } from '../../lib/haptic';
  *
  * Positioning: sits ABOVE the dashboard BottomNav (Sprint 3a) which is
  * 64 px + safe-area-bottom. Calculated via the same env() math.
+ *
+ * Sprint 8b. NEVER-TOUCH respected: doesn't change api/client.js, modal
+ * shapes, status state machine, or the BookingModals component itself.
  */
 const STATUS_ACTIONS = {
   pending_approval: {
@@ -21,20 +25,21 @@ const STATUS_ACTIONS = {
     secondary: { action: 'decline', label: 'Decline',  icon: X,     tone: 'danger'  },
   },
   approved: {
-    primary: { action: 'pickup', label: 'Mark Pickup', icon: Package, tone: 'accent' },
+    primary: { action: 'overview', label: 'Send Continue Link', icon: Package, tone: 'accent' },
   },
   confirmed: {
-    primary: { action: 'pickup', label: 'Mark Pickup', icon: Package, tone: 'accent' },
+    primary: { action: 'checkin', label: 'Prep Pickup', icon: Package, tone: 'accent' },
   },
   ready_for_pickup: {
-    primary: { action: 'pickup', label: 'Mark Pickup', icon: Key, tone: 'accent' },
+    primary: { action: 'checkin', label: 'Open Check-In', icon: Key, tone: 'accent' },
   },
   active: {
-    primary: { action: 'return', label: 'Mark Returned', icon: Flag, tone: 'accent' },
+    primary: { action: 'checkout', label: 'Open Check-Out', icon: Flag, tone: 'accent' },
   },
   returned: {
-    primary: { action: 'complete', label: 'Complete Booking', icon: Check, tone: 'success' },
+    primary: { action: 'checkout', label: 'Settle Checkout', icon: Check, tone: 'success' },
   },
+  // completed / cancelled / declined → no action bar shown
 };
 
 const TONE_STYLE = {
@@ -43,8 +48,21 @@ const TONE_STYLE = {
   danger:  { backgroundColor: 'transparent', color: '#ef4444', border: '1px solid rgba(239,68,68,0.35)' },
 };
 
-export default function BookingActionBar({ status, onAction, disabled = false }) {
-  const cfg = STATUS_ACTIONS[status];
+function getConfig(status, booking) {
+  if (status === 'approved' && !hasCompletedRentalPayment(booking)) {
+    return { primary: { action: 'overview', label: 'Send Continue Link', icon: Package, tone: 'accent' } };
+  }
+  if (['approved', 'confirmed'].includes(status) && needsOwnerCounterSignature(booking)) {
+    return { primary: { action: 'overview', label: 'Counter-Sign', icon: Check, tone: 'success' } };
+  }
+  if (status === 'confirmed' && !isReadyForHandoff(booking)) {
+    return { primary: { action: 'overview', label: 'Finish Documents', icon: Package, tone: 'accent' } };
+  }
+  return STATUS_ACTIONS[status];
+}
+
+export default function BookingActionBar({ booking, status, onAction, disabled = false }) {
+  const cfg = getConfig(status, booking);
   if (!cfg) return null;
 
   function handlePrimary() {
@@ -63,6 +81,7 @@ export default function BookingActionBar({ status, onAction, disabled = false })
     <div
       className="md:hidden fixed inset-x-0 z-[80]"
       style={{
+        // Sit above the BottomNav (Sprint 3a is ~64 px tall + its own safe-area).
         bottom: 'var(--bottom-nav-offset)',
         backgroundColor: 'var(--bg-elevated)',
         borderTop: '1px solid var(--border-subtle)',
