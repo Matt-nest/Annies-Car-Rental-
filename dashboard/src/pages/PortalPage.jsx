@@ -27,6 +27,7 @@ import DataError from '../components/shared/DataError';
 import { SkeletonTable } from '../components/shared/Skeleton';
 import Modal from '../components/shared/Modal';
 import InlineBanner from '../components/shared/InlineBanner';
+import { ActionHistoryPanel, DisabledReason, MoneyActionConfirm, buildActionEntry } from '../components/shared/MoneyActionGuardrails';
 import LongTermOnboardModal from '../components/portal/LongTermOnboardModal';
 import { getCustomerName, getVehicleName, toneClasses } from '../lib/bookingOps';
 
@@ -193,6 +194,8 @@ function PaymentPlanActions({ booking, onRefresh }) {
   const [acting, setActing] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [actionHistory, setActionHistory] = useState([]);
 
   const bookingId = booking.id;
 
@@ -230,16 +233,58 @@ function PaymentPlanActions({ booking, onRefresh }) {
   const tone = toneClasses(state.tone);
   const chargeable = (planData?.installments || []).find((item) => ['failed', 'scheduled'].includes(item.status));
   const hasActivePlan = !!planData?.plan?.id && planData.plan.status === 'active';
+  const customerEmail = booking.customers?.email;
+  const totalCost = Number(booking.total_cost || 0);
+  const canCreatePlan = !hasActivePlan && !['cancelled', 'completed'].includes(booking.status) && totalCost > 0;
+  const createBlockedReason = hasActivePlan
+    ? ''
+    : ['cancelled', 'completed'].includes(booking.status)
+      ? 'Closed bookings cannot start a new payment plan.'
+      : totalCost <= 0
+        ? 'A rental amount is required before creating a payment plan.'
+        : '';
+  const invoiceBlockedReason = !customerEmail ? 'Customer email is required before sending an invoice.' : '';
+
+  const recordAction = (action, status) => {
+    setActionHistory((items) => [buildActionEntry(action, status), ...items].slice(0, 6));
+  };
 
   async function createPlan(event) {
     event.preventDefault();
+    if (!canCreatePlan) {
+      setError(createBlockedReason || 'Payment plan cannot be created for this account.');
+      return;
+    }
+    const count = Number(installmentCount);
+    setModalOpen(false);
+    setConfirmAction({
+      title: 'Create Payment Plan',
+      subject: `${getCustomerName(booking)} · ${booking.booking_code}`,
+      amount: totalCost,
+      impact: `Creates ${count} ${interval} installment${count === 1 ? '' : 's'} starting ${formatDateOnly(startDate)}.`,
+      checklist: ['Customer agreed to split payment terms.', 'Rental balance and renewal terms are correct.', 'Saved payment method is expected before charging installments.'],
+      warning: 'This creates a collection schedule. It does not charge the customer until an installment is charged.',
+      auditDetail: 'Plan creation will be visible in the customer portal and this account action log.',
+      confirmLabel: 'Create Plan',
+      onConfirm: runCreatePlan,
+    });
+  }
+
+  async function runCreatePlan() {
     setActing('create');
     setError('');
     setMessage('');
     try {
       await api.createPaymentPlan(bookingId, { interval, installmentCount: Number(installmentCount), startDate });
       setModalOpen(false);
+      setConfirmAction(null);
       setMessage('Payment plan created.');
+      recordAction({
+        title: 'Payment plan created',
+        subject: `${getCustomerName(booking)} · ${booking.booking_code}`,
+        amount: totalCost,
+        auditDetail: `${installmentCount} ${interval} installment${Number(installmentCount) === 1 ? '' : 's'} starting ${formatDateOnly(startDate)}.`,
+      });
       await loadPlan();
       onRefresh?.();
     } catch (err) {
@@ -248,27 +293,55 @@ function PaymentPlanActions({ booking, onRefresh }) {
     setActing('');
   }
 
-  async function chargeNext() {
+  async function runChargeNext(action) {
     if (!chargeable?.id) return;
     const amount = Number(chargeable.amount_cents || chargeable.amount || 0) / 100;
-    if (!confirm(`Charge ${money(amount, 2)} now to the card on file for ${booking.booking_code}?`)) return;
     setActing('charge');
     setError('');
     setMessage('');
     try {
       const result = await api.chargeInstallment(chargeable.id);
       if (result?.status === 'failed') setError(result.reason || 'Installment charge failed.');
-      else setMessage('Installment charge submitted.');
+      else {
+        setMessage('Installment charge submitted.');
+        recordAction(action || {
+          title: 'Installment charge submitted',
+          subject: `${getCustomerName(booking)} · ${booking.booking_code}`,
+          amount,
+        });
+      }
       await loadPlan();
       onRefresh?.();
     } catch (err) {
       setError(err?.message || 'Installment charge failed.');
     }
     setActing('');
+    setConfirmAction(null);
   }
 
-  async function sendRenewalInvoice() {
-    if (!confirm(`Generate and send renewal invoice for ${booking.booking_code}?`)) return;
+  function chargeNext() {
+    if (!chargeable?.id) return;
+    const amount = Number(chargeable.amount_cents || chargeable.amount || 0) / 100;
+    setConfirmAction({
+      title: 'Charge Installment',
+      subject: `${getCustomerName(booking)} · ${booking.booking_code}`,
+      amount,
+      impact: 'Attempts to charge the next scheduled installment to the saved payment method.',
+      checklist: ['Customer agreed to this installment schedule.', 'Saved payment method is current.', 'Amount and due date match the account agreement.'],
+      warning: 'This may immediately charge the customer.',
+      auditDetail: 'Charge attempt will be visible in installment status, payment ledger, and this account action log.',
+      confirmLabel: 'Charge Now',
+      tone: 'danger',
+      onConfirm: () => runChargeNext({
+        title: 'Installment charge submitted',
+        subject: `${getCustomerName(booking)} · ${booking.booking_code}`,
+        amount,
+        auditDetail: 'Operator submitted an installment charge.',
+      }),
+    });
+  }
+
+  async function runRenewalInvoice(action) {
     setActing('invoice');
     setError('');
     setMessage('');
@@ -277,11 +350,40 @@ function PaymentPlanActions({ booking, onRefresh }) {
       const invoiceId = invoice?.id || invoice?.invoice?.id;
       if (invoiceId) await api.sendInvoice(invoiceId);
       setMessage('Renewal invoice generated and sent.');
+      recordAction(action || {
+        title: 'Renewal invoice sent',
+        subject: `${getCustomerName(booking)} · ${booking.booking_code}`,
+        amount: totalCost,
+      });
       onRefresh?.();
     } catch (err) {
       setError(err?.message || 'Invoice send failed.');
     }
     setActing('');
+    setConfirmAction(null);
+  }
+
+  async function sendRenewalInvoice() {
+    if (invoiceBlockedReason) {
+      setError(invoiceBlockedReason);
+      return;
+    }
+    setConfirmAction({
+      title: 'Send Renewal Invoice',
+      subject: `${getCustomerName(booking)} · ${booking.booking_code}`,
+      amount: totalCost,
+      impact: 'Generates an invoice and emails it to the customer.',
+      checklist: ['Renewal period and rental amount are correct.', 'Customer email is current.', 'Invoice is appropriate instead of charging saved card.'],
+      warning: 'This contacts the customer and creates an invoice record.',
+      auditDetail: 'Invoice send will be visible in invoice status, customer messages, and this account action log.',
+      confirmLabel: 'Send Invoice',
+      onConfirm: () => runRenewalInvoice({
+        title: 'Renewal invoice sent',
+        subject: `${getCustomerName(booking)} · ${booking.booking_code}`,
+        amount: totalCost,
+        auditDetail: 'Operator generated and sent a renewal invoice.',
+      }),
+    });
   }
 
   return (
@@ -294,9 +396,15 @@ function PaymentPlanActions({ booking, onRefresh }) {
       {state.detail && <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5">{state.detail}</p>}
       <InlineBanner message={error} onDismiss={() => setError('')} />
       <InlineBanner message={message} tone="success" onDismiss={() => setMessage('')} />
+      <MoneyActionConfirm
+        action={confirmAction}
+        busy={!!acting}
+        onCancel={() => setConfirmAction(null)}
+        onConfirm={() => confirmAction?.onConfirm?.()}
+      />
       <div className="flex flex-wrap gap-1.5">
         {!hasActivePlan && (
-          <button type="button" className="btn-secondary text-[11px] py-1 px-2" onClick={() => setModalOpen(true)}>
+          <button type="button" className="btn-secondary text-[11px] py-1 px-2" disabled={!canCreatePlan} onClick={() => setModalOpen(true)}>
             Create plan
           </button>
         )}
@@ -305,10 +413,12 @@ function PaymentPlanActions({ booking, onRefresh }) {
             {acting === 'charge' && <Loader2 size={11} className="animate-spin" />} Charge next
           </button>
         )}
-        <button type="button" className="btn-ghost text-[11px] py-1 px-2" disabled={acting === 'invoice'} onClick={sendRenewalInvoice}>
+        <button type="button" className="btn-ghost text-[11px] py-1 px-2" disabled={acting === 'invoice' || !!invoiceBlockedReason} onClick={sendRenewalInvoice}>
           {acting === 'invoice' && <Loader2 size={11} className="animate-spin" />} Send invoice
         </button>
       </div>
+      <DisabledReason reason={createBlockedReason || invoiceBlockedReason} />
+      <ActionHistoryPanel entries={actionHistory} title="Account action history" />
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Create Payment Plan">
         <form onSubmit={createPlan} className="space-y-5">

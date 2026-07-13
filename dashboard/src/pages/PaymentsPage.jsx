@@ -10,6 +10,7 @@ import Modal from '../components/shared/Modal';
 import DataError from '../components/shared/DataError';
 import InlineBanner from '../components/shared/InlineBanner';
 import DepositsPanel from '../components/payments/DepositsPanel';
+import { ActionHistoryPanel, MoneyActionConfirm, buildActionEntry } from '../components/shared/MoneyActionGuardrails';
 import { getBookingLifecycle, getCustomerName, getVehicleName } from '../lib/bookingOps';
 import { formatDateOnly, localTodayYMD } from '../lib/dates';
 import brand from '../config/brand';
@@ -110,6 +111,8 @@ function MoneyAtRiskPanel({ bookings, deposits, loading, error, onRetry }) {
   const [acting, setActing] = useState('');
   const [notice, setNotice] = useState('');
   const [actionError, setActionError] = useState('');
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [actionHistory, setActionHistory] = useState([]);
   const today = localTodayYMD();
   const risk = useMemo(() => {
     const paymentDue = bookings
@@ -132,18 +135,26 @@ function MoneyAtRiskPanel({ bookings, deposits, loading, error, onRetry }) {
 
   if (loading) return <SkeletonTable rows={5} cols={3} />;
 
+  const recordAction = (action, status) => {
+    setActionHistory((items) => [buildActionEntry(action, status), ...items].slice(0, 8));
+  };
+
   const copyPaymentLink = async (booking) => {
     await navigator.clipboard.writeText(paymentLink(booking));
     setActionError('');
     setNotice(`Payment link copied for ${booking.booking_code}.`);
+    recordAction({
+      title: 'Payment link copied',
+      subject: `${getCustomerName(booking)} · ${booking.booking_code}`,
+      auditDetail: 'Operator copied the customer payment link.',
+    });
   };
 
-  const sendPaymentReminder = async (booking) => {
+  const runPaymentReminder = async (booking, action) => {
     if (!booking.customers?.id) {
       setActionError('This booking has no linked customer to message.');
       return;
     }
-    if (!confirm(`Send payment reminder to ${getCustomerName(booking)} for ${booking.booking_code}?`)) return;
     setActing(`reminder-${booking.id}`);
     setActionError('');
     try {
@@ -153,11 +164,40 @@ function MoneyAtRiskPanel({ bookings, deposits, loading, error, onRetry }) {
         body: reminderBody(booking),
       });
       setNotice(`Payment reminder sent for ${booking.booking_code}.`);
+      recordAction(action || {
+        title: 'Payment reminder sent',
+        subject: `${getCustomerName(booking)} · ${booking.booking_code}`,
+        amount: riskAmount(booking),
+      });
     } catch (err) {
       setActionError(err?.message || 'Payment reminder failed.');
     } finally {
       setActing('');
+      setConfirmAction(null);
     }
+  };
+
+  const requestPaymentReminder = (booking) => {
+    if (!booking.customers?.id || !booking.customers?.email) {
+      setActionError('This booking needs a linked customer with an email before a reminder can be sent.');
+      return;
+    }
+    setConfirmAction({
+      title: 'Send Payment Reminder',
+      subject: `${getCustomerName(booking)} · ${booking.booking_code}`,
+      amount: riskAmount(booking),
+      impact: 'Sends an email reminder with the customer payment link.',
+      checklist: ['Customer is approved for this rental.', 'Payment is still due.', 'The email address on file is correct.'],
+      warning: 'This contacts the customer. Use it only when the booking is still valid and payment is truly outstanding.',
+      auditDetail: 'Message will be saved in the customer conversation history and this session action log.',
+      confirmLabel: 'Send Reminder',
+      onConfirm: () => runPaymentReminder(booking, {
+        title: 'Payment reminder sent',
+        subject: `${getCustomerName(booking)} · ${booking.booking_code}`,
+        amount: riskAmount(booking),
+        auditDetail: 'Operator sent a payment reminder.',
+      }),
+    });
   };
 
   return (
@@ -165,6 +205,12 @@ function MoneyAtRiskPanel({ bookings, deposits, loading, error, onRetry }) {
       <DataError error={error} onRetry={onRetry} />
       <InlineBanner message={actionError} onDismiss={() => setActionError('')} />
       <InlineBanner message={notice} tone="success" onDismiss={() => setNotice('')} />
+      <MoneyActionConfirm
+        action={confirmAction}
+        busy={!!acting}
+        onCancel={() => setConfirmAction(null)}
+        onConfirm={() => confirmAction?.onConfirm?.()}
+      />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <RiskTile icon={DollarSign} label="Collection Queue" value={risk.paymentDue.length} subtext={`${money(risk.paymentDueTotal, 2)} payment due`} tone={risk.paymentDue.length ? 'amber' : 'slate'} />
         <RiskTile icon={Shield} label="Deposits Held" value={risk.heldDeposits.length} subtext={`${money(risk.heldDepositTotal, 2)} refundable exposure`} tone={risk.heldDeposits.length ? 'purple' : 'slate'} />
@@ -180,7 +226,7 @@ function MoneyAtRiskPanel({ bookings, deposits, loading, error, onRetry }) {
           </div>
           {risk.paymentDue.slice(0, 6).map((booking) => (
             <RiskBookingRow key={booking.id} booking={booking} label="Payment due" amount={riskAmount(booking)} action="Open">
-              <button type="button" className="btn-primary text-xs py-1.5" disabled={acting === `reminder-${booking.id}`} onClick={() => sendPaymentReminder(booking)}>
+              <button type="button" className="btn-primary text-xs py-1.5" disabled={acting === `reminder-${booking.id}` || !booking.customers?.email} onClick={() => requestPaymentReminder(booking)}>
                 {acting === `reminder-${booking.id}` ? <RefreshCw size={13} className="animate-spin" /> : <Mail size={13} />} Send reminder
               </button>
               <button type="button" className="btn-secondary text-xs py-1.5" onClick={() => copyPaymentLink(booking)}>
@@ -214,7 +260,7 @@ function MoneyAtRiskPanel({ bookings, deposits, loading, error, onRetry }) {
             <RiskBookingRow key={booking.id} booking={booking} label={booking.status === 'returned' ? 'Settle account' : 'Past due'} tone="red" amount={Number(booking.total_cost || 0)} action="Manage account">
               {booking.status === 'active' && (
                 <>
-                  <button type="button" className="btn-primary text-xs py-1.5" disabled={acting === `reminder-${booking.id}`} onClick={() => sendPaymentReminder(booking)}>
+                  <button type="button" className="btn-primary text-xs py-1.5" disabled={acting === `reminder-${booking.id}` || !booking.customers?.email} onClick={() => requestPaymentReminder(booking)}>
                     {acting === `reminder-${booking.id}` ? <RefreshCw size={13} className="animate-spin" /> : <Mail size={13} />} Send reminder
                   </button>
                   <button type="button" className="btn-secondary text-xs py-1.5" onClick={() => copyPaymentLink(booking)}>
@@ -227,6 +273,7 @@ function MoneyAtRiskPanel({ bookings, deposits, loading, error, onRetry }) {
           {risk.longTermAtRisk.length === 0 && <EmptyState icon={Clock} title="No long-term collection risk" description="Past-due monthly accounts and unsettled long-term returns will appear here." />}
         </section>
       </div>
+      <ActionHistoryPanel entries={actionHistory} title="Collection action history" />
     </div>
   );
 }
@@ -249,6 +296,7 @@ export default function PaymentsPage() {
   const [refunding, setRefunding] = useState(false);
   const [refundError, setRefundError] = useState('');
   const [notice, setNotice] = useState('');
+  const [ledgerHistory, setLedgerHistory] = useState([]);
 
   const loadData = async () => {
     setLoading(true);
@@ -310,6 +358,13 @@ export default function PaymentsPage() {
     setRefunding(true);
     try {
       await api.issueRefund(refundData.id, { amount: amt, reason: refundReason });
+      setLedgerHistory((items) => [buildActionEntry({
+        title: `${providerLabel(refundData.method)} refund issued`,
+        subject: `${refundData?.bookings?.booking_code || refundData.id}`,
+        amount: amt,
+        auditDetail: `${refundReason.replaceAll('_', ' ')} refund sent to ${providerLabel(refundData.method)}.`,
+      }), ...items].slice(0, 8));
+      setNotice(`Refund submitted for ${refundData?.bookings?.booking_code || 'payment'}.`);
       closeRefundModal();
       await loadData();
     } catch (err) { setRefundError(err.message || 'Refund processing failed.'); }
@@ -374,6 +429,7 @@ export default function PaymentsPage() {
 
       <DataError error={error} />
       <InlineBanner message={notice} onDismiss={() => setNotice('')} />
+      <ActionHistoryPanel entries={ledgerHistory} title="Ledger action history" />
 
       {loading ? (
         <SkeletonTable rows={8} cols={7} />
