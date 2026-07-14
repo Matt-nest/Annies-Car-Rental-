@@ -37,9 +37,9 @@ import { buildStripeAppearance } from './confirm-booking/stripeAppearance';
 import { useKeyboardInset } from '../../hooks/useKeyboardInset';
 import { useTheme } from '../../context/ThemeContext';
 
-// Stripe SDK is loaded here (not in constants.ts) so importing wizard helpers
-// elsewhere doesn't pull in @stripe/stripe-js.
-const stripePromise = getStripe();
+// Stripe SDK is loaded only when Stripe is the active provider. Annie's live
+// checkout uses Square, so the confirm route should not initialize Stripe.
+const stripePromise = PAYMENT_PROVIDER === 'stripe' ? getStripe() : null;
 const SquarePaymentStage = PAYMENT_PROVIDER === 'square'
   ? React.lazy(() => import('./confirm-booking/SquarePaymentStage'))
   : null;
