@@ -509,7 +509,7 @@ export default function InsuranceStep({ draft, rentalDays, bookingCode, pickupSt
           <button type="button" onClick={handleContinue}
             className="flex-1 py-4 rounded-full font-medium transition-all duration-300 active:scale-95 hover:scale-[1.02] hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer"
             style={{ backgroundColor: 'var(--accent-color)', color: 'var(--accent-fg)' }}>
-            Continue to Payment
+            Continue to Review
             <span aria-hidden>→</span>
           </button>
         </div>

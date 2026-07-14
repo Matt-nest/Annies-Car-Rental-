@@ -1,0 +1,27 @@
+1
+00:00:00,000 --> 00:00:02,500
+Start on the exact operational screen for this guide.
+
+2
+00:00:02,500 --> 00:00:05,000
+Revenue is for business decisions; Payments is for reconciliation.
+
+3
+00:00:05,000 --> 00:00:07,500
+Set the date range before reading any number.
+
+4
+00:00:07,500 --> 00:00:10,000
+Read total revenue, current month, average booking value, and average rental length together.
+
+5
+00:00:10,000 --> 00:00:12,500
+Use charts for signal and detailed rows for context before changing pricing or fleet decisions.
+
+6
+00:00:12,500 --> 00:00:15,000
+Do not make pricing or fleet changes from one number without checking context and time period.
+
+7
+00:00:15,000 --> 00:00:17,500
+Use revenue screens to turn performance signals into pricing or fleet decisions.

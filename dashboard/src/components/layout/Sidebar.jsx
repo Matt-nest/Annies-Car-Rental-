@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Calendar, Car, Users, BookOpen,
   TrendingUp, Settings, X, LogOut, AlertTriangle, CreditCard, Landmark, MessageSquare,
-  ArrowUpFromLine, CalendarClock, Star, Percent, Crown, Shield, Satellite, DoorOpen,
+  ArrowUpFromLine, CalendarClock, Star, Percent, Crown, Shield, Satellite, DoorOpen, CircleHelp,
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
 import { haptic } from '../../lib/haptic';
@@ -13,6 +13,7 @@ import { isStripeProvider } from '../../config/paymentProvider';
 
 const MAIN_NAV = [
   { to: '/',          label: 'Dashboard', icon: LayoutDashboard, end: true },
+  { to: '/knowledge-hub', label: 'Knowledge', icon: CircleHelp },
   { to: '/bookings',  label: 'Bookings',  icon: BookOpen, alertKey: 'pending_approvals' },
   { to: '/fleet',     label: 'Fleet',     icon: Car },
   { to: '/customers', label: 'Customers', icon: Users },

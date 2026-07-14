@@ -1,0 +1,35 @@
+1
+00:00:00,000 --> 00:00:02,500
+Start on the exact operational screen for this guide.
+
+2
+00:00:02,500 --> 00:00:05,000
+Booking Detail is the record of truth for this rental.
+
+3
+00:00:05,000 --> 00:00:07,500
+Read the current status before choosing a lifecycle action.
+
+4
+00:00:07,500 --> 00:00:10,000
+Overview verifies customer, vehicle, pickup, return, money, agreement, and insurance facts.
+
+5
+00:00:10,000 --> 00:00:12,500
+Check-In records admin prep and readiness before customer handoff.
+
+6
+00:00:12,500 --> 00:00:15,000
+Check-Out records return condition, charges, deposit settlement, invoice, and completion.
+
+7
+00:00:15,000 --> 00:00:17,500
+Do not advance the booking if any pickup, return, agreement, payment, or insurance blocker remains.
+
+8
+00:00:17,500 --> 00:00:20,000
+Booking detail is the source of truth for pickup, return, money, and documents.
+
+9
+00:00:20,000 --> 00:00:22,500
+Approve only after operational blockers are clear.

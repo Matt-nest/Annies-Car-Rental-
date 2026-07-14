@@ -1,0 +1,10 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:28.000
+Customer request flow: A pending request exists and the customer has a booking code plus a confirmation link.
+
+00:00:28.000 --> 00:02:17.000
+Customer verification and approval gate: The signed agreement and insurance choice are saved, and payment remains locked until admin approval.
+
+00:02:17.000 --> 00:02:34.520
+Customer payment after approval: The approved booking is paid and moves to the paid/confirmed lifecycle.

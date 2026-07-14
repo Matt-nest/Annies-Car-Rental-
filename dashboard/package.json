@@ -5,8 +5,18 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "npm run check:knowledge-videos && vite build",
     "preview": "vite preview",
+    "demo:knowledge": "node scripts/export-knowledge-demo.mjs --voiceover --voiceover-engine higgsfield",
+    "demo:knowledge:all": "node scripts/export-knowledge-demo.mjs --all --voiceover --voiceover-engine higgsfield",
+    "video:knowledge": "npm run demo:knowledge && node scripts/render-knowledge-video.mjs",
+    "video:knowledge:all": "npm run demo:knowledge:all && node scripts/render-knowledge-video.mjs --all",
+    "capture:knowledge:real": "node scripts/capture-knowledge-real-ui.mjs",
+    "video:knowledge:real": "node scripts/render-real-knowledge-videos.mjs --all",
+    "video:knowledge:real:voice": "node scripts/render-real-knowledge-videos.mjs --all --voiceover --voiceover-engine higgsfield",
+    "video:knowledge:real:risk-voice": "node scripts/render-real-knowledge-videos.mjs --guides customer-verification-approval-gate,customer-payment-after-approval,admin-approval-payment-unlock,payments-deposits-refunds,insurance-review,calendar-checkins,system-health --voiceover --voiceover-engine higgsfield",
+    "video:knowledge:real:full": "node scripts/render-real-knowledge-videos.mjs --full --voiceover --voiceover-engine higgsfield",
+    "check:knowledge-videos": "node scripts/check-knowledge-video-freshness.mjs",
     "test:e2e": "playwright test",
     "test:e2e:staging": "STAGING_E2E=1 playwright test tests/e2e/staging-seed.spec.ts"
   },
@@ -16,6 +26,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@sentry/react": "^8.55.2",
     "@supabase/supabase-js": "^2.39.0",
+    "@vercel/speed-insights": "^2.0.0",
     "@zxing/browser": "^0.2.0",
     "@zxing/library": "^0.22.0",
     "clsx": "^2.1.1",
@@ -28,9 +39,11 @@
     "react-map-gl": "^7.1.9",
     "react-router-dom": "^6.22.2",
     "recharts": "^2.12.2",
-    "tailwind-merge": "^3.5.0"
+    "tailwind-merge": "^3.5.0",
+    "vaul": "^1.1.2"
   },
   "devDependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@playwright/test": "^1.61.1",
     "@types/react": "^18.2.61",
     "@types/react-dom": "^18.2.19",

@@ -1,0 +1,31 @@
+1
+00:00:00,000 --> 00:00:02,500
+Start on the exact operational screen for this guide.
+
+2
+00:00:02,500 --> 00:00:05,000
+Open System before checking diagnostics.
+
+3
+00:00:05,000 --> 00:00:07,500
+System checks separate workflow problems from integration problems.
+
+4
+00:00:07,500 --> 00:00:10,000
+Start with backend health and latency before retrying a failed workflow.
+
+5
+00:00:10,000 --> 00:00:12,500
+Check environment, notification, payment, and automation settings for mismatched configuration.
+
+6
+00:00:12,500 --> 00:00:15,000
+If a payment, message, or booking update failed, check webhooks before asking the customer to repeat it.
+
+7
+00:00:15,000 --> 00:00:17,500
+Do not keep processing if payments, webhooks, messages, or required integrations are failing.
+
+8
+00:00:17,500 --> 00:00:20,000
+Use system health when normal workflows do not behave as expected.

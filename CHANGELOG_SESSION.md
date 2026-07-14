@@ -5,6 +5,25 @@
 
 ---
 
+## 2026-07-13 — Built-in dashboard Knowledge Hub with captioned demos
+
+Added the same frontend-only Knowledge Hub training surface used for JD Coastal. No API, auth, schema, payment, or notification changes.
+
+- **New `dashboard/src/pages/KnowledgeHubPage.jsx`** — searchable, category-filtered training hub with concise steps, operator notes, route shortcuts, and a selected-guide detail view.
+- **New `dashboard/src/components/knowledge/GuidedDemoPlayer.jsx`** — animated demo player with screen blocks, cursor movement, pop-zoom focus, captions, playback controls, reduced-motion handling, and browser speech-synthesis voiceover toggle.
+- **New `dashboard/src/data/knowledgeHub.js`** — local guide catalog covering the full platform demo, customer booking flow, booking queue, booking lifecycle, fleet/availability, calendar/check-ins, payments/refunds, insurance, customers/portal/long-term, messaging, revenue, and system health.
+- **New `dashboard/public/knowledge-videos/full-platform-demo.mp4` + `.vtt`** — embedded full-demo video and caption track available directly inside the Knowledge Hub.
+- **New `dashboard/scripts/export-knowledge-demo.mjs` + `npm run demo:knowledge`** — exports full-demo storyboard HTML, WebVTT captions, narration text, manifest JSON, and optional macOS `say` voiceover audio from the same guide data.
+- **New `dashboard/scripts/render-knowledge-video.mjs` + `npm run video:knowledge`** — renders Playwright PNG frames and encodes a captioned voiceover MP4 via local `@ffmpeg-installer/ffmpeg`.
+- **`dashboard/src/App.jsx` / `Sidebar.jsx`** — added `/knowledge-hub` route and a Knowledge nav item while preserving the existing payment-provider Stripe nav guard.
+- **`PROJECT_MAP.md`** — registered the new page, data file, and demo component.
+
+Verified in this session:
+- `npm run demo:knowledge` exported storyboard HTML, captions, narration, manifest, and `voiceover.aiff`.
+- `npm run video:knowledge` generated `dashboard/demo-output/full-platform-demo/full-platform-demo.mp4`.
+- The generated MP4 and WebVTT captions were copied into `dashboard/public/knowledge-videos/` for in-dashboard playback.
+- `VITE_API_URL=https://backend-fawn-phi-13.vercel.app/api/v1 VITE_PAYMENT_PROVIDER=square VITE_SQUARE_APPLICATION_ID=sandbox-app VITE_SQUARE_LOCATION_ID=sandbox-location VITE_SQUARE_ENVIRONMENT=sandbox npm run build` passed.
+
 ## 2026-07-04 — Mobile vehicle detail booking UX standardization
 
 ### Changes Made

@@ -29,6 +29,7 @@ const LoyaltyPage           = lazy(() => import('./pages/LoyaltyPage'));
 const InsurancePage         = lazy(() => import('./pages/InsurancePage'));
 const PortalPage            = lazy(() => import('./pages/PortalPage'));
 const TelematicsPage        = lazy(() => import('./pages/TelematicsPage'));
+const KnowledgeHubPage      = lazy(() => import('./pages/KnowledgeHubPage'));
 
 function RouteFallback() {
   return (
@@ -79,6 +80,7 @@ export default function App() {
             <Route path="/loyalty" element={L(<LoyaltyPage />)} />
             <Route path="/insurance" element={L(<InsurancePage />)} />
             <Route path="/telematics" element={L(<TelematicsPage />)} />
+            <Route path="/knowledge-hub" element={L(<KnowledgeHubPage />)} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

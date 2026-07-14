@@ -1,0 +1,25 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:02.500
+Start on the exact operational screen for this guide.
+
+00:00:02.500 --> 00:00:05.000
+Insurance is a pickup gate, not just a policy list.
+
+00:00:05.000 --> 00:00:07.500
+Use the status tiles to spot pending binds and bind failures first.
+
+00:00:07.500 --> 00:00:10.000
+Filter bind failures when a customer may have paid but no policy was issued.
+
+00:00:10.000 --> 00:00:12.500
+Verify driver, vehicle, dates, tier, premium, markup, charged amount, and status.
+
+00:00:12.500 --> 00:00:15.000
+Recent activity explains provider errors that must be reconciled before pickup.
+
+00:00:15.000 --> 00:00:17.500
+Do not proceed if the driver, vehicle, dates, or coverage limits do not match the booking.
+
+00:00:17.500 --> 00:00:20.000
+Insurance is a pickup gate; approve only clean coverage.

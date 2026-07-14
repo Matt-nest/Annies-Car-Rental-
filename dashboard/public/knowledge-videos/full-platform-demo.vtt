@@ -1,0 +1,34 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:27.960
+Customer booking flow: A request exists, the customer has a booking code, and payment unlocks only after approval.
+
+00:00:27.960 --> 00:00:45.120
+Booking queue: Each request is approved, declined, opened, or assigned one next action.
+
+00:00:45.120 --> 00:01:04.560
+Booking lifecycle: The operator knows the screen, tab, and gate for each status change.
+
+00:01:04.560 --> 00:01:18.920
+Fleet and availability: Vehicles shown to customers are truly available, priced, visible, clean, and not blocked.
+
+00:01:18.920 --> 00:01:37.080
+Pickup, return, and check-ins: The day has a clean queue: blocked pickups, handoffs, due-back, overdue, active out, and returned settlement.
+
+00:01:37.080 --> 00:01:57.480
+Payments, deposits, and refunds: Every money action is tied to the right booking, amount, reason, and audit trail.
+
+00:01:57.480 --> 00:02:15.560
+Insurance review: Coverage is approved, rejected, or escalated before the vehicle leaves.
+
+00:02:15.560 --> 00:02:31.200
+Customers, portal, and long-term: Support, renewal, billing, and long-term actions stay tied to the right customer.
+
+00:02:31.200 --> 00:02:46.960
+Messaging and notifications: One customer receives one clear action, tied to one booking or account reason.
+
+00:02:46.960 --> 00:03:02.760
+Revenue and reporting: The operator can identify performance signals and decide the next business action.
+
+00:03:02.760 --> 00:03:22.040
+Settings and system health: The operator knows whether the issue is workflow, provider, notification, or configuration.
