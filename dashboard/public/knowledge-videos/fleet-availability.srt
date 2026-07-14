@@ -1,0 +1,27 @@
+1
+00:00:00,000 --> 00:00:02,500
+Start on the exact operational screen for this guide.
+
+2
+00:00:02,500 --> 00:00:05,000
+Fleet controls what can actually be sold.
+
+3
+00:00:05,000 --> 00:00:07,500
+Confirm the exact vehicle, status, rate, location, and visibility.
+
+4
+00:00:07,500 --> 00:00:10,000
+Open Vehicle Detail before changing pricing, photos, status, or blocked dates.
+
+5
+00:00:10,000 --> 00:00:12,500
+Do not sell a vehicle that is hidden, blocked, damaged, in service, or committed.
+
+6
+00:00:12,500 --> 00:00:15,000
+Do not sell a vehicle that is hidden, blocked, damaged, in service, or already committed.
+
+7
+00:00:15,000 --> 00:00:17,500
+Check status, pricing, visibility, and blocked dates before selling availability.

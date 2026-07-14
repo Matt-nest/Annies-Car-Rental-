@@ -22,5 +22,6 @@ _agents/
 _agent/
 _reference/
 dashboard/leadflow-template
+dashboard/demo-output/
 HANDOFF.md
 .env*

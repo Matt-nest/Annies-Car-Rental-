@@ -1,0 +1,39 @@
+1
+00:00:00,000 --> 00:00:02,624
+Start on the exact operational screen for this guide.
+
+2
+00:00:02,624 --> 00:00:05,248
+Open Booking Detail before approving a customer package.
+
+3
+00:00:05,248 --> 00:00:07,872
+Review submitted agreement and insurance signals before approval.
+
+4
+00:00:07,872 --> 00:00:10,496
+Verify identity, license, contact, vehicle, dates, and insurance against the booking.
+
+5
+00:00:10,496 --> 00:00:13,120
+Open approval only after operational blockers are clear.
+
+6
+00:00:13,120 --> 00:00:15,744
+Do not approve if identity, agreement, insurance, vehicle availability, amount, or deposit risk is unclear.
+
+7
+00:00:15,744 --> 00:00:18,368
+Open Review & approve after checking the submitted customer package.
+
+8
+00:00:18,368 --> 00:00:20,992
+Set high-risk and deposit only when the customer package supports the decision.
+
+9
+00:00:20,992 --> 00:00:23,616
+Approve and notify customer. This unlocks payment; it does not mark the booking paid.
+
+10
+00:00:23,616 --> 00:00:26,240
+After approval, copy the payment link only after confirming the customer and booking code.

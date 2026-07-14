@@ -31,7 +31,7 @@ export default function ReviewStep({
           <span className="text-xs font-semibold">Review your booking</span>
         </div>
         <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
-          Please confirm your total looks right before you pay.
+          Please confirm your total looks right before we submit your request for approval.
         </p>
       </div>
 
@@ -53,7 +53,7 @@ export default function ReviewStep({
         <button type="button" onClick={onContinue}
           className="flex-1 py-4 rounded-full font-medium transition-all duration-300 flex items-center justify-center gap-2 hover:scale-[1.02] hover:-translate-y-px active:scale-95 hover:shadow-lg cursor-pointer"
           style={{ backgroundColor: 'var(--accent-color)', color: 'var(--accent-fg)' }}>
-          Continue to Payment <ArrowRight size={18} />
+          Submit for Approval <ArrowRight size={18} />
         </button>
       </div>
     </div>

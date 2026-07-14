@@ -1,0 +1,119 @@
+1
+00:00:00,000 --> 00:00:03,633
+The confirmation link opens the customer verification wizard for this booking code.
+
+2
+00:00:03,633 --> 00:00:07,267
+Start with the rental summary and continue only if the booking code, dates, vehicle, and total look right.
+
+3
+00:00:07,267 --> 00:00:10,900
+The customer scans the license barcode when possible, or uses manual entry if camera scan is unavailable.
+
+4
+00:00:10,900 --> 00:00:14,533
+Manual entry is the fallback when scanning is not available.
+
+5
+00:00:14,533 --> 00:00:18,167
+Enter the legal street address.
+
+6
+00:00:18,167 --> 00:00:21,800
+Enter city.
+
+7
+00:00:21,800 --> 00:00:25,433
+Select the customer state.
+
+8
+00:00:25,433 --> 00:00:29,067
+Enter date of birth for verification.
+
+9
+00:00:29,067 --> 00:00:32,700
+Continue after address and date of birth are complete.
+
+10
+00:00:32,700 --> 00:00:36,333
+Enter the driver license number.
+
+11
+00:00:36,333 --> 00:00:39,967
+Select the issuing state.
+
+12
+00:00:39,967 --> 00:00:43,600
+Enter license expiration.
+
+13
+00:00:43,600 --> 00:00:47,233
+License photos are optional, but they speed up admin verification and pickup.
+
+14
+00:00:47,233 --> 00:00:50,867
+Continue after license fields are complete.
+
+15
+00:00:50,867 --> 00:00:54,500
+Open and read the full terms before accepting.
+
+16
+00:00:54,500 --> 00:00:58,133
+Accept terms only after scrolling to the end.
+
+17
+00:00:58,133 --> 00:01:01,767
+Continue after terms are accepted.
+
+18
+00:01:01,767 --> 00:01:05,400
+Every acknowledgement must be checked before the signature step.
+
+19
+00:01:05,400 --> 00:01:09,033
+Continue after all acknowledgements are checked.
+
+20
+00:01:09,033 --> 00:01:12,667
+Typed signature is available when drawing is not ideal.
+
+21
+00:01:12,667 --> 00:01:16,300
+Type the customer legal signature.
+
+22
+00:01:16,300 --> 00:01:19,933
+Continue to insurance after signature is saved.
+
+23
+00:01:19,933 --> 00:01:23,567
+Choose personal insurance or Bonzah coverage before review.
+
+24
+00:01:23,567 --> 00:01:27,200
+Enter insurance company.
+
+25
+00:01:27,200 --> 00:01:30,833
+Enter policy number.
+
+26
+00:01:30,833 --> 00:01:34,467
+Enter policy expiration.
+
+27
+00:01:34,467 --> 00:01:38,100
+Continue to review; payment is still gated by approval.
+
+28
+00:01:38,100 --> 00:01:41,733
+Review the itemized package before submitting for approval.
+
+29
+00:01:41,733 --> 00:01:45,367
+Submit the completed package for admin approval.
+
+30
+00:01:45,367 --> 00:01:49,000
+The customer waits here until admin approval unlocks payment.
