@@ -58,7 +58,8 @@ router.get('/bookings/:id/deposit', requireAuth, async (req, res) => {
 
     if (data) return res.json(data);
 
-    // Fallback: legacy bookings.deposit_amount when booking_deposits row is missing
+    // Expected bookings.deposit_amount is not money held. If the dedicated
+    // deposit row is missing, return the expected amount for display only.
     const { data: booking } = await supabase
       .from('bookings')
       .select('deposit_amount, deposit_status')
@@ -67,9 +68,11 @@ router.get('/bookings/:id/deposit', requireAuth, async (req, res) => {
 
     if (booking && Number(booking.deposit_amount) > 0) {
       return res.json({
-        status: ['paid', 'collected'].includes(booking.deposit_status) ? 'held' : booking.deposit_status,
-        amount: Math.round(Number(booking.deposit_amount) * 100),
-        source: 'booking_legacy',
+        status: 'none',
+        amount: 0,
+        expected_amount: Math.round(Number(booking.deposit_amount) * 100),
+        expected_status: booking.deposit_status || null,
+        source: 'booking_expected',
       });
     }
 

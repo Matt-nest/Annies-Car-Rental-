@@ -11,6 +11,18 @@ import { sendTeamAlertAsync, TEAM_ALERT_EVENTS } from '../services/teamAlertServ
 
 const router = Router();
 
+async function hasCompletedRentalPayment(bookingId) {
+  const { data } = await supabase
+    .from('payments')
+    .select('id')
+    .eq('booking_id', bookingId)
+    .eq('payment_type', 'rental')
+    .in('status', ['completed', 'paid', 'succeeded'])
+    .limit(1)
+    .maybeSingle();
+  return Boolean(data);
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // GET /agreements/pending-counter-sign   (MUST be BEFORE /:bookingCode wildcard)
 // Admin — lists agreements where customer signed but owner hasn't counter-signed
@@ -157,7 +169,7 @@ router.get('/:bookingCode', asyncHandler(async (req, res) => {
 router.post('/:bookingCode/sign', asyncHandler(async (req, res) => {
   const { data: booking, error: bErr } = await supabase
     .from('bookings')
-    .select('id, customer_id, deposit_status, status')
+    .select('id, customer_id, status')
     .eq('booking_code', req.params.bookingCode)
     .single();
 
@@ -248,8 +260,9 @@ router.post('/:bookingCode/sign', asyncHandler(async (req, res) => {
     .update(customerUpdate)
     .eq('id', booking.customer_id);
 
-  // If deposit is already paid, transition to confirmed
-  if (booking.deposit_status === 'paid' && booking.status === 'approved') {
+  // If rental payment is already recorded, transition to confirmed. A security
+  // deposit by itself is not rental payment.
+  if (booking.status === 'approved' && await hasCompletedRentalPayment(booking.id)) {
     await transitionBooking(booking.id, 'confirmed', {
       changedBy: 'system',
       reason: 'Agreement signed and payment already completed'
@@ -297,7 +310,7 @@ router.post('/:bookingCode/sign', asyncHandler(async (req, res) => {
 
 // ══════════════════════════════════════════════════════════════════════════════
 // POST /agreements/:bookingId/counter-sign
-// Admin — Annie counter-signs the agreement
+// Admin — owner counter-signs the agreement
 // ══════════════════════════════════════════════════════════════════════════════
 router.post('/:bookingId/counter-sign', requireAuth, asyncHandler(async (req, res) => {
   const { signature_data, signature_type } = req.body;
@@ -341,9 +354,10 @@ router.post('/:bookingId/counter-sign', requireAuth, asyncHandler(async (req, re
       { booking_id: booking.id }
     ).catch(() => {});
 
-    // Transition booking to confirmed if it's approved (agreement + payment both done, waiting for pickup day)
+    // Transition booking to confirmed only if payment is complete. Agreement
+    // counter-signing alone must not advance an unpaid booking.
     // NOTE: Do NOT auto-transition to 'active' — active should only happen when the owner manually records the pickup
-    if (booking.status === 'approved') {
+    if (booking.status === 'approved' && await hasCompletedRentalPayment(booking.id)) {
       try {
         await transitionBooking(booking.id, 'confirmed', {
           changedBy: req.user?.email || 'admin',

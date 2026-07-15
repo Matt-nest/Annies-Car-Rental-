@@ -619,7 +619,7 @@ export default function BookingDetailPage() {
       {(() => {
         const ag = booking.rental_agreements?.[0];
         const needsCounterSign = ag?.customer_signed_at && !ag?.owner_signed_at;
-        const needsPayment = status === 'approved' && booking.deposit_status !== 'paid';
+        const needsPayment = status === 'approved' && !hasCompletedRentalPayment(booking);
         
         if (needsCounterSign) {
           return (

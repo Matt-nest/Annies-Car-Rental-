@@ -58,31 +58,60 @@ async function createDepositRefund(paymentIntentId, amountCents, reason = 'reque
   });
 }
 
-async function recordDepositRefundLedger({ bookingId, amountCents, referenceId, paymentIntentId, note }) {
-  if (amountCents <= 0) return;
-  const provider = isSquareProvider() ? 'square' : PAYMENT_PROVIDER;
-
-  const { data: depositPayment } = await supabase
+async function getLatestCompletedDepositPayment(bookingId) {
+  const { data } = await supabase
     .from('payments')
-    .select('id')
+    .select('id, amount, method, reference_id')
     .eq('booking_id', bookingId)
     .eq('payment_type', 'deposit')
     .eq('status', 'completed')
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
+  return data || null;
+}
 
-  const gatewayRef = provider === 'square' ? 'Square Payment' : 'PI';
+function resolveDepositRefundTarget(deposit, depositPayment) {
+  const paymentMethod = String(depositPayment?.method || '').toLowerCase();
+  const reference = deposit?.stripe_charge_id || depositPayment?.reference_id || null;
+
+  if (paymentMethod === 'stripe' && reference?.startsWith('pi_')) {
+    return { kind: 'gateway', method: 'stripe', reference };
+  }
+  if (paymentMethod === 'square' && reference) {
+    return { kind: 'gateway', method: 'square', reference };
+  }
+
+  // Legacy gateway deposits may have a booking_deposits row but no payment row.
+  if (!depositPayment && reference) {
+    if (reference.startsWith('pi_')) return { kind: 'gateway', method: 'stripe', reference };
+    if (isSquareProvider()) return { kind: 'gateway', method: 'square', reference };
+  }
+
+  return {
+    kind: 'manual',
+    method: paymentMethod || 'manual',
+    reference: depositPayment?.reference_id || null,
+  };
+}
+
+async function recordDepositRefundLedger({ bookingId, amountCents, referenceId, paymentIntentId, note, method }) {
+  if (amountCents <= 0) return;
+
+  const depositPayment = await getLatestCompletedDepositPayment(bookingId);
+  const refundMethod = method || depositPayment?.method || (isSquareProvider() ? 'square' : PAYMENT_PROVIDER);
+
+  const gatewayRef = refundMethod === 'square' ? 'Square Payment' : refundMethod === 'stripe' ? 'PI' : 'Manual reference';
   const notes = depositPayment
-    ? `Refund for payment ${depositPayment.id} - ${note} (${gatewayRef}: ${paymentIntentId})`
-    : `${note} (${gatewayRef}: ${paymentIntentId})`;
+    ? `Refund for payment ${depositPayment.id} - ${note}${paymentIntentId ? ` (${gatewayRef}: ${paymentIntentId})` : ' (manual/non-gateway deposit)'}`
+    : `${note}${paymentIntentId ? ` (${gatewayRef}: ${paymentIntentId})` : ' (manual/non-gateway deposit)'}`;
 
   await supabase.from('payments').insert({
     booking_id: bookingId,
     payment_type: 'refund',
     amount: -(amountCents / 100),
-    method: provider,
-    reference_id: referenceId || `deposit_refund_${Date.now()}`,
+    method: refundMethod,
+    reference_id: referenceId || `manual_deposit_refund_${Date.now()}`,
     notes,
     status: 'completed',
     paid_at: new Date().toISOString(),
@@ -283,22 +312,30 @@ export async function releaseDeposit(bookingId, { refundedBy = 'system' } = {}) 
     return { alreadyRefunded: true };
   }
 
+  if (!['held', 'partial_refund'].includes(String(deposit.status || '').toLowerCase())) {
+    throw Object.assign(new Error('Deposit has not been collected for this booking'), { status: 400 });
+  }
+
   const alreadyRefunded = Number(deposit.refund_amount || 0);
   const amountToRefund = Math.max(0, Number(deposit.amount || 0) - alreadyRefunded);
   if (amountToRefund <= 0) {
     return { alreadyRefunded: true };
   }
 
-  let stripeRefund = null;
-  if (deposit.stripe_charge_id) {
-    stripeRefund = await createDepositRefund(deposit.stripe_charge_id, amountToRefund);
+  const depositPayment = await getLatestCompletedDepositPayment(bookingId);
+  const refundTarget = resolveDepositRefundTarget(deposit, depositPayment);
+
+  let gatewayRefund = null;
+  if (refundTarget.kind === 'gateway') {
+    gatewayRefund = await createDepositRefund(refundTarget.reference, amountToRefund);
   }
 
   await recordDepositRefundLedger({
     bookingId,
     amountCents: amountToRefund,
-    referenceId: stripeRefund?.id,
-    paymentIntentId: deposit.stripe_charge_id,
+    referenceId: gatewayRefund?.id,
+    paymentIntentId: refundTarget.kind === 'gateway' ? refundTarget.reference : null,
+    method: refundTarget.method,
     note: 'Security deposit released',
   });
 
@@ -327,6 +364,7 @@ export async function releaseDeposit(bookingId, { refundedBy = 'system' } = {}) 
       payload.deposit_amount = (deposit.amount / 100).toFixed(2);
       payload.refund_amount = (amountToRefund / 100).toFixed(2);
       payload.deposit_status = 'refunded';
+      payload.payment_method = refundTarget.method === 'manual' ? 'Manual' : refundTarget.method;
       sendBookingNotification('deposit_refunded', payload);
     }
   } catch (e) {
@@ -352,23 +390,30 @@ export async function settleDeposit(bookingId, { incidentalTotal = 0, refundedBy
     return { noDeposit: true, amountOwed: incidentalTotal };
   }
 
+  if (!['held', 'partial_refund'].includes(String(deposit.status || '').toLowerCase())) {
+    return { noDeposit: true, amountOwed: incidentalTotal, status: deposit.status };
+  }
+
   const alreadyRefunded = Number(deposit.refund_amount || 0);
   const refundableDeposit = Math.max(0, Number(deposit.amount || 0) - alreadyRefunded);
   const appliedAmount = Math.min(refundableDeposit, incidentalTotal);
   const refundAmount = Math.max(0, refundableDeposit - incidentalTotal);
   const amountOwed = Math.max(0, incidentalTotal - refundableDeposit);
 
-  // Partial refund via the active payment provider.
-  let stripeRefund = null;
-  if (refundAmount > 0 && deposit.stripe_charge_id) {
-    stripeRefund = await createDepositRefund(deposit.stripe_charge_id, refundAmount);
+  const depositPayment = await getLatestCompletedDepositPayment(bookingId);
+  const refundTarget = resolveDepositRefundTarget(deposit, depositPayment);
+
+  let gatewayRefund = null;
+  if (refundAmount > 0 && refundTarget.kind === 'gateway') {
+    gatewayRefund = await createDepositRefund(refundTarget.reference, refundAmount);
   }
 
   await recordDepositRefundLedger({
     bookingId,
     amountCents: refundAmount,
-    referenceId: stripeRefund?.id,
-    paymentIntentId: deposit.stripe_charge_id,
+    referenceId: gatewayRefund?.id,
+    paymentIntentId: refundTarget.kind === 'gateway' ? refundTarget.reference : null,
+    method: refundTarget.method,
     note: 'Security deposit settled',
   });
 
@@ -402,6 +447,7 @@ export async function settleDeposit(bookingId, { incidentalTotal = 0, refundedBy
       payload.refund_amount = (refundAmount / 100).toFixed(2);
       payload.incidental_total = (incidentalTotal / 100).toFixed(2);
       payload.deposit_status = newStatus;
+      payload.payment_method = refundTarget.method === 'manual' ? 'Manual' : refundTarget.method;
       sendBookingNotification('deposit_settled', payload);
     }
   } catch (e) {
@@ -525,6 +571,10 @@ export async function recordManualDeposit(bookingId, {
   }
 
   const dollars = cents / 100;
+  const normalizedMethod = String(method || 'cash').toLowerCase();
+  const gatewayReference = ['stripe', 'square'].includes(normalizedMethod)
+    ? (referenceId || null)
+    : null;
 
   if (existing) {
     const { error: updErr } = await supabase
@@ -532,7 +582,7 @@ export async function recordManualDeposit(bookingId, {
       .update({
         amount: cents,
         status: 'held',
-        stripe_charge_id: referenceId || existing.stripe_charge_id,
+        stripe_charge_id: gatewayReference,
       })
       .eq('id', existing.id);
     if (updErr) throw updErr;
@@ -541,7 +591,7 @@ export async function recordManualDeposit(bookingId, {
       booking_id: bookingId,
       amount: cents,
       status: 'held',
-      stripe_charge_id: referenceId || null,
+      stripe_charge_id: gatewayReference,
     });
     if (insErr) throw insErr;
   }
@@ -550,7 +600,7 @@ export async function recordManualDeposit(bookingId, {
     booking_id: bookingId,
     payment_type: 'deposit',
     amount: dollars,
-    method,
+    method: normalizedMethod,
     reference_id: referenceId || `manual_deposit_${Date.now()}`,
     notes: notes || `Security deposit collected manually by ${recordedBy}`,
     status: 'completed',

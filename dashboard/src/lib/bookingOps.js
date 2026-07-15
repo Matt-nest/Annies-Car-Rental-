@@ -68,10 +68,10 @@ export function getAgreement(booking) {
 
 export function hasCompletedRentalPayment(booking) {
   const payments = Array.isArray(booking?.payments) ? booking.payments : [];
-  if (payments.some((p) => p.payment_type === 'rental' && ['completed', 'paid', 'succeeded'].includes(p.status))) {
-    return true;
-  }
-  return ['paid', 'held', 'collected', 'refunded', 'applied', 'partial_refund'].includes(booking?.deposit_status);
+  return payments.some((p) =>
+    p.payment_type === 'rental' &&
+    ['completed', 'paid', 'succeeded'].includes(p.status)
+  );
 }
 
 export function hasCustomerSignedAgreement(booking) {

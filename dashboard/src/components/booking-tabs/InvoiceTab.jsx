@@ -29,14 +29,8 @@ export default function InvoiceTab({ booking, onReload }) {
         api.getBookingDeposit(booking.id).catch(() => null),
       ]);
       setInvoice(inv);
-      // Fallback: booking_deposits table may be empty — use booking.deposit_amount
-      if (dep && dep.status !== 'none' && dep.amount > 0) {
+      if (dep && ['held', 'partial_refund', 'applied', 'refunded'].includes(dep.status) && dep.amount > 0) {
         setDeposit(dep);
-      } else if (booking.deposit_amount) {
-        setDeposit({
-          amount: Math.round(booking.deposit_amount * 100),
-          status: booking.deposit_status || 'held',
-        });
       } else {
         setDeposit(null);
       }
@@ -148,7 +142,7 @@ export default function InvoiceTab({ booking, onReload }) {
                 </p>
               </div>
               {deposit.status === 'held' && (
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <button onClick={handleReleaseDeposit} disabled={releasing} className="btn-secondary text-xs">
                     {releasing ? 'Releasing…' : 'Full Refund'}
                   </button>
@@ -190,7 +184,7 @@ export default function InvoiceTab({ booking, onReload }) {
                   </span>
                 )}
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setShowPreview(!showPreview)}
                   className="btn-ghost text-xs"
@@ -239,8 +233,8 @@ export default function InvoiceTab({ booking, onReload }) {
                 </div>
               )}
               <div className="flex justify-between text-base font-bold text-[var(--text-primary)] pt-2 border-t border-[var(--border-subtle)]">
-                <span>{invoice.amount_due > 0 ? 'Amount Due' : 'Refund Due'}</span>
-                <span className={`tabular-nums ${invoice.amount_due > 0 ? 'text-[var(--danger-color)]' : 'text-emerald-500'}`}>
+                <span>{invoice.amount_due > 0 ? 'Amount Due' : invoice.amount_due < 0 ? 'Refund Due' : 'No Balance Due'}</span>
+                <span className={`tabular-nums ${invoice.amount_due > 0 ? 'text-[var(--danger-color)]' : invoice.amount_due < 0 ? 'text-emerald-500' : 'text-[var(--text-secondary)]'}`}>
                   ${(Math.abs(invoice.amount_due) / 100).toFixed(2)}
                 </span>
               </div>
@@ -249,13 +243,19 @@ export default function InvoiceTab({ booking, onReload }) {
             {/* ── Email Preview ──────────────────────────────────────────── */}
             {showPreview && (() => {
               const items = invoice.items || [];
-              const amountDue = Math.abs(invoice.amount_due || 0);
-              const isRefund = (invoice.amount_due || 0) <= 0;
-              const isClean = (invoice.amount_due || 0) === 0 && invoice.deposit_applied > 0;
-              const totalLabel = isRefund ? 'Refund Due to You' : 'Balance Due';
+              const rawAmountDue = Number(invoice.amount_due || 0);
+              const amountDue = Math.abs(rawAmountDue);
+              const isRefund = rawAmountDue < 0;
+              const isClean = rawAmountDue === 0 && invoice.deposit_applied > 0;
+              const isNoBalance = rawAmountDue === 0 && !invoice.deposit_applied;
+              const totalLabel = isRefund ? 'Refund Due to You' : rawAmountDue > 0 ? 'Balance Due' : 'No Balance Due';
               const introText = isRefund
                 ? 'Your rental is complete and your vehicle passed inspection. Here\u2019s your deposit settlement:'
-                : 'Your rental is complete. During our post-return inspection, we found a few items that were applied against your security deposit:';
+                : rawAmountDue > 0
+                  ? 'Your rental is complete. During our post-return inspection, we found a few items that need to be settled:'
+                  : isClean
+                    ? 'Your rental is complete and your vehicle passed inspection. Here\u2019s your deposit settlement:'
+                    : 'Your rental is complete. No post-return balance is due.';
 
               return (
                 <div className="mt-4 border border-[var(--border-subtle)] rounded-xl overflow-hidden">
@@ -314,7 +314,7 @@ export default function InvoiceTab({ booking, onReload }) {
                           <tbody>
                             <tr>
                               <td style={{ padding: '12px 0', fontSize: 16, fontWeight: 700, color: '#1c1917' }}>{totalLabel}</td>
-                              <td style={{ padding: '12px 0', fontSize: 18, fontWeight: 700, textAlign: 'right', color: isRefund ? '#10B981' : '#EF4444' }}>${(amountDue / 100).toFixed(2)}</td>
+                              <td style={{ padding: '12px 0', fontSize: 18, fontWeight: 700, textAlign: 'right', color: isRefund ? '#10B981' : rawAmountDue > 0 ? '#EF4444' : '#57534e' }}>${(amountDue / 100).toFixed(2)}</td>
                             </tr>
                           </tbody>
                         </table>
@@ -336,6 +336,12 @@ export default function InvoiceTab({ booking, onReload }) {
                           <div style={{ background: '#f0fdf4', borderRadius: 12, padding: '14px 16px', border: '1px solid #bbf7d0', marginTop: 16 }}>
                             <p style={{ fontSize: 14, color: '#16a34a', fontWeight: 600, margin: '0 0 4px' }}>All Clear ✓</p>
                             <p style={{ fontSize: 13, color: '#57534e', margin: 0 }}>No charges were applied. Your full deposit of ${(invoice.deposit_applied / 100).toFixed(2)} is being refunded.</p>
+                          </div>
+                        )}
+                        {isNoBalance && (
+                          <div style={{ background: '#f8fafc', borderRadius: 12, padding: '14px 16px', border: '1px solid #e2e8f0', marginTop: 16 }}>
+                            <p style={{ fontSize: 14, color: '#334155', fontWeight: 600, margin: '0 0 4px' }}>No Balance Due</p>
+                            <p style={{ fontSize: 13, color: '#57534e', margin: 0 }}>No post-return charges or refunds are due on this booking.</p>
                           </div>
                         )}
 
@@ -381,12 +387,12 @@ export default function InvoiceTab({ booking, onReload }) {
             <p className="text-xs text-[var(--text-tertiary)] mb-4">
               Generate a settlement invoice from incidentals, or download a rental invoice PDF.
             </p>
-            <div className="flex items-center justify-center gap-3">
-              <button onClick={handleGenerate} disabled={generating} className="btn-secondary">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
+              <button onClick={handleGenerate} disabled={generating} className="btn-secondary w-full sm:w-auto justify-center">
                 <FileText size={15} />
                 {generating ? 'Generating…' : 'Generate Settlement'}
               </button>
-              <button onClick={handleDownloadPdf} disabled={downloading} className="btn-primary">
+              <button onClick={handleDownloadPdf} disabled={downloading} className="btn-primary w-full sm:w-auto justify-center">
                 <Download size={15} />
                 {downloading ? 'Downloading…' : 'Download Invoice PDF'}
               </button>

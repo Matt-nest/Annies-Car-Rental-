@@ -118,7 +118,7 @@ function StepperHeader({ step, steps }) {
               className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-all"
               style={{
                 backgroundColor: i < step ? '#22c55e' : i === step ? 'var(--accent-color)' : 'var(--bg-card-hover)',
-                color: i < step ? '#fff' : i === step ? '#1c1917' : 'var(--text-tertiary)',
+                color: i < step ? '#fff' : i === step ? 'var(--accent-fg)' : 'var(--text-tertiary)',
                 border: i > step ? '2px solid var(--border-subtle)' : 'none',
               }}
             >
@@ -481,15 +481,12 @@ export default function CheckOutTab({ booking, onReload }) {
         api.getBookingDeposit(booking.id).catch(() => null),
         api.getInvoice(booking.id).catch(() => null),
       ]);
-      if (dep && dep.status !== 'none' && dep.amount > 0) {
+      if (dep && ['held', 'partial_refund', 'applied', 'refunded'].includes(dep.status) && dep.amount > 0) {
         setDeposit(dep);
-      } else if (booking.deposit_amount) {
-        setDeposit({
-          amount: Math.round(booking.deposit_amount * 100),
-          status: ['paid', 'collected'].includes(booking.deposit_status) ? 'held' : (booking.deposit_status || 'held'),
-        });
+      } else {
+        setDeposit(null);
       }
-      setInvoice(inv);
+      setInvoice(current => inv || current);
     } catch (e) { console.error(e); }
   }
 
@@ -588,44 +585,78 @@ export default function CheckOutTab({ booking, onReload }) {
     setLoading(false);
   }
 
-  async function handleComplete() {
-    setLoading(true);
-    setError('');
-    try {
-      // Generate invoice if not exists
-      if (!invoice) {
-        await api.generateInvoice(booking.id);
-      }
-      // Complete the booking
-      await api.completeBooking(booking.id);
-      setCompleted(true);
-      refreshAlerts();
-      onReload?.();
-    } catch (e) { setError(e.message); }
-    setLoading(false);
+  function buildReturnPayload() {
+    return {
+      mileage: odometer ? Number(odometer) : undefined,
+      fuel_level: fuelLevel,
+      condition_notes: notes || undefined,
+      photos: photos.length > 0 ? photos : undefined,
+    };
   }
 
-  async function handleSendInvoiceAndComplete() {
+  async function ensureReturnedBeforeComplete() {
+    let latest = null;
+    try {
+      latest = await api.getBooking(booking.id);
+    } catch (e) {
+      console.warn('[CheckOut] Could not refresh booking before completion; falling back to current tab state:', e.message);
+    }
+
+    const status = latest?.status || booking.status;
+    if (status === 'completed') return status;
+    if (status === 'returned') return status;
+
+    if (status === 'active') {
+      const result = await api.recordReturn(booking.id, buildReturnPayload());
+      if (result?.new_status === 'returned') return result.new_status;
+
+      const refreshed = await api.getBooking(booking.id).catch(() => null);
+      if (refreshed?.status === 'returned') return refreshed.status;
+    }
+
+    throw new Error(`Return must be recorded before completion. Current status is '${status}'.`);
+  }
+
+  async function finalizeCheckout({ sendInvoice = false } = {}) {
     setLoading(true);
     setError('');
     try {
-      // Generate invoice if not exists
+      // Backend lifecycle requires active -> returned -> completed.
+      const status = await ensureReturnedBeforeComplete();
+      if (status === 'completed') {
+        setCompleted(true);
+        refreshAlerts();
+        onReload?.();
+        return;
+      }
+
       let inv = invoice;
       if (!inv) {
         inv = await api.generateInvoice(booking.id);
         setInvoice(inv);
       }
-      // Send invoice
-      if (inv?.id && inv.status === 'draft') {
+
+      if (sendInvoice && inv?.id && inv.status === 'draft') {
         await api.sendInvoice(inv.id);
       }
-      // Complete the booking
+
       await api.completeBooking(booking.id);
       setCompleted(true);
       refreshAlerts();
       onReload?.();
-    } catch (e) { setError(e.message); }
-    setLoading(false);
+    } catch (e) {
+      setError(e.message || 'Checkout could not be completed.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleComplete() {
+    await finalizeCheckout({ sendInvoice: false });
+  }
+
+  async function handleSendInvoiceAndComplete() {
+    await finalizeCheckout({ sendInvoice: true });
   }
 
   /* ── Computed values ── */
@@ -704,7 +735,7 @@ export default function CheckOutTab({ booking, onReload }) {
               {hasUnlimitedMiles && (
                 <span
                   className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full"
-                  style={{ backgroundColor: 'rgba(34,197,94,0.12)', color: '#15803d', border: '1px solid rgba(34,197,94,0.25)' }}
+                  style={{ backgroundColor: 'rgba(34,197,94,0.12)', color: 'var(--success-color)', border: '1px solid rgba(34,197,94,0.25)' }}
                 >
                   ∞ Unlimited Miles · Paid
                 </span>
@@ -712,7 +743,7 @@ export default function CheckOutTab({ booking, onReload }) {
               {hasUnlimitedTolls && (
                 <span
                   className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full"
-                  style={{ backgroundColor: 'rgba(34,197,94,0.12)', color: '#15803d', border: '1px solid rgba(34,197,94,0.25)' }}
+                  style={{ backgroundColor: 'rgba(34,197,94,0.12)', color: 'var(--success-color)', border: '1px solid rgba(34,197,94,0.25)' }}
                 >
                   Unlimited Tolls · Paid
                 </span>
@@ -752,7 +783,7 @@ export default function CheckOutTab({ booking, onReload }) {
                 </p>
                 {/* Mileage status — same font size as the trip line */}
                 {hasUnlimitedMiles ? (
-                  <p className="text-xs font-medium tabular-nums" style={{ color: '#15803d' }}>
+                  <p className="text-xs font-medium tabular-nums" style={{ color: 'var(--success-color)' }}>
                     Unlimited mileage
                   </p>
                 ) : tripMiles != null && overageMilesLive > 0 ? (
@@ -760,7 +791,7 @@ export default function CheckOutTab({ booking, onReload }) {
                     {overageMilesLive.toLocaleString()} mi over · ${overageDollars.toFixed(2)} fee
                   </p>
                 ) : tripMiles != null ? (
-                  <p className="text-xs font-medium tabular-nums" style={{ color: '#15803d' }}>
+                  <p className="text-xs font-medium tabular-nums" style={{ color: 'var(--success-color)' }}>
                     Under mileage allowance
                   </p>
                 ) : null}
@@ -778,7 +809,7 @@ export default function CheckOutTab({ booking, onReload }) {
             {fuelOK !== null && (
               <p
                 className="text-xs font-medium mt-1.5"
-                style={{ color: fuelOK ? '#15803d' : 'var(--danger-color)' }}
+                style={{ color: fuelOK ? 'var(--success-color)' : 'var(--danger-color)' }}
               >
                 {fuelOK ? 'Fuel level OK' : `Fuel discrepancy · check-in was ${adminPrepFuel}`}
               </p>
@@ -809,7 +840,7 @@ export default function CheckOutTab({ booking, onReload }) {
           {/* Next */}
           <button onClick={handleSaveCondition} disabled={loading}
             className="w-full flex items-center justify-center gap-2.5 px-6 py-4 rounded-2xl font-semibold text-base transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
-            style={{ backgroundColor: 'var(--accent-color)', color: '#1c1917', minHeight: '56px', boxShadow: '0 4px 14px rgba(200,169,126,0.3)' }}>
+            style={{ backgroundColor: 'var(--accent-color)', color: 'var(--accent-fg)', minHeight: '56px', boxShadow: '0 4px 14px rgba(19,41,75,0.22)' }}>
             {loading ? <><Loader2 size={20} className="animate-spin" /> Saving…</> : <>Next: Review Charges <ChevronRight size={18} /></>}
           </button>
         </div>
@@ -921,7 +952,7 @@ export default function CheckOutTab({ booking, onReload }) {
             </button>
             <button onClick={() => { setStep(2); handleGenerateInvoice(); }} disabled={loading}
               className="flex-[2] flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl font-semibold text-sm transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
-              style={{ backgroundColor: 'var(--accent-color)', color: '#1c1917' }}>
+              style={{ backgroundColor: 'var(--accent-color)', color: 'var(--accent-fg)' }}>
               {loading ? <Loader2 size={16} className="animate-spin" /> : <>Next: Finalize <ChevronRight size={16} /></>}
             </button>
           </div>
@@ -946,7 +977,7 @@ export default function CheckOutTab({ booking, onReload }) {
                   <div className="p-3 rounded-xl" style={{ backgroundColor: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}>
                     <div className="flex justify-between text-sm mb-1">
                       <span className="text-[var(--text-secondary)]">Charges</span>
-                      <span className="font-semibold text-amber-500 tabular-nums">-${(incidentalTotal / 100).toFixed(2)}</span>
+                      <span className="font-semibold text-amber-700 dark:text-amber-400 tabular-nums">-${(incidentalTotal / 100).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-[var(--text-secondary)]">{customerOwes > 0 ? 'Customer owes' : 'Refund to customer'}</span>
@@ -1009,7 +1040,7 @@ export default function CheckOutTab({ booking, onReload }) {
               {invoice.amount_due !== undefined && invoice.amount_due !== 0 && (
                 <div className="flex justify-between text-base font-bold pt-3 mt-3 border-t border-[var(--border-subtle)]">
                   <span className="text-[var(--text-primary)]">{invoice.amount_due > 0 ? 'Balance Due' : 'Refund Due'}</span>
-                  <span className={`tabular-nums ${invoice.amount_due > 0 ? 'text-[var(--danger-color)]' : 'text-emerald-500'}`}>
+                  <span className={`tabular-nums ${invoice.amount_due > 0 ? 'text-[var(--danger-color)]' : 'text-emerald-700 dark:text-emerald-400'}`}>
                     ${(Math.abs(invoice.amount_due) / 100).toFixed(2)}
                   </span>
                 </div>
@@ -1017,6 +1048,11 @@ export default function CheckOutTab({ booking, onReload }) {
               {invoice.amount_due === 0 && invoice.deposit_applied > 0 && (
                 <div className="pt-3 mt-3 border-t border-[var(--border-subtle)]">
                   <p className="text-sm text-emerald-500 font-medium">✓ No charges — full deposit refund</p>
+                </div>
+              )}
+              {invoice.amount_due === 0 && !invoice.deposit_applied && (
+                <div className="pt-3 mt-3 border-t border-[var(--border-subtle)]">
+                  <p className="text-sm text-[var(--text-secondary)] font-medium">No post-return balance due</p>
                 </div>
               )}
             </Section>
@@ -1033,7 +1069,7 @@ export default function CheckOutTab({ booking, onReload }) {
           <div className="space-y-3 pt-2">
             <button onClick={handleSendInvoiceAndComplete} disabled={loading}
               className="w-full flex items-center justify-center gap-2.5 px-6 py-4 rounded-2xl font-semibold text-base transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
-              style={{ backgroundColor: '#22c55e', color: '#fff', minHeight: '56px', boxShadow: '0 4px 14px rgba(34,197,94,0.3)' }}>
+              style={{ backgroundColor: 'var(--success-color)', color: '#052e16', minHeight: '56px', boxShadow: '0 4px 14px rgba(34,197,94,0.3)' }}>
               {loading ? <><Loader2 size={20} className="animate-spin" /> Processing…</> : <><Send size={18} /> Send Invoice & Complete Rental</>}
             </button>
 

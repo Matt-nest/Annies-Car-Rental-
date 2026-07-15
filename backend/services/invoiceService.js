@@ -8,6 +8,29 @@ const LOGO_URL = brand.logoUrl || `${SITE_URL}/logo.png`;
 
 function esc(s) { return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
+export function hasCollectedDeposit(deposit) {
+  if (!deposit || Number(deposit.amount || 0) <= 0) return false;
+  return ['held', 'partial_refund'].includes(String(deposit.status || '').toLowerCase());
+}
+
+export function resolveCollectedDepositCents(deposit) {
+  if (!hasCollectedDeposit(deposit)) return 0;
+  return Math.max(
+    0,
+    Number(deposit.amount || 0) - Number(deposit.refund_amount || 0)
+  );
+}
+
+function formatBrandAddress() {
+  const loc = brand.location || {};
+  const street = loc.address && loc.address !== loc.city ? loc.address : null;
+  return [
+    street,
+    loc.city,
+    [loc.state, loc.zip].filter(Boolean).join(' '),
+  ].filter(Boolean).join(', ');
+}
+
 
 /**
  * Generate an invoice from a booking's incidentals and deposit.
@@ -41,7 +64,8 @@ export async function generateInvoice(bookingId) {
     .select('*')
     .eq('booking_id', bookingId);
 
-  // Get deposit — check dedicated table first, fall back to booking column
+  // Get deposit. Expected booking.deposit_amount is not money held; only an
+  // actual held booking_deposits row can be applied/refunded at checkout.
   const { data: deposit } = await supabase
     .from('booking_deposits')
     .select('*')
@@ -52,11 +76,7 @@ export async function generateInvoice(bookingId) {
   // not a repeat of the booking receipt. Only show deposit vs. incidentals.
   const items = [];
 
-  // Security deposit (the amount being settled against)
-  // booking_deposits.amount is in cents; booking.deposit_amount is in dollars
-  const depositAmount = (deposit?.amount && deposit.amount > 0)
-    ? deposit.amount
-    : (Number(booking.deposit_amount) > 0 ? Math.round(Number(booking.deposit_amount) * 100) : 0);
+  const depositAmount = resolveCollectedDepositCents(deposit);
   if (depositAmount > 0) {
     items.push({
       type: 'deposit',
@@ -187,19 +207,28 @@ export async function sendInvoiceEmail(invoiceId) {
     </tr>`;
   }).join('');
 
-  const amountDue = Math.abs(invoice.amount_due || 0);
-  const isRefund = (invoice.amount_due || 0) <= 0;
-  const isClean = (invoice.amount_due || 0) === 0 && invoice.deposit_applied > 0;
-  const totalLabel = isRefund ? 'Refund Due to You' : 'Balance Due';
-  const totalColor = isRefund ? '#10B981' : '#EF4444';
+  const rawAmountDue = Number(invoice.amount_due || 0);
+  const amountDue = Math.abs(rawAmountDue);
+  const hasDepositApplied = Number(invoice.deposit_applied || 0) > 0;
+  const isRefund = rawAmountDue < 0;
+  const isClean = rawAmountDue === 0 && hasDepositApplied;
+  const isNoBalance = rawAmountDue === 0 && !hasDepositApplied;
+  const totalLabel = isRefund ? 'Refund Due to You' : rawAmountDue > 0 ? 'Balance Due' : 'No Balance Due';
+  const totalColor = isRefund ? '#10B981' : rawAmountDue > 0 ? '#EF4444' : '#57534e';
 
   const subjectLine = isRefund
     ? `Your $${(amountDue / 100).toFixed(2)} deposit refund — ${booking.booking_code}`
-    : `Post-rental settlement — ${booking.booking_code}`;
+    : rawAmountDue > 0
+      ? `Post-rental settlement — ${booking.booking_code}`
+      : `Rental complete — ${booking.booking_code}`;
 
   const introText = isRefund
     ? `Your rental is complete and your vehicle passed inspection. Here&#8217;s your deposit settlement:`
-    : `Your rental is complete. During our post-return inspection, we found a few items that were applied against your security deposit:`;
+    : rawAmountDue > 0
+      ? `Your rental is complete. During our post-return inspection, we found a few items that need to be settled:`
+      : isClean
+        ? `Your rental is complete and your vehicle passed inspection. Here&#8217;s your deposit settlement:`
+        : `Your rental is complete. No post-return balance is due.`;
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -254,9 +283,15 @@ export async function sendInvoiceEmail(invoiceId) {
         <p style="font-size:13px;color:#57534e;margin:0;">No charges were applied. Your full deposit of $${(invoice.deposit_applied / 100).toFixed(2)} is being refunded.</p>
       </div>` : ''}
 
+      ${isNoBalance ? `
+      <div style="background:#f8fafc;border-radius:12px;padding:14px 16px;border:1px solid #e2e8f0;margin-top:16px;">
+        <p style="font-size:14px;color:#334155;font-weight:600;margin:0 0 4px;">No Balance Due</p>
+        <p style="font-size:13px;color:#57534e;margin:0;">No post-return charges or refunds are due on this booking.</p>
+      </div>` : ''}
+
       <div style="margin-top:28px;padding-top:20px;border-top:1px solid #f5f5f4;text-align:center;">
         <p style="font-size:13px;color:#57534e;margin:0 0 12px;">Questions about your settlement? We're here to help.</p>
-        <p style="font-size:12px;color:#a8a29e;margin:0;">${esc(brand.name)} · ${esc(brand.location.address)}, ${esc(brand.location.city)}, ${esc(brand.location.state)} ${esc(brand.location.zip)}</p>
+        <p style="font-size:12px;color:#a8a29e;margin:0;">${esc(brand.name)} · ${esc(formatBrandAddress())}</p>
         <p style="font-size:12px;color:#a8a29e;margin:4px 0 0;">${esc(brand.phone)} · <a href="${SITE_URL}" style="color:#c8a97e;">${esc(brand.domain)}</a></p>
       </div>
     </div>

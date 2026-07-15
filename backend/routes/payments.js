@@ -6,8 +6,34 @@ import { validatePaymentPayload } from '../utils/validators.js';
 import { getStripe } from '../utils/stripe.js';
 import { refundSquarePayment, getSquareRemainingRefundableDollars } from '../services/squareService.js';
 import { safeRecordMoneyAction } from '../services/moneyActionAuditService.js';
+import { transitionBooking } from '../services/bookingService.js';
 
 const router = Router();
+
+const COMPLETED_PAYMENT_STATUSES = new Set(['completed', 'paid', 'succeeded']);
+
+async function maybeConfirmBookingAfterRentalPayment(bookingId, changedBy) {
+  const [{ data: booking }, { data: agreement }] = await Promise.all([
+    supabase
+      .from('bookings')
+      .select('id, status')
+      .eq('id', bookingId)
+      .maybeSingle(),
+    supabase
+      .from('rental_agreements')
+      .select('id, customer_signed_at')
+      .eq('booking_id', bookingId)
+      .not('customer_signed_at', 'is', null)
+      .maybeSingle(),
+  ]);
+
+  if (booking?.status !== 'approved' || !agreement?.customer_signed_at) return null;
+
+  return transitionBooking(bookingId, 'confirmed', {
+    changedBy,
+    reason: 'Manual rental payment recorded and agreement already signed',
+  });
+}
 
 async function getStripeRemainingRefundableDollars(stripe, paymentIntentId) {
   const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
@@ -75,6 +101,14 @@ router.post('/bookings/:bookingId/payments', requireAuth, asyncHandler(async (re
     .single();
 
   if (error) throw error;
+
+  if (payment_type === 'rental' && COMPLETED_PAYMENT_STATUSES.has(data.status)) {
+    await maybeConfirmBookingAfterRentalPayment(
+      req.params.bookingId,
+      req.user?.email || 'admin'
+    ).catch(e => console.error('[Manual Payment] Auto-confirm failed:', e.message));
+  }
+
   res.status(201).json(data);
 }));
 
@@ -123,6 +157,7 @@ router.post('/payments/:id/refund', requireAuth, requireRole('owner', 'admin'), 
   let maxRefundable = remaining;
 
   const refundTarget = Number(amount) || remaining;
+
   let fullNotes = `Refund for payment ${payment.id}`;
   if (reason) fullNotes += ` - Reason: ${reason}`;
 
