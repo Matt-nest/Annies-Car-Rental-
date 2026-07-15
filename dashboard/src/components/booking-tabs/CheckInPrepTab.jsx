@@ -132,7 +132,31 @@ export default function CheckInPrepTab({ booking, onReload }) {
   const [customerRecord, setCustomerRecord] = useState(null);
   const { refresh: refreshAlerts } = useAlerts();
 
+  const v = booking.vehicles;
+  const vehicleName = v ? `${v.year} ${v.make} ${v.model}` : 'Vehicle';
   const isReady = ['ready_for_pickup', 'active', 'returned', 'completed'].includes(booking.status);
+  const displayStatus = success && !isReady ? 'ready_for_pickup' : booking.status;
+  const statusCopy = {
+    ready_for_pickup: {
+      title: 'Vehicle Ready for Pickup',
+      body: `${vehicleName} is prepared and the customer can start pickup.`,
+    },
+    active: {
+      title: 'Pickup Complete',
+      body: `${vehicleName} is already out with the customer.`,
+    },
+    returned: {
+      title: 'Rental Returned',
+      body: `${vehicleName} has been returned. Review checkout details next.`,
+    },
+    completed: {
+      title: 'Rental Completed',
+      body: `${vehicleName} has completed the handoff and checkout flow.`,
+    },
+  }[displayStatus] || {
+    title: 'Vehicle Ready for Pickup',
+    body: `${vehicleName} has been checked in and the customer has been notified.`,
+  };
 
   // Load existing check-in data if already prepped
   useEffect(() => {
@@ -164,13 +188,16 @@ export default function CheckInPrepTab({ booking, onReload }) {
     setSubmitting(true);
     setError('');
     try {
-      await api.recordCheckIn(booking.id, {
+      const result = await api.recordCheckIn(booking.id, {
         odometer: odometer ? Number(odometer) : undefined,
         fuelLevel,
         conditionNotes: notes || undefined,
         photoUrls: photos.length > 0 ? photos : undefined,
         markReady: true,
       });
+      if (result?.markedReady === false) {
+        throw new Error('Check-in was saved, but the booking was not marked ready. Refresh and confirm the booking status before handoff.');
+      }
       setSuccess(true);
       // Load lockbox code after marking ready
       const lb = await api.getBookingLockbox(booking.id).catch(() => null);
@@ -183,13 +210,10 @@ export default function CheckInPrepTab({ booking, onReload }) {
     setSubmitting(false);
   }
 
-  const v = booking.vehicles;
-  const vehicleName = v ? `${v.year} ${v.make} ${v.model}` : 'Vehicle';
-
   /* ─── Already Prepped State ──────────────────────────────────────── */
   if (isReady || success) {
     return (
-      <div className="max-w-lg mx-auto space-y-5 py-2">
+      <div className="max-w-lg mx-auto space-y-5 py-2 pb-[calc(var(--bottom-nav-offset)+96px)] md:pb-2">
         {/* Success banner */}
         <div className="p-5 rounded-2xl text-center" style={{
           backgroundColor: 'rgba(34,197,94,0.08)',
@@ -197,10 +221,10 @@ export default function CheckInPrepTab({ booking, onReload }) {
         }}>
           <CheckCircle size={40} className="mx-auto mb-3 text-emerald-500" />
           <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-1">
-            Vehicle Ready for Pickup
+            {statusCopy.title}
           </h3>
           <p className="text-sm text-[var(--text-secondary)]">
-            {vehicleName} has been checked in and the customer has been notified.
+            {statusCopy.body}
           </p>
         </div>
 
@@ -319,7 +343,7 @@ export default function CheckInPrepTab({ booking, onReload }) {
 
   /* ─── Check-In Form ─────────────────────────────────────────────── */
   return (
-    <div className="max-w-lg mx-auto space-y-5 py-2">
+    <div className="max-w-lg mx-auto space-y-5 py-2 pb-[calc(var(--bottom-nav-offset)+96px)] md:pb-2">
       {/* Vehicle header */}
       <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)]">
         <p className="text-sm font-semibold text-[var(--text-primary)]">{vehicleName}</p>

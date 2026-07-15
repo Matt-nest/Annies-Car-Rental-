@@ -28,6 +28,7 @@ import { calcRentalDays, computeRentalPricing, resolveMultiplier } from './prici
 import { checkAvailability } from './availabilityService.js';
 import { createNotification } from './notificationService.js';
 import { extendPolicy as extendBonzahPolicy, payEndorsement as payBonzahEndorsement } from './bonzahService.js';
+import { getPaymentMethodLabel, normalizeDashboardPaymentMethod } from '../utils/paymentMethods.js';
 
 /** Statuses from which a rental may be extended. */
 const EXTENDABLE_STATUSES = ['active'];
@@ -296,7 +297,7 @@ async function _applyExtensionToBooking(booking, {
       reference_id: payment.referenceId,
       status: payment.status || 'completed',
       paid_at: new Date().toISOString(),
-      notes: `Rental extension — +${additionalDays} day${additionalDays === 1 ? '' : 's'} to ${newReturnDate}`,
+      notes: `Rental extension via ${payment.methodLabel || getPaymentMethodLabel(payment.method)} - +${additionalDays} day${additionalDays === 1 ? '' : 's'} to ${newReturnDate}`,
     });
   }
 
@@ -412,7 +413,7 @@ async function maybeExtendBonzahPolicy(booking, newReturnDate) {
 
 /**
  * Admin-initiated extension (dashboard). Applies immediately. Optionally records
- * a manual payment (cash/zelle/etc.) or waives the charge.
+ * a manual payment (Stripe/Card, Zelle, Cash, Cashapp) or waives the charge.
  *
  * @param opts.newReturnDate 'YYYY-MM-DD'
  * @param opts.collectPayment boolean — record a manual payment row
@@ -424,6 +425,8 @@ export async function adminExtendBooking(bookingId, { newReturnDate, collectPaym
   const quote = await quoteExtension(bookingId, newReturnDate);
   const booking = quote._booking;
   const actor = `admin:${actorId || 'unknown'}`;
+  const normalizedMethod = collectPayment ? normalizeDashboardPaymentMethod(method) : null;
+  const methodLabel = normalizedMethod ? getPaymentMethodLabel(normalizedMethod) : null;
 
   // Record an audit row (best-effort) so the admin extension shows in history.
   let extensionId = null;
@@ -458,7 +461,7 @@ export async function adminExtendBooking(bookingId, { newReturnDate, collectPaym
     amountCents: quote.amountCents,
     actor,
     payment: collectPayment
-      ? { method, referenceId: reference || `manual_ext_${Date.now()}`, status: 'completed' }
+      ? { method: normalizedMethod, methodLabel, referenceId: reference || `manual_ext_${Date.now()}`, status: 'completed' }
       : null,
     matchExtensionBy: null, // already stamped above
   });

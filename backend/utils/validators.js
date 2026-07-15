@@ -1,3 +1,5 @@
+import { normalizeDashboardPaymentMethod } from './paymentMethods.js';
+
 export function validateBookingPayload(body) {
   const errors = [];
   const required = [
@@ -34,6 +36,15 @@ export function validatePaymentPayload(body) {
   if (!body.payment_type) errors.push('payment_type is required');
   if (!body.amount || isNaN(Number(body.amount)) || Number(body.amount) <= 0) {
     errors.push('amount must be a positive number');
+  }
+  if (!body.method) {
+    errors.push('method is required');
+  } else {
+    try {
+      normalizeDashboardPaymentMethod(body.method);
+    } catch (err) {
+      errors.push(err.message);
+    }
   }
   return errors;
 }

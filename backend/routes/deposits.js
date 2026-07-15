@@ -147,11 +147,16 @@ router.post('/bookings/:id/deposit/record', requireAuth, async (req, res) => {
     await safeRecordMoneyAction({
       req,
       actionKey: 'deposit_recorded',
-      title: 'Manual deposit recorded',
-      detail: notes || 'Manual security deposit was recorded.',
+      title: `Manual deposit recorded via ${result?.method_label || 'payment method'}`,
+      detail: notes || `Manual security deposit was recorded via ${result?.method_label || 'the selected payment method'}.`,
       bookingId: req.params.id,
       amountCents: result?.amount || amountCents,
-      metadata: { method, referenceId, result },
+      metadata: {
+        method: result?.method || method,
+        method_label: result?.method_label,
+        referenceId,
+        result,
+      },
     });
     res.json(result);
   } catch (err) {

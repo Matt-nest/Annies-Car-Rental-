@@ -23,6 +23,7 @@ import { useAlerts } from '../lib/alertsContext';
 import { hasCompletedRentalPayment, isReadyForHandoff, needsOwnerCounterSignature } from '../lib/bookingOps';
 import { format } from 'date-fns';
 import { formatDateOnly } from '../lib/dates';
+import { PAYMENT_METHOD_OPTIONS } from '../constants/paymentMethods';
 
 /* ────────────────────────────────────────────────────────
    Tab Configuration
@@ -349,10 +350,18 @@ function ExtendRentalModal({ booking, onClose, onDone }) {
             </label>
             {collectPayment ? (
               <div className="grid grid-cols-2 gap-2">
-                <select className="input text-sm" value={method} onChange={e => setMethod(e.target.value)}>
-                  {['cash', 'zelle', 'venmo', 'paypal', 'card', 'stripe'].map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-                <input className="input text-sm" placeholder="Reference (optional)" value={reference} onChange={e => setReference(e.target.value)} />
+                <div>
+                  <label className="label">Payment Method Used</label>
+                  <select className="input text-sm" value={method} onChange={e => setMethod(e.target.value)}>
+                    {PAYMENT_METHOD_OPTIONS.map(option => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Reference</label>
+                  <input className="input text-sm" placeholder="Transaction/reference (optional)" value={reference} onChange={e => setReference(e.target.value)} />
+                </div>
               </div>
             ) : (
               <p className="text-xs text-[var(--text-tertiary)]">No payment will be recorded — the dates and pricing will still be updated (comp/waive).</p>
@@ -1043,13 +1052,11 @@ function DepositSection({ booking, onUpdated }) {
               />
             </div>
             <div>
-              <label className="label">Method</label>
+              <label className="label">Payment Method Used</label>
               <select className="input" value={method} onChange={e => setMethod(e.target.value)}>
-                <option value="cash">Cash</option>
-                <option value="zelle">Zelle</option>
-                <option value="venmo">Venmo</option>
-                <option value="card">Card (manual)</option>
-                <option value="other">Other</option>
+                {PAYMENT_METHOD_OPTIONS.map(option => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
               </select>
             </div>
           </div>

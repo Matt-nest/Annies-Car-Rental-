@@ -7,6 +7,64 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 
 const router = Router();
 
+const READY_OR_LATER_STATUSES = new Set(['ready_for_pickup', 'active', 'returned', 'completed']);
+const CHECKIN_MARK_READY_STATUSES = new Set(['confirmed', ...READY_OR_LATER_STATUSES]);
+const CHECKOUT_RECORDABLE_STATUSES = new Set(['active', 'returned', 'completed']);
+
+function requestError(message, status = 400) {
+  return Object.assign(new Error(message), { status });
+}
+
+async function ensureCheckRecord(bookingId, recordType, values) {
+  const record = {
+    odometer: values.odometer,
+    fuel_level: values.fuelLevel,
+    condition_notes: values.conditionNotes,
+    photo_urls: values.photoUrls || [],
+    created_by: values.createdBy,
+  };
+
+  const { data: existing, error: lookupError } = await supabase
+    .from('checkin_records')
+    .select('id')
+    .eq('booking_id', bookingId)
+    .eq('record_type', recordType)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (lookupError) throw lookupError;
+
+  if (existing?.id) {
+    const { error } = await supabase
+      .from('checkin_records')
+      .update(record)
+      .eq('id', existing.id);
+    if (error) throw error;
+    return { id: existing.id, updated: true };
+  }
+
+  const { data, error } = await supabase
+    .from('checkin_records')
+    .insert({
+      booking_id: bookingId,
+      record_type: recordType,
+      ...record,
+    })
+    .select('id')
+    .single();
+  if (error) throw error;
+  return { id: data?.id, updated: false };
+}
+
+async function updateBookingConditionFields(bookingId, updates) {
+  if (Object.keys(updates).length === 0) return;
+  const { error } = await supabase
+    .from('bookings')
+    .update(updates)
+    .eq('id', bookingId);
+  if (error) throw error;
+}
+
 /**
  * POST /bookings/:id/checkin — Admin records vehicle check-in AND marks ready (ATOMIC)
  * Body: { odometer, fuelLevel, conditionNotes, photoUrls, markReady? }
@@ -17,18 +75,21 @@ const router = Router();
  */
 router.post('/bookings/:id/checkin', requireAuth, asyncHandler(async (req, res) => {
   const { odometer, fuelLevel, conditionNotes, photoUrls, markReady = true } = req.body;
+  const booking = await getBookingDetail(req.params.id);
 
-  // 1. Save check-in record
-  const { error } = await supabase.from('checkin_records').insert({
-    booking_id: req.params.id,
-    record_type: 'admin_prep',
+  if (markReady && !CHECKIN_MARK_READY_STATUSES.has(booking.status)) {
+    throw requestError(`Cannot mark ready while booking is '${booking.status}'. Confirm the agreement and payment first.`);
+  }
+
+  // 1. Save or refresh the admin prep record. Re-clicks should update the
+  // latest prep row rather than creating duplicate handoff records.
+  await ensureCheckRecord(req.params.id, 'admin_prep', {
     odometer,
-    fuel_level: fuelLevel,
-    condition_notes: conditionNotes,
-    photo_urls: photoUrls || [],
-    created_by: req.user?.email || 'admin',
+    fuelLevel,
+    conditionNotes,
+    photoUrls,
+    createdBy: req.user?.email || 'admin',
   });
-  if (error) throw error;
 
   // 2. Update booking fields
   const bookingUpdates = {};
@@ -39,31 +100,27 @@ router.post('/bookings/:id/checkin', requireAuth, asyncHandler(async (req, res) 
   if (fuelLevel) {
     bookingUpdates.pickup_fuel_level = fuelLevel;
   }
-  if (Object.keys(bookingUpdates).length > 0) {
-    await supabase.from('bookings').update(bookingUpdates).eq('id', req.params.id);
-  }
+  await updateBookingConditionFields(req.params.id, bookingUpdates);
 
   // 3. Atomically transition to ready_for_pickup (if requested)
   let transitionResult = null;
+  let idempotent = false;
   if (markReady) {
-    try {
+    if (READY_OR_LATER_STATUSES.has(booking.status)) {
+      idempotent = true;
+      transitionResult = await getBookingDetail(req.params.id);
+    } else {
       transitionResult = await transitionBooking(req.params.id, 'ready_for_pickup', {
         changedBy: req.user?.email || 'admin',
         reason: 'Vehicle prepared and marked ready for pickup',
       });
-    } catch (transErr) {
-      // If already ready_for_pickup, that's fine — don't fail the whole request
-      if (transErr.message?.includes('Invalid transition')) {
-        console.log(`[CheckIn] Booking ${req.params.id} already past confirmed — skipping transition`);
-      } else {
-        throw transErr;
-      }
     }
   }
 
   res.json({
     success: true,
-    markedReady: !!transitionResult,
+    markedReady: markReady ? true : false,
+    idempotent,
     booking: transitionResult || undefined,
   });
 }));
@@ -74,18 +131,28 @@ router.post('/bookings/:id/checkin', requireAuth, asyncHandler(async (req, res) 
  */
 router.post('/bookings/:id/checkout', requireAuth, asyncHandler(async (req, res) => {
   const { odometer, fuelLevel, conditionNotes, photoUrls } = req.body;
+  const booking = await getBookingDetail(req.params.id);
 
-  // Save check-out record
-  const { error } = await supabase.from('checkin_records').insert({
-    booking_id: req.params.id,
-    record_type: 'admin_inspection',
+  if (!CHECKOUT_RECORDABLE_STATUSES.has(booking.status)) {
+    throw requestError(`Cannot record checkout while booking is '${booking.status}'. Start the trip before checkout.`);
+  }
+
+  if (booking.status === 'completed') {
+    return res.json({
+      success: true,
+      idempotent: true,
+      booking,
+    });
+  }
+
+  // Save or refresh the check-out inspection record.
+  await ensureCheckRecord(req.params.id, 'admin_inspection', {
     odometer,
-    fuel_level: fuelLevel,
-    condition_notes: conditionNotes,
-    photo_urls: photoUrls || [],
-    created_by: req.user?.email || 'admin',
+    fuelLevel,
+    conditionNotes,
+    photoUrls,
+    createdBy: req.user?.email || 'admin',
   });
-  if (error) throw error;
 
   // Update booking with checkout odometer
   const bookingUpdates = {};
@@ -96,11 +163,9 @@ router.post('/bookings/:id/checkout', requireAuth, asyncHandler(async (req, res)
   if (fuelLevel) {
     bookingUpdates.return_fuel_level = fuelLevel;
   }
-  if (Object.keys(bookingUpdates).length > 0) {
-    await supabase.from('bookings').update(bookingUpdates).eq('id', req.params.id);
-  }
+  await updateBookingConditionFields(req.params.id, bookingUpdates);
 
-  res.json({ success: true });
+  res.json({ success: true, booking: await getBookingDetail(req.params.id) });
 }));
 
 /**

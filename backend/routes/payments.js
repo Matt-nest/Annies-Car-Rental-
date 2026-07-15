@@ -7,6 +7,7 @@ import { getStripe } from '../utils/stripe.js';
 import { refundSquarePayment, getSquareRemainingRefundableDollars } from '../services/squareService.js';
 import { safeRecordMoneyAction } from '../services/moneyActionAuditService.js';
 import { transitionBooking } from '../services/bookingService.js';
+import { getPaymentMethodLabel, normalizeDashboardPaymentMethod } from '../utils/paymentMethods.js';
 
 const router = Router();
 
@@ -84,6 +85,9 @@ router.post('/bookings/:bookingId/payments', requireAuth, asyncHandler(async (re
   if (errors.length) return res.status(400).json({ error: 'Validation failed', details: errors });
 
   const { payment_type, amount, method, reference_id, notes, paid_at } = req.body;
+  const normalizedMethod = normalizeDashboardPaymentMethod(method);
+  const methodLabel = getPaymentMethodLabel(normalizedMethod);
+  const paymentTypeLabel = String(payment_type || 'payment').replace(/_/g, ' ');
 
   const { data, error } = await supabase
     .from('payments')
@@ -91,9 +95,9 @@ router.post('/bookings/:bookingId/payments', requireAuth, asyncHandler(async (re
       booking_id: req.params.bookingId,
       payment_type,
       amount,
-      method,
+      method: normalizedMethod,
       reference_id,
-      notes,
+      notes: notes || `${paymentTypeLabel} recorded via ${methodLabel}`,
       paid_at: paid_at || new Date().toISOString(),
       status: 'completed',
     })
@@ -108,6 +112,22 @@ router.post('/bookings/:bookingId/payments', requireAuth, asyncHandler(async (re
       req.user?.email || 'admin'
     ).catch(e => console.error('[Manual Payment] Auto-confirm failed:', e.message));
   }
+
+  await safeRecordMoneyAction({
+    req,
+    actionKey: 'payment_recorded',
+    title: `Payment recorded via ${methodLabel}`,
+    detail: notes || `${paymentTypeLabel} payment was recorded via ${methodLabel}.`,
+    bookingId: req.params.bookingId,
+    paymentId: data.id,
+    amountCents: Math.round(Number(amount) * 100),
+    metadata: {
+      payment_type,
+      method: normalizedMethod,
+      method_label: methodLabel,
+      reference_id: reference_id || null,
+    },
+  });
 
   res.status(201).json(data);
 }));

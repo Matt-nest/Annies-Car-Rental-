@@ -220,6 +220,7 @@ function DashboardLayoutInner() {
                 <div className="relative" ref={dropdownRef}>
                   <button
                     onClick={() => setProfileOpen(!profileOpen)}
+                    aria-label={`${displayName} profile menu`}
                     className="flex items-center gap-3 pl-2 rounded-lg transition-colors py-1 pr-2"
                     style={profileOpen ? { backgroundColor: 'var(--sidebar-active-bg)' } : {}}
                     onMouseEnter={e => { if (!profileOpen) e.currentTarget.style.backgroundColor = 'var(--sidebar-hover)'; }}

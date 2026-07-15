@@ -11,6 +11,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { resolveCollectedDepositCents } from '../services/invoiceService.js';
+import { getPaymentMethodLabel, normalizeDashboardPaymentMethod } from '../utils/paymentMethods.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const BACKEND_ROOT = join(__dirname, '..');
@@ -69,4 +70,34 @@ test('checkout completion is idempotent and guarded by checkout evidence', () =>
   assert.match(bookingService, /Checkout must be recorded before completing this rental/);
   assert.match(bookingsRoute, /returnBooking\(req\.params\.id/);
   assert.match(bookingsRoute, /completeBookingCheckout\(req\.params\.id/);
+});
+
+test('manual payment methods are limited to the operator-approved list', () => {
+  assert.equal(normalizeDashboardPaymentMethod('Stripe/Card'), 'stripe');
+  assert.equal(normalizeDashboardPaymentMethod('card'), 'stripe');
+  assert.equal(normalizeDashboardPaymentMethod('zelle'), 'zelle');
+  assert.equal(normalizeDashboardPaymentMethod('cash'), 'cash');
+  assert.equal(normalizeDashboardPaymentMethod('cash_app'), 'cashapp');
+  assert.equal(getPaymentMethodLabel('stripe'), 'Stripe/Card');
+  assert.equal(getPaymentMethodLabel('cashapp'), 'Cashapp');
+  assert.throws(() => normalizeDashboardPaymentMethod('venmo'), /Unsupported payment method/);
+  assert.throws(() => normalizeDashboardPaymentMethod('paypal'), /Unsupported payment method/);
+  assert.throws(() => normalizeDashboardPaymentMethod('other'), /Unsupported payment method/);
+
+  const bookingModals = source('dashboard/src/components/shared/BookingModals.jsx');
+  const bookingDetail = source('dashboard/src/pages/BookingDetailPage.jsx');
+  assert.match(bookingModals, /PAYMENT_METHOD_OPTIONS/);
+  assert.match(bookingDetail, /PAYMENT_METHOD_OPTIONS/);
+  assert.doesNotMatch(bookingModals, /venmo|paypal|Card \(manual\)/i);
+  assert.doesNotMatch(bookingDetail, /venmo|paypal|Card \(manual\)/i);
+});
+
+test('admin check-in does not report ready when lifecycle transition is invalid', () => {
+  const checkinRoute = source('backend/routes/checkin.js');
+  assert.match(checkinRoute, /CHECKIN_MARK_READY_STATUSES/);
+  assert.match(checkinRoute, /Cannot mark ready while booking is/);
+  assert.match(checkinRoute, /ensureCheckRecord/);
+  assert.doesNotMatch(checkinRoute, /already past confirmed/);
+  assert.match(checkinRoute, /CHECKOUT_RECORDABLE_STATUSES/);
+  assert.match(checkinRoute, /Cannot record checkout while booking is/);
 });

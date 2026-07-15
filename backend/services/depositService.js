@@ -4,6 +4,7 @@ import { getStripe } from '../utils/stripe.js';
 import { sendBookingNotification, buildBookingPayload } from './notifyService.js';
 import { PAYMENT_PROVIDER, isSquareProvider } from '../config/paymentProvider.js';
 import { refundSquarePayment, getSquareRemainingRefundableDollars } from './squareService.js';
+import { getPaymentMethodLabel, normalizeDashboardPaymentMethod } from '../utils/paymentMethods.js';
 
 /** Fetch a booking with customer + vehicle joins for notification payloads */
 async function getBookingForNotify(bookingId) {
@@ -535,7 +536,7 @@ export async function listDeposits({ status = 'held' } = {}) {
 }
 
 /**
- * Record a manually-collected deposit (cash, Zelle, Venmo, etc.).
+ * Record a manually-collected deposit (Stripe/Card, Zelle, Cash, Cashapp).
  * Creates booking_deposits + payments ledger entry.
  */
 export async function recordManualDeposit(bookingId, {
@@ -571,8 +572,9 @@ export async function recordManualDeposit(bookingId, {
   }
 
   const dollars = cents / 100;
-  const normalizedMethod = String(method || 'cash').toLowerCase();
-  const gatewayReference = ['stripe', 'square'].includes(normalizedMethod)
+  const normalizedMethod = normalizeDashboardPaymentMethod(method);
+  const methodLabel = getPaymentMethodLabel(normalizedMethod);
+  const gatewayReference = normalizedMethod === 'stripe'
     ? (referenceId || null)
     : null;
 
@@ -602,7 +604,7 @@ export async function recordManualDeposit(bookingId, {
     amount: dollars,
     method: normalizedMethod,
     reference_id: referenceId || `manual_deposit_${Date.now()}`,
-    notes: notes || `Security deposit collected manually by ${recordedBy}`,
+    notes: notes || `Security deposit collected via ${methodLabel} by ${recordedBy}`,
     status: 'completed',
     paid_at: new Date().toISOString(),
   });
@@ -612,5 +614,12 @@ export async function recordManualDeposit(bookingId, {
     .update({ deposit_amount: dollars, deposit_status: 'paid' })
     .eq('id', bookingId);
 
-  return { success: true, amount: cents, status: 'held', dollars: dollars.toFixed(2) };
+  return {
+    success: true,
+    amount: cents,
+    status: 'held',
+    dollars: dollars.toFixed(2),
+    method: normalizedMethod,
+    method_label: methodLabel,
+  };
 }

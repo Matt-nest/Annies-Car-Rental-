@@ -242,7 +242,7 @@ function CheckoutTripGate({ booking, vehicleName, onUnlocked }) {
   }
 
   return (
-    <div className="max-w-lg mx-auto py-8 space-y-5">
+    <div className="max-w-lg mx-auto py-8 space-y-5 pb-[calc(var(--bottom-nav-offset)+96px)] md:pb-8">
       <div className="text-center space-y-3">
         <div
           className="mx-auto w-16 h-16 rounded-full flex items-center justify-center"
@@ -711,7 +711,7 @@ export default function CheckOutTab({ booking, onReload }) {
   /* ── Completed State ─────────────────────────────────────────────── */
   if (completed || isAlreadyDone) {
     return (
-      <div className="max-w-lg mx-auto py-8 space-y-5">
+      <div className="max-w-lg mx-auto py-8 space-y-5 pb-[calc(var(--bottom-nav-offset)+96px)] md:pb-8">
         <div className="text-center">
           <CheckCircle size={48} className="mx-auto mb-4 text-emerald-500" />
           <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2">Rental Complete</h2>
@@ -725,7 +725,7 @@ export default function CheckOutTab({ booking, onReload }) {
   }
 
   return (
-    <div className="max-w-lg mx-auto space-y-4 py-2">
+    <div className="max-w-lg mx-auto space-y-4 py-2 pb-[calc(var(--bottom-nav-offset)+96px)] md:pb-2">
       {/* Stepper */}
       <StepperHeader step={step} steps={STEPS} />
 

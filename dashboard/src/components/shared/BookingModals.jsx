@@ -1,4 +1,5 @@
 import Modal from './Modal';
+import { PAYMENT_METHOD_OPTIONS } from '../../constants/paymentMethods';
 
 /** Inline failure banner — shown inside whichever modal is open when an
  *  action fails, so a failed decline/cancel/etc. no longer closes silently. */
@@ -172,14 +173,16 @@ export default function BookingModals({
               <input className="input" type="number" inputMode="decimal" step="0.01" value={paymentForm.amount} onChange={e => setPaymentForm(p => ({ ...p, amount: e.target.value }))} placeholder="0.00" />
             </div>
             <div>
-              <label className="label">Method</label>
+              <label className="label">Payment Method Used</label>
               <select className="input" value={paymentForm.method} onChange={e => setPaymentForm(p => ({ ...p, method: e.target.value }))}>
-                {['cash', 'card', 'zelle', 'venmo', 'paypal'].map(m => <option key={m}>{m}</option>)}
+                {PAYMENT_METHOD_OPTIONS.map(method => (
+                  <option key={method.value} value={method.value}>{method.label}</option>
+                ))}
               </select>
             </div>
             <div>
               <label className="label">Reference ID</label>
-              <input className="input" value={paymentForm.reference_id} onChange={e => setPaymentForm(p => ({ ...p, reference_id: e.target.value }))} placeholder="Optional" />
+              <input className="input" value={paymentForm.reference_id} onChange={e => setPaymentForm(p => ({ ...p, reference_id: e.target.value }))} placeholder="Transaction/reference (optional)" />
             </div>
           </div>
           <div className="flex gap-3">
