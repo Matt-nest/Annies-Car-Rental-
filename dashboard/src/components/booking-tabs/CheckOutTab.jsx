@@ -607,14 +607,34 @@ export default function CheckOutTab({ booking, onReload }) {
     if (status === 'returned') return status;
 
     if (status === 'active') {
-      const result = await api.recordReturn(booking.id, buildReturnPayload());
-      if (result?.new_status === 'returned') return result.new_status;
+      try {
+        const result = await api.recordReturn(booking.id, buildReturnPayload());
+        if (['returned', 'completed'].includes(result?.new_status)) return result.new_status;
+      } catch (e) {
+        // A previous finalize attempt or another admin tab may have already
+        // returned/completed the booking. Refresh before surfacing an error.
+        const refreshed = await api.getBooking(booking.id).catch(() => null);
+        if (['returned', 'completed'].includes(refreshed?.status)) return refreshed.status;
+        throw e;
+      }
 
       const refreshed = await api.getBooking(booking.id).catch(() => null);
-      if (refreshed?.status === 'returned') return refreshed.status;
+      if (['returned', 'completed'].includes(refreshed?.status)) return refreshed.status;
     }
 
     throw new Error(`Return must be recorded before completion. Current status is '${status}'.`);
+  }
+
+  async function completeBookingOrRecover() {
+    try {
+      return await api.completeBooking(booking.id);
+    } catch (e) {
+      const refreshed = await api.getBooking(booking.id).catch(() => null);
+      if (refreshed?.status === 'completed') {
+        return { success: true, new_status: 'completed', idempotent: true };
+      }
+      throw e;
+    }
   }
 
   async function finalizeCheckout({ sendInvoice = false } = {}) {
@@ -640,7 +660,7 @@ export default function CheckOutTab({ booking, onReload }) {
         await api.sendInvoice(inv.id);
       }
 
-      await api.completeBooking(booking.id);
+      await completeBookingOrRecover();
       setCompleted(true);
       refreshAlerts();
       onReload?.();

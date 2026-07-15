@@ -239,6 +239,114 @@ test('bookings route renders booking operations page', async ({ page }, testInfo
   await previewRequest;
 });
 
+test('checkout finalize recovers when return was already recorded by a prior attempt', async ({ page }) => {
+  const calls: string[] = [];
+  let overrideApplied = false;
+  let returnConflictSeen = false;
+  let completedApplied = false;
+  const activeBooking = {
+    ...booking,
+    id: 'booking-stale-return-complete',
+    booking_code: 'E2E-STALE-RETURN',
+    status: 'active',
+    payment_status: 'paid',
+    deposit_status: 'paid',
+    pickup_date: '2026-07-10',
+    return_date: '2026-07-14',
+    checkin_odometer: 1000,
+    checkout_override_at: null as string | null,
+    booking_status_log: [],
+  };
+
+  await page.unroute('**/api/v1/**');
+  await page.route('**/api/v1/**', async (route) => {
+    const url = new URL(route.request().url());
+    const path = url.pathname.replace('/api/v1', '');
+    const method = route.request().method();
+    const currentStatus = completedApplied ? 'completed' : returnConflictSeen ? 'returned' : activeBooking.status;
+    const currentBooking = {
+      ...activeBooking,
+      status: currentStatus,
+      checkout_override_at: overrideApplied ? '2026-07-14T15:00:00.000Z' : null,
+    };
+
+    if (path === '/bookings/booking-stale-return-complete/return' && method === 'POST') {
+      calls.push('return-conflict');
+      returnConflictSeen = true;
+      await route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: "Cannot transition from 'returned' to 'returned'" }),
+      });
+      return;
+    }
+
+    let body: unknown = {};
+    if (path === '/users/me') {
+      body = { id: 'e2e-admin', first_name: 'E2E', last_name: 'Admin', role: 'owner', email: 'e2e-admin@example.com' };
+    } else if (path === '/bookings/booking-stale-return-complete/checkout-override' && method === 'POST') {
+      calls.push('override');
+      overrideApplied = true;
+      body = { ok: true, booking: { ...activeBooking, checkout_override_at: '2026-07-14T15:00:00.000Z' } };
+    } else if (path === '/bookings/booking-stale-return-complete/checkout' && method === 'POST') {
+      calls.push('checkout');
+      body = { ok: true };
+    } else if (path === '/bookings/booking-stale-return-complete/inspection' && method === 'POST') {
+      calls.push('inspection');
+      body = { ok: true, incidentals: [] };
+    } else if (path === '/bookings/booking-stale-return-complete/invoice' && method === 'POST') {
+      calls.push('invoice');
+      body = { id: 'invoice-stale-return', status: 'draft', amount_due: 0, deposit_applied: 0, items: [] };
+    } else if (path === '/bookings/booking-stale-return-complete/complete' && method === 'POST') {
+      calls.push('complete');
+      completedApplied = true;
+      body = { ok: true, status: 'completed' };
+    } else if (path === '/bookings/booking-stale-return-complete/deposit') {
+      body = { amount: 50000, status: 'held' };
+    } else if (path === '/bookings/booking-stale-return-complete/invoice') {
+      body = null;
+    } else if (path === '/bookings/booking-stale-return-complete/incidentals') {
+      body = [];
+    } else if (path === '/bookings/booking-stale-return-complete/checkin-records') {
+      body = [];
+    } else if (path === '/bookings/booking-stale-return-complete/extensions') {
+      body = [];
+    } else if (path === '/bookings/booking-stale-return-complete') {
+      body = currentBooking;
+    } else if (path.startsWith('/bookings')) {
+      body = [currentBooking];
+    } else if (path.startsWith('/vehicles')) {
+      body = path === '/vehicles' || path === '/vehicles/available' || path.startsWith('/vehicles?') ? [vehicle] : vehicle;
+    } else if (path === '/notifications/unread-count') {
+      body = { count: 0 };
+    } else if (path.startsWith('/notifications') || path.startsWith('/search') || path.startsWith('/damage-reports') || path.startsWith('/agreements/pending-counter-sign')) {
+      body = path.startsWith('/search') ? { bookings: [], customers: [], vehicles: [], payments: [] } : [];
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(body),
+    });
+  });
+
+  await page.goto('/bookings/booking-stale-return-complete');
+  await page.getByRole('button', { name: /go to check-out/i }).click();
+  await expect(page.getByText(/hasn't ended their trip yet/i)).toBeVisible();
+
+  await page.getByRole('button', { name: /override/i }).click();
+  await page.getByRole('button', { name: /confirm override/i }).click();
+  await expect(page.getByRole('button', { name: /next: review charges/i })).toBeVisible();
+
+  await page.getByRole('spinbutton').fill('1100');
+  await page.getByRole('button', { name: /next: review charges/i }).click();
+  await page.getByRole('button', { name: /next: finalize/i }).click();
+  await page.getByRole('button', { name: /complete without sending invoice/i }).click();
+
+  await expect(page.getByRole('heading', { name: 'Rental Complete' })).toBeVisible();
+  expect(calls).toEqual(['override', 'checkout', 'inspection', 'invoice', 'return-conflict', 'complete']);
+});
+
 test('fleet route renders vehicle inventory page', async ({ page }) => {
   await page.goto('/fleet');
 

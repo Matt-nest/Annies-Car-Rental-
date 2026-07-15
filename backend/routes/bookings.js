@@ -6,7 +6,14 @@ import { verifyRecaptcha } from '../middleware/recaptcha.js';
 import brand from '../config/brand.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { validateBookingPayload } from '../utils/validators.js';
-import { createBooking, transitionBooking, getBookingDetail, applyCheckoutOverride } from '../services/bookingService.js';
+import {
+  createBooking,
+  transitionBooking,
+  getBookingDetail,
+  applyCheckoutOverride,
+  returnBooking,
+  completeBookingCheckout,
+} from '../services/bookingService.js';
 import {
   PRICING_SNAPSHOT_FIELDS,
   repriceBookingFromDates,
@@ -14,7 +21,6 @@ import {
 import { createNotification } from '../services/notificationService.js';
 import { sendTeamAlertAsync, TEAM_ALERT_EVENTS } from '../services/teamAlertService.js';
 import { sendBookingNotification, buildBookingPayload } from '../services/notifyService.js';
-import { computeRentalPricing, DELIVERY_FEES } from '../services/pricingService.js';
 import { getQuote, getSetting, BonzahError } from '../services/bonzahService.js';
 
 const router = Router();
@@ -467,69 +473,19 @@ router.post('/:id/pickup', requireAuth, asyncHandler(async (req, res) => {
 /** POST /bookings/:id/return */
 router.post('/:id/return', requireAuth, asyncHandler(async (req, res) => {
   const { mileage, fuel_level, condition_notes, photos = [] } = req.body;
-
-  // Check for late return — recalculate cost if returned after booked return_date
-  const booking = await getBookingDetail(req.params.id);
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const extraFields = {
-    return_mileage: mileage,
-    return_fuel_level: fuel_level,
-    return_condition_notes: condition_notes,
-    return_photos: photos,
-  };
-
-  if (todayStr > booking.return_date) {
-    // Reconstruct vehicle shape for computeRentalPricing using stored + current vehicle data
-    const lateVehicle = {
-      daily_rate: Number(booking.daily_rate),
-      weekly_discount_percent: booking.weekly_discount_applied ?? booking.vehicles?.weekly_discount_percent ?? 15,
-      weekly_unlimited_mileage_enabled: booking.vehicles?.weekly_unlimited_mileage_enabled ?? true,
-    };
-    const pricing = computeRentalPricing({
-      vehicle: lateVehicle,
-      pickupDate: booking.pickup_date,
-      returnDate: todayStr,
-      deliveryFeeAmount: DELIVERY_FEES[booking.delivery_type] ?? Number(booking.delivery_fee || 0),
-      discountAmount: Number(booking.discount_amount || 0),
-      mileageAddonFee: Number(booking.mileage_addon_fee || 0),
-      tollAddonFee: Number(booking.toll_addon_fee || 0),
-    });
-    Object.assign(extraFields, {
-      return_date: todayStr,
-      rental_days: pricing.rental_days,
-      rate_type: pricing.rate_type,
-      weekly_discount_applied: pricing.weekly_discount_applied,
-      subtotal: pricing.subtotal,
-      tax_amount: pricing.tax_amount,
-      total_cost: pricing.total_cost,
-      mileage_allowance: pricing.mileage_allowance,
-      line_items: pricing.line_items,
-      late_return: true,
-    });
-  }
-
-  const result = await transitionBooking(req.params.id, 'returned', {
+  const result = await returnBooking(req.params.id, {
+    mileage,
+    fuel_level,
+    condition_notes,
+    photos,
     changedBy: req.user?.email || 'owner',
-    reason: todayStr > booking.return_date
-      ? `Vehicle returned late (${todayStr} vs booked ${booking.return_date}) — cost recalculated`
-      : 'Vehicle returned',
-    extraFields,
   });
-
-  // Set vehicle back to available
-  if (booking.vehicle_id) {
-    await supabase
-      .from('vehicles')
-      .update({ status: 'available' })
-      .eq('id', booking.vehicle_id);
-  }
-
   res.json(result);
 }));
 
 /** POST /bookings/:id/complete */
 router.post('/:id/complete', requireAuth, asyncHandler(async (req, res) => {
-  const result = await transitionBooking(req.params.id, 'completed', {
+  const result = await completeBookingCheckout(req.params.id, {
     changedBy: req.user?.email || 'owner',
     reason: req.body.reason || 'Rental completed',
   });

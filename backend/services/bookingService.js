@@ -528,6 +528,154 @@ export async function transitionBooking(bookingId, newStatus, { changedBy = 'own
 }
 
 /**
+ * Mark a booking returned in a checkout-safe, idempotent way.
+ *
+ * Checkout finalization can be retried from a stale dashboard tab. Returning a
+ * booking that is already returned/completed should not block the operator from
+ * finishing settlement.
+ */
+export async function returnBooking(bookingId, {
+  mileage,
+  fuel_level,
+  condition_notes,
+  photos = [],
+  changedBy = 'owner',
+  reason,
+} = {}) {
+  const booking = await getBookingDetail(bookingId);
+
+  if (booking.status === 'completed') {
+    return { success: true, booking_code: booking.booking_code, new_status: 'completed', idempotent: true };
+  }
+  if (booking.status === 'returned') {
+    return { success: true, booking_code: booking.booking_code, new_status: 'returned', idempotent: true };
+  }
+  if (booking.status !== 'active') {
+    const err = new Error(`Cannot mark return for booking in status '${booking.status}'`);
+    err.status = 400;
+    throw err;
+  }
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const extraFields = {
+    return_mileage: mileage,
+    return_fuel_level: fuel_level,
+    return_condition_notes: condition_notes,
+    return_photos: photos,
+  };
+
+  if (todayStr > booking.return_date) {
+    const lateVehicle = {
+      daily_rate: Number(booking.daily_rate),
+      weekly_discount_percent: booking.weekly_discount_applied ?? booking.vehicles?.weekly_discount_percent ?? 15,
+      weekly_unlimited_mileage_enabled: booking.vehicles?.weekly_unlimited_mileage_enabled ?? true,
+    };
+    const pricing = computeRentalPricing({
+      vehicle: lateVehicle,
+      pickupDate: booking.pickup_date,
+      returnDate: todayStr,
+      deliveryFeeAmount: DELIVERY_FEES[booking.delivery_type] ?? Number(booking.delivery_fee || 0),
+      discountAmount: Number(booking.discount_amount || 0),
+      mileageAddonFee: Number(booking.mileage_addon_fee || 0),
+      tollAddonFee: Number(booking.toll_addon_fee || 0),
+    });
+    Object.assign(extraFields, {
+      return_date: todayStr,
+      rental_days: pricing.rental_days,
+      rate_type: pricing.rate_type,
+      weekly_discount_applied: pricing.weekly_discount_applied,
+      subtotal: pricing.subtotal,
+      tax_amount: pricing.tax_amount,
+      total_cost: pricing.total_cost,
+      mileage_allowance: pricing.mileage_allowance,
+      line_items: pricing.line_items,
+      late_return: true,
+    });
+  }
+
+  const result = await transitionBooking(bookingId, 'returned', {
+    changedBy,
+    reason: reason || (todayStr > booking.return_date
+      ? `Vehicle returned late (${todayStr} vs booked ${booking.return_date}) - cost recalculated`
+      : 'Vehicle returned'),
+    extraFields,
+  });
+
+  if (booking.vehicle_id) {
+    await supabase
+      .from('vehicles')
+      .update({ status: 'available' })
+      .eq('id', booking.vehicle_id);
+  }
+
+  return result;
+}
+
+/**
+ * Complete checkout from active/returned/completed states.
+ *
+ * Active completion is only allowed when checkout evidence already exists
+ * (customer checkout, admin inspection, or checkout override). This prevents
+ * accidental completion of an untouched active rental while making the final
+ * checkout button safe to retry after partial attempts.
+ */
+export async function completeBookingCheckout(bookingId, { changedBy = 'owner', reason } = {}) {
+  let booking = await getBookingDetail(bookingId);
+
+  if (booking.status === 'completed') {
+    return { success: true, booking_code: booking.booking_code, new_status: 'completed', idempotent: true };
+  }
+
+  if (booking.status === 'active') {
+    const { data: checkoutRecord, error } = await supabase
+      .from('checkin_records')
+      .select('*')
+      .eq('booking_id', bookingId)
+      .in('record_type', ['customer_checkout', 'admin_inspection'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+
+    const hasCheckoutEvidence =
+      !!checkoutRecord ||
+      !!booking.checkout_override_at ||
+      !!booking.actual_return_at ||
+      !!booking.return_mileage ||
+      !!booking.return_fuel_level;
+
+    if (!hasCheckoutEvidence) {
+      const err = new Error('Checkout must be recorded before completing this rental.');
+      err.status = 400;
+      throw err;
+    }
+
+    await returnBooking(bookingId, {
+      mileage: booking.return_mileage ?? checkoutRecord?.odometer,
+      fuel_level: booking.return_fuel_level ?? checkoutRecord?.fuel_level,
+      condition_notes: booking.return_condition_notes || checkoutRecord?.condition_notes,
+      photos: Array.isArray(booking.return_photos) && booking.return_photos.length
+        ? booking.return_photos
+        : (checkoutRecord?.photo_urls || []),
+      changedBy,
+      reason: 'Vehicle returned during checkout completion',
+    });
+    booking = await getBookingDetail(bookingId);
+  }
+
+  if (booking.status !== 'returned') {
+    const err = new Error(`Cannot complete checkout for booking in status '${booking.status}'`);
+    err.status = 400;
+    throw err;
+  }
+
+  return transitionBooking(bookingId, 'completed', {
+    changedBy,
+    reason: reason || 'Rental completed',
+  });
+}
+
+/**
  * Apply a checkout override — admin force-unlocks the CheckOutTab when the
  * renter never self-checked-out via the customer portal.
  *

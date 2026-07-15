@@ -57,3 +57,16 @@ test('missing booking_deposits row returns expected deposit display data only', 
   assert.match(depositsRoute, /status: 'none'/);
   assert.doesNotMatch(depositsRoute, /source: 'booking_legacy'/);
 });
+
+test('checkout completion is idempotent and guarded by checkout evidence', () => {
+  const bookingService = source('backend/services/bookingService.js');
+  const bookingsRoute = source('backend/routes/bookings.js');
+
+  assert.match(bookingService, /export async function returnBooking/);
+  assert.match(bookingService, /booking\.status === 'returned'[\s\S]*idempotent: true/);
+  assert.match(bookingService, /export async function completeBookingCheckout/);
+  assert.match(bookingService, /'customer_checkout', 'admin_inspection'/);
+  assert.match(bookingService, /Checkout must be recorded before completing this rental/);
+  assert.match(bookingsRoute, /returnBooking\(req\.params\.id/);
+  assert.match(bookingsRoute, /completeBookingCheckout\(req\.params\.id/);
+});
