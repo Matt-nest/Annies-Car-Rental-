@@ -239,6 +239,156 @@ test('bookings route renders booking operations page', async ({ page }, testInfo
   await previewRequest;
 });
 
+test('check-ins board handles mixed date formats without runtime errors', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  await page.route('**/api/v1/bookings?*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        {
+          ...booking,
+          id: 'booking-confirmed-ready',
+          booking_code: 'E2E-PICKUP-READY',
+          status: 'confirmed',
+          pickup_date: '2026-07-14',
+          pickup_time: '09:30:00',
+          return_date: '2026-07-18',
+          return_time: '10:00',
+          payments: [{ payment_type: 'rental', status: 'completed' }],
+          rental_agreements: [{ signed_at: '2026-07-10T12:00:00.000Z', owner_signed_at: '2026-07-10T12:05:00.000Z' }],
+        },
+        {
+          ...booking,
+          id: 'booking-active-due',
+          booking_code: 'E2E-DUE-BACK',
+          status: 'active',
+          pickup_date: '2026-07-10T09:00:00.000Z',
+          pickup_time: '09:00',
+          return_date: '2026-07-14',
+          return_time: '17:00:00',
+        },
+        {
+          ...booking,
+          id: 'booking-returned-settle',
+          booking_code: 'E2E-RETURNED',
+          status: 'returned',
+          pickup_date: 1783693200000,
+          pickup_time: '09:00',
+          return_date: '2026-07-13T17:00:00.000Z',
+          return_time: '17:00',
+        },
+      ]),
+    });
+  });
+
+  await page.goto('/check-ins');
+
+  await expect(page.getByRole('heading', { name: 'Check-In / Check-Out Board' })).toBeVisible();
+  await expect(page.getByText('E2E-DUE-BACK')).toBeVisible();
+  await expect(page.getByText('E2E-RETURNED')).toBeVisible();
+  expect(pageErrors).toEqual([]);
+});
+
+test('active checkout records return before completing without sending invoice', async ({ page }) => {
+  const calls: string[] = [];
+  let overrideApplied = false;
+  let completedApplied = false;
+  const activeBooking = {
+    ...booking,
+    id: 'booking-active-complete',
+    booking_code: 'E2E-ACTIVE-COMPLETE',
+    status: 'active',
+    payment_status: 'paid',
+    deposit_status: 'paid',
+    pickup_date: '2026-07-10',
+    return_date: '2026-07-14',
+    checkin_odometer: 1000,
+    checkout_override_at: null as string | null,
+    booking_status_log: [],
+  };
+
+  await page.unroute('**/api/v1/**');
+  await page.route('**/api/v1/**', async (route) => {
+    const url = new URL(route.request().url());
+    const path = url.pathname.replace('/api/v1', '');
+    const method = route.request().method();
+    const withOverride = {
+      ...activeBooking,
+      status: completedApplied ? 'completed' : activeBooking.status,
+      checkout_override_at: overrideApplied ? '2026-07-14T15:00:00.000Z' : null,
+    };
+
+    let body: unknown = {};
+    if (path === '/users/me') {
+      body = { id: 'e2e-admin', first_name: 'E2E', last_name: 'Admin', role: 'owner', email: 'e2e-admin@example.com' };
+    } else if (path === '/bookings/booking-active-complete/checkout-override' && method === 'POST') {
+      calls.push('override');
+      overrideApplied = true;
+      body = { ok: true, booking: { ...activeBooking, checkout_override_at: '2026-07-14T15:00:00.000Z' } };
+    } else if (path === '/bookings/booking-active-complete/checkout' && method === 'POST') {
+      calls.push('checkout');
+      body = { ok: true };
+    } else if (path === '/bookings/booking-active-complete/inspection' && method === 'POST') {
+      calls.push('inspection');
+      body = { ok: true, incidentals: [] };
+    } else if (path === '/bookings/booking-active-complete/return' && method === 'POST') {
+      calls.push('return');
+      body = { ok: true, new_status: 'returned' };
+    } else if (path === '/bookings/booking-active-complete/invoice' && method === 'POST') {
+      calls.push('invoice');
+      body = { id: 'invoice-e2e', status: 'draft', amount_due: 0, deposit_applied: 0, items: [] };
+    } else if (path === '/bookings/booking-active-complete/complete' && method === 'POST') {
+      calls.push('complete');
+      completedApplied = true;
+      body = { ok: true, status: 'completed' };
+    } else if (path === '/bookings/booking-active-complete/deposit') {
+      body = { amount: 50000, status: 'held' };
+    } else if (path === '/bookings/booking-active-complete/invoice') {
+      body = null;
+    } else if (path === '/bookings/booking-active-complete/incidentals') {
+      body = [];
+    } else if (path === '/bookings/booking-active-complete/checkin-records') {
+      body = [];
+    } else if (path === '/bookings/booking-active-complete/extensions') {
+      body = [];
+    } else if (path === '/bookings/booking-active-complete') {
+      body = withOverride;
+    } else if (path.startsWith('/bookings')) {
+      body = [withOverride];
+    } else if (path.startsWith('/vehicles')) {
+      body = path === '/vehicles' || path === '/vehicles/available' || path.startsWith('/vehicles?') ? [vehicle] : vehicle;
+    } else if (path === '/notifications/unread-count') {
+      body = { count: 0 };
+    } else if (path.startsWith('/notifications') || path.startsWith('/search') || path.startsWith('/damage-reports') || path.startsWith('/agreements/pending-counter-sign')) {
+      body = path.startsWith('/search') ? { bookings: [], customers: [], vehicles: [], payments: [] } : [];
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(body),
+    });
+  });
+
+  await page.goto('/bookings/booking-active-complete');
+  await page.getByRole('button', { name: /go to check-out/i }).click();
+  await expect(page.getByText(/hasn't ended their trip yet/i)).toBeVisible();
+
+  await page.getByRole('button', { name: /override/i }).click();
+  await page.getByRole('button', { name: /confirm override/i }).click();
+  await expect(page.getByRole('button', { name: /next: review charges/i })).toBeVisible();
+
+  await page.getByRole('spinbutton').fill('1100');
+  await page.getByRole('button', { name: /next: review charges/i }).click();
+  await page.getByRole('button', { name: /next: finalize/i }).click();
+  await page.getByRole('button', { name: /complete without sending invoice/i }).click();
+
+  await expect(page.getByRole('heading', { name: 'Rental Complete' })).toBeVisible();
+  expect(calls).toEqual(['override', 'checkout', 'inspection', 'invoice', 'return', 'complete']);
+});
+
 test('checkout finalize recovers when return was already recorded by a prior attempt', async ({ page }) => {
   const calls: string[] = [];
   let overrideApplied = false;

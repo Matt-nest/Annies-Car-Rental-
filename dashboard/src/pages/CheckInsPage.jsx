@@ -33,21 +33,65 @@ import {
 } from '../lib/bookingOps';
 
 function compareDateTime(a, b, getter) {
-  const ad = getter(a)?.getTime() || 0;
-  const bd = getter(b)?.getTime() || 0;
-  return ad - bd;
+  return toComparableTime(getter(a)) - toComparableTime(getter(b));
+}
+
+function toComparableTime(value) {
+  if (!value) return 0;
+  if (value instanceof Date) {
+    const time = value.getTime();
+    return Number.isNaN(time) ? 0 : time;
+  }
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? 0 : time;
+}
+
+function toDateKey(value) {
+  if (!value) return '';
+  if (value instanceof Date) {
+    const time = value.getTime();
+    if (Number.isNaN(time)) return '';
+    const y = value.getFullYear();
+    const m = String(value.getMonth() + 1).padStart(2, '0');
+    const d = String(value.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  if (typeof value === 'number') {
+    return toDateKey(new Date(value));
+  }
+  const raw = String(value);
+  const dateOnly = raw.match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+  if (dateOnly) return dateOnly;
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? '' : toDateKey(parsed);
 }
 
 function isOnOrBefore(date, today) {
-  return Boolean(date && date <= today);
+  const key = toDateKey(date);
+  return Boolean(key && key <= today);
 }
 
 function isAfter(date, today) {
-  return Boolean(date && date > today);
+  const key = toDateKey(date);
+  return Boolean(key && key > today);
 }
 
 function formatTime(value) {
-  return value?.slice(0, 5) || '--:--';
+  if (!value) return '--:--';
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return '--:--';
+    return `${String(value.getHours()).padStart(2, '0')}:${String(value.getMinutes()).padStart(2, '0')}`;
+  }
+  if (typeof value === 'number') return formatTime(new Date(value));
+  const raw = String(value);
+  const timeMatch = raw.match(/(?:T|\s)?(\d{2}:\d{2})(?::\d{2})?/);
+  return timeMatch?.[1] || raw.slice(0, 5) || '--:--';
+}
+
+function formatScheduleDate(value) {
+  const key = toDateKey(value);
+  return key ? formatDateOnlyRelative(key) : '—';
 }
 
 function getBlockers(booking) {
@@ -81,8 +125,8 @@ function StatPill({ icon: Icon, label, value, tone = 'slate' }) {
 function BookingOpsCard({ booking, mode, onOpen }) {
   const lifecycle = getBookingLifecycle(booking);
   const tone = toneClasses(lifecycle.tone);
-  const pickup = `${formatDateOnlyRelative(booking.pickup_date)} ${formatTime(booking.pickup_time)}`;
-  const ret = `${formatDateOnlyRelative(booking.return_date)} ${formatTime(booking.return_time)}`;
+  const pickup = `${formatScheduleDate(booking.pickup_date)} ${formatTime(booking.pickup_time)}`;
+  const ret = `${formatScheduleDate(booking.return_date)} ${formatTime(booking.return_time)}`;
   const blockers = getBlockers(booking);
   const c = booking.customers || {};
 
@@ -214,7 +258,7 @@ export default function CheckInsPage() {
       .filter((b) => isReadyForHandoff(b) && isOnOrBefore(b.pickup_date, today))
       .sort((a, b) => compareDateTime(a, b, getPickupDateTime));
     const active = filtered.filter((b) => b.status === 'active');
-    const overdue = active.filter(isReturnOverdue).sort((a, b) => compareDateTime(a, b, getReturnDateTime));
+    const overdue = active.filter((b) => isReturnOverdue(b)).sort((a, b) => compareDateTime(a, b, getReturnDateTime));
     const dueBack = active
       .filter((b) => !isReturnOverdue(b) && isOnOrBefore(b.return_date, today))
       .sort((a, b) => compareDateTime(a, b, getReturnDateTime));
