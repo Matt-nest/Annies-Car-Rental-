@@ -1,6 +1,6 @@
 import React from 'react';
 import { Receipt, Shield, Car, Calendar, DollarSign } from 'lucide-react';
-import { formatCurrency, formatDate, type WizardDraft } from '../constants';
+import { formatCurrency, formatDate, resolveInsuranceDisplay, type WizardDraft } from '../constants';
 import PricingBreakdown from '../PricingBreakdown';
 
 interface Props {
@@ -11,25 +11,17 @@ interface Props {
 }
 
 export default function OrderSummary({ bookingSummary: bs, draft, depositAmount, theme }: Props) {
-  const rentalDays = bs?.rentalDays || 1;
-
-  // Calculate insurance cost from the Bonzah quote stored on the draft
-  let insuranceCost = 0;
-  let insuranceLabel = 'No coverage selected';
-  if (draft.insuranceChoice === 'bonzah' && draft.bonzahQuote) {
-    insuranceCost = draft.bonzahQuote.total_cents / 100;
-    const tierLabel = draft.bonzahTierId
-      ? draft.bonzahTierId.charAt(0).toUpperCase() + draft.bonzahTierId.slice(1)
-      : 'Bonzah';
-    insuranceLabel = `Bonzah Insurance: ${tierLabel} (${rentalDays} day${rentalDays === 1 ? '' : 's'})`;
-  } else if (draft.insuranceChoice === 'own') {
-    insuranceLabel = 'Your own insurance (no charge)';
-  } else if (draft.insuranceChoice === 'none') {
-    insuranceLabel = 'No insurance provided';
-  }
-
+  const savedReceipt = bs?.customerReceiptSnapshot;
+  const rentalDays = bs?.rentalDays || savedReceipt?.rental_days || 1;
+  const insurance = resolveInsuranceDisplay(bs, draft);
+  const receiptLineItems = Array.isArray(savedReceipt?.line_items) && savedReceipt.line_items.length
+    ? savedReceipt.line_items
+    : null;
+  const pricingForDisplay = receiptLineItems
+    ? { ...bs, lineItems: receiptLineItems, totalCost: bs?.totalCost ?? savedReceipt?.rental_total }
+    : bs;
   const rentalTotal = bs?.totalCost || 0;
-  const grandTotal = rentalTotal + insuranceCost + depositAmount;
+  const grandTotal = rentalTotal + insurance.amount + depositAmount;
 
   return (
     <div className="rounded-xl border p-4 sm:p-5"
@@ -54,10 +46,7 @@ export default function OrderSummary({ bookingSummary: bs, draft, depositAmount,
 
       {/* Line items */}
       <div className="space-y-2 text-sm" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '12px' }}>
-        <PricingBreakdown
-          pricing={bs}
-          showTotal={false}
-        />
+        <PricingBreakdown pricing={pricingForDisplay} showTotal={false} />
 
         {/* Rental subtotal */}
         <div className="flex justify-between font-medium pt-1" style={{ borderTop: '1px solid var(--border-subtle)' }}>
@@ -71,11 +60,11 @@ export default function OrderSummary({ bookingSummary: bs, draft, depositAmount,
             <Shield size={14} style={{ color: 'var(--accent-color)' }} />
             <span style={{ color: 'var(--text-secondary)' }}>Insurance</span>
           </div>
-          <span style={{ color: insuranceCost > 0 ? 'var(--text-primary)' : 'var(--text-tertiary)' }}>
-            {insuranceCost > 0 ? formatCurrency(insuranceCost) : 'Included'}
+          <span style={{ color: insurance.amount > 0 ? 'var(--text-primary)' : 'var(--text-tertiary)' }}>
+            {insurance.amount > 0 ? formatCurrency(insurance.amount) : 'Included'}
           </span>
         </div>
-        <p className="text-[10px] ml-[22px]" style={{ color: 'var(--text-tertiary)' }}>{insuranceLabel}</p>
+        <p className="text-[10px] ml-[22px]" style={{ color: 'var(--text-tertiary)' }}>{insurance.label}</p>
 
         {/* Security Deposit */}
         <div className="flex justify-between items-center">

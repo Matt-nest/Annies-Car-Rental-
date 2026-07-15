@@ -29,6 +29,8 @@ import {
   PAYMENT_PROVIDER, CARD_ON_FILE_ENABLED,
   getRefCode,
   formatCurrency,
+  resolveInsuranceDisplay,
+  savedBonzahQuoteFromSummary,
   loadDraft, saveDraft, clearDraft,
   type WizardDraft,
 } from './confirm-booking/constants';
@@ -75,12 +77,9 @@ function PaymentForm({
   // Grand total for display. Prefer the draft's live Bonzah quote; on a return
   // visit (empty draft after approval) fall back to the server-computed
   // insurance cost so the total still matches what the backend will charge.
-  let insuranceCost = bookingSummary?.insuranceCost ?? 0;
-  if (draft.insuranceChoice === 'bonzah' && draft.bonzahQuote) {
-    insuranceCost = draft.bonzahQuote.total_cents / 100;
-  }
+  const insurance = resolveInsuranceDisplay(bookingSummary, draft);
   const rentalTotal = bookingSummary?.totalCost || 0;
-  const grandTotal = rentalTotal + insuranceCost + depositAmount;
+  const grandTotal = rentalTotal + insurance.amount + depositAmount;
 
   /** Idempotent receipt dispatch with retries - backend dedupes via PI metadata */
   async function triggerReceiptWithRetry(piId: string, attempt = 0): Promise<void> {
@@ -285,6 +284,54 @@ function PaymentForm({
   );
 }
 
+function toInsuranceChoice(source: any, status: any): WizardDraft['insuranceChoice'] {
+  if (source === 'bonzah' || source === 'own' || source === 'none') return source;
+  if (status === 'none') return 'none';
+  return null;
+}
+
+function checkoutDraftPatchFromServer(agreementData: any, bookingSummary: any): Partial<WizardDraft> {
+  const saved = agreementData?.savedAgreement || {};
+  const defaults = agreementData?.customerDefaults || {};
+  const insuranceChoice = toInsuranceChoice(
+    bookingSummary?.insuranceSource || (saved.insurance_company ? 'own' : null),
+    bookingSummary?.insuranceStatus,
+  );
+
+  return {
+    stage: 4,
+    subStep: 1,
+    completedStages: [1, 2, 3],
+    address: {
+      line1: saved.address_line1 || defaults.address_line1 || '',
+      city: saved.city || defaults.city || '',
+      state: saved.state || defaults.state || '',
+      zip: saved.zip || defaults.zip || '',
+    },
+    dob: saved.date_of_birth || defaults.date_of_birth || '',
+    license: {
+      number: saved.driver_license_number || defaults.driver_license_number || '',
+      state: saved.driver_license_state || defaults.driver_license_state || '',
+      expiry: saved.driver_license_expiry || defaults.driver_license_expiry || '',
+    },
+    personalInsurance: {
+      company: saved.insurance_company || '',
+      policyNumber: saved.insurance_policy_number || '',
+      expiry: saved.insurance_expiry || '',
+      agentName: saved.insurance_agent_name || '',
+      agentPhone: saved.insurance_agent_phone || '',
+      vehicleDescription: saved.insurance_vehicle_description || '',
+    },
+    insuranceChoice,
+    bonzahTierId: insuranceChoice === 'bonzah' ? (bookingSummary?.insuranceTier || null) : null,
+    bonzahQuote: insuranceChoice === 'bonzah' ? savedBonzahQuoteFromSummary(bookingSummary) : null,
+    licensePhotoPaths: Array.isArray(saved.license_photo_paths)
+      ? saved.license_photo_paths
+      : (Array.isArray(agreementData?.prefilledLicensePhotos) ? agreementData.prefilledLicensePhotos : []),
+    licenseScanMetadata: saved.license_scan_metadata || null,
+  };
+}
+
 /* ────────────────────────────────────────────────────────
    Approval gate — persists the signed agreement + insurance choice, then holds
    the customer at "awaiting approval" until an admin approves the request.
@@ -318,6 +365,7 @@ function PaymentGate({
   theme,
   cardOnFileEnabled,
   alreadySigned,
+  checkoutOnly,
   autoFilled,
   onUpdate,
   onBack,
@@ -331,9 +379,10 @@ function PaymentGate({
   theme: string;
   cardOnFileEnabled: boolean;
   alreadySigned: boolean;
+  checkoutOnly?: boolean;
   autoFilled?: any;
   onUpdate: (patch: Partial<WizardDraft>) => void;
-  onBack: () => void;
+  onBack?: () => void;
   onSuccess: () => void;
   onSummaryUpdate?: (booking: any, deposit: number) => void;
 }) {
@@ -512,9 +561,11 @@ function PaymentGate({
         <AlertCircle size={36} style={{ color: '#ef4444' }} className="mx-auto" />
         <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{error}</p>
         <div className="flex gap-3 justify-center">
-          <button type="button" onClick={onBack}
-            className="px-6 py-3 rounded-full font-medium border cursor-pointer"
-            style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)', backgroundColor: 'transparent' }}>Back</button>
+          {!checkoutOnly && onBack && (
+            <button type="button" onClick={onBack}
+              className="px-6 py-3 rounded-full font-medium border cursor-pointer"
+              style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)', backgroundColor: 'transparent' }}>Back</button>
+          )}
           <button type="button" onClick={persistAndGate}
             className="px-6 py-3 rounded-full font-medium cursor-pointer"
             style={{ backgroundColor: 'var(--accent-color)', color: 'var(--accent-fg)' }}>Try again</button>
@@ -573,13 +624,15 @@ function PaymentGate({
           theme={theme}
         />
         <div className="flex gap-3">
-          <button type="button" onClick={onBack}
-            className="px-6 py-4 rounded-full font-medium transition-all duration-300 cursor-pointer border"
-            style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)', backgroundColor: 'transparent' }}>
-            Back
-          </button>
+          {!checkoutOnly && onBack && (
+            <button type="button" onClick={onBack}
+              className="px-6 py-4 rounded-full font-medium transition-all duration-300 cursor-pointer border"
+              style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)', backgroundColor: 'transparent' }}>
+              Back
+            </button>
+          )}
           <button type="button" onClick={() => setShowPayment(true)}
-            className="flex-1 py-4 rounded-full font-medium transition-all duration-300 cursor-pointer hover:scale-[1.02]"
+            className={`${checkoutOnly ? 'w-full' : 'flex-1'} py-4 rounded-full font-medium transition-all duration-300 cursor-pointer hover:scale-[1.02]`}
             style={{ backgroundColor: 'var(--accent-color)', color: 'var(--accent-fg)' }}>
             Continue to payment
           </button>
@@ -610,11 +663,8 @@ function PaymentGate({
     );
   }
 
-  let insCost = bookingSummary?.insuranceCost ?? 0;
-  if (draft.insuranceChoice === 'bonzah' && draft.bonzahQuote) {
-    insCost = draft.bonzahQuote.total_cents / 100;
-  }
-  const totalCents = Math.round(((bookingSummary?.totalCost || 0) + insCost + depositAmount) * 100);
+  const insurance = resolveInsuranceDisplay(bookingSummary, draft);
+  const totalCents = Math.round(((bookingSummary?.totalCost || 0) + insurance.amount + depositAmount) * 100);
 
   const elementsOptions = {
     mode: 'payment' as const,
@@ -745,7 +795,7 @@ export default function ConfirmBooking() {
           // server-side). Skip straight to payment instead of making them redo the
           // whole flow.
           if (agJson.alreadySigned && !summaryJson.alreadyPaid) {
-            updateDraft({ stage: 4 });
+            updateDraft(checkoutDraftPatchFromServer(agJson, summaryJson.booking));
           }
         } else {
           // Read-only pricing — do NOT mint a PaymentIntent on page load.
@@ -771,7 +821,7 @@ export default function ConfirmBooking() {
           // server-side). Skip straight to payment instead of making them redo the
           // whole flow.
           if (agJson.alreadySigned && !summaryJson.alreadyPaid) {
-            updateDraft({ stage: 4 });
+            updateDraft(checkoutDraftPatchFromServer(agJson, summaryJson.booking));
           }
         }
       } catch (e: any) {
@@ -894,6 +944,12 @@ export default function ConfirmBooking() {
   }
 
   const af = agreementData?.autoFilled || {};
+  const checkoutOnly = !!agreementData?.alreadySigned;
+  const renderStage = checkoutOnly && draft.stage < 4 ? 4 : draft.stage;
+  const renderSubStep = checkoutOnly && draft.stage < 4 ? 1 : draft.subStep;
+  const renderCompletedStages = checkoutOnly
+    ? Array.from(new Set([...draft.completedStages, 1, 2, 3]))
+    : draft.completedStages;
 
   // ── Wizard ──────────────────────────────────────────────
   return (
@@ -929,46 +985,46 @@ export default function ConfirmBooking() {
 
           {/* Progress stepper */}
           <ProgressStepper
-            currentStage={draft.stage}
-            currentSubStep={draft.subStep}
-            completedStages={draft.completedStages}
+            currentStage={renderStage}
+            currentSubStep={renderSubStep}
+            completedStages={renderCompletedStages}
             theme={theme}
           />
 
           {/* Stage content */}
           <AnimatePresence mode="wait">
             <motion.div
-              key={`${draft.stage}-${draft.subStep}`}
+              key={`${renderStage}-${renderSubStep}`}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.25 }}
             >
               {/* ═══ Stage 1: Agreement ═══ */}
-              {draft.stage === 1 && draft.subStep === 1 && (
+              {renderStage === 1 && renderSubStep === 1 && (
                 <RentalSummaryStep autoFilled={af} theme={theme} onContinue={nextSubStep} />
               )}
-              {draft.stage === 1 && draft.subStep === 2 && (
+              {renderStage === 1 && renderSubStep === 2 && (
                 <ScanStep draft={draft} onUpdate={updateDraft} onContinue={nextSubStep} onBack={prevSubStep} onEdit={() => goToSubStep(3)} theme={theme} bookingName={af.customerName} />
               )}
-              {draft.stage === 1 && draft.subStep === 3 && (
+              {renderStage === 1 && renderSubStep === 3 && (
                 <AddressStep draft={draft} onUpdate={updateDraft} onContinue={nextSubStep} onBack={prevSubStep} theme={theme} />
               )}
-              {draft.stage === 1 && draft.subStep === 4 && (
+              {renderStage === 1 && renderSubStep === 4 && (
                 <LicenseStep draft={draft} onUpdate={updateDraft} onContinue={nextSubStep} onBack={prevSubStep} theme={theme} />
               )}
-              {draft.stage === 1 && draft.subStep === 5 && (
+              {renderStage === 1 && renderSubStep === 5 && (
                 <TermsStep draft={draft} onUpdate={updateDraft} onContinue={nextSubStep} onBack={prevSubStep} theme={theme} />
               )}
-              {draft.stage === 1 && draft.subStep === 6 && (
+              {renderStage === 1 && renderSubStep === 6 && (
                 <AcknowledgementsStep draft={draft} onUpdate={updateDraft} onContinue={nextSubStep} onBack={prevSubStep} theme={theme} />
               )}
-              {draft.stage === 1 && draft.subStep === 7 && (
+              {renderStage === 1 && renderSubStep === 7 && (
                 <SignatureStep draft={draft} onUpdate={updateDraft} onContinue={nextSubStep} onBack={prevSubStep} theme={theme} />
               )}
 
               {/* ═══ Stage 2: Insurance ═══ */}
-              {draft.stage === 2 && (
+              {renderStage === 2 && (
                 <InsuranceStep
                   draft={draft}
                   rentalDays={af.rentalDays || bookingSummary?.rentalDays || 1}
@@ -982,7 +1038,7 @@ export default function ConfirmBooking() {
               )}
 
               {/* ═══ Stage 3: Review ═══ */}
-              {draft.stage === 3 && (
+              {renderStage === 3 && (
                 <ReviewStep
                   bookingSummary={bookingSummary}
                   draft={draft}
@@ -994,7 +1050,7 @@ export default function ConfirmBooking() {
               )}
 
               {/* ═══ Stage 4: Approval gate → Payment ═══ */}
-              {draft.stage === 4 && (
+              {renderStage === 4 && (
                 <PaymentGate
                   refCode={refCode}
                   draft={draft}
@@ -1003,9 +1059,10 @@ export default function ConfirmBooking() {
                   theme={theme}
                   cardOnFileEnabled={cardOnFileEnabled}
                   alreadySigned={!!agreementData?.alreadySigned}
+                  checkoutOnly={checkoutOnly}
                   autoFilled={agreementData?.autoFilled}
                   onUpdate={updateDraft}
-                  onBack={() => goToStage(3)}
+                  onBack={checkoutOnly ? undefined : () => goToStage(3)}
                   onSuccess={() => setConfirmed(true)}
                   onSummaryUpdate={(b, dep) => {
                     setBookingSummary(b);

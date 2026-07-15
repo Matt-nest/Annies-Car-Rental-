@@ -319,7 +319,7 @@ export default function TodayOpsCockpit() {
             <AlertTriangle size={15} className="text-red-500 mt-0.5 shrink-0" />
             <div>
               <p className="text-sm font-semibold text-red-600 dark:text-red-400">
-                Webhook failures need review
+                Automation failures need review
               </p>
               <p className="text-xs text-[var(--text-secondary)]">
                 Payment or notification automation may need attention before the next rental handoff.

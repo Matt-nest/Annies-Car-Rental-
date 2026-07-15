@@ -83,7 +83,14 @@ router.get('/:bookingCode', asyncHandler(async (req, res) => {
   // Check if already signed
   const { data: existing } = await supabase
     .from('rental_agreements')
-    .select('id, customer_signed_at, owner_signed_at')
+    .select(`
+      id, customer_signed_at, owner_signed_at,
+      address_line1, city, state, zip, date_of_birth,
+      driver_license_number, driver_license_state, driver_license_expiry,
+      insurance_company, insurance_policy_number, insurance_expiry,
+      insurance_agent_name, insurance_agent_phone, insurance_vehicle_description,
+      license_photo_paths, license_scan_metadata
+    `)
     .eq('booking_id', booking.id)
     .maybeSingle();
 
@@ -101,6 +108,24 @@ router.get('/:bookingCode', asyncHandler(async (req, res) => {
     alreadySigned: !!existing?.customer_signed_at,
     ownerCounterSigned: !!existing?.owner_signed_at,
     bookingId: booking.id,
+    savedAgreement: existing?.customer_signed_at ? {
+      address_line1: existing.address_line1 || '',
+      city: existing.city || '',
+      state: existing.state || '',
+      zip: existing.zip || '',
+      date_of_birth: existing.date_of_birth || '',
+      driver_license_number: existing.driver_license_number || '',
+      driver_license_state: existing.driver_license_state || '',
+      driver_license_expiry: existing.driver_license_expiry || '',
+      insurance_company: existing.insurance_company || '',
+      insurance_policy_number: existing.insurance_policy_number || '',
+      insurance_expiry: existing.insurance_expiry || '',
+      insurance_agent_name: existing.insurance_agent_name || '',
+      insurance_agent_phone: existing.insurance_agent_phone || '',
+      insurance_vehicle_description: existing.insurance_vehicle_description || '',
+      license_photo_paths: Array.isArray(existing.license_photo_paths) ? existing.license_photo_paths : [],
+      license_scan_metadata: existing.license_scan_metadata || null,
+    } : null,
     autoFilled: {
       customerName: `${customer.first_name || ''} ${customer.last_name || ''}`.trim(),
       phone: customer.phone || '',

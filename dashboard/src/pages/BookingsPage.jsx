@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, Filter, CheckCircle, XCircle, RefreshCw, BookOpen, AlertCircle, Plus } from 'lucide-react';
+import { Search, Filter, CheckCircle, XCircle, RefreshCw, BookOpen, Plus, Eye, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { api } from '../api/client';
+import { portalPreviewApi } from '../api/portalPreview';
 import { useAlerts } from '../lib/alertsContext';
 import StatusBadge from '../components/shared/StatusBadge';
 import DataTable from '../components/shared/DataTable';
@@ -10,7 +11,6 @@ import Modal from '../components/shared/Modal';
 import DataError from '../components/shared/DataError';
 import NewBookingModal from '../components/bookings/NewBookingModal';
 import ApproveBookingModal from '../components/shared/ApproveBookingModal';
-import { format } from 'date-fns';
 import { formatDateOnly } from '../lib/dates';
 import {
   getBookingLifecycle,
@@ -69,6 +69,7 @@ export default function BookingsPage() {
   const [actioning, setActioning] = useState(false);
   const [actionModalError, setActionModalError] = useState(null);
   const [newBookingOpen, setNewBookingOpen] = useState(false);
+  const [portalPreviewingId, setPortalPreviewingId] = useState(null);
 
   const [approveBooking, setApproveBooking] = useState(null);
 
@@ -122,6 +123,26 @@ export default function BookingsPage() {
       setActionModalError(e?.data?.error || e?.message || 'Could not decline booking');
     } finally {
       setActioning(false);
+    }
+  }
+
+  async function openPortalPreview(booking) {
+    const previewWindow = window.open('about:blank', '_blank');
+    setPortalPreviewingId(booking.id);
+    setError(null);
+    try {
+      const result = await portalPreviewApi.forBooking(booking.id);
+      if (previewWindow) {
+        previewWindow.opener = null;
+        previewWindow.location.href = result.url;
+      } else {
+        window.open(result.url, '_blank', 'noopener,noreferrer');
+      }
+    } catch (e) {
+      if (previewWindow) previewWindow.close();
+      setError(e?.message || 'Could not open customer portal preview');
+    } finally {
+      setPortalPreviewingId(null);
     }
   }
 
@@ -203,10 +224,18 @@ export default function BookingsPage() {
     )},
     { key: 'actions', label: '', render: b => (
       <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+        <button
+          onClick={() => openPortalPreview(b)}
+          title="Open customer portal preview"
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--text-secondary)] bg-[var(--bg-card-hover)] hover:text-[var(--accent-color)] transition-colors"
+          disabled={portalPreviewingId === b.id}
+        >
+          {portalPreviewingId === b.id ? <Loader2 size={15} className="animate-spin" /> : <Eye size={15} />}
+        </button>
         {b.status === 'pending_approval' && (
           <>
             <button
-              onClick={() => setActionModal({ type: 'approve', booking: b })}
+              onClick={() => openApproveModal(b)}
               title="Approve"
               className="w-8 h-8 rounded-lg flex items-center justify-center text-white bg-emerald-500 hover:bg-emerald-600 transition-colors shadow-sm"
             >
@@ -336,6 +365,16 @@ export default function BookingsPage() {
               <div className="flex items-center justify-between text-xs" style={{ color: 'var(--text-secondary)' }}>
                 <span>{formatDateOnly(b.pickup_date, 'MMM d')} → {formatDateOnly(b.return_date, 'MMM d')}</span>
                 <span>{b.rental_days}d</span>
+              </div>
+              <div className="flex gap-2 pt-1" onClick={e => e.stopPropagation()}>
+                <button
+                  onClick={() => openPortalPreview(b)}
+                  disabled={portalPreviewingId === b.id}
+                  className="flex-1 h-10 rounded-lg flex items-center justify-center gap-1.5 text-xs font-semibold border border-[var(--border-subtle)] bg-[var(--bg-card-hover)] text-[var(--text-secondary)] active:bg-[var(--bg-card)]"
+                >
+                  {portalPreviewingId === b.id ? <Loader2 size={14} className="animate-spin" /> : <Eye size={14} />}
+                  View customer portal
+                </button>
               </div>
               {b.status === 'pending_approval' && (
                 <div className="flex gap-2 pt-1" onClick={e => e.stopPropagation()}>

@@ -149,6 +149,95 @@ export interface WizardDraft {
   completedStages: number[];
 }
 
+export interface InsuranceDisplay {
+  choice: WizardDraft['insuranceChoice'];
+  label: string;
+  amount: number;
+  tierId: string | null;
+}
+
+function tierLabel(tierId: string | null | undefined): string {
+  return tierId
+    ? tierId.charAt(0).toUpperCase() + tierId.slice(1)
+    : 'Bonzah';
+}
+
+export function resolveInsuranceDisplay(bookingSummary: any, draft?: WizardDraft | null): InsuranceDisplay {
+  const saved = bookingSummary?.customerReceiptSnapshot?.insurance;
+  const draftChoice = draft?.insuranceChoice || null;
+  const savedChoice = saved?.choice || null;
+  const bookingChoice = bookingSummary?.insuranceSource || null;
+  const rawChoice = draftChoice
+    || savedChoice
+    || bookingChoice
+    || (bookingSummary?.insuranceStatus === 'none' ? 'none' : null);
+  const choice: WizardDraft['insuranceChoice'] =
+    rawChoice === 'bonzah' || rawChoice === 'own' || rawChoice === 'none'
+      ? rawChoice
+      : null;
+
+  const tierId = draft?.bonzahTierId
+    || saved?.tier_id
+    || bookingSummary?.insuranceTier
+    || null;
+
+  if (choice === 'bonzah') {
+    const draftAmount = draft?.insuranceChoice === 'bonzah' && draft.bonzahQuote
+      ? Number(draft.bonzahQuote.total_cents || 0) / 100
+      : 0;
+    const amount = draftAmount > 0
+      ? draftAmount
+      : Number(bookingSummary?.insuranceCost ?? saved?.amount ?? 0);
+
+    return {
+      choice,
+      tierId,
+      amount,
+      label: saved?.label || `Bonzah Insurance: ${tierLabel(tierId)} (${bookingSummary?.rentalDays || 1} day${(bookingSummary?.rentalDays || 1) === 1 ? '' : 's'})`,
+    };
+  }
+
+  if (choice === 'own') {
+    return {
+      choice,
+      tierId: null,
+      amount: 0,
+      label: saved?.label || 'Your own insurance (no charge)',
+    };
+  }
+
+  if (choice === 'none') {
+    return {
+      choice,
+      tierId: null,
+      amount: 0,
+      label: saved?.label || 'No insurance provided',
+    };
+  }
+
+  return {
+    choice: null,
+    tierId: null,
+    amount: Number(bookingSummary?.insuranceCost ?? saved?.amount ?? 0),
+    label: saved?.label || 'No coverage selected',
+  };
+}
+
+export function savedBonzahQuoteFromSummary(bookingSummary: any): BonzahQuote | null {
+  if (bookingSummary?.insuranceSource !== 'bonzah') return null;
+  const totalCents = Math.round(Number(bookingSummary.insuranceCost || 0) * 100);
+  if (totalCents <= 0) return null;
+  return {
+    tier_id: bookingSummary.insuranceTier || 'bonzah',
+    quote_id: bookingSummary.bonzahQuoteId || 'saved',
+    premium_cents: totalCents,
+    markup_cents: 0,
+    total_cents: totalCents,
+    coverage_information: [],
+    expires_at: bookingSummary.bonzahQuoteExpiresAt || '',
+  };
+}
+
 // Bump whenever the wizard's step structure changes
 // (2 = added Scan step; 3 = Review/Pay sub-steps; 4 = Review promoted to its own Stage 3, Payment → Stage 4;
 //  5 = license scan metadata + auto-saved scan photos).

@@ -5,6 +5,35 @@
 
 ---
 
+## 2026-07-15 — JD parity repair for approval checkout and portal preview
+
+### Changes Made
+- **Customer approval checkout**: Ported JD's saved-agreement hydration so approved/signed renters reopen directly at the itemized receipt and payment step instead of re-entering ID, license, address, and insurance data.
+- **Receipt/payment accuracy**: Agreement lookup now returns saved customer agreement fields; Square/Stripe booking summaries now include `insuranceStatus` and `customerReceiptSnapshot`; review and Square payment totals use shared server-backed insurance display logic.
+- **Dashboard portal preview**: Added "View customer portal" actions to the Bookings list on desktop and mobile, completing coverage alongside Booking Detail, Customers, and Customer Detail.
+- **Dashboard copy cleanup**: Updated old webhook-facing admin wording to "Automation Failures" and clarified that the daily briefing is pinned above Command Center.
+- **Regression coverage**: Extended the admin smoke test so the Bookings list portal-preview action must call `/portal/admin-preview`.
+
+### API/Data Impact
+- No schema changes.
+- `GET /agreements/:bookingCode` now returns `savedAgreement` for already-signed bookings.
+- Payment summary responses expose saved receipt and insurance status fields used by the customer checkout UI.
+
+### Verification
+- [x] `npm run lint` — TypeScript pass
+- [x] `cd backend && PAYMENT_PROVIDER=square npm run test:local` — 85/85 passing
+- [x] Customer site build with Square env — pass
+- [x] Dashboard build with Square env — pass
+- [x] `npx playwright test tests/e2e/confirmation-flow.spec.ts tests/e2e/customer-booking.spec.ts --project=chromium --project=mobile-chrome` — 8/8 passing
+- [x] `cd dashboard && npx playwright test tests/e2e/admin-smoke.spec.ts --project=chromium --project=mobile-chrome` — 22/22 passing
+- [x] `git diff --check` — clean
+
+### Known Issues / Follow-up
+- Not deployed yet. Push to `main` only after explicit approval because Vercel deploys automatically.
+- Annie intentionally keeps Square-first payment defaults, lazy Stripe loading, Annie brand styling, and the long-term payment-plan card instead of copying JD's Stripe/live-brand differences.
+
+---
+
 ## 2026-07-15 — Port JD operations upgrades into Annie's Car Rental
 
 ### Changes Made

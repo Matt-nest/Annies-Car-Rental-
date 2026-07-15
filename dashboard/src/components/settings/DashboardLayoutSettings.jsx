@@ -205,7 +205,7 @@ export default function DashboardLayoutSettings() {
             </h2>
           </div>
           <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-            {visibleCount} of {widgets.length} widgets visible.{' '}
+            The daily briefing is pinned above Command Center. {visibleCount} of {widgets.length} lower widgets visible.{' '}
             <span className="hidden md:inline">Drag to reorder on desktop, use arrows on mobile.</span>
             <span className="inline md:hidden">Use arrows to reorder.</span>
             {' '}Preferences saved automatically.

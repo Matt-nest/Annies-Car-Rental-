@@ -228,6 +228,15 @@ test('bookings route renders booking operations page', async ({ page }, testInfo
   await expect(page.getByText('Manage rentals and reservations')).toBeVisible();
   const bookingCode = page.locator('.mono-code', { hasText: 'E2E-BOOKING-001' });
   await expect(testInfo.project.name.includes('mobile') ? bookingCode.last() : bookingCode.first()).toBeVisible();
+
+  const previewRequest = page.waitForRequest((request) =>
+    request.method() === 'POST' && request.url().includes('/api/v1/portal/admin-preview')
+  );
+  await (testInfo.project.name.includes('mobile')
+    ? page.getByRole('button', { name: /view customer portal/i }).first()
+    : page.getByTitle('Open customer portal preview').first()
+  ).click();
+  await previewRequest;
 });
 
 test('fleet route renders vehicle inventory page', async ({ page }) => {

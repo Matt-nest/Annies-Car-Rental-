@@ -13,6 +13,7 @@ import {
   PHONE_NUMBER,
   clearDraft,
   formatCurrency,
+  resolveInsuranceDisplay,
   type WizardDraft,
 } from './constants';
 
@@ -73,13 +74,10 @@ export default function SquarePaymentStage({
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Agreement + insurance are persisted by PaymentGate before approval. On
-  // return-after-approval the draft may be empty — fall back to server totals.
-  let insuranceCost = bookingSummary?.insuranceCost ?? 0;
-  if (draft.insuranceChoice === 'bonzah' && draft.bonzahQuote) {
-    insuranceCost = draft.bonzahQuote.total_cents / 100;
-  }
+  // return-after-approval the draft may be empty, so fall back to saved server totals.
+  const insurance = resolveInsuranceDisplay(bookingSummary, draft);
   const rentalTotal = bookingSummary?.totalCost || 0;
-  const grandTotal = rentalTotal + insuranceCost + depositAmount;
+  const grandTotal = rentalTotal + insurance.amount + depositAmount;
 
   useEffect(() => {
     let cancelled = false;
