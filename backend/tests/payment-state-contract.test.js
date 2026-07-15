@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { resolveCollectedDepositCents } from '../services/invoiceService.js';
 import { getPaymentMethodLabel, normalizeDashboardPaymentMethod } from '../utils/paymentMethods.js';
+import { getMissingSchemaColumn, updateBookingWithSchemaFallback } from '../utils/schemaFallback.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const BACKEND_ROOT = join(__dirname, '..');
@@ -100,4 +101,78 @@ test('admin check-in does not report ready when lifecycle transition is invalid'
   assert.doesNotMatch(checkinRoute, /already past confirmed/);
   assert.match(checkinRoute, /CHECKOUT_RECORDABLE_STATUSES/);
   assert.match(checkinRoute, /Cannot record checkout while booking is/);
+});
+
+test('booking updates tolerate optional schema-cache misses only', async () => {
+  const calls = [];
+  const errors = [
+    { code: 'PGRST204', message: "Could not find the 'late_return' column of 'bookings' in the schema cache" },
+    { code: 'PGRST204', message: "Could not find the 'insurance_reviewed_at' column of 'bookings' in the schema cache" },
+  ];
+  const supabaseMock = {
+    from(table) {
+      assert.equal(table, 'bookings');
+      return {
+        update(payload) {
+          calls.push({ ...payload });
+          return {
+            async eq(column, id) {
+              assert.equal(column, 'id');
+              assert.equal(id, 'booking-1');
+              const error = errors.shift();
+              return { error: error || null };
+            },
+          };
+        },
+      };
+    },
+  };
+
+  assert.equal(getMissingSchemaColumn(errors[0]), 'late_return');
+
+  const result = await updateBookingWithSchemaFallback(supabaseMock, 'booking-1', {
+    status: 'returned',
+    late_return: true,
+    insurance_reviewed_at: '2026-07-15T00:00:00.000Z',
+  });
+
+  assert.deepEqual(result.skippedColumns, ['late_return', 'insurance_reviewed_at']);
+  assert.deepEqual(calls, [
+    {
+      status: 'returned',
+      late_return: true,
+      insurance_reviewed_at: '2026-07-15T00:00:00.000Z',
+    },
+    {
+      status: 'returned',
+      insurance_reviewed_at: '2026-07-15T00:00:00.000Z',
+    },
+    {
+      status: 'returned',
+    },
+  ]);
+
+  const strictSupabaseMock = {
+    from() {
+      return {
+        update() {
+          return {
+            async eq() {
+              return {
+                error: {
+                  code: 'PGRST204',
+                  message: "Could not find the 'status' column of 'bookings' in the schema cache",
+                },
+              };
+            },
+          };
+        },
+      };
+    },
+  };
+
+  await assert.rejects(
+    updateBookingWithSchemaFallback(strictSupabaseMock, 'booking-1', { status: 'returned' }),
+    (err) => err?.message?.includes("'status' column")
+  );
 });

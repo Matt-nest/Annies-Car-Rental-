@@ -22,6 +22,7 @@ import { createNotification } from '../services/notificationService.js';
 import { sendTeamAlertAsync, TEAM_ALERT_EVENTS } from '../services/teamAlertService.js';
 import { sendBookingNotification, buildBookingPayload } from '../services/notifyService.js';
 import { getQuote, getSetting, BonzahError } from '../services/bonzahService.js';
+import { updateBookingWithSchemaFallback } from '../utils/schemaFallback.js';
 
 const router = Router();
 
@@ -832,16 +833,13 @@ router.post('/:id/approve-insurance', requireAuth, asyncHandler(async (req, res)
   }
 
   const newStatus = action === 'approve' ? 'verified' : 'rejected';
-  const { error: updErr } = await supabase
-    .from('bookings')
-    .update({
-      insurance_status: newStatus,
-      insurance_reviewed_at: new Date().toISOString(),
-      insurance_reviewed_by: req.user?.email || 'admin',
-    })
-    .eq('id', req.params.id);
-
-  if (updErr) throw updErr;
+  await updateBookingWithSchemaFallback(supabase, req.params.id, {
+    insurance_status: newStatus,
+    insurance_reviewed_at: new Date().toISOString(),
+    insurance_reviewed_by: req.user?.email || 'admin',
+  }, {
+    context: `insurance ${action} ${booking.booking_code}`,
+  });
 
   // Send notification to customer about the insurance decision
   const payload = buildBookingPayload(booking);

@@ -9,6 +9,7 @@ import { createNotification } from './notificationService.js';
 import { sendTeamAlertAsync, TEAM_ALERT_EVENTS } from './teamAlertService.js';
 import { cancelPolicy as cancelBonzahPolicy } from './bonzahService.js';
 import { getVehicleDepositAmount } from './depositService.js';
+import { updateBookingWithSchemaFallback } from '../utils/schemaFallback.js';
 
 // Valid one-way status transitions
 const TRANSITIONS = {
@@ -453,12 +454,9 @@ export async function transitionBooking(bookingId, newStatus, { changedBy = 'own
     }
   }
 
-  const { error: updateErr } = await supabase
-    .from('bookings')
-    .update(statusFields)
-    .eq('id', bookingId);
-
-  if (updateErr) throw updateErr;
+  await updateBookingWithSchemaFallback(supabase, bookingId, statusFields, {
+    context: `transition ${booking.booking_code} to ${newStatus}`,
+  });
 
   const loggedReason = autoClampNote
     ? (reason ? `${reason} (${autoClampNote})` : autoClampNote)
