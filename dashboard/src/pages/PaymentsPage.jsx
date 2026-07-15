@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, DollarSign, Download, CreditCard, RefreshCw, AlertCircle, Shield, Clock, ClipboardCheck, ArrowRight, Copy, Mail, ExternalLink } from 'lucide-react';
+import { Search, DollarSign, Download, CreditCard, RefreshCw, AlertCircle, Shield, Clock, ClipboardCheck, ArrowRight, Copy, Mail, ExternalLink, History } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { api } from '../api/client';
 import { SkeletonTable } from '../components/shared/Skeleton';
@@ -10,9 +10,11 @@ import Modal from '../components/shared/Modal';
 import DataError from '../components/shared/DataError';
 import InlineBanner from '../components/shared/InlineBanner';
 import DepositsPanel from '../components/payments/DepositsPanel';
-import { ActionHistoryPanel, MoneyActionConfirm, buildActionEntry, normalizeAuditEntries } from '../components/shared/MoneyActionGuardrails';
+import { StripePanel } from './StripePage';
+import { ActionHistoryPanel, AuditTrailPanel, MoneyActionConfirm, buildActionEntry, normalizeAuditEntries } from '../components/shared/MoneyActionGuardrails';
 import { getBookingLifecycle, getCustomerName, getVehicleName } from '../lib/bookingOps';
 import { formatDateOnly, localTodayYMD } from '../lib/dates';
+import { isStripeProvider } from '../config/paymentProvider';
 import brand from '../config/brand';
 
 const EASE = [0.25, 1, 0.5, 1];
@@ -45,10 +47,10 @@ function riskAmount(booking) {
 
 function RiskTile({ icon: Icon, label, value, subtext, tone = 'slate' }) {
   const tones = {
-    red: 'border-red-500/20 bg-red-500/10 text-red-500',
-    amber: 'border-amber-500/20 bg-amber-500/10 text-amber-500',
-    purple: 'border-purple-500/20 bg-purple-500/10 text-purple-500',
-    emerald: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-500',
+    red: 'border-red-500/25 bg-red-500/10 text-red-600 dark:text-red-400',
+    amber: 'border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-400',
+    purple: 'border-purple-500/25 bg-purple-500/10 text-purple-600 dark:text-purple-400',
+    emerald: 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
     slate: 'border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-primary)]',
   };
   return (
@@ -75,9 +77,9 @@ function reminderBody(booking) {
 
 function RiskBookingRow({ booking, label, tone = 'amber', amount, action = 'Open booking', children }) {
   const toneMap = {
-    red: 'text-red-500 bg-red-500/10',
-    amber: 'text-amber-500 bg-amber-500/10',
-    purple: 'text-purple-500 bg-purple-500/10',
+    red: 'text-red-600 dark:text-red-400 bg-red-500/10',
+    amber: 'text-amber-700 dark:text-amber-400 bg-amber-500/10',
+    purple: 'text-purple-600 dark:text-purple-400 bg-purple-500/10',
     slate: 'text-[var(--text-secondary)] bg-[var(--bg-card-hover)]',
   };
   return (
@@ -301,10 +303,116 @@ function MoneyAtRiskPanel({ bookings, deposits, loading, error, onRetry, persist
   );
 }
 
+function AuditViewer() {
+  const [filters, setFilters] = useState({
+    booking_id: '',
+    customer_id: '',
+    operator: '',
+    action_key: '',
+    status: '',
+  });
+  const [entries, setEntries] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const updateFilter = (key, value) => setFilters((current) => ({ ...current, [key]: value }));
+
+  const loadAudit = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const params = Object.fromEntries(
+        Object.entries({ ...filters, limit: 100 }).filter(([, value]) => value !== '')
+      );
+      const res = await api.getMoneyActions(params);
+      setEntries(normalizeAuditEntries(res?.data || []));
+    } catch (err) {
+      setError(err.message || 'Could not load audit records.');
+      setEntries([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadAudit(); }, []);
+
+  const clearFilters = () => {
+    setFilters({ booking_id: '', customer_id: '', operator: '', action_key: '', status: '' });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-[var(--text-primary)]">Backend audit viewer</p>
+            <p className="text-xs text-[var(--text-tertiary)]">Filter persisted money actions by booking, customer, operator, action, or status.</p>
+          </div>
+          <button type="button" className="btn-secondary" onClick={loadAudit} disabled={loading}>
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
+          </button>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-5">
+          <label className="space-y-1 text-xs font-semibold text-[var(--text-secondary)]">
+            Booking ID
+            <input className="input text-sm" value={filters.booking_id} onChange={(e) => updateFilter('booking_id', e.target.value.trim())} placeholder="uuid" />
+          </label>
+          <label className="space-y-1 text-xs font-semibold text-[var(--text-secondary)]">
+            Customer ID
+            <input className="input text-sm" value={filters.customer_id} onChange={(e) => updateFilter('customer_id', e.target.value.trim())} placeholder="uuid" />
+          </label>
+          <label className="space-y-1 text-xs font-semibold text-[var(--text-secondary)]">
+            Operator
+            <input className="input text-sm" value={filters.operator} onChange={(e) => updateFilter('operator', e.target.value.trim())} placeholder="email search" />
+          </label>
+          <label className="space-y-1 text-xs font-semibold text-[var(--text-secondary)]">
+            Action
+            <input className="input text-sm" value={filters.action_key} onChange={(e) => updateFilter('action_key', e.target.value.trim())} placeholder="payment_reminder_sent" />
+          </label>
+          <label className="space-y-1 text-xs font-semibold text-[var(--text-secondary)]">
+            Status
+            <select className="input text-sm" value={filters.status} onChange={(e) => updateFilter('status', e.target.value)}>
+              <option value="">Any</option>
+              <option value="completed">Completed</option>
+              <option value="failed">Failed</option>
+              <option value="skipped">Skipped</option>
+            </select>
+          </label>
+        </div>
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button type="button" className="btn-primary" onClick={loadAudit} disabled={loading}>
+            <Search size={14} /> Apply filters
+          </button>
+          <button type="button" className="btn-ghost text-[var(--text-secondary)]" onClick={clearFilters}>
+            Clear
+          </button>
+        </div>
+      </div>
+
+      <DataError error={error} />
+      <AuditTrailPanel
+        entries={entries}
+        title="Filtered immutable audit records"
+        emptyText={loading ? 'Loading audit records...' : 'No audit records match these filters.'}
+        max={100}
+      />
+    </div>
+  );
+}
+
 export default function PaymentsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const rawTab = searchParams.get('tab');
-  const tab = ['risk', 'deposits', 'ledger'].includes(rawTab) ? rawTab : 'risk';
+  const paymentTabs = [
+    { key: 'risk', label: 'Money at Risk', icon: AlertCircle },
+    { key: 'ledger', label: 'Ledger', icon: CreditCard },
+    { key: 'deposits', label: 'Deposits', icon: Shield },
+    ...(isStripeProvider() ? [{ key: 'stripe', label: 'Stripe', icon: ExternalLink }] : []),
+    { key: 'audit', label: 'Audit', icon: History },
+  ];
+  const tab = paymentTabs.some(item => item.key === rawTab) ? rawTab : 'risk';
   const [payments, setPayments] = useState([]);
   const [riskBookings, setRiskBookings] = useState([]);
   const [riskDeposits, setRiskDeposits] = useState([]);
@@ -417,7 +525,15 @@ export default function PaymentsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight tabular-nums" style={{ color: 'var(--text-primary)' }}>Payments</h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-            {tab === 'risk' ? 'Collection, deposit, refund, and long-term money operations' : tab === 'deposits' ? 'Held deposits, settlement, and refunds' : 'Review all transactions and manage refunds'}
+            {tab === 'risk'
+              ? 'Collection, deposit, refund, and long-term money operations'
+              : tab === 'deposits'
+                ? 'Held deposits, settlement, and refunds'
+                : tab === 'audit'
+                  ? 'Immutable money-action history by booking, customer, and operator'
+                  : tab === 'stripe'
+                    ? 'Payment processor health, balances, charges, refunds, and configuration'
+                    : 'Review all transactions and manage refunds'}
           </p>
         </div>
         {(tab === 'ledger' || tab === 'risk') && (
@@ -428,11 +544,7 @@ export default function PaymentsPage() {
       </motion.div>
 
       <div className="flex gap-2 border-b border-[var(--border-subtle)] pb-1">
-        {[
-          { key: 'risk', label: 'Money at Risk', icon: AlertCircle },
-          { key: 'ledger', label: 'Ledger', icon: CreditCard },
-          { key: 'deposits', label: 'Deposits', icon: Shield },
-        ].map(({ key, label, icon: Icon }) => (
+        {paymentTabs.map(({ key, label, icon: Icon }) => (
           <button
             key={key}
             type="button"
@@ -460,6 +572,10 @@ export default function PaymentsPage() {
         />
       ) : tab === 'deposits' ? (
         <DepositsPanel />
+      ) : tab === 'stripe' ? (
+        <StripePanel embedded />
+      ) : tab === 'audit' ? (
+        <AuditViewer />
       ) : (
         <>
 

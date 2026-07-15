@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Crown, Star, Award, Medal, Users, TrendingUp, ChevronRight } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Crown, Star, Award, Medal, Users, TrendingUp, ChevronRight, RefreshCw, Search } from 'lucide-react';
 import { supabase } from '../auth/supabaseClient';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -44,7 +44,7 @@ function fmt(n) {
   return n?.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }) ?? '$0';
 }
 
-export default function LoyaltyPage() {
+export function LoyaltyPanel({ embedded = false }) {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -68,17 +68,18 @@ export default function LoyaltyPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const customers = (data?.customers || []).filter(c => {
+  const customers = useMemo(() => (data?.customers || []).filter(c => {
     if (filterTier !== 'all' && c.tier !== filterTier) return false;
     if (search) {
       const q = search.toLowerCase();
       return `${c.first_name} ${c.last_name} ${c.email}`.toLowerCase().includes(q);
     }
     return true;
-  });
+  }), [data, filterTier, search]);
 
   const breakdown = data?.breakdown || {};
   const totalLoyalty = Object.values(breakdown).reduce((a, b) => a + b, 0);
+  const containerClass = embedded ? 'space-y-5' : 'page-shell lg:p-8 space-y-6';
 
   const StatCard = ({ tier, count }) => {
     const meta = TIER_META[tier];
@@ -103,11 +104,15 @@ export default function LoyaltyPage() {
   };
 
   return (
-    <div className="page-shell lg:p-8 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Customer Loyalty</h1>
-        <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>Repeat customers receive automatic discounts at booking</p>
+    <div className={containerClass}>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-[var(--text-primary)]">Loyalty</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-tertiary)' }}>Repeat renters and automatic booking discounts.</p>
+        </div>
+        <button onClick={load} className="btn-ghost text-xs py-1.5 px-3 self-start">
+          <RefreshCw size={13} /> Refresh
+        </button>
       </div>
 
       <DataError error={error} onRetry={load} />
@@ -117,28 +122,39 @@ export default function LoyaltyPage() {
         {Object.entries(TIER_META).map(([key]) => (
           <StatCard key={key} tier={key} count={breakdown[key] || 0} />
         ))}
-        <div className="rounded-xl p-4 border border-[var(--border-subtle)] text-left min-w-0" style={{ backgroundColor: 'var(--bg-card)' }}>
+        <button
+          type="button"
+          onClick={() => setFilterTier('all')}
+          className="rounded-xl p-4 border text-left min-w-0 transition-all hover:opacity-90"
+          style={{
+            backgroundColor: filterTier === 'all' ? 'var(--accent-glow)' : 'var(--bg-card)',
+            borderColor: filterTier === 'all' ? 'var(--accent-color)' : 'var(--border-subtle)',
+          }}
+        >
           <div className="flex items-center gap-2 mb-1">
             <Users size={14} className="text-[var(--text-tertiary)]" />
             <span className="text-xs font-semibold text-[var(--text-tertiary)]">Total</span>
           </div>
           <p className="text-2xl font-bold text-[var(--text-primary)]">{totalLoyalty}</p>
           <p className="text-xs text-[var(--text-tertiary)]">loyal customers</p>
-        </div>
+        </button>
       </div>
 
       {/* Search + filter */}
-      <div className="flex items-center gap-3">
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search by name or email…"
-          className="flex-1 px-3.5 py-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-color)]"
-        />
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+        <label className="relative flex-1">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search customers..."
+            className="input w-full pl-9"
+          />
+        </label>
         {filterTier !== 'all' && (
           <button
             onClick={() => setFilterTier('all')}
-            className="px-3 py-2.5 rounded-xl border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)] cursor-pointer hover:bg-[var(--bg-hover)]"
+            className="btn-secondary text-xs"
           >
             Clear filter
           </button>
@@ -231,4 +247,8 @@ export default function LoyaltyPage() {
       )}
     </div>
   );
+}
+
+export default function LoyaltyPage() {
+  return <LoyaltyPanel />;
 }

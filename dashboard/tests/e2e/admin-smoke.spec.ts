@@ -50,6 +50,37 @@ const booking = {
   },
 };
 
+const customer = {
+  id: 'customer-e2e-1',
+  first_name: 'Taylor',
+  last_name: 'Driver',
+  email: 'taylor@example.com',
+  phone: '555-0100',
+  driver_license_number: 'D1234567',
+  driver_license_state: 'SC',
+  driver_license_expiry: '2028-01-01',
+  is_trusted: true,
+  sms_opt_out: false,
+  active_rentals: 1,
+  upcoming_rentals: 0,
+  completed_rentals: 2,
+  payment_due_count: 0,
+  needs_docs_count: 0,
+  insurance_review_count: 0,
+  total_revenue: 1420,
+  total_bookings: 3,
+  last_booking_at: '2026-07-20T14:00:00.000Z',
+  current_booking: booking,
+  latest_booking: booking,
+  verification: {
+    id_on_file: true,
+    insurance_on_file: true,
+    insurance_verified: true,
+    agreement_on_file: true,
+    sms_opt_out: false,
+  },
+};
+
 const vehicle = {
   id: 'vehicle-e2e-1',
   vehicle_code: 'CAM-001',
@@ -71,6 +102,55 @@ async function mockDashboardApi(page: Page) {
     let body: unknown = {};
     if (path === '/users/me') {
       body = { id: 'e2e-admin', first_name: 'E2E', last_name: 'Admin', role: 'owner', email: 'e2e-admin@example.com' };
+    } else if (path === '/portal/admin-preview') {
+      body = { url: 'https://example.test/portal?code=E2E-BOOKING-001&preview_token=preview-token' };
+    } else if (path === '/customers') {
+      body = [customer];
+    } else if (path === '/customers/customer-e2e-1') {
+      body = customer;
+    } else if (path === '/customers/customer-e2e-1/bookings') {
+      body = [booking];
+    } else if (path === '/messaging/conversations/customer-e2e-1/messages') {
+      body = [];
+    } else if (path === '/marketing/workspace') {
+      body = {
+        persistent: true,
+        summary: {
+          campaigns: 1,
+          activeCampaigns: 1,
+          links: 1,
+          totalClicks: 14,
+          referrals: 1,
+          referralRevenue: 560,
+          totalBookings: 1,
+        },
+        campaigns: [{
+          id: 'campaign-e2e-1',
+          name: 'Summer Weekly Rentals',
+          audience: 'Local weekly renters',
+          channel: 'print',
+          offer: '$25 off first week',
+          goal: 'More direct rental leads',
+          status: 'active',
+          budget: 150,
+        }],
+        links: [{
+          id: 'link-e2e-1',
+          name: 'Vehicle Window QR',
+          assetKey: 'vehicle_window_qr',
+          destinationUrl: 'https://anniescarrental.com/',
+          utmUrl: 'https://anniescarrental.com/?utm_source=print&utm_medium=decal&utm_campaign=summer-weekly-rentals',
+          clicks: 14,
+        }],
+        referrals: [{
+          id: 'referral-e2e-1',
+          name: 'Hotel Partner',
+          code: 'ANNIE-HOTEL',
+          offer: '$25 off first rental',
+          bookings: 1,
+          revenue: 560,
+        }],
+      };
     } else if (path.endsWith('/approve')) {
       body = { payment_link: 'https://example.test/pay/E2E-BOOKING-001', deposit_amount: 500, is_high_risk: false };
     } else if (path.endsWith('/decline')) {
@@ -169,6 +249,48 @@ test('booking detail route exposes operator approval controls', async ({ page })
   await expect(page.getByText('Customer Documents')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Payments' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Rental Agreement' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /view customer portal/i })).toBeVisible();
+});
+
+test('booking detail portal preview calls the admin preview endpoint', async ({ page }) => {
+  await page.goto('/bookings/booking-e2e-1');
+
+  const previewRequest = page.waitForRequest((request) =>
+    request.method() === 'POST' && request.url().includes('/api/v1/portal/admin-preview')
+  );
+  await page.getByRole('button', { name: /view customer portal/i }).click();
+  await previewRequest;
+});
+
+test('customers route shows operational profile data and portal preview action', async ({ page }, testInfo) => {
+  await page.goto('/customers');
+
+  await expect(page.getByRole('heading', { name: 'Customers' })).toBeVisible();
+  await expect(testInfo.project.name.includes('mobile')
+    ? page.getByText('Taylor Driver').last()
+    : page.getByText('Taylor Driver').first()
+  ).toBeVisible();
+  await expect(page.getByText('Lifetime Value')).toBeVisible();
+
+  const previewRequest = page.waitForRequest((request) =>
+    request.method() === 'POST' && request.url().includes('/api/v1/portal/admin-preview')
+  );
+  await (testInfo.project.name.includes('mobile')
+    ? page.getByTitle('Open customer portal preview').last()
+    : page.getByTitle('Open customer portal preview').first()
+  ).click();
+  await previewRequest;
+});
+
+test('marketing workspace renders QR, referral, and print asset tools', async ({ page }) => {
+  await page.goto('/marketing');
+
+  await expect(page.getByRole('heading', { name: 'Marketing Workspace' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'QR & UTM Link Builder' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Referral Engine' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Design & Print Assets' })).toBeVisible();
+  await expect(page.locator('h3', { hasText: 'Vehicle Window QR' })).toBeVisible();
+  await expect(page.getByText('ANNIE-HOTEL')).toBeVisible();
 });
 
 test('booking detail approve action calls mocked approval endpoint', async ({ page }) => {

@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, Clock3, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock3, LockKeyhole, ShieldCheck } from 'lucide-react';
 import Modal from './Modal';
 
 export function formatMoney(value, maximumFractionDigits = 2) {
@@ -27,12 +27,23 @@ export function normalizeAuditEntries(entries = []) {
   return entries.map((entry) => ({
     id: entry.id,
     source: 'persistent',
+    actionKey: entry.actionKey,
     status: entry.status || 'completed',
     title: entry.title || 'Action recorded',
     detail: entry.detail || entry.metadata?.detail || '',
     subject: entry.subject || entry.metadata?.subject || entry.metadata?.booking_code || '',
     amount: entry.amount,
+    amountCents: entry.amountCents,
+    currency: entry.currency || 'USD',
     actorEmail: entry.actorEmail,
+    bookingId: entry.bookingId,
+    customerId: entry.customerId,
+    paymentId: entry.paymentId,
+    depositId: entry.depositId,
+    invoiceId: entry.invoiceId,
+    planId: entry.planId,
+    installmentId: entry.installmentId,
+    metadata: entry.metadata || {},
     at: entry.at || entry.created_at,
   }));
 }
@@ -128,6 +139,85 @@ export function ActionHistoryPanel({ entries = [], title = 'Action history' }) {
                 {new Date(entry.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
               </span>
             </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function formatAuditDate(value) {
+  if (!value) return 'Unknown time';
+  return new Date(value).toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+function shortId(value) {
+  if (!value) return null;
+  return String(value).slice(0, 8);
+}
+
+export function AuditTrailPanel({
+  entries = [],
+  title = 'Immutable audit trail',
+  emptyText = 'No audited money actions recorded yet.',
+  max = 12,
+}) {
+  const visible = entries.slice(0, max);
+  return (
+    <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-[var(--text-primary)]">{title}</p>
+          <p className="text-xs text-[var(--text-tertiary)]">Persisted backend records. These remain after refresh and session changes.</p>
+        </div>
+        <span className="inline-flex w-fit items-center gap-1 rounded-full bg-[var(--bg-card-hover)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
+          <LockKeyhole size={11} /> Immutable
+        </span>
+      </div>
+
+      {visible.length === 0 ? (
+        <p className="mt-3 text-sm text-[var(--text-tertiary)]">{emptyText}</p>
+      ) : (
+        <div className="mt-4 space-y-3">
+          {visible.map((entry) => (
+            <article key={entry.id} className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card-hover)] p-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold text-[var(--text-primary)]">{entry.title}</p>
+                    <span className="rounded-full bg-[var(--bg-card)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
+                      {entry.status || 'completed'}
+                    </span>
+                  </div>
+                  {entry.detail && <p className="mt-1 text-xs text-[var(--text-secondary)]">{entry.detail}</p>}
+                  {entry.subject && <p className="mt-1 truncate text-[11px] text-[var(--text-tertiary)]">{entry.subject}</p>}
+                </div>
+                <div className="shrink-0 text-left sm:text-right">
+                  {entry.amount != null && (
+                    <p className="text-sm font-bold tabular-nums text-[var(--text-primary)]">{formatMoney(entry.amount, 2)}</p>
+                  )}
+                  <p className="text-[11px] text-[var(--text-tertiary)]">{formatAuditDate(entry.at)}</p>
+                </div>
+              </div>
+
+              <div className="mt-3 grid gap-2 text-[11px] text-[var(--text-tertiary)] sm:grid-cols-3">
+                <span>Operator: {entry.actorEmail || 'System/unknown'}</span>
+                <span>Action: {entry.actionKey || 'n/a'}</span>
+                <span>Record: {shortId(entry.id) || 'n/a'}</span>
+                {entry.bookingId && <span>Booking ID: {shortId(entry.bookingId)}</span>}
+                {entry.customerId && <span>Customer ID: {shortId(entry.customerId)}</span>}
+                {entry.paymentId && <span>Payment ID: {shortId(entry.paymentId)}</span>}
+                {entry.depositId && <span>Deposit ID: {shortId(entry.depositId)}</span>}
+                {entry.invoiceId && <span>Invoice ID: {shortId(entry.invoiceId)}</span>}
+                {entry.planId && <span>Plan ID: {shortId(entry.planId)}</span>}
+                {entry.installmentId && <span>Installment ID: {shortId(entry.installmentId)}</span>}
+              </div>
+            </article>
           ))}
         </div>
       )}

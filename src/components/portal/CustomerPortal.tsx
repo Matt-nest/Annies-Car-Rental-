@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Car, Calendar, MapPin, Key, Camera, Check, AlertCircle,
+  Car, Calendar, MapPin, Key, Camera, Check, CheckCircle2, AlertCircle,
   Loader2, Shield, DollarSign, MessageSquare, ArrowRight,
   Fuel, Gauge, ChevronRight, ChevronDown, ExternalLink, X, Star, Phone, Receipt, CreditCard, Clock,
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { EASE, DURATION } from '../../utils/motion';
 import { API_URL } from '../../config';
-import { brand } from '../../config/brand';
 import Navbar from '../layout/Navbar';
 import Footer from '../layout/Footer';
 import PhotoUploader from './PhotoUploader';
@@ -16,15 +15,15 @@ import SlotPhotoUploader, { type PhotoSlots } from './SlotPhotoUploader';
 import CrispWidget, { openCrispChat } from './CrispWidget';
 import PortalActionBar from './PortalActionBar';
 import StatusHero from './StatusHero';
-import BookingTimelineStepper from './BookingTimelineStepper';
 import PushOptInCard from './PushOptInCard';
-import Sheet from '../common/Sheet';
 import ExtendRentalCard from './ExtendRentalCard';
 import PaymentMethodCard from './PaymentMethodCard';
 import BalanceDueCard from './BalanceDueCard';
 import PaymentPlanCard from './PaymentPlanCard';
+import Sheet from '../common/Sheet';
 import { usePullToRefresh } from '../../hooks/usePullToRefresh';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
+import { brand } from '../../config/brand';
 
 /* Persisted portal session — keeps long-term renters signed in across refreshes. */
 const SESSION_KEY = 'portal_session';
@@ -35,7 +34,7 @@ function clearSession() {
   try { localStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
 }
 
-/* ── Helpers ────────────────────────────────────────────── */
+/* Helpers */
 const fmt = (d: string) => {
   try { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
   catch { return d; }
@@ -49,12 +48,16 @@ const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
 function isTokenExpired(token: string): boolean {
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
+    const payload = decodePortalPayload(token);
     return payload.exp ? payload.exp * 1000 < Date.now() : false;
   } catch { return true; }
 }
 
-/* ── Styles (inline to match main site) ─────────────────── */
+function decodePortalPayload(token: string): any {
+  return JSON.parse(atob(token.split('.')[1]));
+}
+
+/* Styles (inline to match main site) */
 const card = (theme: string) => ({
   backgroundColor: 'var(--bg-card)',
   border: '1px solid var(--border-subtle)',
@@ -62,74 +65,304 @@ const card = (theme: string) => ({
   overflow: 'hidden' as const,
 });
 
-/* ── Status-driven layout map ─────────────────────────────
-   Single source of truth for the per-status welcome note + which collapsible
-   sections default to expanded. Section visibility is still gated by the
-   existing `{status === '...' && ...}` blocks below; this config does NOT
-   override visibility, only ordering hints (via expandedSections) and the
-   welcome note voice.
+type PortalTabKey = 'overview' | 'money' | 'pickup' | 'help';
 
-   Voice template: matches the existing returned-status note - concise, warm,
-   first-person plural ("we'll"), one short sentence with a clear next step. */
-type StatusKey =
-  | 'pending_approval' | 'approved' | 'confirmed'
-  | 'ready_for_pickup' | 'active' | 'returned' | 'completed'
-  | 'cancelled' | 'declined';
-
-interface StatusLayout {
-  welcome: (ctx: { pickup_location?: string; pickup_date?: string }) => string;
-  /** CollapsibleSection keys that should default to expanded for this status. */
-  expandedSections: ReadonlyArray<string>;
+function isLongTermRental(booking: any): boolean {
+  return booking?.rental_type === 'long_term' || booking?.rate_preference === 'monthly';
 }
 
-const STATUS_LAYOUT_CONFIG: Record<StatusKey, StatusLayout> = {
-  pending_approval: {
-    welcome: () => "Thanks for your request. We'll review and confirm shortly.",
-    expandedSections: [],
-  },
-  approved: {
-    welcome: ({ pickup_location }) =>
-      `You'll receive a confirmation when your ride is cleaned, prepped, and ready to pick up at ${pickup_location || 'the pickup location'}.`,
-    expandedSections: [],
-  },
-  confirmed: {
-    welcome: ({ pickup_location }) =>
-      `You'll receive a confirmation when your ride is cleaned, prepped, and ready to pick up at ${pickup_location || 'the pickup location'}.`,
-    expandedSections: [],
-  },
-  ready_for_pickup: {
-    welcome: () =>
-      "Your ride is ready! Review the pickup instructions below and complete Start your rental to receive your lockbox code.",
-    expandedSections: [],
-  },
-  active: {
-    welcome: () =>
-      "You're on the road. Drive safe. Return instructions are below when you're ready to bring it back.",
-    expandedSections: ['safety_guide'],
-  },
-  returned: {
-    welcome: () =>
-      `Checkout complete, thank you for renting with ${brand.name}. We'll inspect the vehicle and process your deposit shortly.`,
-    expandedSections: [],
-  },
-  completed: {
-    welcome: () =>
-      `Rental complete. Thank you for choosing ${brand.name}. We hope to see you again soon.`,
-    expandedSections: [],
-  },
-  cancelled: {
-    welcome: () => "This booking was cancelled. Reach out if you'd like to rebook.",
-    expandedSections: [],
-  },
-  declined: {
-    welcome: () => "This request couldn't be confirmed. Browse the fleet anytime to try again.",
-    expandedSections: [],
-  },
-};
+function PortalTabs({
+  active,
+  onChange,
+  status,
+}: {
+  active: PortalTabKey;
+  onChange: (tab: PortalTabKey) => void;
+  status: string;
+}) {
+  const pickupLabel = status === 'active'
+    ? 'Return'
+    : status === 'ready_for_pickup'
+      ? 'Pickup'
+      : 'Trip';
+  const tabs: Array<{ key: PortalTabKey; label: string; icon: React.ComponentType<{ size?: number; style?: React.CSSProperties }> }> = [
+    { key: 'overview', label: 'Overview', icon: Car },
+    { key: 'money', label: 'Money', icon: Receipt },
+    { key: 'pickup', label: pickupLabel, icon: Key },
+    { key: 'help', label: 'Help', icon: MessageSquare },
+  ];
 
-function isSectionExpanded(status: string, sectionKey: string): boolean {
-  const cfg = STATUS_LAYOUT_CONFIG[status as StatusKey];
-  return !!cfg?.expandedSections.includes(sectionKey);
+  return (
+    <nav
+      aria-label="Portal sections"
+      className="sticky z-[70] -mx-1 rounded-2xl p-1"
+      style={{
+        top: 'calc(env(safe-area-inset-top, 0px) + 76px)',
+        backgroundColor: 'color-mix(in srgb, var(--bg-card) 92%, transparent)',
+        border: '1px solid var(--border-subtle)',
+        backdropFilter: 'blur(18px)',
+        WebkitBackdropFilter: 'blur(18px)',
+        boxShadow: '0 12px 30px rgba(0,0,0,0.08)',
+      }}
+    >
+      <div className="grid w-full grid-cols-4 gap-1">
+        {tabs.map(({ key, label, icon: Icon }) => {
+          const selected = active === key;
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => onChange(key)}
+              onPointerUp={(event) => event.currentTarget.blur()}
+              className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-2 text-xs font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
+              style={{
+                backgroundColor: selected ? 'var(--accent-color)' : 'transparent',
+                color: selected ? 'var(--accent-fg)' : 'var(--text-secondary)',
+                WebkitTapHighlightColor: 'transparent',
+              }}
+              aria-current={selected ? 'page' : undefined}
+            >
+              <Icon size={14} />
+              <span>{label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
+
+function PortalSectionHeader({
+  active,
+  status,
+  booking,
+}: {
+  active: PortalTabKey;
+  status: string;
+  booking: any;
+}) {
+  if (active === 'overview') return null;
+  const pickupTitle = status === 'active'
+    ? 'Return'
+    : status === 'ready_for_pickup'
+      ? 'Pickup'
+      : 'Trip steps';
+  const config: Record<Exclude<PortalTabKey, 'overview'>, {
+    title: string;
+    eyebrow: string;
+    body: string;
+    icon: React.ComponentType<{ size?: number; style?: React.CSSProperties }>;
+  }> = {
+    money: {
+      title: 'Money',
+      eyebrow: 'Payments and receipt',
+      body: status === 'approved' || status === 'confirmed'
+        ? 'Review your itemized total and pay what is due. Your previously submitted details stay saved.'
+        : 'Review receipts, balances, deposits, and any inspection charges in one place.',
+      icon: Receipt,
+    },
+    pickup: {
+      title: pickupTitle,
+      eyebrow: status === 'active' ? 'Bring the vehicle back' : 'Vehicle handoff',
+      body: status === 'active'
+        ? 'Follow the return steps, upload photos, and confirm the key is back in the lockbox.'
+        : status === 'ready_for_pickup'
+          ? `Go to ${brand.location.address}, complete check-in, then unlock your code.`
+          : 'Review pickup, return, and saved trip records.',
+      icon: Key,
+    },
+    help: {
+      title: 'Help',
+      eyebrow: 'Support',
+      body: `Message ${brand.name}, call us, or enable important portal updates for this rental.`,
+      icon: MessageSquare,
+    },
+  };
+  const item = config[active];
+  const Icon = item.icon;
+  const vehicleName = [booking?.vehicles?.year, booking?.vehicles?.make, booking?.vehicles?.model].filter(Boolean).join(' ');
+  return (
+    <motion.section
+      key={active}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ ease: EASE.standard }}
+      className="rounded-2xl p-4"
+      style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
+      aria-label={`${item.title} section`}
+    >
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: 'var(--accent-glow)' }}>
+          <Icon size={18} style={{ color: 'var(--accent-color)' }} />
+        </div>
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--text-tertiary)' }}>{item.eyebrow}</p>
+          <h2 className="mt-1 text-xl font-semibold leading-tight" style={{ color: 'var(--text-primary)' }}>{item.title}</h2>
+          <p className="mt-1 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{item.body}</p>
+          {vehicleName && (
+            <p className="mt-2 text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>{vehicleName}</p>
+          )}
+        </div>
+      </div>
+    </motion.section>
+  );
+}
+
+function NextActionCard({
+  booking,
+  onTab,
+  onCheckIn,
+  onCheckOut,
+  isMobile,
+}: {
+  booking: any;
+  onTab: (tab: PortalTabKey) => void;
+  onCheckIn: () => void;
+  onCheckOut: () => void;
+  isMobile: boolean;
+}) {
+  const status = booking?.status || 'pending_approval';
+  const longTerm = isLongTermRental(booking);
+  const vehicleName = [booking?.vehicles?.year, booking?.vehicles?.make, booking?.vehicles?.model].filter(Boolean).join(' ') || 'your vehicle';
+
+  const copy: Record<string, { title: string; body: string; label: string; tab: PortalTabKey; tone: 'blue' | 'green' | 'amber' | 'slate'; icon: React.ComponentType<{ size?: number; style?: React.CSSProperties }> }> = {
+    pending_approval: {
+      title: 'We are reviewing your request',
+      body: 'No action is needed right now. We will update this portal as soon as your booking is approved.',
+      label: 'View trip',
+      tab: 'overview',
+      tone: 'amber',
+      icon: Clock,
+    },
+    approved: {
+      title: 'Review your booking and pay',
+      body: 'Your submitted details are saved. Review the receipt, pay any balance due, and you are set for pickup.',
+      label: 'Review money',
+      tab: 'money',
+      tone: 'blue',
+      icon: CreditCard,
+    },
+    confirmed: {
+      title: 'Review your booking and pay',
+      body: 'Your submitted details are saved. Review the receipt, pay any balance due, and you are set for pickup.',
+      label: 'Review money',
+      tab: 'money',
+      tone: 'blue',
+      icon: CreditCard,
+    },
+    ready_for_pickup: {
+      title: `${vehicleName} is ready`,
+      body: 'Start check-in, upload the required photos, confirm the odometer and fuel, then the lockbox code is revealed.',
+      label: 'Start check-in',
+      tab: 'pickup',
+      tone: 'green',
+      icon: Key,
+    },
+    active: {
+      title: longTerm ? 'Manage your monthly rental' : 'You are on the road',
+      body: longTerm
+        ? 'Handle renewal timing, payments, extensions, and return steps from one place.'
+        : 'Need more time, have a balance, or ready to return? Start with the next step below.',
+      label: 'Return vehicle',
+      tab: 'pickup',
+      tone: 'green',
+      icon: Car,
+    },
+    returned: {
+      title: 'Inspection is in progress',
+      body: 'We will post the final settlement here. You can review charges and dispute anything that looks off.',
+      label: 'View settlement',
+      tab: 'money',
+      tone: 'amber',
+      icon: Receipt,
+    },
+    completed: {
+      title: 'Rental complete',
+      body: 'Your receipt and payment history are saved here. Leaving a quick review helps a lot.',
+      label: 'View receipt',
+      tab: 'money',
+      tone: 'green',
+      icon: CheckCircle2,
+    },
+    cancelled: {
+      title: 'This booking was cancelled',
+      body: 'If this does not look right, contact us and we will help.',
+      label: 'Contact us',
+      tab: 'help',
+      tone: 'slate',
+      icon: AlertCircle,
+    },
+    declined: {
+      title: 'This request was not confirmed',
+      body: 'If you still need a vehicle, reach out and we will help you find another option.',
+      label: 'Contact us',
+      tab: 'help',
+      tone: 'slate',
+      icon: AlertCircle,
+    },
+  };
+
+  const item = copy[status] || copy.pending_approval;
+  const Icon = item.icon;
+  const tone = item.tone === 'green'
+    ? { bg: 'rgba(34,197,94,0.08)', border: 'rgba(34,197,94,0.22)', fg: '#15803d' }
+    : item.tone === 'amber'
+      ? { bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.22)', fg: '#b45309' }
+      : item.tone === 'blue'
+        ? { bg: 'rgba(59,130,246,0.08)', border: 'rgba(59,130,246,0.22)', fg: '#2563eb' }
+        : { bg: 'var(--bg-card)', border: 'var(--border-subtle)', fg: 'var(--text-primary)' };
+
+  function handlePrimary() {
+    const phoneViewport = isMobile || (
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(max-width: 767px)').matches
+    );
+    if (status === 'ready_for_pickup' && phoneViewport) return onCheckIn();
+    if (status === 'active' && phoneViewport) return onCheckOut();
+    onTab(item.tab);
+  }
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ ease: EASE.standard }}
+      className="rounded-3xl p-5"
+      style={{ backgroundColor: tone.bg, border: `1px solid ${tone.border}` }}
+      aria-label="Next step"
+    >
+      <div className="flex items-start gap-3">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl" style={{ backgroundColor: 'var(--bg-card)' }}>
+          <Icon size={20} style={{ color: tone.fg }} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: tone.fg }}>Next step</p>
+          <h2 className="mt-1 text-base font-semibold leading-tight" style={{ color: 'var(--text-primary)' }}>{item.title}</h2>
+          <p className="mt-1 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{item.body}</p>
+        </div>
+      </div>
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+        <button
+          type="button"
+          onClick={handlePrimary}
+          className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold transition-transform active:scale-95"
+          style={{ backgroundColor: 'var(--accent-color)', color: 'var(--accent-fg)' }}
+        >
+          {item.label} <ArrowRight size={15} />
+        </button>
+        {status === 'active' && (
+          <button
+            type="button"
+            onClick={() => onTab('money')}
+            className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold transition-transform active:scale-95"
+            style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
+          >
+            Extend or pay
+          </button>
+        )}
+      </div>
+    </motion.section>
+  );
 }
 
 /* ── Collapsible section ─────────────────────────────────── */
@@ -179,17 +412,24 @@ function CollapsibleSection({
           }}
         />
       </button>
+      {/* CSS-grid expand trick: animating grid-template-rows from 0fr → 1fr
+          lets the browser handle the layout math each frame on the compositor
+          rather than measuring the child's intrinsic height in JS on every
+          frame (which is what animate={{ height: 'auto' }} was doing). The
+          surrounding flow still reflows correctly because grid IS layout. */}
       <AnimatePresence initial={false}>
         {open && (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
+            initial={{ gridTemplateRows: '0fr', opacity: 0 }}
+            animate={{ gridTemplateRows: '1fr', opacity: 1 }}
+            exit={{ gridTemplateRows: '0fr', opacity: 0 }}
             transition={{ duration: 0.25, ease: EASE.smooth }}
-            style={{ overflow: 'hidden' }}
+            style={{ display: 'grid', overflow: 'hidden' }}
           >
-            <div className="px-5 pb-5 pt-0" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-              {children}
+            <div style={{ minHeight: 0 }}>
+              <div className="px-5 pb-5 pt-0" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                {children}
+              </div>
             </div>
           </motion.div>
         )}
@@ -210,9 +450,11 @@ export default function CustomerPortal() {
   const [email, setEmail] = useState(initialEmail);
   const [token, setToken] = useState<string | null>(null);
   const [booking, setBooking] = useState<any>(null);
+  const [plan, setPlan] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [view, setView] = useState<'login' | 'dashboard'>('login');
+  const [activePortalTab, setActivePortalTab] = useState<PortalTabKey>('overview');
 
   // Check-in/out form state
   const [odometer, setOdometer] = useState('');
@@ -222,6 +464,7 @@ export default function CustomerPortal() {
   const [actionLoading, setActionLoading] = useState(false);
   const [actionSuccess, setActionSuccess] = useState('');
   const [lockbox, setLockbox] = useState<string | null>(null);
+  const [lockboxCopied, setLockboxCopied] = useState(false);
 
   // Photo uploads
   const [checkinPhotos, setCheckinPhotos] = useState<string[]>([]);
@@ -241,9 +484,6 @@ export default function CustomerPortal() {
   const [disputeReason, setDisputeReason] = useState('');
   const [disputeSubmitting, setDisputeSubmitting] = useState(false);
   const [disputeSuccess, setDisputeSuccess] = useState(false);
-
-  // Installment plan (recurring billing)
-  const [plan, setPlan] = useState<any>(null);
 
   // Pending overage charges (scheduled with 48h dispute window)
   const [pendingCharges, setPendingCharges] = useState<any[]>([]);
@@ -284,9 +524,33 @@ export default function CustomerPortal() {
     setLoading(false);
   };
 
-  /* Rehydrate a stored session on mount so a refresh doesn't kick the customer
-     back to the login screen. */
+  /* Rehydrate a stored session on mount so a refresh doesn't kick the customer back to login. */
   useEffect(() => {
+    const previewToken = new URLSearchParams(window.location.search).get('preview_token');
+    if (previewToken) {
+      if (isTokenExpired(previewToken)) {
+        setError('This portal preview link has expired. Open a fresh preview from the dashboard.');
+        return;
+      }
+      try {
+        const payload = decodePortalPayload(previewToken);
+        if (payload.bookingCode) setBookingCode(payload.bookingCode);
+        if (payload.email) setEmail(payload.email);
+        setToken(previewToken);
+        setView('dashboard');
+
+        const cleanUrl = new URL(window.location.href);
+        cleanUrl.searchParams.delete('preview_token');
+        cleanUrl.searchParams.delete('admin_preview');
+        if (payload.bookingCode && !cleanUrl.searchParams.get('code')) {
+          cleanUrl.searchParams.set('code', payload.bookingCode);
+        }
+        window.history.replaceState({}, '', `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`);
+      } catch {
+        setError('This portal preview link is invalid. Open a fresh preview from the dashboard.');
+      }
+      return;
+    }
     if (token) return;
     try {
       const raw = localStorage.getItem(SESSION_KEY);
@@ -303,11 +567,10 @@ export default function CustomerPortal() {
     } catch { /* ignore */ }
   }, []);
 
-  /* Proactively refresh the token when it's within ~2h of expiring, so long
-     sessions (long-term rentals) don't drop mid-visit. */
   const refreshSessionIfNeeded = useCallback(async (tok: string) => {
     try {
-      const payload = JSON.parse(atob(tok.split('.')[1]));
+      const payload = decodePortalPayload(tok);
+      if (payload.adminPreview) return;
       const msLeft = (payload.exp || 0) * 1000 - Date.now();
       if (msLeft > 2 * 60 * 60 * 1000) return;
       const res = await fetch(`${API_URL}/portal/refresh`, {
@@ -327,18 +590,29 @@ export default function CustomerPortal() {
     clearSession();
     setToken(null);
     setBooking(null);
+    setPlan(null);
     setView('login');
+    setActivePortalTab('overview');
   };
+
+  const handlePortalTabChange = useCallback((tab: PortalTabKey) => {
+    setActivePortalTab(tab);
+    if (typeof window !== 'undefined') {
+      window.requestAnimationFrame(() => window.scrollTo({ top: 0 }));
+    }
+  }, []);
 
   /* ── Load Booking ── */
   const loadBooking = useCallback(async () => {
     if (!token) return;
     if (isTokenExpired(token)) {
+      clearSession();
       setToken(null);
       setView('login');
       setError('Your session has expired. Please verify again.');
       return;
     }
+    await refreshSessionIfNeeded(token);
     try {
       const res = await fetch(`${API_URL}/portal/booking`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -346,9 +620,7 @@ export default function CustomerPortal() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setBooking(data);
-      refreshSessionIfNeeded(token);
 
-      // Load any installment plan (drives the plan card / hides the balance card)
       if (['confirmed', 'ready_for_pickup', 'active', 'returned'].includes(data.status)) {
         try {
           const p = await fetch(`${API_URL}/portal/payment-plan`, {
@@ -383,16 +655,24 @@ export default function CustomerPortal() {
     } catch (err: any) {
       setError(err.message);
     }
-  }, [token]);
+  }, [token, refreshSessionIfNeeded]);
 
   useEffect(() => { loadBooking(); }, [loadBooking]);
 
+  // Pull-to-refresh - refetches the booking when the user swipes down at
+  // the top of the page. No-op on desktop/mouse pointers.
   const { pullDistance, isRefreshing, progress, triggered } = usePullToRefresh(loadBooking);
 
+  // Sprint 7c: phone-first bottom-sheet flow for check-in / check-out.
+  // On mobile (<768px) the action bar opens these sheets instead of scrolling
+  // to a long inline form. On desktop the inline form renders as before.
   const isMobile = useMediaQuery('(max-width: 767px)');
   const [checkInSheetOpen, setCheckInSheetOpen] = useState(false);
   const [checkOutSheetOpen, setCheckOutSheetOpen] = useState(false);
 
+  // Auto-close the active sheet when a check-in/out completes successfully -
+  // user should see the resulting lockbox reveal / completion state in the
+  // main page rather than a sheet that's no longer relevant.
   useEffect(() => {
     if (actionSuccess) {
       setCheckInSheetOpen(false);
@@ -528,7 +808,7 @@ export default function CustomerPortal() {
     return (
       <>
         <Navbar onNavigate={scrollToSection} />
-        <main className="min-h-screen px-4 sm:px-6" style={{ paddingTop: '120px', paddingBottom: '80px' }}>
+        <main className="min-h-dvh px-4 sm:px-6" style={{ paddingTop: '120px', paddingBottom: '80px' }}>
           <div className="max-w-md mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 24 }}
@@ -660,7 +940,7 @@ export default function CustomerPortal() {
     return (
       <>
         <Navbar onNavigate={scrollToSection} />
-        <main className="min-h-screen flex items-center justify-center">
+        <main className="min-h-dvh flex items-center justify-center">
           <Loader2 size={32} className="animate-spin" style={{ color: 'var(--accent-color)' }} />
         </main>
       </>
@@ -668,11 +948,16 @@ export default function CustomerPortal() {
   }
 
   const { status, customers: c, vehicles: v } = booking;
+  // Status badge styling moved into StatusHero (Sprint 7b). No longer rendered
+  // inline here - the old `statusConfig` map and `sc` local lookup were removed.
 
   return (
     <>
       <Navbar onNavigate={scrollToSection} />
 
+      {/* Pull-to-refresh visual indicator - sits below Navbar, animates in as
+          the user pulls down. Saturates at `triggered` then spins while
+          isRefreshing. Touch-only - desktop never sees this. */}
       {(pullDistance > 0 || isRefreshing) && (
         <div
           className="md:hidden fixed left-1/2 -translate-x-1/2 z-[95] pointer-events-none flex items-center justify-center w-10 h-10 rounded-full"
@@ -701,25 +986,19 @@ export default function CustomerPortal() {
       <main
         className="min-h-dvh px-4 sm:px-6"
         style={{
-          paddingTop: '100px',
+          paddingTop: '84px',
+          // Reserve space for the sticky bottom action bar (visible on mobile only)
+          // + safe-area-inset-bottom. lg keeps the original 80px since no bar there.
           paddingBottom: 'max(120px, calc(96px + env(safe-area-inset-bottom)))',
         }}
       >
         <div className="max-w-lg mx-auto space-y-5">
 
-          <StatusHero
-            status={status as any}
-            customerName={`${c?.first_name || ''} ${c?.last_name || ''}`.trim() || 'Customer'}
-            bookingCode={booking.booking_code}
-            pickupDate={booking.pickup_date}
-            pickupTime={booking.pickup_time}
-            returnDate={booking.return_date}
-            returnTime={booking.return_time}
+          <PortalTabs
+            active={activePortalTab}
+            onChange={handlePortalTabChange}
+            status={status}
           />
-
-          <BookingTimelineStepper status={status as any} />
-
-          <PushOptInCard status={status as any} portalToken={token} />
 
           {/* Success Message */}
           <AnimatePresence>
@@ -749,40 +1028,37 @@ export default function CustomerPortal() {
             </div>
           )}
 
-          {/* ── Status welcome note - sits below booking number, above the
-              vehicle photo. Same visual treatment as the existing returned-status
-              note. Drives every status's "what to do next" guidance. ── */}
-          {(() => {
-            const cfg = STATUS_LAYOUT_CONFIG[status as StatusKey];
-            if (!cfg) return null;
-            const note = cfg.welcome({
-              pickup_location: booking.pickup_location,
-              pickup_date: booking.pickup_date,
-            });
-            if (!note) return null;
-            const tone =
-              status === 'returned'
-                ? { bg: 'rgba(34,197,94,0.06)', border: 'rgba(34,197,94,0.2)', fg: '#15803d' }
-                : status === 'ready_for_pickup'
-                  ? { bg: 'rgba(212,175,55,0.08)', border: 'rgba(212,175,55,0.25)', fg: 'var(--accent-color)' }
-                  : status === 'active'
-                    ? { bg: 'rgba(59,130,246,0.06)', border: 'rgba(59,130,246,0.2)', fg: '#3b82f6' }
-                    : { bg: 'var(--bg-card)', border: 'var(--border-subtle)', fg: 'var(--text-secondary)' };
-            return (
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.05, ease: EASE.standard }}
-                className="px-4 py-3 rounded-2xl text-sm leading-relaxed"
-                style={{ backgroundColor: tone.bg, border: `1px solid ${tone.border}`, color: tone.fg }}
-                aria-live="polite"
-              >
-                {note}
-              </motion.div>
-            );
-          })()}
+          {activePortalTab === 'overview' ? (
+            <>
+              {/* Status Hero - shown only on Overview so Money/Pickup/Help stay focused. */}
+              <StatusHero
+                status={status as any}
+                customerName={`${c?.first_name || ''} ${c?.last_name || ''}`.trim() || 'Customer'}
+                bookingCode={booking.booking_code}
+                pickupDate={booking.pickup_date}
+                pickupTime={booking.pickup_time}
+                returnDate={booking.return_date}
+                returnTime={booking.return_time}
+              />
+
+              <NextActionCard
+                booking={booking}
+                onTab={handlePortalTabChange}
+                onCheckIn={() => setCheckInSheetOpen(true)}
+                onCheckOut={() => setCheckOutSheetOpen(true)}
+                isMobile={isMobile}
+              />
+            </>
+          ) : (
+            <PortalSectionHeader
+              active={activePortalTab}
+              status={status}
+              booking={booking}
+            />
+          )}
 
           {/* ── Unified Rental Card: photo + vehicle + dates + progress bar ── */}
+          {activePortalTab === 'overview' && (
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
@@ -793,7 +1069,7 @@ export default function CustomerPortal() {
             {v?.vehicle_code && (
               <div
                 className="aspect-[16/9] flex items-center justify-center p-4"
-                style={{ backgroundColor: theme === 'dark' ? '#0a0a0a' : '#f5f5f4', borderBottom: '1px solid var(--border-subtle)' }}
+                style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-subtle)' }}
               >
                 <img
                   src={`/fleet/${v.vehicle_code}/hero.png`}
@@ -876,7 +1152,7 @@ export default function CustomerPortal() {
                                   height: isCurrent ? 28 : 20,
                                   backgroundColor: done ? (isCurrent ? 'var(--accent-color)' : '#22c55e') : 'var(--bg-card-hover)',
                                   border: done ? 'none' : '2px solid var(--border-subtle)',
-                                  boxShadow: isCurrent ? '0 0 12px rgba(212,175,55,0.4)' : 'none',
+                                  boxShadow: isCurrent ? '0 0 12px color-mix(in srgb, var(--accent-color) 40%, transparent)' : 'none',
                                 }}
                               >
                                 {done && !isCurrent && <Check size={10} color="#fff" strokeWidth={3} />}
@@ -909,21 +1185,11 @@ export default function CustomerPortal() {
               })()}
             </div>
           </motion.div>
-
-
-          {/* ── Payment plan (installments) if one exists, otherwise the
-              balance-due card. A plan bills automatically, so we don't also
-              nag for the full balance. Both self-hide when not applicable. ── */}
-          {token && plan?.plan?.status === 'active' ? (
-            <PaymentPlanCard data={plan} />
-          ) : (
-            token && ['confirmed', 'ready_for_pickup', 'active', 'returned'].includes(status) && (
-              <BalanceDueCard token={token} theme={theme} onPaid={loadBooking} />
-            )
           )}
 
+
           {/* ── Pickup Guide (ready_for_pickup only) ──────────── */}
-          {status === 'ready_for_pickup' && (
+          {status === 'ready_for_pickup' && activePortalTab === 'pickup' && (
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
@@ -941,13 +1207,13 @@ export default function CustomerPortal() {
                     </h3>
                   </div>
                   <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
-                    1422 SW Giverny Ln (back of building)
+                    {brand.location.address}
                   </p>
                   <p className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>
-                    Port Saint Lucie, FL 34953
+                    {brand.location.city}, {brand.location.state} {brand.location.zip}
                   </p>
                   <a
-                    href="https://maps.google.com/?q=1422+SW+Giverny+Ln+Port+Saint+Lucie+FL+34953"
+                    href={`https://maps.google.com/?q=${encodeURIComponent(`${brand.location.address}, ${brand.location.city}, ${brand.location.state} ${brand.location.zip}`)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all hover:scale-105 active:scale-95"
@@ -965,8 +1231,8 @@ export default function CustomerPortal() {
                   </h4>
                   <div className="space-y-3">
                     {[
-                      { num: '1', text: 'Walk to the back of the building' },
-                      { num: '2', text: `Find your ${v?.year || ''} ${v?.make || ''} ${v?.model || ''}. It's parked and ready` },
+                      { num: '1', text: `Head to ${brand.location.address}, ${brand.location.city}` },
+                      { num: '2', text: `Find your ${v?.year || ''} ${v?.make || ''} ${v?.model || ''} — the lockbox is on the driver-side window` },
                       { num: '3', text: 'Inspect the vehicle and complete the check-in form below' },
                       { num: '4', text: 'Once submitted, your lockbox code will be revealed' },
                       { num: '5', text: 'Open the lockbox, grab the key, and you\'re off!' },
@@ -993,13 +1259,20 @@ export default function CustomerPortal() {
                     <strong style={{ color: 'var(--text-primary)' }}>Why we ask for photos:</strong> They document the vehicle's condition at pickup, protecting you from being charged for any pre-existing damage.
                   </p>
                 </div>
+
+                {/* House rules */}
+                <div className="p-3 rounded-xl" style={{ backgroundColor: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.12)' }}>
+                  <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                    <strong style={{ color: 'var(--text-primary)' }}>Quick reminders:</strong> No smoking 🚭 and no pets 🐾 inside the vehicle ($150 cleaning fee each). Please return with the same fuel level you received it with — returning below that level incurs the refill cost plus a $10 inconvenience fee.
+                  </p>
+                </div>
               </div>
             </motion.div>
           )}
 
           {/* ── Admin Vehicle Prep Report - always collapsed at this status,
               hidden behind a "View vehicle prep report" toggle. ── */}
-          {status === 'ready_for_pickup' && booking.checkinRecords && (() => {
+          {status === 'ready_for_pickup' && activePortalTab === 'pickup' && booking.checkinRecords && (() => {
             const prepRecord = booking.checkinRecords.find((r: any) => r.record_type === 'admin_prep');
             if (!prepRecord) return null;
             const fuelLabels: Record<string, string> = { full: 'Full', three_quarter: '¾ Tank', half: '½ Tank', quarter: '¼ Tank', empty: 'Empty' };
@@ -1050,7 +1323,7 @@ export default function CustomerPortal() {
 
           {/* ── Customer Check-In Record (returned / completed only - active version
                 renders below the Return Your Vehicle card) ── */}
-          {['returned', 'completed'].includes(status) && booking.checkinRecords && (() => {
+          {['returned', 'completed'].includes(status) && activePortalTab === 'pickup' && booking.checkinRecords && (() => {
             const customerCheckin = booking.checkinRecords.find((r: any) => r.record_type === 'customer_checkin');
             if (!customerCheckin) return null;
             const allPhotos = customerCheckin.photo_urls || [];
@@ -1101,8 +1374,13 @@ export default function CustomerPortal() {
             );
           })()}
 
-          {/* Self-Service Check-In (ready_for_pickup) */}
-          {status === 'ready_for_pickup' && (() => {
+          {/* Self-Service Check-In (ready_for_pickup) - Sprint 7c:
+              on mobile renders inside a Vaul bottom sheet, opened by the
+              PortalActionBar. On desktop renders inline as before. The
+              `formBody` JSX is shared via closure so only ONE instance
+              mounts at a time (SlotPhotoUploader / file inputs / refs
+              would race if both render paths were active simultaneously). */}
+          {status === 'ready_for_pickup' && (activePortalTab === 'pickup' || isMobile) && (() => {
             const formBody = (
               <div className="p-5 space-y-5">
                 <h3 className="text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
@@ -1112,6 +1390,7 @@ export default function CustomerPortal() {
                   Inspect the vehicle, take photos from each angle, record the odometer and fuel level, then confirm to start your rental.
                 </p>
 
+                {/* Photo Slots */}
                 {token && (
                   <SlotPhotoUploader
                     token={token}
@@ -1122,6 +1401,7 @@ export default function CustomerPortal() {
                   />
                 )}
 
+                {/* Odometer + Fuel */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
@@ -1167,6 +1447,7 @@ export default function CustomerPortal() {
                   </div>
                 </div>
 
+                {/* Condition Confirmation */}
                 <label className="flex items-start gap-3 cursor-pointer py-3 px-4 rounded-xl transition-all" style={{
                   backgroundColor: conditionConfirmed ? 'rgba(34,197,94,0.08)' : 'var(--bg-card-hover)',
                   border: conditionConfirmed ? '2px solid rgba(34,197,94,0.3)' : '2px solid var(--border-subtle)',
@@ -1178,6 +1459,7 @@ export default function CustomerPortal() {
                   </span>
                 </label>
 
+                {/* Submit */}
                 <button
                   onClick={handleCheckIn}
                   disabled={actionLoading || !conditionConfirmed || !allSlotsReady || !odometer}
@@ -1216,7 +1498,9 @@ export default function CustomerPortal() {
             );
           })()}
 
-          {/* Lockbox Code - only revealed AFTER successful check-in */}
+          {/* Lockbox Code - only revealed AFTER successful check-in.
+              The entire code block is a single tap target on mobile so the
+              user can reveal the key without precision-tapping a small button. */}
           <AnimatePresence>
             {lockbox && (
               <motion.div
@@ -1231,16 +1515,60 @@ export default function CustomerPortal() {
                 <p className="text-xs font-bold uppercase tracking-[0.2em] mb-3" style={{ color: '#f59e0b' }}>
                   Your Lockbox Code
                 </p>
-                <p className="text-5xl sm:text-6xl font-black tracking-[0.4em] font-mono mb-4" style={{ color: 'var(--text-primary)' }}>
-                  {lockbox}
-                </p>
                 <button
-                  onClick={() => { navigator.clipboard.writeText(lockbox); }}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-all hover:scale-105 active:scale-95"
-                  style={{ backgroundColor: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(lockbox);
+                    setLockboxCopied(true);
+                    window.setTimeout(() => setLockboxCopied(false), 1800);
+                  }}
+                  aria-label={`Copy lockbox code ${lockbox}`}
+                  className="block w-full rounded-2xl px-4 py-3 mb-3 active:scale-[0.98] transition-transform cursor-pointer"
+                  style={{
+                    backgroundColor: 'rgba(245,158,11,0.04)',
+                    border: '1px dashed rgba(245,158,11,0.35)',
+                  }}
                 >
-                  Tap to Copy
+                  <p
+                    className="text-5xl sm:text-6xl font-black tracking-[0.4em] font-mono select-all"
+                    style={{ color: 'var(--text-primary)' }}
+                  >
+                    {lockbox}
+                  </p>
                 </button>
+                <AnimatePresence mode="wait">
+                  {lockboxCopied ? (
+                    <motion.div
+                      key="copied"
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 4 }}
+                      transition={{ duration: 0.18 }}
+                      className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-semibold"
+                      style={{ backgroundColor: 'rgba(34,197,94,0.15)', color: '#15803d' }}
+                    >
+                      <CheckCircle2 size={16} /> Copied!
+                    </motion.div>
+                  ) : (
+                    <motion.button
+                      key="copy"
+                      type="button"
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      transition={{ duration: 0.18 }}
+                      onClick={() => {
+                        navigator.clipboard?.writeText(lockbox);
+                        setLockboxCopied(true);
+                        window.setTimeout(() => setLockboxCopied(false), 1800);
+                      }}
+                      className="tap-target inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full text-sm font-semibold transition-transform hover:scale-105 active:scale-95"
+                      style={{ backgroundColor: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}
+                    >
+                      Tap to Copy
+                    </motion.button>
+                  )}
+                </AnimatePresence>
                 <p className="text-xs mt-3" style={{ color: 'var(--text-tertiary)' }}>
                   Use this code to retrieve the key from the lockbox at the pickup location.
                 </p>
@@ -1248,8 +1576,10 @@ export default function CustomerPortal() {
             )}
           </AnimatePresence>
 
-          {/* Self-Service Check-Out (active) */}
-          {status === 'active' && (() => {
+          {/* Self-Service Check-Out (active) - Sprint 7c bottom-sheet on
+              mobile, inline card on desktop. See check-in block above for
+              the closure pattern. */}
+          {status === 'active' && (activePortalTab === 'pickup' || isMobile) && (() => {
             const formBody = (
               <div className="p-5 space-y-5">
                 <h3 className="text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
@@ -1259,6 +1589,7 @@ export default function CustomerPortal() {
                   Park at the pickup location, take photos from each angle, record the odometer and fuel level, place the key back in the lockbox, then confirm.
                 </p>
 
+                {/* Photo Slots - same 4 required angles as check-in */}
                 {token && (
                   <SlotPhotoUploader
                     token={token}
@@ -1269,6 +1600,7 @@ export default function CustomerPortal() {
                   />
                 )}
 
+                {/* Odometer + Fuel */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
@@ -1314,6 +1646,7 @@ export default function CustomerPortal() {
                   </div>
                 </div>
 
+                {/* Key returned */}
                 <label className="flex items-start gap-3 cursor-pointer py-3 px-4 rounded-xl transition-all" style={{
                   backgroundColor: keyReturned ? 'rgba(200,169,126,0.08)' : 'var(--bg-card-hover)',
                   border: keyReturned ? '2px solid rgba(200,169,126,0.3)' : '2px solid var(--border-subtle)',
@@ -1363,9 +1696,8 @@ export default function CustomerPortal() {
             );
           })()}
 
-          {/* ── Extend Rental (active only): pick a later return date, get an
-              instant quote for the extra days, and pay inline via Stripe. ── */}
-          {status === 'active' && token && (
+          {/* Extend rental + payment method on file (active rentals) */}
+          {status === 'active' && activePortalTab === 'money' && token && (
             <ExtendRentalCard
               booking={booking}
               token={token}
@@ -1374,14 +1706,20 @@ export default function CustomerPortal() {
             />
           )}
 
-          {/* ── Payment method on file (pickup-ready + active): add/update the
-              card used for extensions and post-return charges. ── */}
-          {['ready_for_pickup', 'active'].includes(status) && token && (
+          {['ready_for_pickup', 'active'].includes(status) && activePortalTab === 'money' && token && (
             <PaymentMethodCard token={token} theme={theme} />
           )}
 
+          {token && activePortalTab === 'money' && plan?.plan?.status === 'active' && (
+            <PaymentPlanCard data={plan} />
+          )}
+
+          {token && activePortalTab === 'money' && plan?.plan?.status !== 'active' && (
+            <BalanceDueCard token={token} theme={theme} onPaid={loadBooking} />
+          )}
+
           {/* ── Customer Check-In Record (under Return Vehicle, active only) ── */}
-          {status === 'active' && booking.checkinRecords && (() => {
+          {status === 'active' && activePortalTab === 'pickup' && booking.checkinRecords && (() => {
             const customerCheckin = booking.checkinRecords.find((r: any) => r.record_type === 'customer_checkin');
             if (!customerCheckin) return null;
             const allPhotos = customerCheckin.photo_urls || [];
@@ -1433,7 +1771,7 @@ export default function CustomerPortal() {
           })()}
 
           {/* ── Emergency tap-to-call (active, under Return Vehicle) ── */}
-          {status === 'active' && (
+          {status === 'active' && activePortalTab === 'help' && (
             <motion.a
               href={`tel:${brand.phone.replace(/[^\d+]/g, '')}`}
               initial={{ opacity: 0, y: 16 }}
@@ -1457,7 +1795,7 @@ export default function CustomerPortal() {
           )}
 
           {/* ── Safety & return guide (active, collapsed) ── */}
-          {status === 'active' && (
+          {status === 'active' && activePortalTab === 'pickup' && (
             <CollapsibleSection title="Safety & return guide" icon={Shield}>
               <div className="space-y-2 pt-3">
                 <div className="p-3 rounded-xl" style={{ backgroundColor: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.1)' }}>
@@ -1485,7 +1823,7 @@ export default function CustomerPortal() {
           )}
 
           {/* Deposit & Invoice (returned / completed) */}
-          {['returned', 'completed'].includes(status) && (
+          {['returned', 'completed'].includes(status) && activePortalTab === 'money' && (
             <motion.div
               id="portal-inspection"
               initial={{ opacity: 0, y: 16 }}
@@ -1604,7 +1942,7 @@ export default function CustomerPortal() {
           )}
 
           {/* Review prompt - completed rentals only */}
-          {status === 'completed' && !reviewDone && (
+          {status === 'completed' && activePortalTab === 'overview' && !reviewDone && (
             <motion.div
               id="portal-review"
               initial={{ opacity: 0, y: 16 }}
@@ -1614,7 +1952,7 @@ export default function CustomerPortal() {
             >
               <div className="p-5 space-y-4">
                 <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-                  <Star size={16} style={{ color: '#D4AF37' }} /> How was your rental?
+                  <Star size={16} style={{ color: 'var(--accent-color)' }} /> How was your rental?
                 </h3>
                 <div className="flex gap-2">
                   {[1, 2, 3, 4, 5].map(n => (
@@ -1626,8 +1964,8 @@ export default function CustomerPortal() {
                     >
                       <Star
                         size={28}
-                        fill={n <= reviewRating ? '#D4AF37' : 'none'}
-                        stroke={n <= reviewRating ? '#D4AF37' : 'var(--text-tertiary)'}
+                        fill={n <= reviewRating ? 'var(--accent-color)' : 'none'}
+                        stroke={n <= reviewRating ? 'var(--accent-color)' : 'var(--text-tertiary)'}
                         strokeWidth={1.5}
                       />
                     </button>
@@ -1668,23 +2006,23 @@ export default function CustomerPortal() {
                     setReviewSubmitting(false);
                   }}
                   className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 cursor-pointer"
-                  style={{ backgroundColor: '#D4AF37', color: '#0a0a0a' }}
+                  style={{ backgroundColor: 'var(--accent-color)', color: 'var(--accent-fg)' }}
                 >
                   {reviewSubmitting ? 'Sending…' : 'Submit Review'}
                 </button>
               </div>
             </motion.div>
           )}
-          {status === 'completed' && reviewDone && (
+          {status === 'completed' && activePortalTab === 'overview' && reviewDone && (
             <div className="rounded-2xl p-4 text-center text-sm" style={{
-              backgroundColor: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.2)', color: '#D4AF37',
+              backgroundColor: 'color-mix(in srgb, var(--accent-color) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--accent-color) 20%, transparent)', color: 'var(--accent-color)',
             }}>
               Thank you. {brand.name} appreciates the feedback!
             </div>
           )}
 
           {/* ── Pending Overage Charges (post-inspection, 48h dispute window) ── */}
-          {pendingCharges.length > 0 && (
+          {pendingCharges.length > 0 && activePortalTab === 'money' && (
             <div className="rounded-2xl overflow-hidden" style={{ border: '2px solid rgba(245,158,11,0.25)', backgroundColor: 'rgba(245,158,11,0.04)' }}>
               <div className="p-5 space-y-4">
                 <div className="flex items-start gap-3">
@@ -1758,10 +2096,11 @@ export default function CustomerPortal() {
               .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
             const paidAt = rentalPayment?.paid_at || depositPayment?.paid_at;
             const methodLabel = rentalPayment
-              ? (rentalPayment.method === 'stripe' ? 'Card via Stripe' : (rentalPayment.method === 'square' ? 'Card via Square' : rentalPayment.method))
+              ? (rentalPayment.method === 'stripe' ? 'Card via Stripe' : rentalPayment.method)
               : null;
             const totalHint = totalPaid > 0 ? fmtMoney(totalPaid) : fmtMoney(booking.total_cost);
 
+            if (activePortalTab !== 'money') return null;
             return (
               <CollapsibleSection title="Itemized receipt" icon={Receipt} rightHint={totalHint}>
                 <div className="space-y-4 pt-3 text-sm">
@@ -1874,7 +2213,7 @@ export default function CustomerPortal() {
           })()}
 
           {/* ── Add-Ons (collapsed, below receipt) ───────────────────────────── */}
-          {(booking.unlimited_miles || booking.unlimited_tolls || (booking.addons && booking.addons.length > 0)) && (
+          {activePortalTab === 'money' && (booking.unlimited_miles || booking.unlimited_tolls || (booking.addons && booking.addons.length > 0)) && (
             <CollapsibleSection title="Your add-ons" icon={Gauge}>
               <div className="space-y-2 pt-3">
                 <div className="space-y-2">
@@ -1906,6 +2245,11 @@ export default function CustomerPortal() {
           )}
 
           {/* Contact footer */}
+          {activePortalTab === 'help' && (
+          <>
+          {/* Push notifications opt-in - renders only when supported/configured. */}
+          <PushOptInCard status={status as any} portalToken={token} />
+
           <div
             id="portal-message"
             className="flex flex-col items-center gap-3 py-5 text-xs"
@@ -1917,7 +2261,7 @@ export default function CustomerPortal() {
                 catch { window.location.href = `tel:${brand.phone.replace(/[^\d+]/g, '')}`; }
               }}
               className="flex items-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm transition-all hover:scale-[1.03] active:scale-95 cursor-pointer"
-              style={{ backgroundColor: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.3)', color: '#D4AF37' }}
+              style={{ backgroundColor: 'color-mix(in srgb, var(--accent-color) 12%, transparent)', border: '1px solid color-mix(in srgb, var(--accent-color) 30%, transparent)', color: 'var(--accent-color)' }}
             >
               <MessageSquare size={14} />
               Message Us
@@ -1925,23 +2269,23 @@ export default function CustomerPortal() {
             <span>
               Or call <a href={`tel:${brand.phone.replace(/[^\d+]/g, '')}`} style={{ color: 'var(--accent-color)' }}>{brand.phone}</a>
             </span>
-            <button
-              onClick={handleSignOut}
-              className="mt-1 text-xs underline transition-colors hover:text-[var(--text-secondary)]"
-              style={{ color: 'var(--text-tertiary)' }}
-            >
-              Sign out
-            </button>
           </div>
+          </>
+          )}
         </div>
       </main>
 
-      <PortalActionBar
-        status={status as any}
-        disabled={actionLoading}
-        onCheckIn={() => setCheckInSheetOpen(true)}
-        onCheckOut={() => setCheckOutSheetOpen(true)}
-      />
+      {/* Sticky bottom CTA - phone-only, per-state primary action.
+          Sprint 7c: ready_for_pickup + active states now open a Vaul
+          bottom-sheet form instead of scrolling to a long inline section. */}
+      {!checkInSheetOpen && !checkOutSheetOpen && activePortalTab !== 'overview' && ['ready_for_pickup', 'active'].includes(status) && (
+        <PortalActionBar
+          status={status as any}
+          disabled={actionLoading}
+          onCheckIn={() => setCheckInSheetOpen(true)}
+          onCheckOut={() => setCheckOutSheetOpen(true)}
+        />
+      )}
 
       <Footer />
       {/* F-16: mount once at the portal root, toggle visibility via prop. */}

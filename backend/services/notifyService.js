@@ -1,5 +1,5 @@
 /**
- * Unified Notification Service — replaces GoHighLevel webhooks.
+ * Unified Notification Service for customer and admin messaging.
  * Sends email via Resend and SMS via Twilio using templates from the
  * `email_templates` table. All sends are fire-and-forget.
  *

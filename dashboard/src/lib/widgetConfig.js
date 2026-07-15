@@ -10,12 +10,6 @@
 
 export const WIDGET_REGISTRY = [
   {
-    id: 'morning-briefing',
-    label: 'Morning Briefing',
-    description: 'Time-aware ops summary — pickups, returns, revenue at a glance',
-    defaultVisible: true,
-  },
-  {
     id: 'kpi-cards',
     label: 'KPI Summary Cards',
     description: 'Active rentals, pending, pickups today, returns today, monthly revenue',

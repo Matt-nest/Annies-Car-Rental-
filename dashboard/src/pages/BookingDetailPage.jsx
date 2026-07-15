@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
-import { ArrowLeft, Phone, Mail, Car, MapPin, CheckCircle, XCircle, Package, RotateCcw, Flag, DollarSign, FileText, Shield, CreditCard, User, ClipboardCheck, Receipt, Navigation, RefreshCw, AlertCircle, Loader2, CalendarPlus, ScanLine, Truck, PlusCircle } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, Car, MapPin, CheckCircle, XCircle, Package, RotateCcw, Flag, DollarSign, FileText, Shield, CreditCard, User, ClipboardCheck, Receipt, Navigation, RefreshCw, AlertCircle, Loader2, CalendarPlus, ScanLine, Truck, PlusCircle, Eye } from 'lucide-react';
 import { api } from '../api/client';
 import { bonzahApi } from '../api/bonzah';
+import { portalPreviewApi } from '../api/portalPreview';
 import { supabase } from '../auth/supabaseClient';
 import StatusBadge from '../components/shared/StatusBadge';
 import { SkeletonDashboard } from '../components/shared/Skeleton';
@@ -397,6 +398,8 @@ export default function BookingDetailPage() {
   const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'overview');
   const [checkinRecords, setCheckinRecords] = useState([]);
   const [showExtend, setShowExtend] = useState(false);
+  const [portalPreviewing, setPortalPreviewing] = useState(false);
+  const [portalPreviewError, setPortalPreviewError] = useState('');
   const { refresh: refreshAlerts } = useAlerts();
 
   // Insurance review state
@@ -486,6 +489,26 @@ export default function BookingDetailPage() {
     setModal(action);
   }
 
+  async function openPortalPreview() {
+    const previewWindow = window.open('about:blank', '_blank');
+    setPortalPreviewing(true);
+    setPortalPreviewError('');
+    try {
+      const result = await portalPreviewApi.forBooking(id);
+      if (previewWindow) {
+        previewWindow.opener = null;
+        previewWindow.location.href = result.url;
+      } else {
+        window.open(result.url, '_blank', 'noopener,noreferrer');
+      }
+    } catch (e) {
+      if (previewWindow) previewWindow.close();
+      setPortalPreviewError(e?.message || 'Could not open customer portal preview');
+    } finally {
+      setPortalPreviewing(false);
+    }
+  }
+
   async function handleInsuranceAction(action) {
     if (action === 'reject' && !insuranceRejectReason.trim()) {
       setInsuranceActionError('Please provide a reason for rejecting this insurance.');
@@ -559,6 +582,10 @@ export default function BookingDetailPage() {
 
         {/* Contextual action buttons */}
         <div className="flex flex-wrap gap-2 shrink-0 w-full sm:w-auto">
+          <button onClick={openPortalPreview} disabled={portalPreviewing} className="btn-secondary">
+            {portalPreviewing ? <Loader2 size={15} className="animate-spin" /> : <Eye size={15} />}
+            View Customer Portal
+          </button>
           {status === 'pending_approval' && (
             <>
               <button onClick={() => setModal('approve')} className="btn-primary">
@@ -612,6 +639,8 @@ export default function BookingDetailPage() {
           )}
         </div>
       </div>
+
+      <InlineBanner message={portalPreviewError} onDismiss={() => setPortalPreviewError('')} />
 
       <BookingLifecycleStrip booking={booking} onPrimaryAction={handleLifecycleAction} />
 

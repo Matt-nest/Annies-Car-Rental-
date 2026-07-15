@@ -25,8 +25,8 @@ export default function WebhookFailuresPage() {
     <div className="page-shell lg:p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight tabular-nums">Webhook Failures</h1>
-          <p className="text-sm text-[var(--text-secondary)] mt-0.5">GHL notifications that failed to deliver</p>
+          <h1 className="text-2xl font-bold tracking-tight tabular-nums">Automation Failures</h1>
+          <p className="text-sm text-[var(--text-secondary)] mt-0.5">Failed outbound notifications or automation events that need operator review</p>
         </div>
         <button onClick={load} className="btn-secondary flex items-center gap-1.5">
           <RefreshCw size={14} /> Refresh
@@ -36,16 +36,39 @@ export default function WebhookFailuresPage() {
       {failures.length === 0 ? (
         <div className="card p-10 text-center">
           <AlertTriangle size={28} className="text-[var(--text-tertiary)] mx-auto mb-3" />
-          <p className="text-[var(--text-secondary)] text-sm">No webhook failures recorded</p>
+          <p className="text-[var(--text-secondary)] text-sm">No automation failures recorded</p>
         </div>
       ) : (
         <div className="card overflow-hidden">
           <div className="px-5 py-3 bg-[var(--danger-glow)] border-b border-[rgba(244,63,94,0.2)] flex items-center gap-2">
             <AlertTriangle size={15} className="text-[var(--danger-color)]" />
-            <p className="text-sm font-medium text-[var(--danger-color)]">{failures.length} failed webhook{failures.length !== 1 ? 's' : ''}</p>
-            <p className="text-xs text-[var(--danger-color)] ml-1">— GHL may not have received these notifications</p>
+            <p className="text-sm font-medium text-[var(--danger-color)]">{failures.length} failed event{failures.length !== 1 ? 's' : ''}</p>
+            <p className="text-xs text-[var(--danger-color)] ml-1">— review delivery and retry from the source workflow if needed</p>
           </div>
-          <div className="scroll-x-contained max-w-full">
+          {/* Mobile cards — a 5-column table sideways-scrolls on a phone, so
+              stack each failure into a readable card below md. */}
+          <div className="md:hidden divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
+            {failures.map(f => (
+              <div key={f.id} className="px-4 py-3 space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{f.event_type}</span>
+                  <span className="text-xs bg-[var(--danger-glow)] text-[var(--danger-color)] px-2 py-0.5 rounded-full font-medium shrink-0">
+                    {f.status_code || 'Failed'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                  <span>{formatDistanceToNow(new Date(f.created_at), { addSuffix: true })}</span>
+                  {f.booking_code && <span className="font-mono">· {f.booking_code}</span>}
+                </div>
+                {f.error_message && (
+                  <p className="text-xs break-words" style={{ color: 'var(--text-secondary)' }}>{f.error_message}</p>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border-subtle)]">

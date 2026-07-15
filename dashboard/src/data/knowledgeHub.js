@@ -983,7 +983,7 @@ export const KNOWLEDGE_GUIDES = [
       'Open Settings -> System and check backend status and latency.',
       'Review notification settings: Resend, Twilio, site URL, push, quiet hours, team alerts, and automation timing.',
       'Open Settings -> Integrations and run Bonzah Test Connection when insurance status looks wrong.',
-      'Open Webhook Failures for failed GHL/automation deliveries tied to customer or booking events.',
+      'Open Automation Failures for failed notification or workflow deliveries tied to customer or booking events.',
       'Escalate with booking code, event type, timestamp, provider state, and customer impact.',
     ],
     tips: [

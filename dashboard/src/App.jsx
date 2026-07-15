@@ -22,10 +22,8 @@ const WebhookFailuresPage   = lazy(() => import('./pages/WebhookFailuresPage'));
 const StripePage            = lazy(() => import('./pages/StripePage'));
 const MessagingPage         = lazy(() => import('./pages/MessagingPage'));
 const CheckInsPage          = lazy(() => import('./pages/CheckInsPage'));
-const MonthlyInquiriesPage  = lazy(() => import('./pages/MonthlyInquiriesPage'));
-const ReviewsPage           = lazy(() => import('./pages/ReviewsPage'));
-const PricingRulesPage      = lazy(() => import('./pages/PricingRulesPage'));
-const LoyaltyPage           = lazy(() => import('./pages/LoyaltyPage'));
+const GrowthPage            = lazy(() => import('./pages/GrowthPage'));
+const MarketingPage         = lazy(() => import('./pages/MarketingPage'));
 const InsurancePage         = lazy(() => import('./pages/InsurancePage'));
 const PortalPage            = lazy(() => import('./pages/PortalPage'));
 const TelematicsPage        = lazy(() => import('./pages/TelematicsPage'));
@@ -74,10 +72,12 @@ export default function App() {
             {isStripeProvider() && <Route path="/stripe" element={L(<StripePage />)} />}
             <Route path="/messaging"  element={L(<MessagingPage />)} />
             <Route path="/webhook-failures" element={L(<WebhookFailuresPage />)} />
-            <Route path="/monthly-inquiries" element={L(<MonthlyInquiriesPage />)} />
-            <Route path="/reviews" element={L(<ReviewsPage />)} />
-            <Route path="/pricing-rules" element={L(<PricingRulesPage />)} />
-            <Route path="/loyalty" element={L(<LoyaltyPage />)} />
+            <Route path="/growth" element={L(<GrowthPage />)} />
+            <Route path="/marketing" element={L(<MarketingPage />)} />
+            <Route path="/monthly-inquiries" element={<Navigate to="/growth?tab=leads" replace />} />
+            <Route path="/reviews" element={<Navigate to="/growth?tab=reviews" replace />} />
+            <Route path="/pricing-rules" element={<Navigate to="/growth?tab=pricing" replace />} />
+            <Route path="/loyalty" element={<Navigate to="/growth?tab=loyalty" replace />} />
             <Route path="/insurance" element={L(<InsurancePage />)} />
             <Route path="/telematics" element={L(<TelematicsPage />)} />
             <Route path="/knowledge-hub" element={L(<KnowledgeHubPage />)} />

@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { supabase } from '../db/supabase.js';
-import { verifyPortalAccess, requirePortalAuth, refreshPortalToken } from '../services/portalAuthService.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
+import brand from '../config/brand.js';
+import { verifyPortalAccess, requirePortalAuth, refreshPortalToken, createAdminPortalPreview } from '../services/portalAuthService.js';
 import { transitionBooking, getBookingDetail } from '../services/bookingService.js';
 
 const router = Router();
@@ -40,6 +42,32 @@ router.post('/refresh', requirePortalAuth, async (req, res) => {
   try {
     const result = await refreshPortalToken(req.portal);
     res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /portal/admin-preview — owner/admin portal preview link.
+ * Body: { bookingId? customerId? }
+ */
+router.post('/admin-preview', requireAuth, requireRole('owner', 'admin'), async (req, res) => {
+  try {
+    const result = await createAdminPortalPreview({
+      bookingId: req.body?.bookingId,
+      customerId: req.body?.customerId,
+      actor: req.user,
+    });
+    const params = new URLSearchParams({
+      code: result.booking.bookingCode,
+      preview_token: result.token,
+      admin_preview: '1',
+    });
+    res.json({
+      ...result,
+      url: `${brand.siteUrl}/portal?${params.toString()}`,
+      expiresIn: process.env.PORTAL_ADMIN_PREVIEW_JWT_TTL || '15m',
+    });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }

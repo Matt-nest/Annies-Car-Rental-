@@ -5,6 +5,38 @@
 
 ---
 
+## 2026-07-15 — Port JD operations upgrades into Annie's Car Rental
+
+### Changes Made
+- **Customer portal**: Streamlined the portal into clearer app-like tabs and preserved Annie's long-term payment-plan card behavior. The money/return/help controls are no longer stranded mid-page.
+- **Admin portal preview**: Added backend admin preview tokens and dashboard "View Customer Portal" actions on Booking Detail, Customers, and Customer Detail so admins can open exactly what the renter sees without asking for credentials.
+- **Dashboard Customers**: Rebuilt Customers and Customer Detail into operational workspaces with verification, trust, booking, payment, message, review, timeline, and quick-action context. Mobile customer-card actions now sit at the top-right so the fixed bottom nav cannot block taps.
+- **Marketing workspace**: Added a real Marketing page with QR generation, campaign links, referral tracking, design/print asset library, working print files, and useful placeholder sections for partner kits, landing pages, review flywheel, and performance attribution.
+- **Growth workspace**: Added the grouped Growth route and summary endpoint for leads, reviews, pricing rules, and loyalty.
+- **Payments/settings cleanup**: Kept Annie Square-first by default, moved Stripe behind the provider guard, added persisted money audit UI, removed retired GHL wording, and carried over clearer settings/sidebar organization.
+
+### API/Data Impact
+- New backend routes mounted in both Express entries:
+  - `GET /growth/summary`
+  - `GET/POST/PATCH /marketing/*`
+  - `POST /portal/admin-preview`
+- Marketing workspace persists in the existing `settings` table under `marketing_workspace`; no migration was added.
+- `dashboard/src/api/client.js` and auth files were not modified.
+
+### Verification
+- [x] `cd backend && npm run test:local` — 85/85 passing with `PAYMENT_PROVIDER=square`
+- [x] `npm run lint` — TypeScript pass
+- [x] `npm run build` — customer site pass with Square payment bundle
+- [x] `cd dashboard && VITE_API_URL=/api/v1 VITE_PAYMENT_PROVIDER=square VITE_SQUARE_APPLICATION_ID=sandbox-app VITE_SQUARE_LOCATION_ID=sandbox-location VITE_SQUARE_ENVIRONMENT=sandbox npm run build` — dashboard pass
+- [x] `cd dashboard && npx playwright test tests/e2e/admin-smoke.spec.ts --project=chromium` — 11/11 passing
+- [x] `cd dashboard && npx playwright test tests/e2e/admin-smoke.spec.ts --project=mobile-chrome` — 11/11 passing
+- [x] `npx playwright test tests/e2e/confirmation-flow.spec.ts tests/e2e/customer-booking.spec.ts --project=chromium --project=mobile-chrome` — 8/8 passing
+- [x] `git diff --check` — clean
+
+### Known Issues / Follow-up
+- Production deploy not performed in this session. Push to `main` only after explicit approval because Vercel deploys automatically.
+- Existing Stripe/JD compatibility comments remain in backend brand/payment config where cross-brand support still matters.
+
 ## 2026-07-13 — Built-in dashboard Knowledge Hub with captioned demos
 
 Added the same frontend-only Knowledge Hub training surface used for JD Coastal. No API, auth, schema, payment, or notification changes.

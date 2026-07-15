@@ -54,7 +54,10 @@
 
 | File | Description | Imports | Imported By |
 |------|-------------|---------|-------------|
-| `api/client.js` | All 38 API functions. Injects Supabase Bearer token on every request. BASE = `VITE_API_URL` | `supabaseClient.js` | **19 files** — all pages + 8 widgets (see detail below) |
+| `api/client.js` | Core dashboard API functions. Injects Supabase Bearer token on every request. BASE = `VITE_API_URL` | `supabaseClient.js` | Dashboard pages + widgets (see detail below) |
+| `api/portalPreview.js` | Admin-only customer portal preview token client. POSTs booking/customer id to `/portal/admin-preview` without touching `api/client.js`. | `supabaseClient.js` | `BookingDetailPage`, `CustomersPage`, `CustomerDetailPage` |
+| `api/marketing.js` | Marketing workspace client for campaigns, QR links, and referrals. Separate sibling to preserve `api/client.js`. | `supabaseClient.js` | `MarketingPage` |
+| `api/growth.js` | Growth summary client for the grouped Growth workspace. Separate sibling to preserve `api/client.js`. | `supabaseClient.js` | `GrowthPage` |
 
 **Files that import `api/client.js`:**
 `DashboardLayout.jsx`, `DashboardPage.jsx`, `BookingsPage.jsx`, `BookingDetailPage.jsx`, `FleetPage.jsx`, `VehicleDetailPage.jsx`, `CustomersPage.jsx`, `CustomerDetailPage.jsx`, `CalendarPage.jsx`, `PaymentsPage.jsx`, `RevenuePage.jsx`, `WebhookFailuresPage.jsx`, `KPICardsWidget.jsx`, `MorningBriefingWidget.jsx`, `OverdueAlertsWidget.jsx`, `PendingApprovalsWidget.jsx`, `RevenueTrendWidget.jsx`, `FleetCommandGrid.jsx`, `ActivityFeedWidget.jsx`, `VehicleRevenueWidget.jsx`, `RevenueHeatmapWidget.jsx`, `DamageSummaryWidget.jsx`, `TodayScheduleWidget.jsx`, `WeekScheduleWidget.jsx`, `AgreementSection.jsx`
@@ -109,14 +112,16 @@
 | `pages/BookingDetailPage.jsx` | `api.getBooking()`, `api.approveBooking()*`, `api.declineBooking()*`, `api.cancelBooking()*`, `api.recordPickup()*`, `api.recordReturn()*`, `api.completeBooking()*`, `api.recordPayment()*`, `api.fileDamageReport()*`, `api.updateInsuranceStatus()*`, `api.updateBooking()*` | `StatusBadge`, `Skeleton`, `AgreementSection`, `BookingModals`, `BookingTimeline`, `Section`, `Field`, `Modal` | booking, loading, modal state, forms |
 | `pages/FleetPage.jsx` | `api.getVehicles()`, `api.createVehicle()*`, `api.uploadVehicleImage()*`, `api.updateVehicleStatus()*` | `StatusBadge`, `Skeleton`, `EmptyState`, `Modal`, `DamageSummaryWidget` | vehicles[], loading, filters, modal forms |
 | `pages/VehicleDetailPage.jsx` | `api.getVehicle()`, `api.getBlockedDates()`, `api.updateVehicle()*`, `api.updateVehicleStatus()*`, `api.addBlockedDates()*`, `api.deleteBlockedDate()*` | `StatusBadge`, `Skeleton`, `Modal`, `Section`, `Field` | vehicle, blocked dates, editing state |
-| `pages/CustomersPage.jsx` | `api.getCustomers()` | `Skeleton`, `EmptyState` | customers[], loading, search query |
-| `pages/CustomerDetailPage.jsx` | `api.getCustomer()`, `api.getCustomerBookings()`, `api.updateCustomer()*` | `StatusBadge`, `Skeleton` | customer, bookings[], notes |
+| `pages/CustomersPage.jsx` | `api.getCustomers()`, `portalPreviewApi.forCustomer()*` | `Skeleton`, `EmptyState` | customers[], loading, search query, filter, preview state |
+| `pages/CustomerDetailPage.jsx` | `api.getCustomer()`, `api.getCustomerBookings()`, `api.getMessages()`, `api.updateCustomer()*`, `api.setCustomerTrust()*`, `portalPreviewApi.forCustomer()*` | `StatusBadge`, `Skeleton`, `CustomerDeleteSection` | customer, bookings[], notes, messages, preview state |
 | `pages/CalendarPage.jsx` | `api.getVehicles()`, `api.getBookings()`, `api.getBlockedDates()` (per vehicle) | `Skeleton`, `EmptyState` | vehicles[], bookings[], blocked[], month |
-| `pages/PaymentsPage.jsx` | `api.getAllPayments()`, `api.issueRefund()*` | `Skeleton`, `EmptyState`, `Modal` | payments[], refund modal state |
+| `pages/PaymentsPage.jsx` | `api.getAllPayments()`, `api.issueRefund()*`, `api.getMoneyActions()`, `api.recordMoneyAction()*`, `api.sendMessage()*` | `Skeleton`, `EmptyState`, `Modal`, `MoneyActionGuardrails`, `DepositsPanel`, provider-guarded `StripePanel` | payments[], risk queue, refund modal state, audit state |
 | `pages/RevenuePage.jsx` | `api.getRevenue()` | `Skeleton`, `EmptyState`, `RevenueHeatmapWidget` | revenue data |
+| `pages/GrowthPage.jsx` | `growthApi.getSummary()` plus embedded leads/reviews/pricing/loyalty panels | tabbed Growth workspace | selected tab, summary |
+| `pages/MarketingPage.jsx` | `marketingApi.getWorkspace()`, `createCampaign()*`, `createLink()*`, `createReferral()*` | QR generator, print asset cards, referral/campaign panels | workspace, selected QR link, form state |
 | `pages/KnowledgeHubPage.jsx` | none | `GuidedDemoPlayer` | local guide search, selected guide, category filter |
 | `pages/SettingsPage.jsx` | none | `DashboardLayoutSettings` | env var display only |
-| `pages/WebhookFailuresPage.jsx` | `api.getWebhookFailures(100)` | `Skeleton` | failures[] |
+| `pages/WebhookFailuresPage.jsx` | `api.getWebhookFailures(100)` | `Skeleton` | automation failure records |
 
 ### Local Training Content
 
@@ -261,6 +266,7 @@ AGREEMENTS (→ rental_agreements table)
 | `checkin_records` | Odometer/fuel/condition at each lifecycle stage |
 | `email_templates` | Automated email/SMS template content + merge fields |
 | `business_settings` | Singleton — admin-tunable config (quiet hours, future business hours/tax/fees). Migration 018. |
+| `settings` | Generic key/value settings used by Marketing workspace (`marketing_workspace`) when available. |
 | `sms_opt_out_log` | Append-only audit trail for SMS opt-out/opt-in actions (TCPA defense). Migration 018. |
 | Views/RPCs | `stats/overview`, `stats/revenue`, `stats/upcoming`, `stats/vehicles`, `stats/activity` |
 
@@ -298,7 +304,9 @@ AGREEMENTS (→ rental_agreements table)
 | `routes/invoices.js` | `/invoices` | GET /booking/:id, POST /generate |
 | `routes/tolls.js` | `/tolls` | GET /vehicle/:id, GET /booking/:id, POST / |
 | `routes/disputes.js` | `/disputes` | GET /booking/:id, POST /:id/resolve |
-| `routes/portal.js` | `/portal` | POST /verify, GET /booking, GET /lockbox, POST /checkin, POST /checkout, POST /dispute |
+| `routes/portal.js` | `/portal` | POST /verify, GET /booking, GET /lockbox, POST /checkin, POST /checkout, POST /dispute, POST /admin-preview |
+| `routes/growth.js` | `/growth` | GET /summary |
+| `routes/marketing.js` | `/marketing` | GET /workspace, GET /summary, GET /r/:code, POST/PATCH /campaigns, POST/PATCH /links, POST/PATCH /referrals |
 
 ### Dashboard Tabs (BookingDetailPage sub-components)
 
@@ -313,7 +321,7 @@ AGREEMENTS (→ rental_agreements table)
 
 | File | Route | Description |
 |------|-------|-------------|
-| `src/components/portal/CustomerPortal.tsx` | `/portal?code=XXXX` | Self-service portal: login, status dashboard, lockbox code, check-in/out forms, deposit/invoice view, dispute submission |
+| `src/components/portal/CustomerPortal.tsx` | `/portal?code=XXXX` | Streamlined self-service portal with focused overview/money/pickup/help tabs, admin `preview_token` support, lockbox/check-in/out, payment-plan/deposit/invoice context, and dispute submission |
 | `src/components/booking/confirm-booking/SquarePaymentStage.tsx` | `/confirm?code=XXXX` | Square Web Payments SDK card form for Annie checkout |
 | `src/components/booking/confirm-booking/StripePaymentStage.tsx` | `/confirm?code=XXXX` | Stripe Elements card form for JD Coastal checkout |
 

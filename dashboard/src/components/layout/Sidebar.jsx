@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Calendar, Car, Users, BookOpen,
   TrendingUp, Settings, X, LogOut, AlertTriangle, CreditCard, Landmark, MessageSquare,
-  ArrowUpFromLine, CalendarClock, Star, Percent, Crown, Shield, Satellite, DoorOpen, CircleHelp,
+  ArrowUpFromLine, Megaphone, Shield, Satellite, DoorOpen, CircleHelp, Palette,
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
 import { haptic } from '../../lib/haptic';
@@ -24,19 +24,14 @@ const MAIN_NAV = [
   { to: '/insurance', label: 'Insurance', icon: Shield },
   { to: '/telematics', label: 'Telematics', icon: Satellite },
   { to: '/revenue',   label: 'Revenue',   icon: TrendingUp },
+  { to: '/growth',    label: 'Growth',    icon: Megaphone, alertKey: 'pending_reviews' },
+  { to: '/marketing', label: 'Marketing', icon: Palette },
   { to: '/messaging', label: 'Messaging',  icon: MessageSquare },
-];
-
-const GROWTH_NAV = [
-  { to: '/monthly-inquiries', label: 'Monthly Leads', icon: CalendarClock },
-  { to: '/reviews',           label: 'Reviews',       icon: Star, alertKey: 'pending_reviews' },
-  { to: '/pricing-rules',     label: 'Pricing Rules', icon: Percent },
-  { to: '/loyalty',           label: 'Loyalty',       icon: Crown },
 ];
 
 const SYSTEM_NAV = [
   ...(isStripeProvider() ? [{ to: '/stripe', label: 'Stripe', icon: Landmark }] : []),
-  { to: '/webhook-failures', label: 'Webhooks', icon: AlertTriangle },
+  { to: '/webhook-failures', label: 'Failures', icon: AlertTriangle },
 ];
 
 const SETTINGS_NAV = { to: '/settings', label: 'Settings', icon: Settings };
@@ -320,27 +315,6 @@ export default function Sidebar({ open, onClose, alerts = {}, pinned }) {
                 </ul>
               </div>
 
-              {/* Growth */}
-              <div>
-                <h3
-                  className="section-label mb-3 ml-4"
-                  style={{
-                    opacity: isWide ? 1 : 0,
-                    height: isWide ? 'auto' : 0,
-                    overflow: 'hidden',
-                    transition: 'opacity 0.3s ease, height 0.3s ease',
-                  }}
-                >
-                  Growth
-                </h3>
-                {!isWide && <div className="hidden lg:block h-2" />}
-                <ul className="flex flex-col gap-0.5">
-                  {GROWTH_NAV.map(item => (
-                    <NavItem key={item.to} {...item} alerts={alerts} onClose={onClose} showLabels={isWide} />
-                  ))}
-                </ul>
-              </div>
-
               {/* System — owner/admin only */}
               {isAdminOrOwner && (
               <div>
@@ -359,12 +333,6 @@ export default function Sidebar({ open, onClose, alerts = {}, pinned }) {
                   {SYSTEM_NAV.map(item => (
                     <NavItem key={item.to} {...item} alerts={alerts} onClose={onClose} showLabels={isWide} />
                   ))}
-                  <ExternalNavItem
-                    href="https://app.crisp.chat"
-                    label="Crisp Chat"
-                    icon={MessageSquare}
-                    showLabels={isWide}
-                  />
                 </ul>
               </div>
               )}

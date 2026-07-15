@@ -2,6 +2,22 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ArrowRight, MessageSquare, Star, Receipt, Key } from 'lucide-react';
 import { haptic } from '../../hooks/useHaptic';
 
+/**
+ * PortalActionBar - sticky bottom-center primary CTA for the customer portal.
+ *
+ * Always renders one clear next action per booking state, one-thumb-tap, above
+ * the iOS home indicator (safe-area-inset-bottom). Phone-only (`md:hidden`) so
+ * desktop users still scroll to the existing in-page form.
+ *
+ * Strategy: this bar is a navigation aid - taps scroll to the relevant section
+ * of the existing portal page rather than triggering the API call directly.
+ * That keeps the existing forms (with their photo validation, signature pads,
+ * error handling) as the single source of truth. Sprint 7b will replace those
+ * forms with bottom-sheet modals so the action bar becomes a direct trigger.
+ *
+ * Haptics: `navigator.vibrate(10)` on Android - iOS Safari silently ignores it.
+ */
+
 type BookingStatus =
   | 'pending_approval'
   | 'approved'
@@ -15,18 +31,28 @@ type BookingStatus =
 
 interface PortalActionBarProps {
   status: BookingStatus;
+  /** True when an action API call is already in-flight (disables the bar) */
   disabled?: boolean;
+  /** Customer phone for fallback tel: link, used when no inline action exists */
+  ownerPhone?: string;
+  /**
+   * If provided, called for `ready_for_pickup` instead of scroll-to-anchor.
+   * Used to open the mobile Vaul check-in sheet (Sprint 7c).
+   */
   onCheckIn?: () => void;
+  /** If provided, called for `active` instead of scroll-to-anchor (Sprint 7c). */
   onCheckOut?: () => void;
 }
 
 interface ActionConfig {
   label: string;
   icon: typeof ArrowRight;
+  /** CSS anchor to smooth-scroll to */
   scrollTo: string;
   tone: 'accent' | 'neutral' | 'success';
 }
 
+// Per-state primary action. Returning `null` hides the bar (pending/cancelled/declined).
 function actionFor(status: BookingStatus): ActionConfig | null {
   switch (status) {
     case 'ready_for_pickup':
@@ -39,6 +65,7 @@ function actionFor(status: BookingStatus): ActionConfig | null {
       return { label: 'Leave a Review', icon: Star, scrollTo: '#portal-review', tone: 'success' };
     case 'approved':
     case 'confirmed':
+      // Booking confirmed but not pickup-day yet - encourage messaging the owner.
       return { label: 'Message Us', icon: MessageSquare, scrollTo: '#portal-message', tone: 'neutral' };
     default:
       return null;
@@ -55,6 +82,7 @@ export default function PortalActionBar({
 
   function handleTap() {
     haptic('tap');
+    // Sprint 7c: if a direct trigger is wired, prefer it over scroll-to-anchor.
     if (status === 'ready_for_pickup' && onCheckIn) return onCheckIn();
     if (status === 'active' && onCheckOut) return onCheckOut();
     if (action) {
@@ -89,7 +117,7 @@ export default function PortalActionBar({
                   ? { backgroundColor: '#22c55e', color: '#fff' }
                   : action.tone === 'neutral'
                     ? { backgroundColor: 'var(--bg-card-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }
-                    : { backgroundColor: 'var(--accent-color)', color: 'var(--accent-fg, #1c1917)' }
+                    : { backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }
               }
             >
               <action.icon size={18} />

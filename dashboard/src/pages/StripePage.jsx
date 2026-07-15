@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { ExternalLink, RefreshCw, DollarSign, CreditCard, Landmark, CheckCircle, XCircle, ArrowUpRight, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { api } from '../api/client';
@@ -33,7 +33,7 @@ function formatTime(timestamp) {
   return new Date(timestamp * 1000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
-export default function StripePage() {
+export function StripePanel({ embedded = false }) {
   const [account, setAccount] = useState(null);
   const [balance, setBalance] = useState(null);
   const [transactions, setTransactions] = useState([]);
@@ -70,8 +70,8 @@ export default function StripePage() {
 
   if (loading) {
     return (
-      <div className="page-shell lg:p-8 space-y-6">
-        <div className="skeleton skeleton-text" style={{ width: 120, height: 28 }} />
+      <div className={embedded ? 'space-y-6' : 'page-shell lg:p-8 space-y-6'}>
+        <div className="skeleton skeleton-text" style={{ width: embedded ? 220 : 120, height: 28 }} />
         <SkeletonKpi count={3} />
         <SkeletonTable rows={8} cols={6} />
       </div>
@@ -79,7 +79,7 @@ export default function StripePage() {
   }
 
   return (
-    <div className="page-shell lg:p-8 space-y-6">
+    <div className={embedded ? 'space-y-6' : 'page-shell lg:p-8 space-y-6'}>
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -87,8 +87,10 @@ export default function StripePage() {
         className="flex items-center justify-between"
       >
         <div>
-          <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Stripe</h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>Payment processing management</p>
+          <h1 className={embedded ? 'text-xl font-bold tracking-tight' : 'text-2xl font-bold tracking-tight'} style={{ color: 'var(--text-primary)' }}>Stripe</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+            Account health, balances, recent charges, refunds, and environment readiness.
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -320,4 +322,8 @@ export default function StripePage() {
       </div>
     </div>
   );
+}
+
+export default function StripePage() {
+  return <Navigate to="/payments?tab=stripe" replace />;
 }

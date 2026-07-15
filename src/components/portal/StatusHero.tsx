@@ -3,6 +3,18 @@ import { motion } from 'motion/react';
 import { Clock, CheckCircle2, Car, Key, AlertCircle, Hourglass } from 'lucide-react';
 import { EASE } from '../../utils/motion';
 
+/**
+ * StatusHero - the big "what's happening NOW" card at the top of the portal.
+ *
+ * Replaces the small identity header. Each booking state gets:
+ *   • A color-tinted badge
+ *   • A large primary copy line
+ *   • A live countdown / elapsed timer (refreshes every minute)
+ *   • Customer name + booking code in a small footer row
+ *
+ * Used by CustomerPortal - Sprint 7b.
+ */
+
 type BookingStatus =
   | 'pending_approval'
   | 'approved'
@@ -18,7 +30,9 @@ interface StatusHeroProps {
   status: BookingStatus;
   customerName: string;
   bookingCode: string;
+  /** ISO YYYY-MM-DD */
   pickupDate?: string;
+  /** "HH:MM" 24h */
   pickupTime?: string;
   returnDate?: string;
   returnTime?: string;
@@ -111,6 +125,7 @@ const CONFIGS: Record<BookingStatus, HeroConfig> = {
 function parseBookingTime(date?: string, time?: string): Date | null {
   if (!date) return null;
   try {
+    // pickup_time is "HH:MM"; default to noon if missing
     const t = time && /^\d{2}:\d{2}/.test(time) ? time.slice(0, 5) : '12:00';
     return new Date(`${date}T${t}:00`);
   } catch {
@@ -136,6 +151,7 @@ function formatRelative(ms: number, suffix: 'until' | 'ago' | 'in' | 'overdue' =
   return suffix === 'overdue' ? 'just now' : 'any minute';
 }
 
+/** Compute the timer copy for the current state. */
 function useCountdownCopy({
   status,
   pickupDate,
@@ -152,6 +168,8 @@ function useCountdownCopy({
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
+    // Update every 30s for accuracy without burning a render budget.
+    // Only relevant for states that show a live countdown.
     if (!['ready_for_pickup', 'active', 'pending_approval'].includes(status)) return;
     const id = window.setInterval(() => setNow(Date.now()), 30_000);
     return () => window.clearInterval(id);
@@ -218,6 +236,7 @@ export default function StatusHero({
         border: `1px solid ${cfg.borderRgba}`,
       }}
     >
+      {/* Top row - status pill */}
       <div className="flex items-center gap-2 mb-4">
         <div
           className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider"
@@ -228,6 +247,7 @@ export default function StatusHero({
         </div>
       </div>
 
+      {/* Headline + icon */}
       <div className="flex items-start justify-between gap-4 mb-3">
         <h1
           className="text-2xl sm:text-3xl font-light leading-tight"
@@ -243,6 +263,7 @@ export default function StatusHero({
         </div>
       </div>
 
+      {/* Timer line */}
       <p
         className="text-sm font-medium mb-5"
         style={{
@@ -260,6 +281,7 @@ export default function StatusHero({
         {timer.label}
       </p>
 
+      {/* Identity footer */}
       <div
         className="flex items-center justify-between pt-4 text-xs"
         style={{ color: 'var(--text-tertiary)', borderTop: `1px solid ${cfg.borderRgba}` }}

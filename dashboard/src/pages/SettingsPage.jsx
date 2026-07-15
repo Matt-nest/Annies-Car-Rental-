@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import {
   User, Users, Server, Save, Eye, EyeOff, Plus, Shield,
   ChevronDown, ChevronUp, Check, X, RefreshCw, Lock, Mail, Phone, Info,
-  ExternalLink, AlertCircle, Plug, Zap, Loader2, PhoneCall, Trash2,
-  Bell, BellOff, Send,
+  ExternalLink, AlertCircle, Zap, Loader2, PhoneCall, Trash2,
+  Bell, BellOff, LayoutDashboard, Send,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { bonzahApi } from '../api/bonzah';
@@ -13,7 +13,6 @@ import BrandsTab from './settings/BrandsTab';
 import DataError from '../components/shared/DataError';
 import { useAdminPushSubscription } from '../hooks/useAdminPushSubscription';
 import { haptic } from '../lib/haptic';
-import brand from '../config/brand';
 
 /* ─── Role badge colors ───────────────────────────────── */
 const ROLE_COLORS = {
@@ -43,7 +42,7 @@ function Avatar({ firstName, lastName, size = 40 }) {
       className="rounded-full flex items-center justify-center font-bold text-white shrink-0"
       style={{
         width: size, height: size, fontSize: size * 0.38,
-        background: 'linear-gradient(135deg, #465FFF 0%, #7c3aed 100%)',
+        background: 'linear-gradient(135deg, #13294B 0%, #7c3aed 100%)',
       }}
     >
       {initials}
@@ -56,7 +55,7 @@ function TabButton({ active, icon: Icon, label, onClick }) {
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-all ${
+      className={`flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-lg transition-all ${
         active
           ? 'text-[var(--sidebar-active-text)]'
           : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -158,7 +157,7 @@ function ProfileTab() {
           <div>
             <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">First Name</label>
             <input
-              className="w-full px-3 py-2.5 rounded-lg text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] outline-none focus:border-[#465FFF] transition-colors"
+              className="w-full px-3 py-2.5 rounded-lg text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] outline-none focus:border-[var(--accent-color)] transition-colors"
               value={form.first_name}
               onChange={e => setForm({ ...form, first_name: e.target.value })}
             />
@@ -166,7 +165,7 @@ function ProfileTab() {
           <div>
             <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Last Name</label>
             <input
-              className="w-full px-3 py-2.5 rounded-lg text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] outline-none focus:border-[#465FFF] transition-colors"
+              className="w-full px-3 py-2.5 rounded-lg text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] outline-none focus:border-[var(--accent-color)] transition-colors"
               value={form.last_name}
               onChange={e => setForm({ ...form, last_name: e.target.value })}
             />
@@ -178,7 +177,7 @@ function ProfileTab() {
             <Phone size={12} className="inline mr-1" />Phone
           </label>
           <input
-            className="w-full px-3 py-2.5 rounded-lg text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] outline-none focus:border-[#465FFF] transition-colors"
+            className="w-full px-3 py-2.5 rounded-lg text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] outline-none focus:border-[var(--accent-color)] transition-colors"
             value={form.phone}
             onChange={e => setForm({ ...form, phone: e.target.value })}
             placeholder="(xxx) xxx-xxxx"
@@ -203,7 +202,7 @@ function ProfileTab() {
           onClick={handleSave}
           disabled={saving}
           className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold text-white transition-all disabled:opacity-50"
-          style={{ background: 'linear-gradient(135deg, #465FFF, #3B4BDB)', boxShadow: '0 4px 14px rgba(70,95,255,0.3)' }}
+          style={{ background: 'linear-gradient(135deg, #13294B, #1E3A5F)', boxShadow: '0 4px 14px rgba(19,41,75,0.3)' }}
         >
           {saved ? <><Check size={14} /> Saved</> : saving ? <><RefreshCw size={14} className="animate-spin" /> Saving…</> : <><Save size={14} /> Save Changes</>}
         </button>
@@ -225,7 +224,7 @@ function ProfileTab() {
             <div className="relative">
               <input
                 type={showPw ? 'text' : 'password'}
-                className="w-full px-3 py-2.5 pr-10 rounded-lg text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] outline-none focus:border-[#465FFF]"
+                className="w-full px-3 py-2.5 pr-10 rounded-lg text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] outline-none focus:border-[var(--accent-color)]"
                 value={newPw}
                 onChange={e => setNewPw(e.target.value)}
                 placeholder="New password"
@@ -240,7 +239,7 @@ function ProfileTab() {
             </div>
             <input
               type={showPw ? 'text' : 'password'}
-              className="w-full px-3 py-2.5 rounded-lg text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] outline-none focus:border-[#465FFF]"
+              className="w-full px-3 py-2.5 rounded-lg text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] outline-none focus:border-[var(--accent-color)]"
               value={confirmPw}
               onChange={e => setConfirmPw(e.target.value)}
               placeholder="Confirm new password"
@@ -249,7 +248,7 @@ function ProfileTab() {
             <button
               onClick={handlePasswordChange}
               disabled={pwSaving}
-              className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-[#465FFF] hover:bg-[#3B4BDB] transition-colors disabled:opacity-50"
+              className="px-4 py-2 rounded-lg text-sm font-medium text-[var(--accent-fg)] bg-[var(--accent-color)] hover:bg-[var(--brand-color)] transition-colors disabled:opacity-50"
             >
               {pwSaving ? 'Updating…' : 'Update Password'}
             </button>
@@ -351,7 +350,7 @@ function TeamTab() {
           <button
             onClick={() => { setShowInvite(!showInvite); setInviteResult(null); }}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all"
-            style={{ background: 'linear-gradient(135deg, #465FFF, #3B4BDB)', boxShadow: '0 4px 14px rgba(70,95,255,0.3)' }}
+            style={{ background: 'linear-gradient(135deg, #13294B, #1E3A5F)', boxShadow: '0 4px 14px rgba(19,41,75,0.3)' }}
           >
             <Plus size={14} />
             Invite User
@@ -367,7 +366,7 @@ function TeamTab() {
           </h4>
           <div className="grid sm:grid-cols-2 gap-3">
             <input
-              className="px-3 py-2.5 rounded-lg text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] outline-none focus:border-[#465FFF]"
+              className="px-3 py-2.5 rounded-lg text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] outline-none focus:border-[var(--accent-color)]"
               placeholder="Email *"
               type="email"
               required
@@ -375,32 +374,32 @@ function TeamTab() {
               onChange={e => setInviteForm({ ...inviteForm, email: e.target.value })}
             />
             <input
-              className="px-3 py-2.5 rounded-lg text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] outline-none focus:border-[#465FFF]"
+              className="px-3 py-2.5 rounded-lg text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] outline-none focus:border-[var(--accent-color)]"
               placeholder="Temporary Password *"
               required
               value={inviteForm.password}
               onChange={e => setInviteForm({ ...inviteForm, password: e.target.value })}
             />
             <input
-              className="px-3 py-2.5 rounded-lg text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] outline-none focus:border-[#465FFF]"
+              className="px-3 py-2.5 rounded-lg text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] outline-none focus:border-[var(--accent-color)]"
               placeholder="First Name"
               value={inviteForm.first_name}
               onChange={e => setInviteForm({ ...inviteForm, first_name: e.target.value })}
             />
             <input
-              className="px-3 py-2.5 rounded-lg text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] outline-none focus:border-[#465FFF]"
+              className="px-3 py-2.5 rounded-lg text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] outline-none focus:border-[var(--accent-color)]"
               placeholder="Last Name"
               value={inviteForm.last_name}
               onChange={e => setInviteForm({ ...inviteForm, last_name: e.target.value })}
             />
             <input
-              className="px-3 py-2.5 rounded-lg text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] outline-none focus:border-[#465FFF]"
+              className="px-3 py-2.5 rounded-lg text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] outline-none focus:border-[var(--accent-color)]"
               placeholder="Phone"
               value={inviteForm.phone}
               onChange={e => setInviteForm({ ...inviteForm, phone: e.target.value })}
             />
             <select
-              className="px-3 py-2.5 rounded-lg text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] outline-none focus:border-[#465FFF]"
+              className="px-3 py-2.5 rounded-lg text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] outline-none focus:border-[var(--accent-color)]"
               value={inviteForm.role}
               onChange={e => setInviteForm({ ...inviteForm, role: e.target.value })}
             >
@@ -423,7 +422,7 @@ function TeamTab() {
             <button
               type="submit"
               disabled={inviting}
-              className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-[#465FFF] hover:bg-[#3B4BDB] transition-colors disabled:opacity-50"
+              className="px-4 py-2 rounded-lg text-sm font-medium text-[var(--accent-fg)] bg-[var(--accent-color)] hover:bg-[var(--brand-color)] transition-colors disabled:opacity-50"
             >
               {inviting ? 'Inviting…' : 'Send Invite'}
             </button>
@@ -564,8 +563,8 @@ function SystemTab() {
   }, []);
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      <Section title="System Status" description="Database connection & latency">
+    <div className="space-y-6 max-w-3xl">
+      <Section title="System Health" description="Backend status, database reachability, and environment ownership.">
         <div className="card p-4 flex items-center gap-4 bg-[var(--bg-card)]">
           {checking && !health ? (
             <div className="flex items-center gap-2 text-[var(--text-secondary)] text-sm">
@@ -592,22 +591,18 @@ function SystemTab() {
       <div className="flex items-start gap-2.5 bg-[rgba(99,179,237,0.07)] border border-[rgba(99,179,237,0.15)] rounded-xl p-4 text-sm text-[#63b3ed]">
         <Info size={15} className="mt-0.5 shrink-0 text-[#63b3ed]" />
         <div>
-          <p className="font-medium">Settings are environment variables</p>
+          <p className="font-medium">Production secrets live in Vercel</p>
           <p className="text-[#63b3ed] mt-0.5 text-xs">
-            To change any value, update it in your{' '}
+            Runtime secrets and API keys are managed in your{' '}
             <a href="https://vercel.com/dashboard" target="_blank" rel="noopener noreferrer" className="underline inline-flex items-center gap-0.5">
               Vercel dashboard <ExternalLink size={10} />
             </a>{' '}
-            under the backend project → Settings → Environment Variables, then redeploy.
+            under the backend/dashboard projects. Payment-provider status now lives in Payments.
           </p>
         </div>
       </div>
 
-      <WebPushSection />
-
-      <TeamAlertsSection />
-
-      <Section title="Notifications" description="Email & SMS delivery services">
+      <Section title="Core Service Environment" description="Read-only checklist of operational services. Edit these in Vercel, not inside the dashboard.">
         <div className="space-y-0">
           <EnvRow label="Resend API Key" envKey="RESEND_API_KEY" note="Transactional emails (resend.com)" />
           <EnvRow label="From Address" envKey="EMAIL_FROM" note="e.g. Annie's Car Rental <noreply@anniescarrental.com>" />
@@ -617,20 +612,33 @@ function SystemTab() {
           <EnvRow label="Site URL" envKey="SITE_URL" note="Used in email links and confirmation URLs" />
         </div>
       </Section>
+    </div>
+  );
+}
 
-      <Section title="Stripe" description="Payment processing">
+function NotificationsTab() {
+  return (
+    <div className="space-y-6 max-w-3xl">
+      <WebPushSection />
+      <TeamAlertsSection />
+      <QuietHoursSection />
+      <Section title="Email & SMS Services" description="Read-only delivery configuration. Make secret changes in Vercel, then redeploy.">
         <div className="space-y-0">
-          <EnvRow label="Secret Key" envKey="STRIPE_SECRET_KEY" note="Backend only — never expose to frontend" />
-          <EnvRow label="Webhook Secret" envKey="STRIPE_WEBHOOK_SECRET" note="From Stripe dashboard → Webhooks" />
-          <EnvRow label="Publishable Key" envKey="VITE_STRIPE_PUBLISHABLE_KEY" note="Frontend (customer site)" />
+          <EnvRow label="Resend API Key" envKey="RESEND_API_KEY" note="Transactional emails" />
+          <EnvRow label="From Address" envKey="EMAIL_FROM" note="Customer and admin email sender" />
+          <EnvRow label="Twilio Account SID" envKey="TWILIO_ACCOUNT_SID" note="SMS and voice delivery" />
+          <EnvRow label="Twilio Phone" envKey="TWILIO_PHONE_NUMBER" note="Outbound SMS number" />
         </div>
       </Section>
+    </div>
+  );
+}
 
-      <QuietHoursSection />
-
+function OperationsTab() {
+  return (
+    <div className="space-y-6 max-w-3xl">
       <HuntGroupSection />
-
-      <Section title="Booking Automation" description="Timing for auto-expire and reminders (configured in cron)">
+      <Section title="Booking Automation" description="Timing for core booking reminders and cleanup jobs.">
         <div className="grid sm:grid-cols-2 gap-4 text-sm">
           <div className="bg-[var(--bg-card)] rounded-lg p-3">
             <p className="font-medium text-[var(--text-primary)]">24 hours</p>
@@ -646,16 +654,39 @@ function SystemTab() {
           </div>
           <div className="bg-[var(--bg-card)] rounded-lg p-3">
             <p className="font-medium text-[var(--text-primary)]">Daily at 9 AM ET</p>
-            <p className="text-[var(--text-secondary)] text-xs mt-0.5">Return reminder + auto-expire cron</p>
+            <p className="text-[var(--text-secondary)] text-xs mt-0.5">Return reminder and auto-expire checks</p>
           </div>
         </div>
       </Section>
-
-      <DashboardLayoutSettings />
     </div>
   );
 }
 
+function AppearanceTab() {
+  return (
+    <div className="space-y-6 max-w-3xl">
+      <DashboardLayoutSettings />
+      <Section title="Dashboard Display" description="Use layout controls to keep the home page focused on the widgets you actually review every day.">
+        <div className="grid sm:grid-cols-2 gap-3 text-sm">
+          <div className="rounded-lg bg-[var(--bg-card)] p-3">
+            <p className="font-medium text-[var(--text-primary)]">Command Center stays pinned</p>
+            <p className="mt-0.5 text-xs text-[var(--text-secondary)]">Today Command Center now renders above configurable dashboard widgets.</p>
+          </div>
+          <div className="rounded-lg bg-[var(--bg-card)] p-3">
+            <p className="font-medium text-[var(--text-primary)]">Widgets are personal</p>
+            <p className="mt-0.5 text-xs text-[var(--text-secondary)]">Visibility and order preferences save automatically for this browser.</p>
+          </div>
+        </div>
+      </Section>
+    </div>
+  );
+}
+
+/* ─── Web Push Notifications (Sprint 18) ──────────────────────────────────
+ * Lets the admin opt this device in/out of web push from the dashboard PWA
+ * and fire a one-shot test push so they can verify delivery on their phone.
+ * Handles the iOS-only "add to Home Screen first" requirement gracefully.
+ * ────────────────────────────────────────────────────────────────────────── */
 function WebPushSection() {
   const push = useAdminPushSubscription();
   const [testResult, setTestResult] = useState(null);
@@ -686,6 +717,7 @@ function WebPushSection() {
   return (
     <Section title="Web Push Notifications" description="Get notified on this device when a new booking comes in or an incident is filed.">
       <div className="space-y-3">
+        {/* Status pill row */}
         <div className="flex items-center gap-2 flex-wrap">
           {push.subscribed ? (
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold" style={{ backgroundColor: 'rgba(34,197,94,0.12)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.25)' }}>
@@ -707,25 +739,28 @@ function WebPushSection() {
           )}
         </div>
 
+        {/* iOS-only PWA-install hint */}
         {push.requiresInstall && (
           <div className="flex items-start gap-2.5 bg-[rgba(99,179,237,0.07)] border border-[rgba(99,179,237,0.15)] rounded-xl p-3 text-xs text-[#63b3ed]">
             <Info size={14} className="mt-0.5 shrink-0" />
             <div>
               iOS requires you to add this site to your Home Screen before push notifications can be enabled.
-              In Safari, tap the Share button → &quot;Add to Home Screen&quot;, then re-open the app from your Home Screen and toggle this on.
+              In Safari, tap the Share button → "Add to Home Screen", then re-open the app from your Home Screen and toggle this on.
             </div>
           </div>
         )}
 
+        {/* Permission-denied hint */}
         {push.permission === 'denied' && (
           <div className="flex items-start gap-2.5 bg-[rgba(239,68,68,0.06)] border border-[rgba(239,68,68,0.18)] rounded-xl p-3 text-xs text-[#ef4444]">
             <AlertCircle size={14} className="mt-0.5 shrink-0" />
             <div>
-              Notifications are blocked by your browser/OS settings. On iPhone: Settings → Notifications → {brand.name} Admin → Allow Notifications. Then come back here and toggle on.
+              Notifications are blocked by your browser/OS settings. On iPhone: Settings → Notifications → Annie's Admin → Allow Notifications. Then come back here and toggle on.
             </div>
           </div>
         )}
 
+        {/* Action row — toggle + test */}
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -750,6 +785,7 @@ function WebPushSection() {
           )}
         </div>
 
+        {/* Last test/error feedback */}
         {testResult && (
           <p className="text-xs" style={{ color: testResult.ok ? '#22c55e' : '#ef4444' }}>
             {testResult.ok ? '✓ ' : '⚠ '}{testResult.message}
@@ -759,6 +795,7 @@ function WebPushSection() {
           <p className="text-xs" style={{ color: '#ef4444' }}>⚠ {push.error}</p>
         )}
 
+        {/* Cross-device note */}
         {push.subscribed && (
           <p className="text-xs text-[var(--text-tertiary)]">
             Push works per-device. Enable separately on each phone, tablet, or computer where you want alerts.
@@ -769,7 +806,8 @@ function WebPushSection() {
   );
 }
 
-/* ─── Team SMS Alerts (migration 026) ─────────────────────────────────────
+/* ─── SMS Quiet Hours (Phase 1 — migration 018 business_settings) ─── */
+/* ─── Team SMS Alerts (migration 027) ─────────────────────────────────────
  * Up to 4 phone numbers receive concise internal SMS for core booking events.
  * ────────────────────────────────────────────────────────────────────────── */
 const TEAM_ALERT_SLOTS = 4;
@@ -965,7 +1003,7 @@ function TeamAlertsSection() {
   );
 }
 
-/* ─── SMS Quiet Hours (Phase 1 — migration 018 business_settings) ─── */
+/* ─── SMS Quiet Hours ─── */
 function QuietHoursSection() {
   const [settings, setSettings] = useState(null);
   const [draft, setDraft] = useState(null);
@@ -1043,10 +1081,10 @@ function QuietHoursSection() {
                 width: 42, height: 24, borderRadius: 12,
                 border: 'none', cursor: 'pointer', padding: 0,
                 background: draft.quiet_hours_enabled
-                  ? 'linear-gradient(135deg, #465FFF, #3b4cdb)'
+                  ? 'linear-gradient(135deg, #13294B, #1E3A5F)'
                   : 'var(--bg-card, rgba(255,255,255,0.06))',
                 boxShadow: draft.quiet_hours_enabled
-                  ? '0 2px 8px rgba(70,95,255,0.3)'
+                  ? '0 2px 8px rgba(19,41,75,0.3)'
                   : 'inset 0 1px 3px rgba(0,0,0,0.15)',
                 transition: 'background 0.25s, box-shadow 0.25s',
               }}
@@ -1207,7 +1245,7 @@ function HuntGroupSection() {
   }
 
   return (
-    <Section title="Voice Hunt Group" description="Incoming calls to +17722071655 ring this list in order. After all legs miss, the configured fallback fires.">
+    <Section title="Voice Hunt Group" description="Incoming calls to +19086928492 ring this list in order. After all legs miss, the configured fallback fires.">
       {loading ? (
         <div className="flex items-center gap-2 text-[var(--text-secondary)] text-sm">
           <RefreshCw size={14} className="animate-spin" /> Loading…
@@ -1298,7 +1336,7 @@ function HuntGroupSection() {
                     style={{
                       width: 32, height: 18, borderRadius: 9, border: 'none', cursor: 'pointer', padding: 0, position: 'relative',
                       background: m.enabled
-                        ? 'linear-gradient(135deg, #465FFF, #3b4cdb)'
+                        ? 'linear-gradient(135deg, #13294B, #1E3A5F)'
                         : 'var(--bg-elevated)',
                     }}
                   >
@@ -1394,7 +1432,7 @@ function HuntGroupSection() {
               type="email"
               value={draft.voicemail_email || ''}
               onChange={e => setDraft({ ...draft, voicemail_email: e.target.value })}
-              placeholder="aaron@anniescarrental.com"
+              placeholder="info@anniescarrental.com"
               className="input text-sm w-full"
             />
           </div>
@@ -1436,7 +1474,7 @@ function HuntGroupSection() {
 
           <p className="text-[11px] text-[var(--text-tertiary)] pt-2 border-t border-[var(--border-subtle)]">
             <PhoneCall size={10} className="inline mr-1 align-middle" />
-            Calls to <span className="font-mono">+17722071655</span> hit your backend voice route, which reads this config and builds the hunt sequence at request time. Changes save instantly — no Twilio Console trip needed.
+            Calls to <span className="font-mono">+19086928492</span> hit your backend voice route, which reads this config and builds the hunt sequence at request time. Changes save instantly — no Twilio Console trip needed.
           </p>
         </div>
       ) : null}
@@ -1525,7 +1563,7 @@ function BonzahTierEditor({ tiers, onChange }) {
           <div key={t.id || i} className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-[var(--bg-elevated)] text-sm">
             <div className="flex items-center gap-2">
               <span className="font-medium text-[var(--text-primary)]">{t.label}</span>
-              {t.recommended && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[rgba(70,95,255,0.15)] text-[#465FFF] font-semibold">Recommended</span>}
+              {t.recommended && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[rgba(19,41,75,0.15)] text-[var(--accent-color)] font-semibold">Recommended</span>}
               {t.default && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[rgba(34,197,94,0.15)] text-[#22c55e] font-semibold">Default</span>}
             </div>
             <span className="text-[11px] font-mono text-[var(--text-tertiary)]">{(t.coverages || []).join(' · ').toUpperCase()}</span>
@@ -1658,13 +1696,13 @@ function IntegrationsTab() {
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-              style={{ backgroundColor: 'rgba(70,95,255,0.1)', color: '#465FFF' }}>
+              style={{ backgroundColor: 'rgba(19,41,75,0.1)', color: 'var(--accent-color)' }}>
               <Shield size={20} />
             </div>
             <div>
               <h2 className="text-base font-semibold text-[var(--text-primary)]">Bonzah Insurance</h2>
               <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                Real-time rental insurance via the Bonzah (Insillion) API. Customer pays Annie's; Annie's settles with Bonzah monthly.
+                Real-time rental insurance via the Bonzah (Insillion) API. Customer pays Annie's Car Rental; Annie's Car Rental settles with Bonzah monthly.
               </p>
             </div>
           </div>
@@ -1777,7 +1815,7 @@ function IntegrationsTab() {
             disabled={!dirty || saving}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               dirty && !saving
-                ? 'bg-[#465FFF] text-white hover:opacity-90'
+                ? 'bg-[var(--accent-color)] text-[var(--accent-fg)] hover:opacity-90'
                 : 'bg-[var(--bg-elevated)] text-[var(--text-tertiary)] cursor-not-allowed'
             }`}
           >
@@ -1846,11 +1884,14 @@ export default function SettingsPage() {
   const [tab, setTab] = useState('profile');
 
   const tabs = [
-    { key: 'profile', label: 'My Profile', icon: User },
-    ...(hasRole('owner', 'admin') ? [{ key: 'team', label: 'Team', icon: Users }] : []),
-    ...(hasRole('owner', 'admin') ? [{ key: 'system', label: 'System', icon: Server }] : []),
-    ...(hasRole('owner', 'admin') ? [{ key: 'integrations', label: 'Integrations', icon: Plug }] : []),
+    { key: 'profile', label: 'Profile', icon: User },
+    ...(hasRole('owner', 'admin') ? [{ key: 'team', label: 'Team & Access', icon: Users }] : []),
+    ...(hasRole('owner', 'admin') ? [{ key: 'notifications', label: 'Notifications', icon: Bell }] : []),
+    ...(hasRole('owner', 'admin') ? [{ key: 'operations', label: 'Operations', icon: PhoneCall }] : []),
+    ...(hasRole('owner', 'admin') ? [{ key: 'integrations', label: 'Insurance', icon: Shield }] : []),
+    ...(hasRole('owner', 'admin') ? [{ key: 'appearance', label: 'Dashboard', icon: LayoutDashboard }] : []),
     ...(hasRole('owner', 'admin') ? [{ key: 'brands', label: 'Brands', icon: Zap }] : []),
+    ...(hasRole('owner', 'admin') ? [{ key: 'system', label: 'System Health', icon: Server }] : []),
   ];
 
   return (
@@ -1858,12 +1899,12 @@ export default function SettingsPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
         <p className="text-sm text-[var(--text-secondary)] mt-1">
-          Manage your profile, team, and system configuration.
+          Manage account access, notifications, insurance, operations, dashboard layout, and system health.
         </p>
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-1 border-b border-[var(--border-subtle)] pb-px">
+      <div className="flex gap-1 overflow-x-auto border-b border-[var(--border-subtle)] pb-px">
         {tabs.map(t => (
           <TabButton key={t.key} active={tab === t.key} icon={t.icon} label={t.label} onClick={() => setTab(t.key)} />
         ))}
@@ -1873,8 +1914,11 @@ export default function SettingsPage() {
       <div>
         {tab === 'profile' && <ProfileTab />}
         {tab === 'team' && <TeamTab />}
+        {tab === 'notifications' && <NotificationsTab />}
+        {tab === 'operations' && <OperationsTab />}
         {tab === 'system' && <SystemTab />}
         {tab === 'integrations' && <IntegrationsTab />}
+        {tab === 'appearance' && <AppearanceTab />}
         {tab === 'brands' && <BrandsTab />}
       </div>
     </div>
