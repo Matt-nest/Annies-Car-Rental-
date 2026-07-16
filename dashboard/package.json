@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run check:knowledge-videos && vite build",
+    "build": "npm run check:knowledge-videos && npm run check:no-undef && vite build",
+    "lint": "npm run check:no-undef",
+    "check:no-undef": "node scripts/check-no-undef.mjs",
     "preview": "vite preview",
     "demo:knowledge": "node scripts/export-knowledge-demo.mjs --voiceover --voiceover-engine higgsfield",
     "demo:knowledge:all": "node scripts/export-knowledge-demo.mjs --all --voiceover --voiceover-engine higgsfield",
@@ -44,6 +46,8 @@
     "vaul": "^1.1.2"
   },
   "devDependencies": {
+    "@babel/parser": "^7.29.7",
+    "@babel/traverse": "^7.29.7",
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@playwright/test": "^1.61.1",
     "@types/react": "^18.2.61",
