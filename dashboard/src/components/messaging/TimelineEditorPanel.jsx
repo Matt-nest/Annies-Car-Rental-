@@ -501,8 +501,8 @@ function TimingControl({ offsetMinutes, anchor, onChange }) {
               padding: '4px 10px', fontSize: 10, fontWeight: 600,
               borderRadius: 999, cursor: 'pointer',
               border: '1px solid var(--border-subtle)',
-              background: offsetMinutes === preset.minutes ? 'rgba(70,95,255,0.12)' : 'transparent',
-              color: offsetMinutes === preset.minutes ? '#465FFF' : 'var(--text-secondary)',
+              background: offsetMinutes === preset.minutes ? 'rgba(19,41,75,0.12)' : 'transparent',
+              color: offsetMinutes === preset.minutes ? '#13294B' : 'var(--text-secondary)',
               transition: 'all 0.15s',
             }}
           >{preset.label}</button>
@@ -608,11 +608,11 @@ function btnPrimary(disabled) {
   return {
     display: 'inline-flex', alignItems: 'center', gap: 5,
     padding: '8px 14px', borderRadius: 10, border: 'none',
-    background: 'linear-gradient(135deg, #465FFF 0%, #3b4cdb 100%)',
+    background: 'linear-gradient(135deg, #13294B 0%, #1E3A5F 100%)',
     color: '#fff', fontSize: 12, fontWeight: 600,
     cursor: disabled ? 'not-allowed' : 'pointer',
     opacity: disabled ? 0.5 : 1,
-    boxShadow: disabled ? 'none' : '0 4px 14px rgba(70,95,255,0.25)',
+    boxShadow: disabled ? 'none' : '0 4px 14px rgba(19,41,75,0.25)',
   };
 }
 function btnSecondary(disabled) {

@@ -59,7 +59,7 @@ function useTheme() {
 /* ──────────────────────────────────────────────────────────
    Shared little components
    ────────────────────────────────────────────────────────── */
-function StatTile({ icon: Icon, label, value, sublabel, accent = '#465FFF' }) {
+function StatTile({ icon: Icon, label, value, sublabel, accent = '#13294B' }) {
   return (
     <div className="card p-4 flex items-start gap-3">
       <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
@@ -180,7 +180,7 @@ function FleetMap({ vehicles, height = 360, polyline = null, theme }) {
             type: 'Feature', geometry: { type: 'LineString', coordinates: polyline },
           }}>
             <Layer id="trip-line" type="line"
-              paint={{ 'line-color': '#465FFF', 'line-width': 4, 'line-opacity': 0.85 }}
+              paint={{ 'line-color': '#13294B', 'line-width': 4, 'line-opacity': 0.85 }}
               layout={{ 'line-cap': 'round', 'line-join': 'round' }} />
           </Source>
         )}
@@ -196,7 +196,7 @@ function NotConnectedState({ onConnect, connecting, error }) {
   return (
     <div className="card flex flex-col items-center text-center p-10">
       <div className="w-14 h-14 rounded-full flex items-center justify-center mb-4"
-        style={{ backgroundColor: 'rgba(70,95,255,0.12)', color: '#465FFF' }}>
+        style={{ backgroundColor: 'rgba(19,41,75,0.12)', color: 'var(--accent-color)' }}>
         <Satellite size={28} />
       </div>
       <h3 className="text-lg font-semibold text-[var(--text-primary)]">Connect your Bouncie account</h3>
@@ -224,7 +224,7 @@ function OverviewTab({ stats, vehicles, alerts, theme, onSync, syncing }) {
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatTile icon={Car} label="Vehicles" value={stats?.vehicles ?? 0} accent="#465FFF" />
+        <StatTile icon={Car} label="Vehicles" value={stats?.vehicles ?? 0} accent="#13294B" />
         <StatTile icon={Navigation} label="Trips logged" value={stats?.trips ?? 0} accent="#22c55e" />
         <StatTile icon={AlertTriangle} label="Health alerts" value={stats?.alerts ?? 0} accent="#ef4444" />
         <StatTile
@@ -422,7 +422,7 @@ function TripsTab({ trips, theme, onRefresh, refreshing }) {
                 </td>
                 <td className="px-4 py-2 text-xs">
                   {t.bookings ? (
-                    <Link to={`/bookings/${t.bookings.id}`} className="text-[#465FFF] hover:underline" onClick={e => e.stopPropagation()}>
+                    <Link to={`/bookings/${t.bookings.id}`} className="text-[var(--accent-color)] hover:underline" onClick={e => e.stopPropagation()}>
                       {t.bookings.booking_code}
                     </Link>
                   ) : <span className="text-[var(--text-tertiary)]">—</span>}
@@ -463,9 +463,9 @@ const ALERT_LABEL = {
   mil: { label: 'Check engine', color: '#ef4444' },
   battery: { label: 'Battery', color: '#eab308' },
   vinChange: { label: 'VIN change', color: '#94a3b8' },
-  tripStart: { label: 'Trip start', color: '#465FFF' },
-  tripEnd: { label: 'Trip end', color: '#465FFF' },
-  tripMetrics: { label: 'Trip metrics', color: '#465FFF' },
+  tripStart: { label: 'Trip start', color: 'var(--accent-color)' },
+  tripEnd: { label: 'Trip end', color: 'var(--accent-color)' },
+  tripMetrics: { label: 'Trip metrics', color: 'var(--accent-color)' },
   tripData: { label: 'Trip data', color: '#94a3b8' },
   applicationGeozone: { label: 'App geo-zone', color: '#f97316' },
   userGeozone: { label: 'User geo-zone', color: '#f97316' },
@@ -505,7 +505,7 @@ function AlertsTab({ events, filter, setFilter, errorsOnly, setErrorsOnly }) {
         {[null, 'mil', 'battery', 'disconnect', 'tripMetrics', 'applicationGeozone'].map(t => (
           <button key={t || 'all'}
             onClick={() => setFilter(t)}
-            className={`text-xs px-2.5 py-1 rounded-full transition-colors ${filter === t ? 'bg-[#465FFF] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)]'}`}>
+            className={`text-xs px-2.5 py-1 rounded-full transition-colors ${filter === t ? 'bg-[var(--accent-color)] text-[var(--accent-fg)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)]'}`}>
             {t ? ALERT_LABEL[t]?.label || t : 'All'}
           </button>
         ))}
@@ -678,7 +678,7 @@ function SettingsTab({ status, onConnect, onDisconnect, connecting, error, apiBa
       <div className="card p-4 space-y-3">
         <p className="text-sm font-semibold text-[var(--text-primary)]">One-time setup</p>
         <ol className="text-xs text-[var(--text-secondary)] space-y-2 list-decimal list-inside">
-          <li>Register an app at <a href="https://www.bouncie.dev/" target="_blank" rel="noreferrer" className="text-[#465FFF] underline">bouncie.dev</a>.</li>
+          <li>Register an app at <a href="https://www.bouncie.dev/" target="_blank" rel="noreferrer" className="text-[var(--accent-color)] underline">bouncie.dev</a>.</li>
           <li>Add this <strong>Redirect URI</strong> to your Bouncie app: <code className="font-mono text-[11px] block mt-1 p-2 rounded bg-[var(--bg-elevated)]">{callbackUrl}</code></li>
           <li>Add this <strong>Webhook URL</strong> in the Bouncie dev portal with the events you want pushed (connect, disconnect, mil, battery, tripStart/End/Metrics/Data, applicationGeozone, userGeozone): <code className="font-mono text-[11px] block mt-1 p-2 rounded bg-[var(--bg-elevated)]">{webhookUrl}</code></li>
           <li>Set the webhook's <strong>Authorization</strong> header to the same string as your <code className="font-mono">BOUNCIE_WEBHOOK_SECRET</code> backend env var.</li>
@@ -869,7 +869,7 @@ function PageHeader() {
   return (
     <div className="flex items-center gap-3">
       <div className="w-10 h-10 rounded-lg flex items-center justify-center"
-        style={{ backgroundColor: 'rgba(70,95,255,0.12)', color: '#465FFF' }}>
+        style={{ backgroundColor: 'rgba(19,41,75,0.12)', color: 'var(--accent-color)' }}>
         <Satellite size={20} />
       </div>
       <div>
@@ -888,7 +888,7 @@ function Tabs({ tab, setTab }) {
         const active = tab === t.key;
         return (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors border-b-2 ${active ? 'border-[#465FFF] text-[#465FFF]' : 'border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}>
+            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors border-b-2 ${active ? 'border-[var(--accent-color)] text-[var(--accent-color)]' : 'border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}>
             <Icon size={14} /> {t.label}
           </button>
         );

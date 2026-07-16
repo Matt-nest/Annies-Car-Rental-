@@ -115,12 +115,12 @@ export default function NotificationDropdown() {
       {/* Bell button with badge */}
       <button
         onClick={() => setIsOpen(prev => !prev)}
-        className="relative flex items-center justify-center w-10 h-10 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/5 transition-colors"
+        className="relative flex items-center justify-center w-10 h-10 rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)] transition-colors"
         aria-label="Notifications"
       >
         <Bell size={20} />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-red-500 rounded-full ring-2 ring-white dark:ring-gray-900 animate-pulse">
+          <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-red-500 rounded-full ring-2 ring-[var(--bg-primary)] animate-pulse">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
@@ -134,11 +134,11 @@ export default function NotificationDropdown() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.96 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 mt-2 w-[min(380px,calc(100vw-2rem))] max-h-[min(480px,calc(100dvh-6rem))] rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-gray-800 dark:bg-gray-900 z-[99999] flex flex-col overflow-hidden"
+            className="absolute right-0 mt-2 w-[min(380px,calc(100vw-2rem))] max-h-[min(480px,calc(100dvh-6rem))] rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] shadow-xl z-[99999] flex flex-col overflow-hidden"
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100 dark:border-gray-800">
-              <h3 className="text-sm font-semibold text-gray-800 dark:text-white">Notifications</h3>
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-[var(--border-subtle)]">
+              <h3 className="text-sm font-semibold text-[var(--text-primary)]">Notifications</h3>
               <div className="flex items-center gap-2">
                 {unreadCount > 0 && (
                   <button
@@ -181,10 +181,10 @@ export default function NotificationDropdown() {
                   <button
                     key={notif.id}
                     onClick={() => handleClick(notif)}
-                    className={`w-full flex items-start gap-3 px-5 py-3 text-left transition-colors border-b border-gray-50 dark:border-gray-800/50 last:border-0 ${
+                    className={`w-full flex items-start gap-3 px-5 py-3 text-left transition-colors border-b border-[var(--border-subtle)] last:border-0 ${
                       !notif.is_read
-                        ? 'bg-brand-50/30 dark:bg-brand-500/5'
-                        : 'hover:bg-gray-50 dark:hover:bg-white/[0.02]'
+                        ? 'bg-[var(--accent-glow)]'
+                        : 'hover:bg-[var(--bg-card-hover)]'
                     }`}
                   >
                     <div

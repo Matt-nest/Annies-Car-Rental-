@@ -5,7 +5,7 @@
 
 /* ═══════════════════════════════════════════════════════════════════════════
    DESIGN SYSTEM — Annie's Car Rental Admin v4
-   TailAdmin Reference Match — Indigo accent (#465FFF)
+   TailAdmin Reference Match — Coastal navy accent (#13294B)
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* ─── Easing + Global Tokens ────────────────────────────────────────────────── */
@@ -31,10 +31,10 @@
   --kpi-negative-text: #EF4444;
 
   /* Chart palette */
-  --chart-primary:   #465FFF;
+  --chart-primary:   #13294B;
   --chart-secondary: #8B5CF6;
   --chart-tertiary:  #06B6D4;
-  --chart-area-fill: rgba(70, 95, 255, 0.08);
+  --chart-area-fill: rgba(19, 41, 75, 0.08);
 
   /* Shadow system */
   --shadow-xs: 0px 1px 2px rgba(0, 0, 0, 0.05);
@@ -42,7 +42,7 @@
   --shadow-md: 0px 4px 8px -2px rgba(0, 0, 0, 0.10), 0px 2px 4px -2px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0px 12px 16px -4px rgba(0, 0, 0, 0.08), 0px 4px 6px -2px rgba(0, 0, 0, 0.03);
   --shadow-xl: 0px 20px 24px -4px rgba(0, 0, 0, 0.10), 0px 8px 8px -4px rgba(0, 0, 0, 0.04);
-  --shadow-focus-ring: 0px 0px 0px 4px rgba(70, 95, 255, 0.18);
+  --shadow-focus-ring: 0px 0px 0px 4px rgba(19, 41, 75, 0.18);
 
   /* Mobile layout — bottom nav pill (~58px) + home-indicator clearance */
   --bottom-nav-offset: calc(58px + max(env(safe-area-inset-bottom), 12px));
@@ -52,36 +52,36 @@
   --app-safe-bottom: env(safe-area-inset-bottom, 0px);
 
   /* Sidebar (light) */
-  --sidebar-bg:          #FFFFFF;
-  --sidebar-border:      #E2E8F0;
-  --sidebar-text:        #334155;
-  --sidebar-text-muted:  #94A3B8;
-  --sidebar-hover:       #F1F5F9;
-  --sidebar-active-bg:   rgba(70, 95, 255, 0.08);
-  --sidebar-active-text: #465FFF;
-  --sidebar-active-icon: #465FFF;
+  --sidebar-bg:          #F9FBFE;
+  --sidebar-border:      #CBD5E1;
+  --sidebar-text:        #1E293B;
+  --sidebar-text-muted:  #64748B;
+  --sidebar-hover:       #EAF0F7;
+  --sidebar-active-bg:   rgba(19, 41, 75, 0.08);
+  --sidebar-active-text: #13294B;
+  --sidebar-active-icon: #13294B;
 }
 
 /* ─── Light Mode ────────────────────────────────────────────────────────────── */
 html, html.light {
-  --bg-primary:     #F8FAFC;
-  --bg-secondary:   #F1F5F9;
-  --bg-card:        #FFFFFF;
-  --bg-card-hover:  #F8FAFC;
-  --bg-glass:       rgba(255, 255, 255, 0.92);
-  --bg-elevated:    #FFFFFF;
-  --border-subtle:  #E2E8F0;
-  --border-medium:  #CBD5E1;
-  --border-strong:  #94A3B8;
-  --text-primary:   #0F172A;
-  --text-secondary: #64748B;
-  --text-tertiary:  #94A3B8;
-  --accent-color:   #465FFF;
-  --accent-glow:    rgba(70, 95, 255, 0.10);
+  --bg-primary:     #EEF3F8;
+  --bg-secondary:   #E5ECF4;
+  --bg-card:        #F9FBFE;
+  --bg-card-hover:  #F1F5FA;
+  --bg-glass:       rgba(249, 251, 254, 0.92);
+  --bg-elevated:    #FCFDFF;
+  --border-subtle:  #CBD5E1;
+  --border-medium:  #94A3B8;
+  --border-strong:  #64748B;
+  --text-primary:   #0B1220;
+  --text-secondary: #334155;
+  --text-tertiary:  #64748B;
+  --accent-color:   #13294B;
+  --accent-glow:    rgba(19, 41, 75, 0.10);
   --accent-fg:      #FFFFFF;
-  --brand-color:    #465FFF;
-  --brand-glow:     rgba(70, 95, 255, 0.08);
-  --header-bg:      rgba(248, 250, 252, 0.92);
+  --brand-color:    #13294B;
+  --brand-glow:     rgba(19, 41, 75, 0.08);
+  --header-bg:      rgba(238, 243, 248, 0.82);
   --glass-shadow:   0 8px 32px rgba(0,0,0,0.14);
   --glass-shadow-hover: 0 14px 44px rgba(0,0,0,0.18);
 }
@@ -98,26 +98,26 @@ html.dark {
   --border-medium:  #3B4A5E;
   --border-strong:  #4B5C70;
   --text-primary:   #F1F5F9;
-  --text-secondary: #94A3B8;
-  --text-tertiary:  #6B7280;
-  --accent-color:   #465FFF;
-  --accent-glow:    rgba(70, 95, 255, 0.15);
-  --accent-fg:      #FFFFFF;
-  --brand-color:    #465FFF;
-  --brand-glow:     rgba(70, 95, 255, 0.12);
-  --header-bg:      rgba(17, 25, 40, 0.96);
+  --text-secondary: #CBD5E1;
+  --text-tertiary:  #A7B4C7;
+  --accent-color:   #60A5FA;
+  --accent-glow:    rgba(96, 165, 250, 0.16);
+  --accent-fg:      #0F172A;
+  --brand-color:    #93C5FD;
+  --brand-glow:     rgba(96, 165, 250, 0.14);
+  --header-bg:      rgba(17, 25, 40, 0.72);
   --glass-shadow:   11px 22px 54px rgba(0,0,0,0.39);
   --glass-shadow-hover: 14px 28px 64px rgba(0,0,0,0.45);
 
   /* Dark sidebar */
   --sidebar-bg:          #111928;
   --sidebar-border:      #1F2A37;
-  --sidebar-text:        #94A3B8;
-  --sidebar-text-muted:  #6B7280;
+  --sidebar-text:        #CBD5E1;
+  --sidebar-text-muted:  #A7B4C7;
   --sidebar-hover:       rgba(255, 255, 255, 0.04);
-  --sidebar-active-bg:   rgba(70, 95, 255, 0.12);
-  --sidebar-active-text: #465FFF;
-  --sidebar-active-icon: #465FFF;
+  --sidebar-active-bg:   rgba(96, 165, 250, 0.16);
+  --sidebar-active-text: #E0F2FE;
+  --sidebar-active-icon: #60A5FA;
 
   /* Dark KPI badges */
   --kpi-positive-bg:   rgba(34, 197, 94, 0.15);
@@ -139,7 +139,7 @@ html.dark {
   }
 
   ::selection {
-    background: rgba(70, 95, 255, 0.22);
+    background: rgba(19, 41, 75, 0.22);
   }
 
   html {

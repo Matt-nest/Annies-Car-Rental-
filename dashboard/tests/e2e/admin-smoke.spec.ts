@@ -221,6 +221,17 @@ test('protected dashboard shell renders with local auth bypass', async ({ page }
   await expect(page.getByRole('link', { name: /fleet/i }).first()).toBeVisible();
 });
 
+test('knowledge hub lives in the profile menu instead of primary sidebar nav', async ({ page }) => {
+  await page.goto('/');
+
+  await expect(page.getByRole('link', { name: /knowledge/i })).toHaveCount(0);
+  await page.getByRole('button', { name: /E2E Admin/i }).click();
+  await page.getByRole('button', { name: /knowledge hub/i }).click();
+
+  await expect(page).toHaveURL(/\/knowledge-hub/);
+  await expect(page.getByRole('heading', { name: 'Knowledge Hub' })).toBeVisible();
+});
+
 test('bookings route renders booking operations page', async ({ page }, testInfo) => {
   await page.goto('/bookings');
 

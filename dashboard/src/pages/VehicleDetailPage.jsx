@@ -169,7 +169,7 @@ export default function VehicleDetailPage() {
               className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-all capitalize
                 ${vehicle.status === s
                   ? 'bg-stone-900 text-white border-stone-900'
-                  : 'bg-white text-[var(--text-secondary)] border-stone-200 hover:border-stone-400'
+                  : 'bg-[var(--bg-card)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:border-[var(--border-medium)]'
                 }`}
             >
               {s}

@@ -8,9 +8,9 @@ import EmptyState from '../components/shared/EmptyState';
 import RevenueHeatmapWidget from '../components/dashboard/widgets/RevenueHeatmapWidget';
 
 const EASE = [0.25, 1, 0.5, 1];
-const PIE_COLORS = ['#465FFF', '#8B5CF6', '#818cf8', '#63b3ed', '#f87171', '#f59e0b', '#ec4899'];
-const CATEGORY_COLORS = { sedan: '#818cf8', suv: '#465FFF', truck: '#8B5CF6', luxury: '#f59e0b', electric: '#63b3ed', uncategorized: '#94a3b8' };
-const RATE_COLORS = { daily: '#465FFF', weekly: '#D4AF37', weekly_mixed: '#f59e0b' };
+const PIE_COLORS = ['#13294B', '#8B5CF6', '#818cf8', '#63b3ed', '#f87171', '#f59e0b', '#ec4899'];
+const CATEGORY_COLORS = { sedan: '#818cf8', suv: '#13294B', truck: '#8B5CF6', luxury: '#f59e0b', electric: '#63b3ed', uncategorized: '#94a3b8' };
+const RATE_COLORS = { daily: '#13294B', weekly: '#E79B3C', weekly_mixed: '#f59e0b' };
 const RATE_LABELS = { daily: 'Daily', weekly: 'Weekly (full)', weekly_mixed: 'Weekly + Days' };
 
 function GlassTooltip({ active, payload, label, prefix = '' }) {
@@ -185,12 +185,12 @@ export default function RevenuePage() {
       <motion.div {...fadeUp(2)} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard label="Total Revenue" value={`$${Number(revenue?.total || 0).toLocaleString()}`} sub="Selected period" icon={DollarSign} accentColor="#22c55e" />
         <StatCard label="This Month" value={`$${Number(revenue?.this_month_revenue || 0).toLocaleString()}`} sub={`${revenue?.this_month_bookings || 0} bookings`} icon={Calendar} accentColor="#818cf8" />
-        <StatCard label="Avg per Booking" icon={CreditCard} accentColor="#465FFF"
+        <StatCard label="Avg per Booking" icon={CreditCard} accentColor="#13294B"
           value={revenue?.transactions?.length
             ? `$${(Number(revenue.total) / revenue.transactions.length).toFixed(0)}`
             : '$0'}
         />
-        <StatCard label="Avg Rental Length" icon={Calendar} accentColor="#D4AF37"
+        <StatCard label="Avg Rental Length" icon={Calendar} accentColor="#E79B3C"
           value={revenue?.avg_rental_days ? `${revenue.avg_rental_days} days` : '—'}
           sub={revenue?.weekly_discount_total > 0 ? `$${Number(revenue.weekly_discount_total).toLocaleString()} weekly discounts` : 'No weekly discounts yet'}
         />
@@ -203,7 +203,7 @@ export default function RevenuePage() {
         const total = Object.values(f).reduce((s, v) => s + v, 0);
         if (total === 0) return null;
         const steps = [
-          { key: 'new',       label: 'New',       color: '#D4AF37' },
+          { key: 'new',       label: 'New',       color: '#E79B3C' },
           { key: 'contacted', label: 'Contacted',  color: '#63b3ed' },
           { key: 'converted', label: 'Converted',  color: '#22c55e' },
           { key: 'closed',    label: 'Closed',     color: '#94a3b8' },
@@ -342,7 +342,7 @@ export default function RevenuePage() {
                 .map(([days, count]) => ({
                   days: days === '1' ? '1 day' : `${days}${days === '15+' ? '' : 'd'}`,
                   count,
-                  fill: Number(days) >= 7 ? '#D4AF37' : '#818cf8',
+                  fill: Number(days) >= 7 ? '#E79B3C' : '#818cf8',
                 }));
               if (barData.length === 0) return <EmptyState icon={Calendar} title="No booking length data yet" />;
               return (

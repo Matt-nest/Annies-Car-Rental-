@@ -6,7 +6,7 @@ import { api } from '../../api/client';
 
 const CATEGORY_CONFIG = {
   bookings: { icon: BookOpen, label: 'Bookings', color: '#818cf8' },
-  customers: { icon: Users, label: 'Customers', color: '#465FFF' },
+  customers: { icon: Users, label: 'Customers', color: 'var(--accent-color)' },
   vehicles: { icon: Car, label: 'Vehicles', color: '#63b3ed' },
   payments: { icon: CreditCard, label: 'Payments', color: '#f59e0b' },
 };
@@ -45,11 +45,11 @@ function ResultItem({ item, category, isActive, onClick }) {
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors rounded-lg ${
-        isActive
-          ? 'bg-gray-100 dark:bg-white/5'
-          : 'hover:bg-gray-50 dark:hover:bg-white/[0.03]'
-      }`}
+        className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors rounded-lg ${
+          isActive
+          ? 'bg-[var(--bg-card-hover)]'
+          : 'hover:bg-[var(--bg-card-hover)]'
+        }`}
     >
       <div
         className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
@@ -58,9 +58,9 @@ function ResultItem({ item, category, isActive, onClick }) {
         <Icon size={14} />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-gray-800 dark:text-white/90 truncate">{title}</p>
+        <p className="text-sm font-medium text-[var(--text-primary)] truncate">{title}</p>
         {subtitle && (
-          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{subtitle}</p>
+          <p className="text-xs text-[var(--text-secondary)] truncate">{subtitle}</p>
         )}
       </div>
     </button>
@@ -210,17 +210,17 @@ export default function GlobalSearch() {
 
       {!loading && query.length < 2 && recentSearches.length > 0 && (
         <div>
-          <p className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+          <p className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
             Recent Searches
           </p>
           {recentSearches.map((term, i) => (
             <button
               key={i}
               onClick={() => { setQuery(term); setIsOpen(true); }}
-              className="w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-gray-50 dark:hover:bg-white/[0.03] rounded-lg"
+              className="w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-[var(--bg-card-hover)] rounded-lg"
             >
-              <Clock size={14} className="text-gray-400 shrink-0" />
-              <span className="text-sm text-gray-600 dark:text-gray-300">{term}</span>
+              <Clock size={14} className="text-[var(--text-tertiary)] shrink-0" />
+              <span className="text-sm text-[var(--text-secondary)]">{term}</span>
             </button>
           ))}
         </div>
@@ -272,7 +272,7 @@ export default function GlobalSearch() {
       <div className="hidden md:flex relative w-full" ref={dropdownRef}>
         <div className="relative w-full">
           <span className="absolute -translate-y-1/2 left-4 top-1/2">
-            <Search size={20} className="text-gray-500 dark:text-gray-400" />
+            <Search size={20} className="text-[var(--text-secondary)]" />
           </span>
           <input
             ref={inputRef}
@@ -282,11 +282,11 @@ export default function GlobalSearch() {
             onFocus={() => setIsOpen(true)}
             onKeyDown={handleKeyDown}
             placeholder="Search bookings, customers…"
-            className="h-11 w-full rounded-lg border border-gray-200 bg-transparent py-2.5 pl-12 pr-14 text-sm text-gray-800 shadow-xs placeholder:text-gray-400 focus:border-accent-300 focus:outline-none focus:ring-2 focus:ring-accent-500/10 dark:border-gray-800 dark:bg-gray-800 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-accent-800"
+            className="h-11 w-full rounded-lg border border-[var(--border-subtle)] bg-transparent py-2.5 pl-12 pr-14 text-sm text-[var(--text-primary)] shadow-xs placeholder:text-[var(--text-tertiary)] focus:border-[var(--accent-color)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-glow)]"
           />
           <button
             onClick={() => inputRef.current?.focus()}
-            className="absolute right-2.5 top-1/2 inline-flex -translate-y-1/2 items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 px-[7px] py-[4.5px] text-xs -tracking-[0.2px] text-gray-500 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-400"
+            className="absolute right-2.5 top-1/2 inline-flex -translate-y-1/2 items-center gap-0.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] px-[7px] py-[4.5px] text-xs -tracking-[0.2px] text-[var(--text-secondary)]"
           >
             <span>⌘</span>
             <span>K</span>
@@ -301,7 +301,7 @@ export default function GlobalSearch() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.15 }}
-              className="absolute top-full left-0 right-0 mt-2 max-h-[420px] overflow-y-auto rounded-2xl border border-gray-200 bg-white shadow-lg dark:border-gray-800 dark:bg-gray-900 z-[99999]"
+              className="absolute top-full left-0 right-0 mt-2 max-h-[420px] overflow-y-auto rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] shadow-lg z-[99999]"
             >
               {renderDropdownContent()}
             </motion.div>
@@ -311,7 +311,7 @@ export default function GlobalSearch() {
 
       {/* Mobile search button */}
       <button
-        className="flex md:hidden items-center justify-center w-10 h-10 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/5 transition-colors"
+        className="flex md:hidden items-center justify-center w-10 h-10 rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)] transition-colors"
         onClick={() => setMobileOpen(true)}
         aria-label="Search"
       >
@@ -325,10 +325,10 @@ export default function GlobalSearch() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[999999] bg-white dark:bg-gray-900 flex flex-col safe-top safe-bottom"
+            className="fixed inset-0 z-[999999] bg-[var(--bg-primary)] flex flex-col safe-top safe-bottom"
           >
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-800 safe-x shrink-0">
-              <Search size={20} className="text-gray-400 shrink-0" />
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--border-subtle)] safe-x shrink-0">
+              <Search size={20} className="text-[var(--text-tertiary)] shrink-0" />
               <input
                 autoFocus
                 type="text"
@@ -336,11 +336,11 @@ export default function GlobalSearch() {
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Search…"
-                className="flex-1 bg-transparent text-base text-gray-800 dark:text-white outline-none placeholder:text-gray-400"
+                className="flex-1 bg-transparent text-base text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
               />
               <button
                 onClick={() => { setMobileOpen(false); setQuery(''); setResults(null); }}
-                className="tap-target rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-white shrink-0"
+                className="tap-target rounded-lg text-[var(--text-tertiary)] hover:text-[var(--text-primary)] shrink-0"
                 aria-label="Close search"
               >
                 <X size={20} />

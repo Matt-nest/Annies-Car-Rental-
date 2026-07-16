@@ -137,7 +137,7 @@ export default function OptOutsTab() {
                   color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600,
                   cursor: 'pointer', transition: 'all 0.2s',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = '#465FFF'; e.currentTarget.style.color = '#465FFF'; }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#13294B'; e.currentTarget.style.color = '#13294B'; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
               >
                 Re-opt-in
@@ -283,12 +283,12 @@ function OptInConfirmModal({ customer, onCancel, onConfirm }) {
               disabled={!canSubmit}
               style={{
                 padding: '8px 16px', borderRadius: 10, border: 'none',
-                background: canSubmit ? 'linear-gradient(135deg, #465FFF 0%, #3b4cdb 100%)' : 'var(--bg-card)',
+                background: canSubmit ? 'linear-gradient(135deg, #13294B 0%, #1E3A5F 100%)' : 'var(--bg-card)',
                 color: canSubmit ? '#fff' : 'var(--text-tertiary)',
                 fontSize: 12, fontWeight: 600,
                 cursor: canSubmit ? 'pointer' : 'not-allowed',
                 opacity: canSubmit ? 1 : 0.6,
-                boxShadow: canSubmit ? '0 4px 14px rgba(70,95,255,0.25)' : 'none',
+                boxShadow: canSubmit ? '0 4px 14px rgba(19,41,75,0.25)' : 'none',
               }}
             >
               {submitting ? 'Re-opting in…' : 'Confirm re-opt-in'}

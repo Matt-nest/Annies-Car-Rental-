@@ -40,11 +40,11 @@ export default function LoginPage() {
           href={brand.siteUrl}
           className="absolute left-6 sm:left-16 lg:left-20 flex items-center gap-1 text-sm font-medium transition-colors"
           style={{
-            color: '#465FFF',
+            color: '#13294B',
             top: 'max(2rem, calc(env(safe-area-inset-top) + 1rem))',
           }}
           onMouseEnter={e => e.currentTarget.style.color = '#6B7FFF'}
-          onMouseLeave={e => e.currentTarget.style.color = '#465FFF'}
+          onMouseLeave={e => e.currentTarget.style.color = '#13294B'}
         >
           <ChevronLeft size={16} />
           Back to site
@@ -68,7 +68,7 @@ export default function LoginPage() {
           <div className="flex items-center gap-4 mb-6">
             <div className="flex-1 h-px" style={{ backgroundColor: '#313D4F' }} />
             <div className="flex items-center gap-1.5">
-              <Shield size={11} style={{ color: '#465FFF' }} />
+              <Shield size={11} style={{ color: '#13294B' }} />
               <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#6B7280' }}>
                 Admin Access
               </span>
@@ -97,8 +97,8 @@ export default function LoginPage() {
                 required
                 autoFocus
                 onFocus={e => {
-                  e.target.style.borderColor = '#465FFF';
-                  e.target.style.boxShadow = '0 0 0 3px rgba(70, 95, 255, 0.15)';
+                  e.target.style.borderColor = '#13294B';
+                  e.target.style.boxShadow = '0 0 0 3px rgba(19, 41, 75, 0.15)';
                 }}
                 onBlur={e => {
                   e.target.style.borderColor = '#313D4F';
@@ -126,8 +126,8 @@ export default function LoginPage() {
                   placeholder="Enter your password"
                   required
                   onFocus={e => {
-                    e.target.style.borderColor = '#465FFF';
-                    e.target.style.boxShadow = '0 0 0 3px rgba(70, 95, 255, 0.15)';
+                    e.target.style.borderColor = '#13294B';
+                    e.target.style.boxShadow = '0 0 0 3px rgba(19, 41, 75, 0.15)';
                   }}
                   onBlur={e => {
                     e.target.style.borderColor = '#313D4F';
@@ -155,7 +155,7 @@ export default function LoginPage() {
                   type="checkbox"
                   className="w-4 h-4 rounded"
                   style={{
-                    accentColor: '#465FFF',
+                    accentColor: '#13294B',
                     backgroundColor: '#1F2A37',
                     borderColor: '#313D4F',
                   }}
@@ -166,9 +166,9 @@ export default function LoginPage() {
               <button
                 type="button"
                 className="text-sm font-medium transition-colors"
-                style={{ color: '#465FFF' }}
+                style={{ color: '#13294B' }}
                 onMouseEnter={e => e.currentTarget.style.color = '#6B7FFF'}
-                onMouseLeave={e => e.currentTarget.style.color = '#465FFF'}
+                onMouseLeave={e => e.currentTarget.style.color = '#13294B'}
               >
                 Forgot password?
               </button>
@@ -195,17 +195,17 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full py-3.5 rounded-xl font-semibold text-sm text-white transition-all disabled:opacity-60"
               style={{
-                background: 'linear-gradient(135deg, #465FFF 0%, #3B4BDB 100%)',
-                boxShadow: '0 4px 14px rgba(70, 95, 255, 0.3)',
+                background: 'linear-gradient(135deg, #13294B 0%, #1E3A5F 100%)',
+                boxShadow: '0 4px 14px rgba(19, 41, 75, 0.3)',
               }}
               onMouseEnter={e => {
                 if (!loading) {
-                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(70, 95, 255, 0.45)';
+                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(19, 41, 75, 0.45)';
                   e.currentTarget.style.transform = 'translateY(-1px)';
                 }
               }}
               onMouseLeave={e => {
-                e.currentTarget.style.boxShadow = '0 4px 14px rgba(70, 95, 255, 0.3)';
+                e.currentTarget.style.boxShadow = '0 4px 14px rgba(19, 41, 75, 0.3)';
                 e.currentTarget.style.transform = 'translateY(0)';
               }}
             >
@@ -226,7 +226,7 @@ export default function LoginPage() {
           style={{
             width: 500, height: 500,
             top: '10%', left: '20%',
-            background: 'radial-gradient(circle, rgba(70,95,255,0.12) 0%, transparent 65%)',
+            background: 'radial-gradient(circle, rgba(19,41,75,0.12) 0%, transparent 65%)',
             filter: 'blur(60px)',
           }}
         />
@@ -272,7 +272,7 @@ export default function LoginPage() {
             />
             <div
               className="h-px mx-8 mb-6"
-              style={{ background: 'linear-gradient(90deg, transparent, rgba(70,95,255,0.3), transparent)' }}
+              style={{ background: 'linear-gradient(90deg, transparent, rgba(19,41,75,0.3), transparent)' }}
             />
             <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.5)' }}>
               Fleet Management & Admin
@@ -299,8 +299,8 @@ export default function LoginPage() {
                 <div
                   className="w-1.5 h-1.5 rounded-full"
                   style={{
-                    backgroundColor: '#465FFF',
-                    boxShadow: '0 0 6px rgba(70, 95, 255, 0.4)',
+                    backgroundColor: '#13294B',
+                    boxShadow: '0 0 6px rgba(19, 41, 75, 0.4)',
                   }}
                 />
                 <span className="text-[10px] font-medium" style={{ color: '#6B7280' }}>
@@ -313,12 +313,12 @@ export default function LoginPage() {
 
         {/* Corner decorations */}
         <div className="absolute top-6 right-6 flex gap-2 opacity-40">
-          <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: '#465FFF' }} />
-          <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: 'rgba(70,95,255,0.5)' }} />
+          <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: '#13294B' }} />
+          <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: 'rgba(19,41,75,0.5)' }} />
         </div>
         <div className="absolute bottom-6 left-6 flex gap-2 opacity-40">
-          <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: 'rgba(70,95,255,0.5)' }} />
-          <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: '#465FFF' }} />
+          <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: 'rgba(19,41,75,0.5)' }} />
+          <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: '#13294B' }} />
         </div>
       </div>
     </div>

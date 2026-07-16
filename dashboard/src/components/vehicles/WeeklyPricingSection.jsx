@@ -42,7 +42,7 @@ export default function WeeklyPricingSection({ vehicle, onSaved }) {
     setSaving(false);
   }
 
-  const accent = 'var(--accent-color, #465FFF)';
+  const accent = 'var(--accent-color, #13294B)';
 
   return (
     <div

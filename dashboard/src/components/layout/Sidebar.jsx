@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Calendar, Car, Users, BookOpen,
   TrendingUp, Settings, X, LogOut, AlertTriangle, CreditCard, Landmark, MessageSquare,
-  ArrowUpFromLine, Megaphone, Shield, Satellite, DoorOpen, CircleHelp, Palette,
+  ArrowUpFromLine, Megaphone, Shield, Satellite, DoorOpen, Palette,
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
 import { haptic } from '../../lib/haptic';
@@ -13,7 +13,6 @@ import { isStripeProvider } from '../../config/paymentProvider';
 
 const MAIN_NAV = [
   { to: '/',          label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/knowledge-hub', label: 'Knowledge', icon: CircleHelp },
   { to: '/bookings',  label: 'Bookings',  icon: BookOpen, alertKey: 'pending_approvals' },
   { to: '/fleet',     label: 'Fleet',     icon: Car },
   { to: '/customers', label: 'Customers', icon: Users },
@@ -361,7 +360,7 @@ export default function Sidebar({ open, onClose, alerts = {}, pinned }) {
             >
               <div
                 className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
-                style={{ background: 'linear-gradient(135deg, #465FFF, #7c3aed)' }}
+                style={{ background: 'linear-gradient(135deg, #13294B, #7c3aed)' }}
               >
                 {initials}
               </div>

@@ -208,7 +208,7 @@ function QrPanel({ link, onCopied }) {
           {link.clicks || 0} scans
         </span>
       </div>
-      <div className="mt-4 rounded-xl border border-[var(--border-subtle)] bg-white p-4">
+      <div className="mt-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-4">
         <div className="mx-auto w-full max-w-[220px] text-black [&_svg]:h-full [&_svg]:w-full" dangerouslySetInnerHTML={{ __html: svg }} />
       </div>
       <div className="mt-4 space-y-2">

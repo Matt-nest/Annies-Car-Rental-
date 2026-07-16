@@ -42,7 +42,7 @@ function Field({ label, value, onChange, placeholder, type = 'text', hint, requi
       </label>
       {type === 'textarea' ? (
         <textarea
-          className="w-full px-3 py-2.5 rounded-lg text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] outline-none focus:border-[#465FFF] transition-colors resize-none"
+          className="w-full px-3 py-2.5 rounded-lg text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] outline-none focus:border-[#13294B] transition-colors resize-none"
           rows={3}
           value={value || ''}
           onChange={e => onChange(e.target.value)}
@@ -51,7 +51,7 @@ function Field({ label, value, onChange, placeholder, type = 'text', hint, requi
       ) : (
         <input
           type={type}
-          className="w-full px-3 py-2.5 rounded-lg text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] outline-none focus:border-[#465FFF] transition-colors"
+          className="w-full px-3 py-2.5 rounded-lg text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] outline-none focus:border-[#13294B] transition-colors"
           value={value || ''}
           onChange={e => onChange(e.target.value)}
           placeholder={placeholder}
@@ -70,17 +70,17 @@ function ColorField({ label, value, onChange }) {
       <div className="flex items-center gap-2">
         <input
           type="color"
-          value={value || '#D4AF37'}
+          value={value || '#E79B3C'}
           onChange={e => onChange(e.target.value)}
           className="w-10 h-10 rounded-lg border border-[var(--border-subtle)] cursor-pointer p-0.5"
           style={{ backgroundColor: 'var(--bg-card)' }}
         />
         <input
           type="text"
-          className="flex-1 px-3 py-2.5 rounded-lg text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] outline-none focus:border-[#465FFF] transition-colors font-mono"
+          className="flex-1 px-3 py-2.5 rounded-lg text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] outline-none focus:border-[#13294B] transition-colors font-mono"
           value={value || ''}
           onChange={e => onChange(e.target.value)}
-          placeholder="#D4AF37"
+          placeholder="#E79B3C"
         />
       </div>
     </div>
@@ -89,7 +89,7 @@ function ColorField({ label, value, onChange }) {
 
 /* ─── Mini brand preview card ─────────────────────────── */
 function BrandPreview({ form }) {
-  const accent = form.color_accent || '#D4AF37';
+  const accent = form.color_accent || '#E79B3C';
   return (
     <div
       className="rounded-xl p-4 border"
@@ -142,7 +142,7 @@ const EMPTY_FORM = {
   name: '', legal_entity: '', dba: '', domain: '',
   phone: '', email: '', owner_email: '',
   city: '', state: '', zip: '', address: '', timezone: 'America/New_York',
-  color_accent: '#D4AF37', color_accent_dark: '#B8941E', logo_url: '',
+  color_accent: '#E79B3C', color_accent_dark: '#B8941E', logo_url: '',
   meta_description: '',
   stripe_prefix: '', review_link: '', chat_widget_id: '',
   tax_rate: '0.07', deposit_cents: '15000',
@@ -314,7 +314,7 @@ export default function BrandsTab() {
               <div>
                 <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Timezone</label>
                 <select
-                  className="w-full px-3 py-2.5 rounded-lg text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] outline-none focus:border-[#465FFF] transition-colors"
+                  className="w-full px-3 py-2.5 rounded-lg text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] outline-none focus:border-[#13294B] transition-colors"
                   value={form.timezone}
                   onChange={e => setField('timezone', e.target.value)}
                 >
@@ -368,7 +368,7 @@ export default function BrandsTab() {
               onClick={handleSave}
               disabled={saving}
               className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-50"
-              style={{ background: 'linear-gradient(135deg, #465FFF, #3B4BDB)', boxShadow: '0 4px 14px rgba(70,95,255,0.3)' }}
+              style={{ background: 'linear-gradient(135deg, #13294B, #1E3A5F)', boxShadow: '0 4px 14px rgba(19,41,75,0.3)' }}
             >
               {saved ? <><Check size={14} /> Saved!</> : saving ? <><RefreshCw size={14} className="animate-spin" /> Saving…</> : <><Save size={14} /> {editing === 'new' ? 'Create Brand' : 'Save Changes'}</>}
             </button>
@@ -401,7 +401,7 @@ export default function BrandsTab() {
         <button
           onClick={openCreate}
           className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-semibold text-white transition-all"
-          style={{ background: 'linear-gradient(135deg, #465FFF, #3B4BDB)', boxShadow: '0 4px 14px rgba(70,95,255,0.3)' }}
+          style={{ background: 'linear-gradient(135deg, #13294B, #1E3A5F)', boxShadow: '0 4px 14px rgba(19,41,75,0.3)' }}
         >
           <Plus size={14} /> New Brand
         </button>
@@ -430,7 +430,7 @@ export default function BrandsTab() {
           <button
             onClick={openCreate}
             className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-sm font-semibold text-white mt-2"
-            style={{ background: 'linear-gradient(135deg, #465FFF, #3B4BDB)' }}
+            style={{ background: 'linear-gradient(135deg, #13294B, #1E3A5F)' }}
           >
             <Plus size={14} /> Create First Brand
           </button>
@@ -455,7 +455,7 @@ export default function BrandsTab() {
                     <div className="flex items-center gap-3">
                       <div
                         className="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
-                        style={{ backgroundColor: b.color_accent || '#D4AF37', color: '#0a0a0a' }}
+                        style={{ backgroundColor: b.color_accent || '#E79B3C', color: '#0a0a0a' }}
                       >
                         {(b.name || '?')[0]}
                       </div>
@@ -480,8 +480,8 @@ export default function BrandsTab() {
                   <td className="px-4 py-3 text-center">
                     <div
                       className="w-6 h-6 rounded-full mx-auto border border-[var(--border-subtle)]"
-                      style={{ backgroundColor: b.color_accent || '#D4AF37' }}
-                      title={b.color_accent || '#D4AF37'}
+                      style={{ backgroundColor: b.color_accent || '#E79B3C' }}
+                      title={b.color_accent || '#E79B3C'}
                     />
                   </td>
                   <td className="px-4 py-3 text-center">
@@ -497,7 +497,7 @@ export default function BrandsTab() {
                     <div className="flex items-center justify-end gap-1">
                       <button
                         onClick={() => openEdit(b)}
-                        className="p-2 rounded-lg text-[var(--text-secondary)] hover:text-[#465FFF] hover:bg-[rgba(70,95,255,0.08)] transition-all"
+                        className="p-2 rounded-lg text-[var(--text-secondary)] hover:text-[#13294B] hover:bg-[rgba(19,41,75,0.08)] transition-all"
                         title="Edit"
                       >
                         <Edit3 size={14} />

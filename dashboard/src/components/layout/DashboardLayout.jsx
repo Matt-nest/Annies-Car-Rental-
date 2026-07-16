@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, createContext, useContext } from 'react';
 import { Outlet, useNavigate, useLocation, useNavigationType } from 'react-router-dom';
-import { Sun, Moon, User, Settings, LogOut, ChevronDown, ThumbsUp } from 'lucide-react';
+import { Sun, Moon, User, Settings, LogOut, ChevronDown, ThumbsUp, CircleHelp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from './Sidebar';
 import BottomNav from './BottomNav';
@@ -167,10 +167,10 @@ function DashboardLayoutInner() {
                 style={{
                   borderColor: pinned ? 'var(--accent-color)' : 'var(--border-subtle)',
                   color: pinned ? 'var(--accent-color)' : 'var(--text-primary)',
-                  backgroundColor: pinned ? 'rgba(70,95,255,0.08)' : 'transparent',
+                  backgroundColor: pinned ? 'rgba(19,41,75,0.08)' : 'transparent',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'rgba(70,95,255,0.12)'; e.currentTarget.style.color = 'var(--accent-color)'; e.currentTarget.style.borderColor = 'var(--accent-color)'; }}
-                onMouseLeave={e => { e.currentTarget.style.backgroundColor = pinned ? 'rgba(70,95,255,0.08)' : 'transparent'; e.currentTarget.style.color = pinned ? 'var(--accent-color)' : 'var(--text-primary)'; e.currentTarget.style.borderColor = pinned ? 'var(--accent-color)' : 'var(--border-subtle)'; }}
+                onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'rgba(19,41,75,0.12)'; e.currentTarget.style.color = 'var(--accent-color)'; e.currentTarget.style.borderColor = 'var(--accent-color)'; }}
+                onMouseLeave={e => { e.currentTarget.style.backgroundColor = pinned ? 'rgba(19,41,75,0.08)' : 'transparent'; e.currentTarget.style.color = pinned ? 'var(--accent-color)' : 'var(--text-primary)'; e.currentTarget.style.borderColor = pinned ? 'var(--accent-color)' : 'var(--border-subtle)'; }}
                 aria-label={pinned ? 'Unpin sidebar' : 'Pin sidebar'}
               >
                 {/* Three-line hamburger icon (☰) */}
@@ -228,7 +228,7 @@ function DashboardLayoutInner() {
                   >
                     <div
                       className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
-                      style={{ background: 'linear-gradient(135deg, #465FFF 0%, #7c3aed 100%)' }}
+                      style={{ background: 'linear-gradient(135deg, #13294B 0%, #7c3aed 100%)' }}
                     >
                       {initials}
                     </div>
@@ -274,6 +274,11 @@ function DashboardLayoutInner() {
                             icon={User}
                             label="Edit Profile"
                             onClick={() => { setProfileOpen(false); navigate('/settings'); }}
+                          />
+                          <DropdownItem
+                            icon={CircleHelp}
+                            label="Knowledge Hub"
+                            onClick={() => { setProfileOpen(false); navigate('/knowledge-hub'); }}
                           />
                           <DropdownItem
                             icon={Settings}
