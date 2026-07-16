@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { api } from '../../api/client';
 import { useAlerts } from '../../lib/alertsContext';
 import { compressImage } from '../../lib/compressImage';
-import { Camera, X, Loader2, ImagePlus, CheckCircle, Key, AlertCircle, Fuel } from 'lucide-react';
+import { Camera, X, Loader2, ImagePlus, CheckCircle, Key, AlertCircle, Fuel, Gauge, ChevronLeft, ChevronRight, ClipboardCheck } from 'lucide-react';
 
 /* ── Fuel Level Tap Selector ────────────────────────────────────────── */
 const FUEL_LEVELS = [
@@ -36,6 +36,51 @@ function FuelSelector({ value, onChange }) {
           </button>
         );
       })}
+    </div>
+  );
+}
+
+function StepperHeader({ step, steps }) {
+  return (
+    <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        {steps.map((label, index) => {
+          const active = index === step;
+          const complete = index < step;
+          return (
+            <div key={label} className="flex min-w-0 flex-1 items-center gap-2">
+              <div
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black transition-all"
+                style={{
+                  backgroundColor: complete || active ? '#22c55e' : 'var(--bg-card-hover)',
+                  color: complete || active ? '#fff' : 'var(--text-tertiary)',
+                  border: complete || active ? '1px solid #22c55e' : '1px solid var(--border-subtle)',
+                }}
+              >
+                {complete ? <CheckCircle size={14} /> : index + 1}
+              </div>
+              <span
+                className="hidden min-w-0 truncate text-xs font-semibold sm:block"
+                style={{ color: active ? 'var(--text-primary)' : 'var(--text-tertiary)' }}
+              >
+                {label}
+              </span>
+              {index < steps.length - 1 && (
+                <div
+                  className="hidden h-0.5 flex-1 rounded-full sm:block"
+                  style={{ backgroundColor: complete ? '#22c55e' : 'var(--border-subtle)' }}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-[var(--bg-card-hover)]">
+        <div
+          className="h-full rounded-full bg-emerald-500 transition-all duration-300"
+          style={{ width: `${((step + 1) / steps.length) * 100}%` }}
+        />
+      </div>
     </div>
   );
 }
@@ -125,12 +170,14 @@ export default function CheckInPrepTab({ booking, onReload }) {
   const [notes, setNotes] = useState('');
   const [photos, setPhotos] = useState([]);
   const [showNotes, setShowNotes] = useState(false);
+  const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
   const [lockboxCode, setLockboxCode] = useState(null);
   const [customerRecord, setCustomerRecord] = useState(null);
   const { refresh: refreshAlerts } = useAlerts();
+  const steps = ['Vehicle', 'Photos', 'Confirm'];
 
   const v = booking.vehicles;
   const vehicleName = v ? `${v.year} ${v.make} ${v.model}` : 'Vehicle';
@@ -343,14 +390,9 @@ export default function CheckInPrepTab({ booking, onReload }) {
 
   /* ─── Check-In Form ─────────────────────────────────────────────── */
   return (
-    <div className="max-w-lg mx-auto space-y-5 py-2 pb-[calc(var(--bottom-nav-offset)+96px)] md:pb-2">
-      {/* Vehicle header */}
-      <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)]">
-        <p className="text-sm font-semibold text-[var(--text-primary)]">{vehicleName}</p>
-        <p className="text-xs text-[var(--text-tertiary)] font-mono">{v?.vehicle_code}</p>
-      </div>
+    <div className="max-w-lg mx-auto space-y-4 py-2 pb-[calc(var(--bottom-nav-offset)+112px)] md:pb-2">
+      <StepperHeader step={step} steps={steps} />
 
-      {/* Error */}
       {error && (
         <div className="flex items-center gap-2 p-3 rounded-xl text-sm" style={{
           backgroundColor: 'rgba(239,68,68,0.08)',
@@ -359,98 +401,170 @@ export default function CheckInPrepTab({ booking, onReload }) {
         }}>
           <AlertCircle size={16} />
           <span className="flex-1">{error}</span>
-          <button onClick={() => setError('')}><X size={14} /></button>
+          <button type="button" onClick={() => setError('')}><X size={14} /></button>
         </div>
       )}
 
-      {/* Odometer */}
-      <div>
-        <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-2 block">
-          Starting Odometer
-        </label>
-        <input
-          type="number"
-          inputMode="numeric"
-          className="w-full px-4 py-3.5 rounded-xl text-lg font-semibold tabular-nums transition-all"
-          style={{
-            backgroundColor: 'var(--bg-card-hover)',
-            border: '2px solid var(--border-subtle)',
-            color: 'var(--text-primary)',
-            outline: 'none',
-          }}
-          placeholder="45,320"
-          value={odometer}
-          onChange={e => setOdometer(e.target.value)}
-          onFocus={e => (e.target.style.borderColor = 'var(--accent-color)')}
-          onBlur={e => (e.target.style.borderColor = 'var(--border-subtle)')}
-        />
-      </div>
+      {step === 0 && (
+        <div className="space-y-4">
+          <div className="p-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-card)]">
+            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Vehicle</p>
+            <p className="text-base font-semibold text-[var(--text-primary)] mt-1">{vehicleName}</p>
+            <p className="text-xs text-[var(--text-tertiary)] font-mono">{v?.vehicle_code || booking.booking_number}</p>
+          </div>
 
-      {/* Fuel Level */}
-      <div>
-        <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-2 flex items-center gap-1.5">
-          <Fuel size={13} /> Fuel Level
-        </label>
-        <FuelSelector value={fuelLevel} onChange={setFuelLevel} />
-      </div>
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-2 flex items-center gap-1.5">
+              <Gauge size={13} /> Starting Odometer
+            </label>
+            <input
+              type="number"
+              inputMode="numeric"
+              className="w-full px-4 py-3.5 rounded-xl text-lg font-semibold tabular-nums transition-all"
+              style={{
+                backgroundColor: 'var(--bg-card-hover)',
+                border: '2px solid var(--border-subtle)',
+                color: 'var(--text-primary)',
+                outline: 'none',
+              }}
+              placeholder="45,320"
+              value={odometer}
+              onChange={e => setOdometer(e.target.value)}
+              onFocus={e => (e.target.style.borderColor = 'var(--accent-color)')}
+              onBlur={e => (e.target.style.borderColor = 'var(--border-subtle)')}
+            />
+          </div>
 
-      {/* Photos */}
-      <AdminPhotoUploader bookingId={booking.id} photos={photos} setPhotos={setPhotos} />
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-2 flex items-center gap-1.5">
+              <Fuel size={13} /> Fuel Level
+            </label>
+            <FuelSelector value={fuelLevel} onChange={setFuelLevel} />
+          </div>
 
-      {/* Notes (collapsed by default) */}
-      {!showNotes ? (
-        <button
-          type="button"
-          onClick={() => setShowNotes(true)}
-          className="text-xs font-medium text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
-        >
-          + Add condition notes
-        </button>
-      ) : (
-        <div>
-          <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-2 block">
-            Condition Notes
-          </label>
-          <textarea
-            className="w-full px-4 py-3 rounded-xl text-sm resize-none transition-all"
-            rows={3}
-            style={{
-              backgroundColor: 'var(--bg-card-hover)',
-              border: '2px solid var(--border-subtle)',
-              color: 'var(--text-primary)',
-              outline: 'none',
-            }}
-            placeholder="Scratch on rear bumper, etc."
-            value={notes}
-            onChange={e => setNotes(e.target.value)}
-            onFocus={e => (e.target.style.borderColor = 'var(--accent-color)')}
-            onBlur={e => (e.target.style.borderColor = 'var(--border-subtle)')}
-          />
+          <button
+            type="button"
+            onClick={() => setStep(1)}
+            className="w-full flex items-center justify-center gap-2 px-5 py-4 rounded-2xl font-semibold text-sm transition-all active:scale-[0.98]"
+            style={{ backgroundColor: '#22c55e', color: '#fff', minHeight: '56px' }}
+          >
+            Continue to photos <ChevronRight size={18} />
+          </button>
         </div>
       )}
 
-      {/* Submit — single atomic action */}
-      <button
-        onClick={handleSubmit}
-        disabled={submitting}
-        className="w-full flex items-center justify-center gap-2.5 px-6 py-4 rounded-2xl font-semibold text-base transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
-        style={{
-          backgroundColor: '#22c55e',
-          color: '#fff',
-          boxShadow: '0 4px 14px rgba(34,197,94,0.3)',
-          minHeight: '56px',
-        }}
-      >
-        {submitting ? (
-          <><Loader2 size={20} className="animate-spin" /> Saving & Marking Ready…</>
-        ) : (
-          <><CheckCircle size={20} /> Ready for Pickup</>
-        )}
-      </button>
+      {step === 1 && (
+        <div className="space-y-4">
+          <AdminPhotoUploader bookingId={booking.id} photos={photos} setPhotos={setPhotos} />
 
-      <p className="text-xs text-center text-[var(--text-tertiary)]">
-        This will save the check-in record and notify the customer that their vehicle is ready.
-      </p>
+          {!showNotes ? (
+            <button
+              type="button"
+              onClick={() => setShowNotes(true)}
+              className="w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] px-4 py-3 text-left text-sm font-medium text-[var(--text-secondary)]"
+            >
+              + Add condition notes
+            </button>
+          ) : (
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-2 block">
+                Condition Notes
+              </label>
+              <textarea
+                className="w-full px-4 py-3 rounded-xl text-sm resize-none transition-all"
+                rows={4}
+                style={{
+                  backgroundColor: 'var(--bg-card-hover)',
+                  border: '2px solid var(--border-subtle)',
+                  color: 'var(--text-primary)',
+                  outline: 'none',
+                }}
+                placeholder="Scratch on rear bumper, etc."
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                onFocus={e => (e.target.style.borderColor = 'var(--accent-color)')}
+                onBlur={e => (e.target.style.borderColor = 'var(--border-subtle)')}
+              />
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setStep(0)}
+              className="flex items-center justify-center gap-2 px-5 py-4 rounded-2xl font-semibold text-sm border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-secondary)]"
+            >
+              <ChevronLeft size={18} /> Back
+            </button>
+            <button
+              type="button"
+              onClick={() => setStep(2)}
+              className="flex items-center justify-center gap-2 px-5 py-4 rounded-2xl font-semibold text-sm transition-all active:scale-[0.98]"
+              style={{ backgroundColor: '#22c55e', color: '#fff' }}
+            >
+              Review <ChevronRight size={18} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {step === 2 && (
+        <div className="space-y-4">
+          <div className="p-4 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-card)] space-y-3">
+            <div className="flex items-center gap-2">
+              <ClipboardCheck size={18} className="text-emerald-500" />
+              <p className="text-sm font-semibold text-[var(--text-primary)]">Ready summary</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <p className="text-xs text-[var(--text-tertiary)]">Odometer</p>
+                <p className="font-semibold tabular-nums text-[var(--text-primary)]">{odometer ? `${Number(odometer).toLocaleString()} mi` : 'Not recorded'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-[var(--text-tertiary)]">Fuel</p>
+                <p className="font-semibold text-[var(--text-primary)]">{fuelLevel}</p>
+              </div>
+              <div>
+                <p className="text-xs text-[var(--text-tertiary)]">Photos</p>
+                <p className="font-semibold text-[var(--text-primary)]">{photos.length} uploaded</p>
+              </div>
+              <div>
+                <p className="text-xs text-[var(--text-tertiary)]">Status</p>
+                <p className="font-semibold text-[var(--text-primary)]">Ready for pickup</p>
+              </div>
+            </div>
+            {notes && (
+              <div>
+                <p className="text-xs text-[var(--text-tertiary)]">Notes</p>
+                <p className="text-sm text-[var(--text-secondary)]">{notes}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="flex items-center justify-center gap-2 px-5 py-4 rounded-2xl font-semibold text-sm border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-secondary)]"
+            >
+              <ChevronLeft size={18} /> Back
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={submitting}
+              className="flex items-center justify-center gap-2 px-5 py-4 rounded-2xl font-semibold text-sm transition-all active:scale-[0.98] disabled:opacity-50"
+              style={{ backgroundColor: '#22c55e', color: '#fff', boxShadow: '0 4px 14px rgba(34,197,94,0.3)' }}
+            >
+              {submitting ? (
+                <><Loader2 size={18} className="animate-spin" /> Saving</>
+              ) : (
+                <><CheckCircle size={18} /> Mark ready</>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

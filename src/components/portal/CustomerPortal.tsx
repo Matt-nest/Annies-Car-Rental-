@@ -4,6 +4,7 @@ import {
   Car, Calendar, MapPin, Key, Camera, Check, CheckCircle2, AlertCircle,
   Loader2, Shield, DollarSign, MessageSquare, ArrowRight,
   Fuel, Gauge, ChevronRight, ChevronDown, ExternalLink, X, Star, Phone, Receipt, CreditCard, Clock,
+  ArrowLeft, Navigation, Sparkles,
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { EASE, DURATION } from '../../utils/motion';
@@ -22,7 +23,6 @@ import BalanceDueCard from './BalanceDueCard';
 import PaymentPlanCard from './PaymentPlanCard';
 import Sheet from '../common/Sheet';
 import { usePullToRefresh } from '../../hooks/usePullToRefresh';
-import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { brand } from '../../config/brand';
 
 /* Persisted portal session — keeps long-term renters signed in across refreshes. */
@@ -213,13 +213,11 @@ function NextActionCard({
   onTab,
   onCheckIn,
   onCheckOut,
-  isMobile,
 }: {
   booking: any;
   onTab: (tab: PortalTabKey) => void;
   onCheckIn: () => void;
   onCheckOut: () => void;
-  isMobile: boolean;
 }) {
   const status = booking?.status || 'pending_approval';
   const longTerm = isLongTermRental(booking);
@@ -313,12 +311,8 @@ function NextActionCard({
         : { bg: 'var(--bg-card)', border: 'var(--border-subtle)', fg: 'var(--text-primary)' };
 
   function handlePrimary() {
-    const phoneViewport = isMobile || (
-      typeof window !== 'undefined' &&
-      window.matchMedia?.('(max-width: 767px)').matches
-    );
-    if (status === 'ready_for_pickup' && phoneViewport) return onCheckIn();
-    if (status === 'active' && phoneViewport) return onCheckOut();
+    if (status === 'ready_for_pickup') return onCheckIn();
+    if (status === 'active') return onCheckOut();
     onTab(item.tab);
   }
 
@@ -362,6 +356,227 @@ function NextActionCard({
         )}
       </div>
     </motion.section>
+  );
+}
+
+function FlowStepHeader({
+  steps,
+  current,
+  accent = 'var(--accent-color, #B8941E)',
+}: {
+  steps: string[];
+  current: number;
+  accent?: string;
+}) {
+  const progress = steps.length > 1 ? (current / (steps.length - 1)) * 100 : 100;
+  return (
+    <div className="space-y-3">
+      <div className="relative h-1.5 overflow-hidden rounded-full" style={{ backgroundColor: 'var(--bg-card-hover)' }}>
+        <motion.div
+          className="absolute inset-y-0 left-0 rounded-full"
+          initial={false}
+          animate={{ width: `${progress}%` }}
+          transition={{ duration: 0.28, ease: EASE.standard }}
+          style={{ backgroundColor: accent }}
+        />
+      </div>
+      <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
+        {steps.map((step, index) => {
+          const done = index < current;
+          const active = index === current;
+          return (
+            <div key={step} className="flex min-w-0 flex-col items-center gap-1 text-center">
+              <div
+                className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-black transition-all"
+                style={{
+                  backgroundColor: done || active ? accent : 'var(--bg-card-hover)',
+                  border: done || active ? `1px solid ${accent}` : '1px solid var(--border-subtle)',
+                  color: done || active ? 'var(--accent-fg)' : 'var(--text-tertiary)',
+                  boxShadow: active ? `0 0 0 6px color-mix(in srgb, ${accent} 14%, transparent)` : 'none',
+                }}
+              >
+                {done ? <Check size={14} /> : index + 1}
+              </div>
+              <span className="truncate text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: active ? 'var(--text-primary)' : 'var(--text-tertiary)' }}>
+                {step}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function FlowShell({
+  title,
+  subtitle,
+  steps,
+  current,
+  accent,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  steps: string[];
+  current: number;
+  accent: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className="relative -mx-2 overflow-hidden rounded-3xl px-2 pb-1"
+      style={{ backgroundColor: 'var(--bg-elevated, #fff)' }}
+    >
+      <motion.div
+        aria-hidden="true"
+        className="pointer-events-none absolute right-2 top-2 h-24 w-24 rounded-full blur-3xl"
+        animate={{ scale: [1, 1.12, 1], opacity: [0.22, 0.36, 0.22] }}
+        transition={{ repeat: Infinity, duration: 3.4, ease: 'easeInOut' }}
+        style={{ backgroundColor: accent }}
+      />
+      <div className="relative space-y-5 py-2">
+        <div className="flex items-start gap-3">
+          <motion.div
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl"
+            animate={{ rotate: [0, 2, -2, 0] }}
+            transition={{ repeat: Infinity, duration: 4, ease: 'easeInOut' }}
+            style={{ backgroundColor: 'color-mix(in srgb, var(--accent-color) 12%, transparent)', color: accent }}
+          >
+            <Sparkles size={21} />
+          </motion.div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--text-tertiary)' }}>Guided handoff</p>
+            <h3 className="mt-1 text-xl font-semibold leading-tight" style={{ color: 'var(--text-primary)' }}>{title}</h3>
+            <p className="mt-1 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{subtitle}</p>
+          </div>
+        </div>
+        <FlowStepHeader steps={steps} current={current} accent={accent} />
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={current}
+            initial={{ opacity: 0, x: 18 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -18 }}
+            transition={{ duration: 0.22, ease: EASE.standard }}
+            className="space-y-4"
+          >
+            {children}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+function FlowFooter({
+  backLabel = 'Back',
+  nextLabel,
+  onBack,
+  onNext,
+  nextDisabled = false,
+  loading = false,
+  accent = 'var(--accent-color, #B8941E)',
+  submit = false,
+}: {
+  backLabel?: string;
+  nextLabel: string;
+  onBack?: () => void;
+  onNext: () => void;
+  nextDisabled?: boolean;
+  loading?: boolean;
+  accent?: string;
+  submit?: boolean;
+}) {
+  return (
+    <div className={`grid gap-3 pt-2 ${onBack ? 'grid-cols-[0.8fr_1.2fr]' : 'grid-cols-1'}`}>
+      {onBack && (
+        <button
+          type="button"
+          onClick={onBack}
+          disabled={loading}
+          className="flex min-h-12 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold transition-transform active:scale-95 disabled:opacity-50"
+          style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
+        >
+          <ArrowLeft size={15} /> {backLabel}
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={onNext}
+        disabled={nextDisabled || loading}
+        className="flex min-h-12 items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold transition-transform active:scale-95 disabled:opacity-50"
+        style={{
+          backgroundColor: accent,
+          border: `1px solid ${accent}`,
+          boxShadow: `0 14px 32px color-mix(in srgb, ${accent} 28%, transparent)`,
+          color: 'var(--accent-fg, #111827)',
+        }}
+      >
+        {loading ? <><Loader2 size={16} className="animate-spin" /> Processing...</> : <>{nextLabel} {submit ? <Check size={16} /> : <ChevronRight size={16} />}</>}
+      </button>
+    </div>
+  );
+}
+
+function HandoffLauncherCard({
+  mode,
+  title,
+  body,
+  cta,
+  onOpen,
+  accent,
+}: {
+  mode: 'pickup' | 'return';
+  title: string;
+  body: string;
+  cta: string;
+  onOpen: () => void;
+  accent: string;
+}) {
+  const Icon = mode === 'pickup' ? Key : Car;
+  return (
+    <motion.div
+      id={mode === 'pickup' ? 'portal-checkin' : 'portal-checkout'}
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.18, ease: EASE.standard }}
+      className="rounded-3xl p-5"
+      style={{
+        backgroundColor: 'var(--bg-card)',
+        border: '1px solid var(--border-subtle)',
+        scrollMarginTop: '100px',
+        boxShadow: '0 18px 45px rgba(15,23,42,0.08)',
+      }}
+    >
+      <div className="flex items-start gap-3">
+        <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl" style={{ backgroundColor: 'color-mix(in srgb, var(--accent-color) 12%, transparent)' }}>
+          <motion.span
+            aria-hidden="true"
+            className="absolute inset-0 rounded-2xl"
+            animate={{ scale: [1, 1.16, 1], opacity: [0.28, 0, 0.28] }}
+            transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+            style={{ border: `1px solid ${accent}` }}
+          />
+          <Icon size={21} style={{ color: accent }} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--text-tertiary)' }}>
+            {mode === 'pickup' ? 'Pickup flow' : 'Return flow'}
+          </p>
+          <h3 className="mt-1 text-lg font-semibold leading-tight" style={{ color: 'var(--text-primary)' }}>{title}</h3>
+          <p className="mt-1 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{body}</p>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold transition-transform active:scale-95"
+        style={{ backgroundColor: accent, color: 'var(--accent-fg)' }}
+      >
+        {cta} <ArrowRight size={15} />
+      </button>
+    </motion.div>
   );
 }
 
@@ -663,12 +878,26 @@ export default function CustomerPortal() {
   // the top of the page. No-op on desktop/mouse pointers.
   const { pullDistance, isRefreshing, progress, triggered } = usePullToRefresh(loadBooking);
 
-  // Sprint 7c: phone-first bottom-sheet flow for check-in / check-out.
-  // On mobile (<768px) the action bar opens these sheets instead of scrolling
-  // to a long inline form. On desktop the inline form renders as before.
-  const isMobile = useMediaQuery('(max-width: 767px)');
+  // The same guided handoff sheet is used on mobile and desktop so every CTA
+  // enters the same focused pickup / return flow.
   const [checkInSheetOpen, setCheckInSheetOpen] = useState(false);
   const [checkOutSheetOpen, setCheckOutSheetOpen] = useState(false);
+  const [checkInStep, setCheckInStep] = useState(0);
+  const [checkOutStep, setCheckOutStep] = useState(0);
+
+  const openCheckInWizard = useCallback(() => {
+    setError('');
+    setActionSuccess('');
+    setCheckInStep(0);
+    setCheckInSheetOpen(true);
+  }, []);
+
+  const openCheckOutWizard = useCallback(() => {
+    setError('');
+    setActionSuccess('');
+    setCheckOutStep(0);
+    setCheckOutSheetOpen(true);
+  }, []);
 
   // Auto-close the active sheet when a check-in/out completes successfully -
   // user should see the resulting lockbox reveal / completion state in the
@@ -1044,9 +1273,8 @@ export default function CustomerPortal() {
               <NextActionCard
                 booking={booking}
                 onTab={handlePortalTabChange}
-                onCheckIn={() => setCheckInSheetOpen(true)}
-                onCheckOut={() => setCheckOutSheetOpen(true)}
-                isMobile={isMobile}
+                onCheckIn={openCheckInWizard}
+                onCheckOut={openCheckOutWizard}
               />
             </>
           ) : (
@@ -1233,7 +1461,7 @@ export default function CustomerPortal() {
                     {[
                       { num: '1', text: `Head to ${brand.location.address}, ${brand.location.city}` },
                       { num: '2', text: `Find your ${v?.year || ''} ${v?.make || ''} ${v?.model || ''} — the lockbox is on the driver-side window` },
-                      { num: '3', text: 'Inspect the vehicle and complete the check-in form below' },
+                      { num: '3', text: 'Tap Start check-in and follow the guided photo, odometer, and fuel steps' },
                       { num: '4', text: 'Once submitted, your lockbox code will be revealed' },
                       { num: '5', text: 'Open the lockbox, grab the key, and you\'re off!' },
                     ].map((step) => (
@@ -1374,127 +1602,157 @@ export default function CustomerPortal() {
             );
           })()}
 
-          {/* Self-Service Check-In (ready_for_pickup) - Sprint 7c:
-              on mobile renders inside a Vaul bottom sheet, opened by the
-              PortalActionBar. On desktop renders inline as before. The
-              `formBody` JSX is shared via closure so only ONE instance
-              mounts at a time (SlotPhotoUploader / file inputs / refs
-              would race if both render paths were active simultaneously). */}
-          {status === 'ready_for_pickup' && (activePortalTab === 'pickup' || isMobile) && (() => {
+          {/* Self-Service Check-In: one guided modal on mobile and desktop. */}
+          {status === 'ready_for_pickup' && (() => {
+            const checkInSteps = ['Arrive', 'Photos', 'Details'];
+            const checkInAccent = '#22c55e';
             const formBody = (
-              <div className="p-5 space-y-5">
-                <h3 className="text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-                  <Check size={20} style={{ color: '#22c55e' }} /> Start Your Rental
-                </h3>
-                <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                  Inspect the vehicle, take photos from each angle, record the odometer and fuel level, then confirm to start your rental.
-                </p>
-
-                {/* Photo Slots */}
-                {token && (
-                  <SlotPhotoUploader
-                    token={token}
-                    onSlotsChange={(slots, ready) => {
-                      setPhotoSlots(slots);
-                      setAllSlotsReady(ready);
-                    }}
+              <FlowShell
+                title="Start your rental"
+                subtitle="A quick guided handoff: find the vehicle, upload photos, then unlock the key code."
+                steps={checkInSteps}
+                current={checkInStep}
+                accent={checkInAccent}
+              >
+                {checkInStep === 0 && (
+                  <>
+                    <div className="rounded-2xl p-4" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+                      <div className="flex items-start gap-3">
+                        <Navigation size={19} style={{ color: '#06b6d4' }} />
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--text-tertiary)' }}>Pickup location</p>
+                          <p className="mt-1 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{brand.location.address}</p>
+                          <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{brand.location.city}, {brand.location.state} {brand.location.zip}</p>
+                        </div>
+                      </div>
+                      <a
+                        href={`https://maps.google.com/?q=${encodeURIComponent(`${brand.location.address}, ${brand.location.city}, ${brand.location.state} ${brand.location.zip}`)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-4 inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold"
+                        style={{ backgroundColor: 'rgba(6,182,212,0.12)', color: '#0891b2' }}
+                      >
+                        <ExternalLink size={12} /> Open in Maps
+                      </a>
+                    </div>
+                    <div className="grid gap-2">
+                      {['Find the vehicle and lockbox.', 'Take four required photos before driving.', 'Confirm odometer and fuel to reveal the code.'].map((item, index) => (
+                        <div key={item} className="flex items-center gap-3 rounded-2xl p-3" style={{ backgroundColor: 'var(--bg-card-hover)' }}>
+                          <span className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-black" style={{ backgroundColor: 'rgba(34,197,94,0.14)', color: '#15803d' }}>{index + 1}</span>
+                          <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{item}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <FlowFooter nextLabel="Start photos" onNext={() => setCheckInStep(1)} accent={checkInAccent} />
+                  </>
+                )}
+                {checkInStep === 1 && (
+                  <>
+                    {token && (
+                      <SlotPhotoUploader
+                        token={token}
+                        onSlotsChange={(slots, ready) => {
+                          setPhotoSlots(slots);
+                          setAllSlotsReady(ready);
+                        }}
+                      />
+                    )}
+                    {!allSlotsReady && (
+                      <p className="text-[11px] text-center" style={{ color: 'var(--text-tertiary)' }}>
+                        Upload all 4 required photos to continue.
+                      </p>
+                    )}
+                    <FlowFooter
+                      onBack={() => setCheckInStep(0)}
+                      nextLabel="Add details"
+                      onNext={() => setCheckInStep(2)}
+                      nextDisabled={!allSlotsReady}
+                      accent={checkInAccent}
+                    />
+                  </>
+                )}
+                {checkInStep === 2 && (
+                  <>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                          <Gauge size={12} className="inline mr-1" />Odometer *
+                        </label>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          placeholder="e.g. 42350"
+                          value={odometer}
+                          onChange={e => setOdometer(e.target.value)}
+                          className="w-full px-3 py-3 rounded-xl text-base font-mono"
+                          style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', outline: 'none' }}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                          <Fuel size={12} className="inline mr-1" />Fuel Level *
+                        </label>
+                        <select
+                          value={fuel}
+                          onChange={e => setFuel(e.target.value)}
+                          className="w-full px-3 py-3 rounded-xl text-base"
+                          style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', outline: 'none', appearance: 'none' as const }}
+                        >
+                          <option value="full">Full</option>
+                          <option value="three_quarter">¾ Tank</option>
+                          <option value="half">½ Tank</option>
+                          <option value="quarter">¼ Tank</option>
+                          <option value="empty">Empty</option>
+                        </select>
+                      </div>
+                    </div>
+                    <label className="flex items-start gap-3 cursor-pointer py-3 px-4 rounded-xl transition-all" style={{
+                      backgroundColor: conditionConfirmed ? 'rgba(34,197,94,0.08)' : 'var(--bg-card-hover)',
+                      border: conditionConfirmed ? '2px solid rgba(34,197,94,0.3)' : '2px solid var(--border-subtle)',
+                    }}>
+                      <input type="checkbox" checked={conditionConfirmed} onChange={e => setConditionConfirmed(e.target.checked)}
+                        className="w-5 h-5 rounded accent-[#22c55e] mt-0.5 shrink-0" />
+                      <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                        I inspected the vehicle and confirm these photos document its pickup condition.
+                      </span>
+                    </label>
+                    <FlowFooter
+                      onBack={() => setCheckInStep(1)}
+                      nextLabel="Reveal key code"
+                      onNext={handleCheckIn}
+                      nextDisabled={!conditionConfirmed || !allSlotsReady || !odometer}
+                      loading={actionLoading}
+                      accent={checkInAccent}
+                      submit
+                    />
+                  </>
+                )}
+              </FlowShell>
+            );
+            return (
+              <>
+                {activePortalTab === 'pickup' && (
+                  <HandoffLauncherCard
+                    mode="pickup"
+                    title="Check in step by step"
+                    body="Open the guided flow when you are at the vehicle. The lockbox code appears after photos and details are submitted."
+                    cta="Start check-in"
+                    onOpen={openCheckInWizard}
+                    accent={checkInAccent}
                   />
                 )}
-
-                {/* Odometer + Fuel */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                      <Gauge size={12} className="inline mr-1" />Odometer *
-                    </label>
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      placeholder="e.g. 42350"
-                      value={odometer}
-                      onChange={e => setOdometer(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl text-sm font-mono"
-                      style={{
-                        backgroundColor: 'var(--bg-card-hover)',
-                        border: '1px solid var(--border-subtle)',
-                        color: 'var(--text-primary)',
-                        outline: 'none',
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                      <Fuel size={12} className="inline mr-1" />Fuel Level *
-                    </label>
-                    <select
-                      value={fuel}
-                      onChange={e => setFuel(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl text-sm"
-                      style={{
-                        backgroundColor: 'var(--bg-card-hover)',
-                        border: '1px solid var(--border-subtle)',
-                        color: 'var(--text-primary)',
-                        outline: 'none',
-                        appearance: 'none' as const,
-                      }}
-                    >
-                      <option value="full">Full</option>
-                      <option value="three_quarter">¾ Tank</option>
-                      <option value="half">½ Tank</option>
-                      <option value="quarter">¼ Tank</option>
-                      <option value="empty">Empty</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Condition Confirmation */}
-                <label className="flex items-start gap-3 cursor-pointer py-3 px-4 rounded-xl transition-all" style={{
-                  backgroundColor: conditionConfirmed ? 'rgba(34,197,94,0.08)' : 'var(--bg-card-hover)',
-                  border: conditionConfirmed ? '2px solid rgba(34,197,94,0.3)' : '2px solid var(--border-subtle)',
-                }}>
-                  <input type="checkbox" checked={conditionConfirmed} onChange={e => setConditionConfirmed(e.target.checked)}
-                    className="w-5 h-5 rounded accent-[#22c55e] mt-0.5 shrink-0" />
-                  <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                    I've inspected the vehicle and confirm it's in acceptable condition. I understand these photos document its state at pickup.
-                  </span>
-                </label>
-
-                {/* Submit */}
-                <button
-                  onClick={handleCheckIn}
-                  disabled={actionLoading || !conditionConfirmed || !allSlotsReady || !odometer}
-                  className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-full font-semibold transition-all duration-300 hover:scale-[1.02] active:scale-95 text-sm disabled:opacity-50"
-                  style={{ backgroundColor: '#22c55e', color: '#fff', minHeight: '52px' }}
+                <Sheet
+                  open={checkInSheetOpen}
+                  onOpenChange={(o) => {
+                    setCheckInSheetOpen(o);
+                    if (o) setCheckInStep(0);
+                  }}
+                  title="Check in to your rental"
+                  maxWidth="34rem"
                 >
-                  {actionLoading ? <><Loader2 size={16} className="animate-spin" /> Processing…</> : <><ArrowRight size={16} /> Start My Rental</>}
-                </button>
-
-                {!allSlotsReady && (
-                  <p className="text-[11px] text-center" style={{ color: 'var(--text-tertiary)' }}>
-                    Upload all 4 required photos to enable check-in
-                  </p>
-                )}
-              </div>
-            );
-            return isMobile ? (
-              <Sheet
-                open={checkInSheetOpen}
-                onOpenChange={(o) => !o && setCheckInSheetOpen(false)}
-                title="Check in to your rental"
-                maxWidth="32rem"
-              >
-                {formBody}
-              </Sheet>
-            ) : (
-              <motion.div
-                id="portal-checkin"
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3, ease: EASE.standard }}
-                style={{ ...card(theme), scrollMarginTop: '100px' }}
-              >
-                {formBody}
-              </motion.div>
+                  {formBody}
+                </Sheet>
+              </>
             );
           })()}
 
@@ -1576,123 +1834,162 @@ export default function CustomerPortal() {
             )}
           </AnimatePresence>
 
-          {/* Self-Service Check-Out (active) - Sprint 7c bottom-sheet on
-              mobile, inline card on desktop. See check-in block above for
-              the closure pattern. */}
-          {status === 'active' && (activePortalTab === 'pickup' || isMobile) && (() => {
+          {/* Self-Service Check-Out (active) */}
+          {status === 'active' && (() => {
+            const checkOutSteps = ['Park', 'Photos', 'Confirm'];
+            const checkOutAccent = 'var(--accent-color, #B8941E)';
             const formBody = (
-              <div className="p-5 space-y-5">
-                <h3 className="text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-                  <Car size={20} style={{ color: 'var(--accent-color)' }} /> Return Your Vehicle
-                </h3>
-                <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                  Park at the pickup location, take photos from each angle, record the odometer and fuel level, place the key back in the lockbox, then confirm.
-                </p>
-
-                {/* Photo Slots - same 4 required angles as check-in */}
-                {token && (
-                  <SlotPhotoUploader
-                    token={token}
-                    onSlotsChange={(slots, ready) => {
-                      setReturnPhotoSlots(slots);
-                      setReturnSlotsReady(ready);
-                    }}
+              <FlowShell
+                title="Return your vehicle"
+                subtitle="Finish the rental with a few quick checks."
+                steps={checkOutSteps}
+                current={checkOutStep}
+                accent={checkOutAccent}
+              >
+                {checkOutStep === 0 && (
+                  <>
+                    <div className="rounded-2xl p-4" style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)' }}>
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0" style={{ backgroundColor: 'color-mix(in srgb, var(--accent-color) 14%, transparent)' }}>
+                          <MapPin size={18} style={{ color: 'var(--accent-color)' }} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--text-tertiary)' }}>
+                            Return location
+                          </p>
+                          <p className="text-sm font-semibold mt-1" style={{ color: 'var(--text-primary)' }}>
+                            {brand.location.address}
+                          </p>
+                          <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                            {brand.location.city}, {brand.location.state} {brand.location.zip}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid gap-3">
+                      {[
+                        ['1', 'Park in the approved return area.'],
+                        ['2', 'Place the key back in the lockbox.'],
+                        ['3', 'Take photos and submit the return.'],
+                      ].map(([n, text]) => (
+                        <div key={n} className="flex items-center gap-3 rounded-2xl p-3" style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}>
+                          <span className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black" style={{ backgroundColor: 'color-mix(in srgb, var(--accent-color) 14%, transparent)', color: 'var(--accent-color)' }}>
+                            {n}
+                          </span>
+                          <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{text}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <FlowFooter nextLabel="Start photos" onNext={() => setCheckOutStep(1)} accent={checkOutAccent} />
+                  </>
+                )}
+                {checkOutStep === 1 && (
+                  <>
+                    {token && (
+                      <SlotPhotoUploader
+                        token={token}
+                        onSlotsChange={(slots, ready) => {
+                          setReturnPhotoSlots(slots);
+                          setReturnSlotsReady(ready);
+                        }}
+                      />
+                    )}
+                    {!returnSlotsReady && (
+                      <p className="text-[11px] text-center" style={{ color: 'var(--text-tertiary)' }}>
+                        Upload all 4 required photos to continue
+                      </p>
+                    )}
+                    <FlowFooter
+                      onBack={() => setCheckOutStep(0)}
+                      nextLabel="Return details"
+                      onNext={() => setCheckOutStep(2)}
+                      nextDisabled={!returnSlotsReady}
+                      accent={checkOutAccent}
+                    />
+                  </>
+                )}
+                {checkOutStep === 2 && (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                          <Gauge size={12} className="inline mr-1" />Odometer *
+                        </label>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          placeholder="e.g. 42410"
+                          value={returnOdometer}
+                          onChange={e => setReturnOdometer(e.target.value)}
+                          className="w-full px-3 py-3 rounded-xl text-base font-mono"
+                          style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', outline: 'none' }}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                          <Fuel size={12} className="inline mr-1" />Fuel Level *
+                        </label>
+                        <select
+                          value={returnFuel}
+                          onChange={e => setReturnFuel(e.target.value)}
+                          className="w-full px-3 py-3 rounded-xl text-base"
+                          style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', outline: 'none', appearance: 'none' as const }}
+                        >
+                          <option value="full">Full</option>
+                          <option value="three_quarter">¾ Tank</option>
+                          <option value="half">½ Tank</option>
+                          <option value="quarter">¼ Tank</option>
+                          <option value="empty">Empty</option>
+                        </select>
+                      </div>
+                    </div>
+                    <label className="flex items-start gap-3 cursor-pointer py-3 px-4 rounded-xl transition-all" style={{
+                      backgroundColor: keyReturned ? 'color-mix(in srgb, var(--accent-color) 10%, transparent)' : 'var(--bg-card-hover)',
+                      border: keyReturned ? '2px solid color-mix(in srgb, var(--accent-color) 28%, transparent)' : '2px solid var(--border-subtle)',
+                    }}>
+                      <input type="checkbox" checked={keyReturned} onChange={e => setKeyReturned(e.target.checked)}
+                        className="w-5 h-5 rounded accent-[var(--accent-color)] mt-0.5 shrink-0" />
+                      <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                        I returned the key to the lockbox and parked the vehicle.
+                      </span>
+                    </label>
+                    <FlowFooter
+                      onBack={() => setCheckOutStep(1)}
+                      nextLabel="Complete return"
+                      onNext={handleCheckOut}
+                      nextDisabled={!keyReturned || !returnSlotsReady || !returnOdometer}
+                      loading={actionLoading}
+                      accent={checkOutAccent}
+                      submit
+                    />
+                  </>
+                )}
+              </FlowShell>
+            );
+            return (
+              <>
+                {activePortalTab === 'pickup' && (
+                  <HandoffLauncherCard
+                    mode="return"
+                    title="Return step by step"
+                    body="Open the guided return flow when the vehicle is parked. Photos, mileage, fuel, and key return are captured together."
+                    cta="Start return"
+                    onOpen={openCheckOutWizard}
+                    accent={checkOutAccent}
                   />
                 )}
-
-                {/* Odometer + Fuel */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                      <Gauge size={12} className="inline mr-1" />Odometer *
-                    </label>
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      placeholder="e.g. 42410"
-                      value={returnOdometer}
-                      onChange={e => setReturnOdometer(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl text-sm font-mono"
-                      style={{
-                        backgroundColor: 'var(--bg-card-hover)',
-                        border: '1px solid var(--border-subtle)',
-                        color: 'var(--text-primary)',
-                        outline: 'none',
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                      <Fuel size={12} className="inline mr-1" />Fuel Level *
-                    </label>
-                    <select
-                      value={returnFuel}
-                      onChange={e => setReturnFuel(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl text-sm"
-                      style={{
-                        backgroundColor: 'var(--bg-card-hover)',
-                        border: '1px solid var(--border-subtle)',
-                        color: 'var(--text-primary)',
-                        outline: 'none',
-                        appearance: 'none' as const,
-                      }}
-                    >
-                      <option value="full">Full</option>
-                      <option value="three_quarter">¾ Tank</option>
-                      <option value="half">½ Tank</option>
-                      <option value="quarter">¼ Tank</option>
-                      <option value="empty">Empty</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Key returned */}
-                <label className="flex items-start gap-3 cursor-pointer py-3 px-4 rounded-xl transition-all" style={{
-                  backgroundColor: keyReturned ? 'rgba(200,169,126,0.08)' : 'var(--bg-card-hover)',
-                  border: keyReturned ? '2px solid rgba(200,169,126,0.3)' : '2px solid var(--border-subtle)',
-                }}>
-                  <input type="checkbox" checked={keyReturned} onChange={e => setKeyReturned(e.target.checked)}
-                    className="w-5 h-5 rounded accent-[var(--accent-color)] mt-0.5 shrink-0" />
-                  <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                    I have returned the key to the lockbox and the vehicle is parked
-                  </span>
-                </label>
-
-                <button
-                  onClick={handleCheckOut}
-                  disabled={actionLoading || !keyReturned || !returnSlotsReady || !returnOdometer}
-                  className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-full font-semibold transition-all duration-300 hover:scale-[1.02] active:scale-95 text-sm disabled:opacity-50"
-                  style={{ backgroundColor: 'var(--accent-color)', color: '#1c1917', minHeight: '52px' }}
+                <Sheet
+                  open={checkOutSheetOpen}
+                  onOpenChange={(o) => {
+                    setCheckOutSheetOpen(o);
+                    if (o) setCheckOutStep(0);
+                  }}
+                  title="Return your vehicle"
+                  maxWidth="34rem"
                 >
-                  {actionLoading ? <><Loader2 size={16} className="animate-spin" /> Processing…</> : <><Check size={16} /> Complete Return</>}
-                </button>
-
-                {!returnSlotsReady && (
-                  <p className="text-[11px] text-center" style={{ color: 'var(--text-tertiary)' }}>
-                    Upload all 4 required photos to enable return
-                  </p>
-                )}
-              </div>
-            );
-            return isMobile ? (
-              <Sheet
-                open={checkOutSheetOpen}
-                onOpenChange={(o) => !o && setCheckOutSheetOpen(false)}
-                title="Return your vehicle"
-                maxWidth="32rem"
-              >
-                {formBody}
-              </Sheet>
-            ) : (
-              <motion.div
-                id="portal-checkout"
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3, ease: EASE.standard }}
-                style={{ ...card(theme), scrollMarginTop: '100px' }}
-              >
-                {formBody}
-              </motion.div>
+                  {formBody}
+                </Sheet>
+              </>
             );
           })()}
 
@@ -2282,8 +2579,8 @@ export default function CustomerPortal() {
         <PortalActionBar
           status={status as any}
           disabled={actionLoading}
-          onCheckIn={() => setCheckInSheetOpen(true)}
-          onCheckOut={() => setCheckOutSheetOpen(true)}
+          onCheckIn={openCheckInWizard}
+          onCheckOut={openCheckOutWizard}
         />
       )}
 

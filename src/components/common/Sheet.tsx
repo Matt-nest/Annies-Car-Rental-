@@ -50,10 +50,13 @@ export default function Sheet({
           aria-describedby={undefined}
           className="fixed bottom-0 inset-x-0 z-[310] flex flex-col rounded-t-3xl outline-none mx-auto"
           style={{
-            backgroundColor: 'var(--bg-elevated)',
+            backgroundColor: 'var(--bg-elevated, #fff)',
             borderTop: '1px solid var(--border-subtle)',
+            boxShadow: '0 -24px 80px rgba(0,0,0,0.28)',
+            isolation: 'isolate',
             maxHeight: '96dvh',
             maxWidth,
+            overflow: 'hidden',
           }}
         >
           {/* Drag handle - purely visual; dismiss also via overlay click + ESC. */}
@@ -70,7 +73,10 @@ export default function Sheet({
               indicator doesn't sit on top of action buttons. */}
           <div
             className="overflow-y-auto overscroll-contain px-6"
-            style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}
+            style={{
+              backgroundColor: 'var(--bg-elevated, #fff)',
+              paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))',
+            }}
           >
             {children}
           </div>
