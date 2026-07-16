@@ -117,6 +117,7 @@ export const api = {
   getConversations: () => request('/messaging/conversations'),
   getMessages: (customerId) => request(`/messaging/conversations/${customerId}/messages`),
   sendMessage: (customerId, payload) => request(`/messaging/conversations/${customerId}/send`, { method: 'POST', body: JSON.stringify(payload) }),
+  getTwilioActivity: ({ limit = 40 } = {}) => request(`/messaging/twilio/activity?${new URLSearchParams({ limit })}`),
 
   // Email Templates
   getEmailTemplates: () => request('/messaging/email-templates'),

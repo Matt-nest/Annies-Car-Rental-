@@ -110,8 +110,48 @@ async function mockDashboardApi(page: Page) {
       body = customer;
     } else if (path === '/customers/customer-e2e-1/bookings') {
       body = [booking];
+    } else if (path === '/messaging/conversations') {
+      body = [{
+        customer_id: 'customer-e2e-1',
+        last_message: 'Customer asked about pickup window',
+        last_direction: 'inbound',
+        last_channel: 'sms',
+        last_at: '2026-07-16T12:20:00.000Z',
+        customer,
+      }];
     } else if (path === '/messaging/conversations/customer-e2e-1/messages') {
       body = [];
+    } else if (path === '/messaging/twilio/activity') {
+      body = {
+        configured: true,
+        source: 'twilio',
+        generatedAt: '2026-07-16T12:30:00.000Z',
+        calls: [{
+          id: 'CA-e2e-missed',
+          source: 'twilio',
+          direction: 'inbound',
+          status: 'no-answer',
+          from: '+15550100',
+          to: '+17722071655',
+          startedAt: '2026-07-16T12:15:00.000Z',
+          durationSeconds: 0,
+          customerName: 'Taylor Driver',
+          customerPhone: '555-0100',
+          summary: 'Missed voicemail request',
+        }],
+        messages: [{
+          id: 'SM-e2e-text',
+          source: 'twilio',
+          direction: 'outbound',
+          status: 'delivered',
+          from: '+17722071655',
+          to: '+15550100',
+          body: 'Customer asked about pickup window',
+          sentAt: '2026-07-16T12:20:00.000Z',
+          customerName: 'Taylor Driver',
+          customerPhone: '555-0100',
+        }],
+      };
     } else if (path === '/marketing/workspace') {
       body = {
         persistent: true,
@@ -256,6 +296,18 @@ test('knowledge hub lives in the profile menu instead of primary sidebar nav', a
 
   await expect(page).toHaveURL(/\/knowledge-hub/);
   await expect(page.getByRole('heading', { name: 'Knowledge Hub' })).toBeVisible();
+});
+
+test('messaging shows Twilio call log and text messages', async ({ page }) => {
+  await page.goto('/messaging');
+
+  await page.getByRole('button', { name: /twilio log/i }).click();
+  await expect(page.getByRole('heading', { name: 'Call Log & Text Messages' })).toBeVisible();
+  await expect(page.getByText('Missed voicemail request')).toBeVisible();
+  await expect(page.getByText('Taylor Driver').first()).toBeVisible();
+
+  await page.getByRole('button', { name: /^Text Messages$/ }).click();
+  await expect(page.getByText('Customer asked about pickup window')).toBeVisible();
 });
 
 test('bookings route renders booking operations page', async ({ page }, testInfo) => {

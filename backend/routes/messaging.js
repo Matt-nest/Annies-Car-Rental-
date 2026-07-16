@@ -11,6 +11,7 @@ import {
   getLocalMessages,
   storeLocalMessage,
 } from '../services/messagingService.js';
+import { getTwilioActivity } from '../services/twilioActivityService.js';
 import brand from '../config/brand.js';
 import { safeRecordMoneyAction } from '../services/moneyActionAuditService.js';
 
@@ -55,6 +56,13 @@ router.get('/conversations', requireAuth, asyncHandler(async (req, res) => {
 router.get('/conversations/:customerId/messages', requireAuth, asyncHandler(async (req, res) => {
   const messages = await getLocalMessages(req.params.customerId);
   res.json(messages);
+}));
+
+/** GET /twilio/activity — recent Twilio calls + text messages for admin triage */
+router.get('/twilio/activity', requireAuth, asyncHandler(async (req, res) => {
+  const limit = Math.min(Math.max(Number(req.query.limit) || 30, 1), 100);
+  const activity = await getTwilioActivity({ limit });
+  res.json(activity);
 }));
 
 /** POST /conversations/:customerId/send — send a message */

@@ -24,6 +24,7 @@ import { verifyTwilioSignature } from '../middleware/twilioSignature.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { sendSMS, sendEmail } from '../services/notifyService.js';
 import { createNotification } from '../services/notificationService.js';
+import { safeRecordTwilioCallLog } from '../services/twilioActivityService.js';
 import { escapeHtml } from '../utils/emailShell.js';
 
 const router = Router();
@@ -97,7 +98,18 @@ function escapeXml(s) {
  * Returns the dynamic TwiML built from current business_settings.
  */
 router.post('/incoming', verifyTwilioSignature, asyncHandler(async (req, res) => {
-  console.log(`[Voice] Incoming call from ${req.body?.From || 'unknown'}`);
+  const { From, To, CallSid, ParentCallSid, CallStatus } = req.body || {};
+  console.log(`[Voice] Incoming call from ${From || 'unknown'}`);
+  await safeRecordTwilioCallLog({
+    callSid: CallSid,
+    parentCallSid: ParentCallSid,
+    direction: 'inbound',
+    status: CallStatus || 'ringing',
+    from: From,
+    to: To || FROM_NUMBER,
+    startedAt: new Date().toISOString(),
+    metadata: { event: 'voice_incoming' },
+  });
   const twiml = await buildHuntGroupTwiml();
   res.set('Content-Type', 'text/xml').send(twiml);
 }));
@@ -113,9 +125,22 @@ router.post('/incoming', verifyTwilioSignature, asyncHandler(async (req, res) =>
  *   4. Return empty TwiML so the call ends cleanly
  */
 router.post('/recording-done', verifyTwilioSignature, asyncHandler(async (req, res) => {
-  const { RecordingUrl, RecordingDuration, From, CallSid } = req.body || {};
+  const { RecordingUrl, RecordingDuration, From, To, CallSid, ParentCallSid } = req.body || {};
   const callerPhone = From || '(unknown)';
   const durationSec = parseInt(RecordingDuration, 10) || 0;
+
+  await safeRecordTwilioCallLog({
+    callSid: CallSid,
+    parentCallSid: ParentCallSid,
+    direction: 'inbound',
+    status: durationSec < 2 ? 'short-recording' : 'voicemail',
+    from: From,
+    to: To || FROM_NUMBER,
+    recordingUrl: RecordingUrl || null,
+    recordingDurationSeconds: durationSec,
+    durationSeconds: durationSec,
+    metadata: { event: 'voice_recording_done' },
+  });
 
   // Skip if too short (often <2s = caller hung up before speaking)
   if (durationSec < 2) {
@@ -187,7 +212,19 @@ router.post('/recording-done', verifyTwilioSignature, asyncHandler(async (req, r
  * transcription to the admin so they can triage without listening.
  */
 router.post('/transcription-done', verifyTwilioSignature, asyncHandler(async (req, res) => {
-  const { TranscriptionText, TranscriptionStatus, RecordingUrl, From, CallSid } = req.body || {};
+  const { TranscriptionText, TranscriptionStatus, RecordingUrl, From, To, CallSid } = req.body || {};
+
+  await safeRecordTwilioCallLog({
+    callSid: CallSid,
+    direction: 'inbound',
+    status: TranscriptionStatus === 'completed' ? 'transcribed' : 'transcription_pending',
+    from: From,
+    to: To || FROM_NUMBER,
+    recordingUrl: RecordingUrl || null,
+    transcriptionText: TranscriptionText || null,
+    transcriptionStatus: TranscriptionStatus || null,
+    metadata: { event: 'voice_transcription_done' },
+  });
 
   if (TranscriptionStatus !== 'completed' || !TranscriptionText) {
     console.log(`[Voice] Transcription not completed (${TranscriptionStatus}) for ${CallSid}`);

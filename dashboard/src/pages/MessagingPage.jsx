@@ -10,12 +10,13 @@
  *   ChatPanel          — message thread + compose
  *   EmailTemplatesTab  — templates CRUD with preview + active toggle
  *   SequencesTab       — read-only listing of cron-driven stages
+ *   TwilioActivityTab  — recent Twilio calls + text messages
  *   shared.js          — utility helpers + constants (TEMPLATE_STAGES, EASE, etc.)
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { MessageSquare, FileText, Clock, ShieldOff, GitBranch } from 'lucide-react';
+import { MessageSquare, FileText, Clock, ShieldOff, GitBranch, PhoneCall } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { api } from '../api/client';
 import ConversationList from '../components/messaging/ConversationList';
@@ -24,6 +25,7 @@ import EmailTemplatesTab from '../components/messaging/EmailTemplatesTab';
 import SequencesTab from '../components/messaging/SequencesTab';
 import OptOutsTab from '../components/messaging/OptOutsTab';
 import TimelineView from '../components/messaging/TimelineView';
+import TwilioActivityTab from '../components/messaging/TwilioActivityTab';
 import { EASE } from '../components/messaging/shared.js';
 
 export default function MessagingPage() {
@@ -46,7 +48,7 @@ export default function MessagingPage() {
 
   const loadConversations = useCallback(() => {
     return api.getConversations()
-      .then(data => setConversations(data || []))
+      .then(data => setConversations(Array.isArray(data) ? data : []))
       .catch(() => { });
   }, []);
 
@@ -113,11 +115,10 @@ export default function MessagingPage() {
             </div>
           </div>
 
-          {/* Tab switcher — Sprint 9: on mobile becomes icon-only equal-grid
-              with the active tab showing its label. Desktop unchanged. */}
+          {/* Tab switcher */}
           <div style={{
             display: isMobile ? 'grid' : 'flex',
-            gridTemplateColumns: isMobile ? 'repeat(5, 1fr)' : undefined,
+            gridTemplateColumns: isMobile ? 'repeat(3, minmax(0, 1fr))' : undefined,
             borderRadius: 12, padding: 3,
             background: 'var(--bg-card, rgba(0,0,0,0.03))',
             border: '1px solid var(--border-subtle)',
@@ -127,6 +128,7 @@ export default function MessagingPage() {
               { key: 'timeline',      label: 'Timeline',  fullLabel: 'Timeline',      Icon: GitBranch },
               { key: 'templates',     label: 'Templates', fullLabel: 'Templates',     Icon: FileText },
               { key: 'sequences',     label: 'Cron',      fullLabel: 'Sequences',     Icon: Clock },
+              { key: 'twilio',        label: 'Twilio',    fullLabel: 'Twilio Log',    Icon: PhoneCall },
               { key: 'optouts',       label: 'Opt-Outs',  fullLabel: 'Opt-Outs',      Icon: ShieldOff },
             ].map(({ key, label, fullLabel, Icon }) => {
               const isActive = tab === key;
@@ -176,6 +178,10 @@ export default function MessagingPage() {
       ) : tab === 'templates' ? (
         <div style={{ flex: 1, overflowY: 'auto' }}>
           <EmailTemplatesTab />
+        </div>
+      ) : tab === 'twilio' ? (
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          <TwilioActivityTab />
         </div>
       ) : tab === 'optouts' ? (
         <div style={{ flex: 1, overflowY: 'auto' }}>
