@@ -101,6 +101,8 @@ test('ready booking opens guided customer check-in flow', async ({ page }) => {
   await uploadRequiredPhotos(page);
   await page.getByRole('button', { name: /add details/i }).click();
   await page.locator('input[type="number"]').fill('42350');
+  await page.getByRole('button', { name: /review pickup/i }).click();
+  await expect(page.getByText(/ready to unlock/i)).toBeVisible();
   await page.getByRole('checkbox').check();
 
   const checkInRequest = page.waitForRequest((request) =>
@@ -121,6 +123,8 @@ test('active booking opens guided customer return flow', async ({ page }) => {
   await uploadRequiredPhotos(page);
   await page.getByRole('button', { name: /return details/i }).click();
   await page.locator('input[type="number"]').fill('42410');
+  await page.getByRole('button', { name: /review return/i }).click();
+  await expect(page.getByText(/final return check/i)).toBeVisible();
   await page.getByRole('checkbox').check();
 
   const checkOutRequest = page.waitForRequest((request) =>

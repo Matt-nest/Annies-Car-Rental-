@@ -72,10 +72,10 @@ export default function Sheet({
           {/* Scrollable content with safe-area-bottom padding so the home
               indicator doesn't sit on top of action buttons. */}
           <div
-            className="overflow-y-auto overscroll-contain px-6"
+            className="overflow-y-auto overscroll-contain px-4 sm:px-6"
             style={{
               backgroundColor: 'var(--bg-elevated, #fff)',
-              paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))',
+              paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))',
             }}
           >
             {children}

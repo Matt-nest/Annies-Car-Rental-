@@ -4,6 +4,7 @@ import {
   Car, Calendar, MapPin, Key, Camera, Check, CheckCircle2, AlertCircle,
   Loader2, Shield, DollarSign, MessageSquare, ArrowRight,
   Fuel, Gauge, ChevronRight, ChevronDown, ExternalLink, X, Star, Phone, Receipt, CreditCard, Clock,
+  ClipboardCheck,
   ArrowLeft, Navigation, Sparkles,
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
@@ -368,7 +369,7 @@ function FlowStepHeader({
   current: number;
   accent?: string;
 }) {
-  const progress = steps.length > 1 ? (current / (steps.length - 1)) * 100 : 100;
+  const progress = steps.length > 0 ? ((current + 1) / steps.length) * 100 : 100;
   return (
     <div className="space-y-3">
       <div className="relative h-1.5 overflow-hidden rounded-full" style={{ backgroundColor: 'var(--bg-card-hover)' }}>
@@ -423,6 +424,7 @@ function FlowShell({
   accent: string;
   children: React.ReactNode;
 }) {
+  const activeStep = steps[current] || steps[0] || 'Step';
   return (
     <div
       className="relative -mx-2 overflow-hidden rounded-3xl px-2 pb-1"
@@ -430,23 +432,28 @@ function FlowShell({
     >
       <motion.div
         aria-hidden="true"
-        className="pointer-events-none absolute right-2 top-2 h-24 w-24 rounded-full blur-3xl"
-        animate={{ scale: [1, 1.12, 1], opacity: [0.22, 0.36, 0.22] }}
-        transition={{ repeat: Infinity, duration: 3.4, ease: 'easeInOut' }}
-        style={{ backgroundColor: accent }}
+        className="pointer-events-none absolute left-4 right-4 top-0 h-1 rounded-full"
+        initial={false}
+        animate={{ opacity: [0.35, 0.75, 0.35] }}
+        transition={{ repeat: Infinity, duration: 2.8, ease: 'easeInOut' }}
+        style={{
+          background: `linear-gradient(90deg, transparent, ${accent}, transparent)`,
+        }}
       />
       <div className="relative space-y-5 py-2">
         <div className="flex items-start gap-3">
           <motion.div
             className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl"
-            animate={{ rotate: [0, 2, -2, 0] }}
-            transition={{ repeat: Infinity, duration: 4, ease: 'easeInOut' }}
+            animate={{ y: [0, -2, 0] }}
+            transition={{ repeat: Infinity, duration: 3.2, ease: 'easeInOut' }}
             style={{ backgroundColor: 'color-mix(in srgb, var(--accent-color) 12%, transparent)', color: accent }}
           >
             <Sparkles size={21} />
           </motion.div>
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--text-tertiary)' }}>Guided handoff</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--text-tertiary)' }}>
+              Guided handoff · {current + 1} of {steps.length} · {activeStep}
+            </p>
             <h3 className="mt-1 text-xl font-semibold leading-tight" style={{ color: 'var(--text-primary)' }}>{title}</h3>
             <p className="mt-1 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{subtitle}</p>
           </div>
@@ -489,7 +496,10 @@ function FlowFooter({
   submit?: boolean;
 }) {
   return (
-    <div className={`grid gap-3 pt-2 ${onBack ? 'grid-cols-[0.8fr_1.2fr]' : 'grid-cols-1'}`}>
+    <div
+      className={`sticky bottom-0 z-10 -mx-1 grid gap-3 rounded-t-2xl px-1 pt-3 ${onBack ? 'grid-cols-[0.8fr_1.2fr]' : 'grid-cols-1'}`}
+      style={{ backgroundColor: 'color-mix(in srgb, var(--bg-elevated, #fff) 94%, transparent)' }}
+    >
       {onBack && (
         <button
           type="button"
@@ -1604,12 +1614,12 @@ export default function CustomerPortal() {
 
           {/* Self-Service Check-In: one guided modal on mobile and desktop. */}
           {status === 'ready_for_pickup' && (() => {
-            const checkInSteps = ['Arrive', 'Photos', 'Details'];
+            const checkInSteps = ['Arrive', 'Photos', 'Details', 'Unlock'];
             const checkInAccent = '#22c55e';
             const formBody = (
               <FlowShell
                 title="Start your rental"
-                subtitle="A quick guided handoff: find the vehicle, upload photos, then unlock the key code."
+                subtitle="A simple pickup flow: arrive, capture photos, confirm details, then unlock the key code."
                 steps={checkInSteps}
                 current={checkInStep}
                 accent={checkInAccent}
@@ -1673,6 +1683,12 @@ export default function CustomerPortal() {
                 )}
                 {checkInStep === 2 && (
                   <>
+                    <div className="rounded-2xl p-4" style={{ backgroundColor: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.22)' }}>
+                      <p className="text-xs font-bold uppercase tracking-[0.16em]" style={{ color: '#15803d' }}>Pickup details</p>
+                      <p className="mt-1 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                        Enter the exact dashboard readings before driving. The final review comes next.
+                      </p>
+                    </div>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div>
                         <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
@@ -1706,18 +1722,49 @@ export default function CustomerPortal() {
                         </select>
                       </div>
                     </div>
-                    <label className="flex items-start gap-3 cursor-pointer py-3 px-4 rounded-xl transition-all" style={{
+                    <FlowFooter
+                      onBack={() => setCheckInStep(1)}
+                      nextLabel="Review pickup"
+                      onNext={() => setCheckInStep(3)}
+                      nextDisabled={!odometer}
+                      accent={checkInAccent}
+                    />
+                  </>
+                )}
+                {checkInStep === 3 && (
+                  <>
+                    <div className="rounded-2xl p-4" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 size={18} style={{ color: checkInAccent }} />
+                        <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Ready to unlock</p>
+                      </div>
+                      <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                        <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--bg-card-hover)' }}>
+                          <p className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: 'var(--text-tertiary)' }}>Photos</p>
+                          <p className="mt-1 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{allSlotsReady ? '4 saved' : 'Missing'}</p>
+                        </div>
+                        <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--bg-card-hover)' }}>
+                          <p className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: 'var(--text-tertiary)' }}>Odometer</p>
+                          <p className="mt-1 text-sm font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>{odometer ? Number(odometer).toLocaleString() : 'Missing'}</p>
+                        </div>
+                        <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--bg-card-hover)' }}>
+                          <p className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: 'var(--text-tertiary)' }}>Fuel</p>
+                          <p className="mt-1 text-sm font-semibold capitalize" style={{ color: 'var(--text-primary)' }}>{fuel.replace(/_/g, ' ')}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <label className="flex cursor-pointer items-start gap-3 rounded-xl px-4 py-3 transition-all" style={{
                       backgroundColor: conditionConfirmed ? 'rgba(34,197,94,0.08)' : 'var(--bg-card-hover)',
                       border: conditionConfirmed ? '2px solid rgba(34,197,94,0.3)' : '2px solid var(--border-subtle)',
                     }}>
                       <input type="checkbox" checked={conditionConfirmed} onChange={e => setConditionConfirmed(e.target.checked)}
-                        className="w-5 h-5 rounded accent-[#22c55e] mt-0.5 shrink-0" />
+                        className="mt-0.5 h-5 w-5 shrink-0 rounded accent-[#22c55e]" />
                       <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                         I inspected the vehicle and confirm these photos document its pickup condition.
                       </span>
                     </label>
                     <FlowFooter
-                      onBack={() => setCheckInStep(1)}
+                      onBack={() => setCheckInStep(2)}
                       nextLabel="Reveal key code"
                       onNext={handleCheckIn}
                       nextDisabled={!conditionConfirmed || !allSlotsReady || !odometer}
@@ -1836,12 +1883,12 @@ export default function CustomerPortal() {
 
           {/* Self-Service Check-Out (active) */}
           {status === 'active' && (() => {
-            const checkOutSteps = ['Park', 'Photos', 'Confirm'];
+            const checkOutSteps = ['Park', 'Photos', 'Details', 'Finish'];
             const checkOutAccent = 'var(--accent-color, #B8941E)';
             const formBody = (
               <FlowShell
                 title="Return your vehicle"
-                subtitle="Finish the rental with a few quick checks."
+                subtitle="A focused return flow: park, capture photos, confirm readings, then finish the trip."
                 steps={checkOutSteps}
                 current={checkOutStep}
                 accent={checkOutAccent}
@@ -1910,6 +1957,12 @@ export default function CustomerPortal() {
                 )}
                 {checkOutStep === 2 && (
                   <>
+                    <div className="rounded-2xl p-4" style={{ backgroundColor: 'color-mix(in srgb, var(--accent-color) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--accent-color) 24%, transparent)' }}>
+                      <p className="text-xs font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--accent-color)' }}>Return details</p>
+                      <p className="mt-1 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                        Record the final mileage and fuel level before you lock up.
+                      </p>
+                    </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-secondary)' }}>
@@ -1943,18 +1996,49 @@ export default function CustomerPortal() {
                         </select>
                       </div>
                     </div>
-                    <label className="flex items-start gap-3 cursor-pointer py-3 px-4 rounded-xl transition-all" style={{
+                    <FlowFooter
+                      onBack={() => setCheckOutStep(1)}
+                      nextLabel="Review return"
+                      onNext={() => setCheckOutStep(3)}
+                      nextDisabled={!returnOdometer}
+                      accent={checkOutAccent}
+                    />
+                  </>
+                )}
+                {checkOutStep === 3 && (
+                  <>
+                    <div className="rounded-2xl p-4" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
+                      <div className="flex items-center gap-2">
+                        <ClipboardCheck size={18} style={{ color: 'var(--accent-color)' }} />
+                        <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Final return check</p>
+                      </div>
+                      <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                        <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--bg-card-hover)' }}>
+                          <p className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: 'var(--text-tertiary)' }}>Photos</p>
+                          <p className="mt-1 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{returnSlotsReady ? '4 saved' : 'Missing'}</p>
+                        </div>
+                        <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--bg-card-hover)' }}>
+                          <p className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: 'var(--text-tertiary)' }}>Odometer</p>
+                          <p className="mt-1 text-sm font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>{returnOdometer ? Number(returnOdometer).toLocaleString() : 'Missing'}</p>
+                        </div>
+                        <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--bg-card-hover)' }}>
+                          <p className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: 'var(--text-tertiary)' }}>Fuel</p>
+                          <p className="mt-1 text-sm font-semibold capitalize" style={{ color: 'var(--text-primary)' }}>{returnFuel.replace(/_/g, ' ')}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <label className="flex cursor-pointer items-start gap-3 rounded-xl px-4 py-3 transition-all" style={{
                       backgroundColor: keyReturned ? 'color-mix(in srgb, var(--accent-color) 10%, transparent)' : 'var(--bg-card-hover)',
                       border: keyReturned ? '2px solid color-mix(in srgb, var(--accent-color) 28%, transparent)' : '2px solid var(--border-subtle)',
                     }}>
                       <input type="checkbox" checked={keyReturned} onChange={e => setKeyReturned(e.target.checked)}
-                        className="w-5 h-5 rounded accent-[var(--accent-color)] mt-0.5 shrink-0" />
+                        className="mt-0.5 h-5 w-5 shrink-0 rounded accent-[var(--accent-color)]" />
                       <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                        I returned the key to the lockbox and parked the vehicle.
+                        I returned the key to the lockbox, removed my belongings, and parked the vehicle.
                       </span>
                     </label>
                     <FlowFooter
-                      onBack={() => setCheckOutStep(1)}
+                      onBack={() => setCheckOutStep(2)}
                       nextLabel="Complete return"
                       onNext={handleCheckOut}
                       nextDisabled={!keyReturned || !returnSlotsReady || !returnOdometer}
