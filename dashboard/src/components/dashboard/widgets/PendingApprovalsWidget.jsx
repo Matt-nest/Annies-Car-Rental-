@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { forwardRef, useEffect, useState, useCallback, useRef } from 'react';
 import { CheckCircle2, XCircle, Car, Calendar, DollarSign } from 'lucide-react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -101,7 +101,7 @@ function DeclineModal({ booking, onDecline, onClose }) {
   );
 }
 
-function BookingCard({ booking, onApprove, onDeclineClick, approving }) {
+const BookingCard = forwardRef(function BookingCard({ booking, onApprove, onDeclineClick, approving }, ref) {
   const vehicle = booking.vehicles;
   const customer = booking.customers;
 
@@ -140,6 +140,7 @@ function BookingCard({ booking, onApprove, onDeclineClick, approving }) {
 
   return (
     <motion.div
+      ref={ref}
       layout
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
@@ -291,7 +292,7 @@ function BookingCard({ booking, onApprove, onDeclineClick, approving }) {
       </motion.div>
     </motion.div>
   );
-}
+});
 
 export default function PendingApprovalsWidget() {
   const [bookings, setBookings] = useState([]);

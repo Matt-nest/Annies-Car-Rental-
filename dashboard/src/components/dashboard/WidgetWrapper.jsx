@@ -165,15 +165,18 @@ export default function WidgetWrapper({
       className="liquid-glass overflow-hidden"
     >
       {/* Header */}
-      <button
-        onClick={() => setCollapsed(c => !c)}
+      <div
         className="w-full px-5 py-4 flex items-center justify-between gap-3 text-left transition-colors relative z-10"
         style={{ borderBottom: collapsed ? 'none' : '1px solid var(--border-subtle)' }}
         onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-card-hover)')}
         onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
-        aria-expanded={!collapsed}
       >
-        <div className="flex items-center gap-2.5 min-w-0">
+        <button
+          type="button"
+          onClick={() => setCollapsed(c => !c)}
+          className="flex flex-1 items-center gap-2.5 min-w-0 text-left"
+          aria-expanded={!collapsed}
+        >
           {Icon && (
             <Icon size={14} style={{ color: 'var(--accent-color)', flexShrink: 0 }} />
           )}
@@ -183,19 +186,27 @@ export default function WidgetWrapper({
           >
             {title}
           </span>
-        </div>
+        </button>
         <div className="flex items-center gap-2 shrink-0">
           {!collapsed && headerAction}
-          <ChevronDown
-            size={14}
-            style={{
-              color: 'var(--text-tertiary)',
-              transform: collapsed ? 'rotate(-90deg)' : 'none',
-              transition: 'transform 0.2s ease',
-            }}
-          />
+          <button
+            type="button"
+            onClick={() => setCollapsed(c => !c)}
+            className="flex h-7 w-7 items-center justify-center rounded-lg"
+            aria-label={collapsed ? `Expand ${title}` : `Collapse ${title}`}
+            aria-expanded={!collapsed}
+          >
+            <ChevronDown
+              size={14}
+              style={{
+                color: 'var(--text-tertiary)',
+                transform: collapsed ? 'rotate(-90deg)' : 'none',
+                transition: 'transform 0.2s ease',
+              }}
+            />
+          </button>
         </div>
-      </button>
+      </div>
 
       {/* Body */}
       <AnimatePresence initial={false}>
