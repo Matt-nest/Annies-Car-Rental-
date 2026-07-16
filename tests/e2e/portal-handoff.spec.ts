@@ -72,6 +72,13 @@ async function mockPortalApis(page: Page, status: 'ready_for_pickup' | 'active')
   await page.route('**/portal/checkout', async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
   });
+  await page.route('**/portal/balance', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ totalCost: 560, paid: 560, amountDue: 0, amountDueCents: 0 }),
+    });
+  });
   await page.route('**/push/vapid-key', async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ enabled: false }) });
   });
@@ -132,4 +139,19 @@ test('active booking opens guided customer return flow', async ({ page }) => {
   );
   await page.getByRole('button', { name: /complete return/i }).click();
   await checkOutRequest;
+});
+
+test('portal does not eager-load payment config when no balance is due', async ({ page }) => {
+  const code = 'PORTAL-active';
+  const paymentConfigRequests: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().includes('/stripe/public-config')) paymentConfigRequests.push(request.url());
+  });
+
+  await mockPortalApis(page, 'active');
+  await page.goto(`/portal?code=${code}&preview_token=${encodeURIComponent(portalToken(code))}`);
+  await expect(page.getByText('Toyota Camry')).toBeVisible();
+  await page.waitForTimeout(500);
+
+  expect(paymentConfigRequests).toEqual([]);
 });
