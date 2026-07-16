@@ -211,6 +211,25 @@ test.beforeEach(async ({ page }) => {
   await mockDashboardApi(page);
 });
 
+async function expectNoHorizontalOverflow(page: Page) {
+  await page.waitForTimeout(350);
+  const metrics = await page.evaluate(() => {
+    const doc = document.documentElement;
+    const body = document.body;
+    return {
+      viewport: window.innerWidth,
+      docClient: doc.clientWidth,
+      docScroll: doc.scrollWidth,
+      bodyClient: body.clientWidth,
+      bodyScroll: body.scrollWidth,
+    };
+  });
+
+  const maxWidth = Math.max(metrics.viewport, metrics.docClient, metrics.bodyClient) + 2;
+  expect(metrics.docScroll, `document overflow metrics: ${JSON.stringify(metrics)}`).toBeLessThanOrEqual(maxWidth);
+  expect(metrics.bodyScroll, `body overflow metrics: ${JSON.stringify(metrics)}`).toBeLessThanOrEqual(maxWidth);
+}
+
 test('protected dashboard shell renders with local auth bypass', async ({ page }) => {
   await page.goto('/');
 
@@ -219,6 +238,13 @@ test('protected dashboard shell renders with local auth bypass', async ({ page }
   await expect(page.getByRole('link', { name: /dashboard/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /bookings/i }).first()).toBeVisible();
   await expect(page.getByRole('link', { name: /fleet/i }).first()).toBeVisible();
+});
+
+test('core dashboard routes stay within the viewport shell', async ({ page }) => {
+  for (const route of ['/', '/bookings', '/bookings/booking-e2e-1', '/customers', '/check-ins', '/fleet', '/marketing']) {
+    await page.goto(route);
+    await expectNoHorizontalOverflow(page);
+  }
 });
 
 test('knowledge hub lives in the profile menu instead of primary sidebar nav', async ({ page }) => {

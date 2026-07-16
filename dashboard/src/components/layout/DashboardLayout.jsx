@@ -357,7 +357,7 @@ function DashboardLayoutInner() {
                 <button
                   onClick={() => { setActiveAlertModal(false); acknowledgeActive(); setTimeout(() => setCashRainActive(true), 320); }}
                   className="px-5 py-2 rounded-full text-sm font-semibold transition-transform hover:scale-[1.03]"
-                  style={{ backgroundColor: 'var(--accent-color)', color: '#1c1917' }}
+                  style={{ backgroundColor: 'var(--accent-color)', color: 'var(--accent-fg)' }}
                 >
                   Acknowledge
                 </button>

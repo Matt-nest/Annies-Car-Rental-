@@ -44,13 +44,6 @@
   --shadow-xl: 0px 20px 24px -4px rgba(0, 0, 0, 0.10), 0px 8px 8px -4px rgba(0, 0, 0, 0.04);
   --shadow-focus-ring: 0px 0px 0px 4px rgba(19, 41, 75, 0.18);
 
-  /* Mobile layout — bottom nav pill (~58px) + home-indicator clearance */
-  --bottom-nav-offset: calc(58px + max(env(safe-area-inset-bottom), 12px));
-
-  /* Safe-area env aliases for sticky overlays */
-  --app-safe-top:    env(safe-area-inset-top, 0px);
-  --app-safe-bottom: env(safe-area-inset-bottom, 0px);
-
   /* Sidebar (light) */
   --sidebar-bg:          #F9FBFE;
   --sidebar-border:      #CBD5E1;
@@ -60,6 +53,20 @@
   --sidebar-active-bg:   rgba(19, 41, 75, 0.08);
   --sidebar-active-text: #13294B;
   --sidebar-active-icon: #13294B;
+
+  /* App chrome — iOS-aware. Reference these from any page that needs to size
+     itself relative to the visible viewport (e.g. full-height messaging panes,
+     sticky overlays, vh-based layouts). The safe-area envs resolve to 0px on
+     non-notched devices, so the math stays correct everywhere. */
+  --app-safe-top:      env(safe-area-inset-top, 0px);
+  --app-safe-bottom:   env(safe-area-inset-bottom, 0px);
+  --app-header-h:      64px;
+  --app-bottomnav-h:   64px;
+  --bottom-nav-offset: calc(58px + max(env(safe-area-inset-bottom), 12px));
+}
+
+@media (min-width: 1024px) {
+  :root { --app-bottomnav-h: 0px; }
 }
 
 /* ─── Light Mode ────────────────────────────────────────────────────────────── */
@@ -88,6 +95,9 @@ html, html.light {
 
 /* ─── Dark Mode — TailAdmin-matched ────────────────────────────────────────── */
 html.dark {
+  --danger-color:   #F87171;
+  --success-color:  #4ADE80;
+  --warning-color:  #FBBF24;
   --bg-primary:     #111928;
   --bg-secondary:   #1A222C;
   --bg-card:        #1F2A37;
@@ -121,7 +131,9 @@ html.dark {
 
   /* Dark KPI badges */
   --kpi-positive-bg:   rgba(34, 197, 94, 0.15);
+  --kpi-positive-text: #4ADE80;
   --kpi-negative-bg:   rgba(239, 68, 68, 0.15);
+  --kpi-negative-text: #F87171;
 
   /* Dark shadow system — deeper for contrast on #111928 */
   --shadow-xs: 0px 1px 2px rgba(0, 0, 0, 0.30);
@@ -217,7 +229,7 @@ html.dark {
   .btn-primary {
     @apply btn;
     background-color: var(--accent-color);
-    color: #FFFFFF;
+    color: var(--accent-fg, #FFFFFF);
     box-shadow: var(--shadow-xs);
   }
   .btn-primary:hover {
@@ -524,7 +536,14 @@ html.dark {
   }
 }
 
-/* ─── Mobile foundation utilities ─────────────────────────────────────────── */
+/* ─── Mobile foundation utilities (iOS Safari hygiene) ─────────────────────── */
+
+/* Dynamic viewport height — Safari URL bar aware. */
+.h-dvh-fallback { min-height: 100vh; }
+@supports (min-height: 100dvh) {
+  .h-dvh-fallback { min-height: 100dvh; }
+}
+
 .safe-top    { padding-top:    max(env(safe-area-inset-top), 0px); }
 .safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 0px); }
 .safe-left   { padding-left:   max(env(safe-area-inset-left), 0px); }
@@ -572,6 +591,20 @@ html.dark {
   padding-left: 1.5rem;
   padding-right: 1.5rem;
   max-width: calc(100% + 3rem);
+}
+
+.hairline-bottom { border-bottom: 0.5px solid var(--border-subtle); }
+.hairline-top    { border-top:    0.5px solid var(--border-subtle); }
+.hairline-y      { border-top:    0.5px solid var(--border-subtle); border-bottom: 0.5px solid var(--border-subtle); }
+
+h1, h2, h3, .widget-title, .balance-text {
+  text-wrap: balance;
+}
+
+@media (min-width: 768px) {
+  p, .prose-pretty {
+    text-wrap: pretty;
+  }
 }
 
 /* ─── Animations ────────────────────────────────────────────────────────────── */
@@ -640,8 +673,8 @@ html.dark {
 }
 
 @keyframes pulseBlue {
-  0%, 100% { box-shadow: 0 0 8px rgba(0,122,255,0.2), inset 0 0 0 1px rgba(0,122,255,0.2); }
-  50%      { box-shadow: 0 0 18px rgba(0,122,255,0.35), inset 0 0 0 1px rgba(0,122,255,0.3); }
+  0%, 100% { box-shadow: 0 0 8px rgba(19,41,75,0.2), inset 0 0 0 1px rgba(19,41,75,0.2); }
+  50%      { box-shadow: 0 0 18px rgba(19,41,75,0.35), inset 0 0 0 1px rgba(19,41,75,0.3); }
 }
 
 @keyframes pulseYellow {
