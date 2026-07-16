@@ -67,9 +67,14 @@
   .asset-label .num { font-family:var(--serif); font-style:italic; font-weight:400; color:var(--gold-bright); font-size:28px; line-height:1; }
   .asset-label h2 { font-family:var(--sans); font-weight:600; font-size:16px; letter-spacing:-0.005em; color:#f3f6fb; }
   .asset-label .spec { margin-left:auto; font-size:10px; letter-spacing:0.16em; text-transform:uppercase; color:rgba(233,238,245,0.46); font-feature-settings:'tnum'; }
-  .canvas { background:rgba(255,255,255,0.028); border:1px solid rgba(255,255,255,0.06); border-radius:18px; padding:58px 46px; display:flex; flex-wrap:wrap; gap:44px; justify-content:center; align-items:center; }
+  .canvas { background:rgba(255,255,255,0.028); border:1px solid rgba(255,255,255,0.06); border-radius:18px; padding:58px 46px; display:flex; flex-wrap:wrap; gap:44px; justify-content:center; align-items:center; position:relative; isolation:isolate; overflow:hidden; transition:border-color .22s,box-shadow .22s,background .22s; }
+  .canvas::before { content:''; position:absolute; inset:0; pointer-events:none; opacity:0; background:radial-gradient(circle at 50% 0%,rgba(255,216,77,0.22),transparent 46%),linear-gradient(135deg,rgba(255,216,77,0.10),transparent 42%); transition:opacity .22s; }
+  .canvas:hover, .canvas:focus-within { border-color:rgba(255,216,77,0.45); background:rgba(255,255,255,0.04); box-shadow:0 24px 80px rgba(0,0,0,0.34),0 0 0 1px rgba(255,216,77,0.08),0 0 54px rgba(255,216,77,0.16); }
+  .canvas:hover::before, .canvas:focus-within::before { opacity:1; }
   .caption { text-align:center; margin-top:16px; font-size:10px; letter-spacing:0.2em; text-transform:uppercase; color:rgba(233,238,245,0.4); }
+  .card-wrap, .decal-wrap { position:relative; z-index:1; transition:transform .24s cubic-bezier(.25,1,.5,1),filter .24s; }
   .card-wrap { display:flex; flex-direction:column; }
+  .canvas:hover .card-wrap, .canvas:focus-within .card-wrap, .canvas:hover .decal-wrap, .canvas:focus-within .decal-wrap { transform:translateY(-3px) scale(1.018); filter:drop-shadow(0 18px 32px rgba(255,216,77,0.14)); }
 
   /* ── faux QR (replace with real QR at print) ── */
   .qr { background:#fff; border-radius:4px; flex-shrink:0; position:relative; overflow:hidden; --qr-ink:var(--ink); }
@@ -77,10 +82,14 @@
   .qr::after { content:''; position:absolute; right:15%; bottom:15%; width:16%; height:16%; border:2px solid var(--qr-ink); border-radius:2px; }
   .qr .c { position:absolute; width:22%; aspect-ratio:1; background:var(--qr-ink); z-index:2; border-radius:3px; box-shadow:inset 0 0 0 3px #fff,inset 0 0 0 5px var(--qr-ink); }
   .qr .c.tl{top:8%;left:8%}.qr .c.tr{top:8%;right:8%}.qr .c.bl{bottom:8%;left:8%}
-  .qr.has-uploaded-qr { padding:6%; }
+  .qr.has-uploaded-qr { padding:0; box-shadow:inset 0 0 0 2px #fff; }
   .qr.has-uploaded-qr::before, .qr.has-uploaded-qr::after { display:none; }
   .qr.has-uploaded-qr .c { display:none; }
-  .qr.has-uploaded-qr img { width:100%; height:100%; display:block; object-fit:contain; }
+  .qr.has-uploaded-qr img { width:100%; height:100%; display:block; object-fit:cover; transform:scale(var(--qr-fill,1.14)); transform-origin:center; }
+  .biz-card .qr-mini.has-uploaded-qr img { --qr-fill:1.22; }
+  .flyer .qr-zone .qr.has-uploaded-qr img { --qr-fill:1.18; }
+  .rs-card .right .qr.has-uploaded-qr img { --qr-fill:1.16; }
+  .decal .stack .decal-qr.has-uploaded-qr img { --qr-fill:1.18; }
 
   /* ───────── BUSINESS CARD (3.5 x 2) ───────── */
   .biz-card { width:350px; height:200px; border-radius:8px; overflow:hidden; position:relative; box-shadow:0 1px 2px rgba(0,0,0,0.4),0 14px 34px rgba(0,0,0,0.34),0 30px 70px rgba(0,0,0,0.22); }
@@ -259,7 +268,7 @@
   html.embedded-preview #gate,
   html.embedded-preview #tweaksToggle,
   html.embedded-preview .tweaks-panel,
-  html.embedded-preview .dl { display:none !important; }
+  html.embedded-preview .asset-label .dl { display:none !important; }
 
   /* ════ MOBILE ════ */
   @media (max-width: 760px) {
@@ -296,11 +305,18 @@
   .dl:hover { filter:brightness(1.06); transform:translateY(-1px); }
   .dl:active { transform:translateY(0); }
   .dl svg { width:11px; height:11px; }
+  .download-hover { position:absolute; right:18px; top:18px; z-index:5; opacity:0; transform:translateY(-6px) scale(0.98); pointer-events:none; font-family:var(--sans); font-size:9px; font-weight:800; letter-spacing:0.14em; text-transform:uppercase; color:#091521; background:linear-gradient(90deg,#FFD84D,#FFE99A); border:1px solid rgba(255,255,255,0.45); border-radius:999px; padding:10px 15px; cursor:pointer; display:inline-flex; align-items:center; gap:7px; box-shadow:0 12px 34px rgba(0,0,0,0.34),0 0 28px rgba(255,216,77,0.42); transition:opacity .18s,transform .2s,filter .15s; }
+  .download-hover svg { width:12px; height:12px; }
+  .download-hover:hover { filter:brightness(1.05); }
+  .canvas:hover .download-hover, .canvas:focus-within .download-hover { opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
   .qr.real { padding:6%; }
   .qr.real::before, .qr.real::after { display:none; }
   .qr.real .c { display:none; }
   .qr.real svg { width:100%; height:100%; display:block; }
-  .dl[data-busy] { opacity:0.7; pointer-events:none; }
+  .dl[data-busy], .download-hover[data-busy] { opacity:0.7; pointer-events:none; }
+  @media (hover:none) {
+    .download-hover { opacity:1; transform:none; pointer-events:auto; right:14px; top:14px; }
+  }
 </style>
 </head>
 <body class="locked" data-mood="sand" data-voice="editorial" data-ornament="refined">
@@ -324,7 +340,7 @@
 
 <!-- 00 Logo marks -->
 <section class="asset-section">
-  <div class="asset-label"><span class="num">00</span><h2>Logo marks</h2><span class="spec">official primary &middot; horizontal variant</span></div>
+  <div class="asset-label"><span class="num">00</span><h2>Logo marks</h2><span class="spec">official primary &middot; horizontal variant</span><button class="dl" onclick="downloadAsset(this)" data-sel=".logo-card" data-w="4" data-h="3" data-bleed="0.125"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11m0 0l-4-4m4 4l4-4M5 19h14"/></svg>Print-ready</button></div>
   <div class="canvas logo-canvas">
     <div class="logo-card dark"><img class="logo" src="logo.png" alt="Annie's Car Rental"><span class="lc-cap">Primary &middot; dark bg</span></div>
     <div class="logo-card light"><img class="logo" src="brand/annies-wordmark-charcoal.svg" alt="Annie's Car Rental"><span class="lc-cap">Primary &middot; light bg</span></div>
@@ -473,7 +489,7 @@
           <defs><path id="at" d="M 44,190 A 146,146 0 0,1 336,190" fill="none"/><path id="ab" d="M 46,196 A 144,144 0 0,0 334,196" fill="none"/></defs>
           <circle cx="190" cy="190" r="170" fill="none" stroke="#E79B3C" stroke-width="0.9" opacity="0.7"/>
           <text font-family="Inter, sans-serif" font-size="13" font-weight="700" letter-spacing="3.2" fill="#E79B3C"><textPath href="#at" startOffset="50%" text-anchor="middle">ANNIE'S CAR RENTAL  &middot;  TREASURE COAST</textPath></text>
-          <text font-family="Inter, sans-serif" font-size="11" font-weight="600" letter-spacing="3.6" fill="#E79B3C" opacity="0.92"><textPath href="#ab" startOffset="50%" text-anchor="middle">PALM BAY  &middot;  FLORIDA</textPath></text>
+          <text font-family="Inter, sans-serif" font-size="11" font-weight="600" letter-spacing="3.3" fill="#E79B3C" opacity="0.92"><textPath href="#ab" startOffset="50%" text-anchor="middle">TREASURE COAST  &middot;  FL</textPath></text>
         </svg>
         <div class="stack"><img class="logo" src="logo.png" alt="Annie's Car Rental"><div class="qr decal-qr" data-qr="https://anniescarrental.com/?utm_source=decal"><div class="c tl"></div><div class="c tr"></div><div class="c bl"></div></div><div class="scan-cap">Scan to browse the fleet</div></div>
       </div>
@@ -617,20 +633,36 @@
         holder.style.cssText='position:fixed;left:-99999px;top:0;z-index:-1;';
         holder.appendChild(clone); document.body.appendChild(holder);
         var natW=clone.offsetWidth;
-        var canvas=await html2canvas(clone,{ scale:Math.max(2.5,(pageW*300)/natW), backgroundColor:'#ffffff', useCORS:true, logging:false });
+        var canvas=await html2canvas(clone,{ scale:Math.max(3,(pageW*300)/natW), backgroundColor:'#ffffff', useCORS:true, logging:false });
         document.body.removeChild(holder);
-        var data=canvas.toDataURL('image/jpeg',0.95);
+        var data=canvas.toDataURL('image/png');
         if (i>0) pdf.addPage([pageW,pageH], orient);
         var ar=canvas.width/canvas.height, pr=pageW/pageH, dw, dh;
         if (ar>pr){ dh=pageH; dw=dh*ar; } else { dw=pageW; dh=dw/ar; }
-        pdf.addImage(data,'JPEG',(pageW-dw)/2,(pageH-dh)/2,dw,dh,undefined,'FAST');
+        pdf.addImage(data,'PNG',(pageW-dw)/2,(pageH-dh)/2,dw,dh,undefined,'FAST');
       }
       pdf.save(assetName(sec)+'.pdf');
     } catch(e){ alert('Could not generate the PDF: '+((e&&e.message)||e)); }
     btn.innerHTML=label; delete btn.dataset.busy;
   }
 
-  function bootDesigns(){ renderQRs(); fitAssets(); }
+  function installHoverDownloads(){
+    document.querySelectorAll('.asset-section').forEach(function(sec){
+      var source=sec.querySelector('.asset-label .dl');
+      var canvas=sec.querySelector('.canvas');
+      if (!source || !canvas || canvas.querySelector('.download-hover')) return;
+      var b=document.createElement('button');
+      b.type='button';
+      b.className='download-hover';
+      b.setAttribute('aria-label','Download print-ready PDF');
+      ['sel','w','h','bleed'].forEach(function(k){ if(source.dataset[k]) b.dataset[k]=source.dataset[k]; });
+      b.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v11m0 0l-4-4m4 4l4-4M5 19h14"/></svg><span>Print-ready PDF</span>';
+      b.addEventListener('click', function(){ downloadAsset(b); });
+      canvas.appendChild(b);
+    });
+  }
+
+  function bootDesigns(){ renderQRs(); installHoverDownloads(); fitAssets(); }
   document.addEventListener('DOMContentLoaded', bootDesigns);
   window.addEventListener('load', fitAssets);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitAssets);
