@@ -1,6 +1,9 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Car, Plus, Search, ChevronDown, Upload, Link, X, Send, Copy, Check, ExternalLink, Loader2 } from 'lucide-react';
+import {
+  Car, Plus, Search, ChevronDown, Upload, Link, X, Send, Copy, Check,
+  ExternalLink, Loader2, LayoutGrid, Table2, Filter, SlidersHorizontal,
+} from 'lucide-react';
 import { motion } from 'framer-motion';
 import { api } from '../api/client';
 import StatusBadge from '../components/shared/StatusBadge';
@@ -32,7 +35,8 @@ export default function FleetPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [imageError, setImageError] = useState('');
-  const [filter, setFilter] = useState({ status: '', q: '' });
+  const [filter, setFilter] = useState({ status: '', q: '', category: '', make: '', model: '' });
+  const [viewMode, setViewMode] = useState('cards');
   const [addModal, setAddModal] = useState(false);
   const [addForm, setAddForm] = useState({ ...EMPTY_VEHICLE });
   const [adding, setAdding] = useState(false);
@@ -116,14 +120,24 @@ export default function FleetPage() {
     } catch (err) { console.error(err); }
   }
 
+  const categories = [...new Set(vehicles.map(v => v.category).filter(Boolean))].sort();
+  const makes = [...new Set(vehicles.map(v => v.make).filter(Boolean))].sort();
+  const models = [...new Set(vehicles.map(v => v.model).filter(Boolean))].sort();
+  const hasAdvancedFilters = !!(filter.status || filter.category || filter.make || filter.model || filter.q);
+
   const filtered = vehicles.filter(v => {
     if (filter.status && v.status !== filter.status) return false;
+    if (filter.category && v.category !== filter.category) return false;
+    if (filter.make && v.make !== filter.make) return false;
+    if (filter.model && v.model !== filter.model) return false;
     if (filter.q) {
       const q = filter.q.toLowerCase();
-      return `${v.make} ${v.model} ${v.year} ${v.vehicle_code}`.toLowerCase().includes(q);
+      return `${v.make} ${v.model} ${v.year} ${v.vehicle_code} ${v.category}`.toLowerCase().includes(q);
     }
     return true;
   });
+
+  const clearFilters = () => setFilter({ status: '', q: '', category: '', make: '', model: '' });
 
   function openLinkModal(vehicle, e) {
     e.stopPropagation();
@@ -181,39 +195,153 @@ export default function FleetPage() {
           <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Fleet</h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>Manage your vehicle inventory</p>
         </div>
-        <button onClick={() => setAddModal(true)} className="btn-primary w-full sm:w-auto justify-center">
-          <Plus size={16} /> Add Vehicle
-        </button>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="flex rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-1">
+            {[
+              { key: 'cards', label: 'Cards', icon: LayoutGrid },
+              { key: 'sheet', label: 'Sheet', icon: Table2 },
+            ].map(option => {
+              const Icon = option.icon;
+              const active = viewMode === option.key;
+              return (
+                <button
+                  key={option.key}
+                  type="button"
+                  onClick={() => setViewMode(option.key)}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold transition-colors sm:flex-none"
+                  style={{
+                    backgroundColor: active ? 'var(--accent-glow)' : 'transparent',
+                    color: active ? 'var(--accent-color)' : 'var(--text-secondary)',
+                  }}
+                  aria-pressed={active}
+                >
+                  <Icon size={14} /> {option.label}
+                </button>
+              );
+            })}
+          </div>
+          <button onClick={() => setAddModal(true)} className="btn-primary w-full justify-center sm:w-auto">
+            <Plus size={16} /> Add Vehicle
+          </button>
+        </div>
       </motion.div>
 
       <DataError message={loadError} onRetry={loadVehicles} />
 
       {/* Filters */}
-        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 min-w-0">
-        <div className="flex items-center gap-2 rounded-xl px-4 py-3 flex-1 min-w-0 w-full sm:min-w-[12rem]"
-          style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
-          <Search size={15} style={{ color: 'var(--text-tertiary)' }} />
-          <input
-            className="bg-transparent text-sm outline-none flex-1"
-            style={{ color: 'var(--text-primary)' }}
-            placeholder="Search vehicles…"
-            value={filter.q}
-            onChange={e => setFilter(f => ({ ...f, q: e.target.value }))}
-          />
+      <section className="card p-4 space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Filter size={15} className="text-[var(--accent-color)]" />
+            <p className="text-sm font-bold text-[var(--text-primary)]">Fleet filters</p>
+            <span className="rounded-full bg-[var(--bg-card-hover)] px-2 py-0.5 text-[10px] font-bold text-[var(--text-tertiary)]">
+              {filtered.length}/{vehicles.length}
+            </span>
+          </div>
+          {hasAdvancedFilters && (
+            <button type="button" className="btn-ghost py-1.5 text-xs" onClick={clearFilters}>
+              Clear
+            </button>
+          )}
         </div>
-        <select
-          className="input w-full sm:max-w-[180px] shrink-0"
-          value={filter.status}
-          onChange={e => setFilter(f => ({ ...f, status: e.target.value }))}
-        >
-          <option value="">All statuses</option>
-          <option value="available">Available</option>
-          <option value="rented">Rented</option>
-          <option value="turo">On Turo</option>
-          <option value="maintenance">Maintenance</option>
-          <option value="retired">Retired</option>
-        </select>
-      </div>
+
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_150px_150px_150px_150px]">
+          <div className="flex items-center gap-2 rounded-xl px-4 py-3 min-w-0"
+            style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-subtle)' }}>
+            <Search size={15} style={{ color: 'var(--text-tertiary)' }} />
+            <input
+              className="bg-transparent text-sm outline-none flex-1"
+              style={{ color: 'var(--text-primary)' }}
+              placeholder="Search make, model, code, type…"
+              value={filter.q}
+              onChange={e => setFilter(f => ({ ...f, q: e.target.value }))}
+            />
+          </div>
+          <select
+            className="input"
+            value={filter.status}
+            onChange={e => setFilter(f => ({ ...f, status: e.target.value }))}
+          >
+            <option value="">All statuses</option>
+            <option value="available">Available</option>
+            <option value="rented">Rented</option>
+            <option value="turo">On Turo</option>
+            <option value="maintenance">Maintenance</option>
+            <option value="retired">Retired</option>
+          </select>
+          <select className="input capitalize" value={filter.category} onChange={e => setFilter(f => ({ ...f, category: e.target.value }))}>
+            <option value="">All types</option>
+            {categories.map(category => <option key={category} value={category}>{category}</option>)}
+          </select>
+          <select className="input" value={filter.make} onChange={e => setFilter(f => ({ ...f, make: e.target.value, model: '' }))}>
+            <option value="">All makes</option>
+            {makes.map(make => <option key={make} value={make}>{make}</option>)}
+          </select>
+          <select className="input" value={filter.model} onChange={e => setFilter(f => ({ ...f, model: e.target.value }))}>
+            <option value="">All models</option>
+            {models.filter(model => !filter.make || vehicles.some(v => v.make === filter.make && v.model === model)).map(model => (
+              <option key={model} value={model}>{model}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+            <span className="flex items-center gap-1 rounded-full bg-[var(--bg-primary)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
+              <SlidersHorizontal size={11} /> By status
+            </span>
+            {['available', 'rented', 'turo', 'maintenance'].map(status => (
+              <button
+                key={status}
+                type="button"
+                className="shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold capitalize transition-colors"
+                onClick={() => setFilter(f => ({ ...f, status: f.status === status ? '' : status }))}
+                style={{
+                  borderColor: filter.status === status ? 'var(--accent-color)' : 'var(--border-subtle)',
+                  backgroundColor: filter.status === status ? 'var(--accent-glow)' : 'var(--bg-primary)',
+                  color: filter.status === status ? 'var(--accent-color)' : 'var(--text-secondary)',
+                }}
+              >
+                {status === 'turo' ? 'On Turo' : status}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+            <span className="shrink-0 rounded-full bg-[var(--bg-primary)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">By type</span>
+            {categories.slice(0, 8).map(category => (
+              <button
+                key={category}
+                type="button"
+                className="shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold capitalize transition-colors"
+                onClick={() => setFilter(f => ({ ...f, category: f.category === category ? '' : category }))}
+                style={{
+                  borderColor: filter.category === category ? 'var(--accent-color)' : 'var(--border-subtle)',
+                  backgroundColor: filter.category === category ? 'var(--accent-glow)' : 'var(--bg-primary)',
+                  color: filter.category === category ? 'var(--accent-color)' : 'var(--text-secondary)',
+                }}
+              >
+                {category}
+              </button>
+            ))}
+            <span className="shrink-0 rounded-full bg-[var(--bg-primary)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">By model</span>
+            {models.slice(0, 8).map(model => (
+              <button
+                key={model}
+                type="button"
+                className="shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors"
+                onClick={() => setFilter(f => ({ ...f, model: f.model === model ? '' : model }))}
+                style={{
+                  borderColor: filter.model === model ? 'var(--accent-color)' : 'var(--border-subtle)',
+                  backgroundColor: filter.model === model ? 'var(--accent-glow)' : 'var(--bg-primary)',
+                  color: filter.model === model ? 'var(--accent-color)' : 'var(--text-secondary)',
+                }}
+              >
+                {model}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* Stats bar */}
       {loading ? (
@@ -239,7 +367,7 @@ export default function FleetPage() {
         </div>
       )}
 
-      {/* Vehicle grid */}
+      {/* Vehicle grid / sheet */}
       {loading ? (
         <SkeletonFleetGrid />
       ) : filtered.length === 0 ? (
@@ -250,7 +378,7 @@ export default function FleetPage() {
           action={() => setAddModal(true)}
           actionLabel="Add Vehicle"
         />
-      ) : (
+      ) : viewMode === 'cards' ? (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filtered.map((v, i) => (
             <motion.div
@@ -332,6 +460,114 @@ export default function FleetPage() {
               </div>
             </motion.div>
           ))}
+        </div>
+      ) : (
+        <div className="card overflow-hidden">
+          <div className="scroll-x-contained">
+            <table className="min-w-[1040px] w-full text-left">
+              <thead className="bg-[var(--bg-primary)]">
+                <tr className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
+                  <th className="px-4 py-3">Vehicle</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Type</th>
+                  <th className="px-4 py-3">Rate</th>
+                  <th className="px-4 py-3">Specs</th>
+                  <th className="px-4 py-3">Code</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--border-subtle)]">
+                {filtered.map((v) => (
+                  <tr
+                    key={v.id}
+                    className="cursor-pointer bg-[var(--bg-card)] transition-colors hover:bg-[var(--bg-card-hover)]"
+                    onClick={() => navigate(`/fleet/${v.id}`)}
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-14 w-20 shrink-0 items-center justify-center rounded-xl bg-[var(--bg-primary)]">
+                          {v.thumbnail_url ? (
+                            <img src={resolveThumb(v.thumbnail_url)} alt={`${v.make} ${v.model}`} className="h-full w-full object-contain p-2" />
+                          ) : (
+                            <Car size={22} style={{ color: 'var(--text-tertiary)', opacity: 0.4 }} />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-[var(--text-primary)]">{v.year} {v.make} {v.model}</p>
+                          <p className="text-xs text-[var(--text-tertiary)]">{v.make} / {v.model}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                      <div className="relative inline-flex">
+                        <button
+                          type="button"
+                          onClick={() => setStatusDropdown(statusDropdown === v.id ? null : v.id)}
+                          className="flex items-center gap-1"
+                        >
+                          <StatusBadge status={v.status} />
+                          <ChevronDown size={10} style={{ color: 'var(--text-tertiary)' }} />
+                        </button>
+                        {statusDropdown === v.id && (
+                          <div className="absolute left-0 top-full mt-1 rounded-xl py-1.5 z-20 min-w-[140px]"
+                            style={{
+                              backgroundColor: 'var(--bg-elevated)',
+                              border: '1px solid var(--border-medium)',
+                              boxShadow: '0 12px 40px -8px rgba(0,0,0,0.25)',
+                            }}
+                          >
+                            {['available', 'turo', 'maintenance', 'retired'].map(s => (
+                              <button
+                                key={s}
+                                onClick={e => handleQuickStatus(v.id, s, e)}
+                                className="w-full text-left px-4 py-2 text-xs capitalize transition-colors"
+                                style={{
+                                  color: v.status === s ? 'var(--accent-color)' : 'var(--text-secondary)',
+                                  fontWeight: v.status === s ? 600 : 400,
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-card-hover)'}
+                                onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                              >
+                                {s === 'available' ? 'Available' : s === 'turo' ? 'On Turo' : s === 'maintenance' ? 'Maintenance' : 'Retired'}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="rounded-full bg-[var(--bg-primary)] px-2.5 py-1 text-xs font-bold capitalize text-[var(--text-secondary)]">{v.category || '-'}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="font-bold tabular-nums text-[var(--accent-color)]">${v.daily_rate}</p>
+                      <p className="text-[11px] text-[var(--text-tertiary)]">{v.weekly_rate ? `$${v.weekly_rate}/week` : 'daily only'}</p>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-[var(--text-secondary)]">
+                      <p>{v.seats || '-'} seats · {v.transmission || 'auto'}</p>
+                      <p className="text-[11px] text-[var(--text-tertiary)]">{v.fuel_type || 'fuel n/a'} · {v.mileage_limit_per_day || '-'} mi/day</p>
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-[var(--text-tertiary)]">{v.vehicle_code}</td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex justify-end gap-2">
+                        {v.status === 'available' && (
+                          <button
+                            type="button"
+                            onClick={e => openLinkModal(v, e)}
+                            className="btn-secondary py-1.5 text-xs"
+                          >
+                            <Send size={12} /> Link
+                          </button>
+                        )}
+                        <button type="button" className="btn-ghost py-1.5 text-xs" onClick={() => navigate(`/fleet/${v.id}`)}>
+                          Open
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

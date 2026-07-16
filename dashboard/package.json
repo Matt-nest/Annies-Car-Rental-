@@ -20,6 +20,8 @@
     "video:knowledge:real:full": "node scripts/render-real-knowledge-videos.mjs --full --voiceover --voiceover-engine higgsfield",
     "check:knowledge-videos": "node scripts/check-knowledge-video-freshness.mjs",
     "test:e2e": "playwright test",
+    "test:e2e:prod": "playwright test tests/e2e/production-smoke.spec.ts --config=playwright.production.config.ts",
+    "smoke:prod": "npm run test:e2e:prod",
     "test:e2e:staging": "STAGING_E2E=1 playwright test tests/e2e/staging-seed.spec.ts"
   },
   "dependencies": {

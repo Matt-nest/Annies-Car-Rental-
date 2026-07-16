@@ -46,6 +46,10 @@ const DESIGN_PRINT_ASSETS = [
   { key: 'vehicle_window_qr', number: '07', title: 'Vehicle Window QR', spec: '4 in round vinyl', use: 'Vehicle/window QR decal to turn local impressions into booking visits.', icon: QrCode, href: DIRECT_RENTAL_PAGE, defaultMedium: 'decal' },
   { key: 'review_card', number: '08', title: 'Review Request Card', spec: 'Post-return insert', use: 'Send happy renters to the review link while the handoff experience is still fresh.', icon: Star, href: brand.reviewLink, defaultMedium: 'review' },
   { key: 'app_icon_sticker', number: '09', title: 'App Icon Sticker', spec: '3 in die-cut', use: 'Brand sticker/decal for vehicles, key packets, partner counters, and welcome kits.', icon: Image, href: '/logo-icon.png', defaultMedium: 'sticker' },
+  { key: 'insurance_replacement_card', number: '10', title: 'Insurance Replacement Card', spec: 'Body shop counter card', use: 'Local body shops and adjusters can send drivers who need a temporary replacement vehicle.', icon: FileText, href: DIRECT_RENTAL_PAGE, defaultMedium: 'partner' },
+  { key: 'weekly_rental_social', number: '11', title: 'Weekly Rental Social Post', spec: '1080 x 1350 concept', use: 'Reusable Instagram/Facebook post for weekly renters, gig workers, and local families.', icon: Megaphone, href: DIRECT_RENTAL_PAGE, defaultMedium: 'social' },
+  { key: 'hotel_partner_card', number: '12', title: 'Hotel Partner Card', spec: 'Rack card concept', use: 'Front-desk referral card for hotels, repair shops, and local partner counters.', icon: Users, href: DIRECT_RENTAL_PAGE, defaultMedium: 'partner' },
+  { key: 'google_review_qr', number: '13', title: 'Google Review QR', spec: 'Post-return review card', use: 'Review request insert for clean handoffs and satisfied repeat renters.', icon: Star, href: brand.reviewLink || DIRECT_RENTAL_PAGE, defaultMedium: 'review' },
 ];
 
 const BRAND_FILES = [
@@ -68,6 +72,60 @@ const WORKING_PRINT_FILES = [
 ];
 
 const STATUS_OPTIONS = ['planned', 'active', 'paused', 'complete'];
+
+const MARKETING_TABS = [
+  { key: 'assets', label: 'Assets', icon: Image },
+  { key: 'campaigns', label: 'Campaigns', icon: Megaphone },
+  { key: 'links', label: 'QR Links', icon: QrCode },
+  { key: 'referrals', label: 'Referrals', icon: Users },
+  { key: 'seo', label: 'SEO', icon: BarChart3 },
+];
+
+const CAMPAIGN_EXAMPLES = [
+  { title: 'Insurance replacement push', channel: 'Body shops + adjusters', offer: 'Short-term rentals while repairs are active' },
+  { title: 'Weekly driver rentals', channel: 'Gig worker groups + print', offer: 'Weekly rates for Uber, Lyft, delivery, and courier drivers' },
+  { title: 'Repeat renter winback', channel: 'SMS/email + return insert', offer: '$25 off the next completed rental' },
+  { title: 'Hotel front-desk referrals', channel: 'Rack cards + QR', offer: 'Fast local rentals for guests without a car' },
+];
+
+const SEO_PAGES = [
+  {
+    page: 'Direct rentals',
+    url: brand.siteUrl,
+    keyword: `${brand.location.city} car rental`,
+    title: `${brand.name} | Car Rentals in ${brand.location.city}, ${brand.location.state}`,
+    meta: `Book local vehicles directly with ${brand.name}. Flexible rentals, local support, and simple pickup in ${brand.location.city}.`,
+  },
+  {
+    page: 'Weekly rentals',
+    url: RIDESHARE_PAGE,
+    keyword: `weekly car rental ${brand.location.city}`,
+    title: `Weekly Car Rentals for Drivers in ${brand.location.city}`,
+    meta: `Weekly rental options for rideshare, delivery, courier, and local drivers who need reliable transportation.`,
+  },
+  {
+    page: 'Insurance replacement',
+    url: brand.siteUrl,
+    keyword: `insurance replacement rental car ${brand.location.city}`,
+    title: `Insurance Replacement Rental Cars in ${brand.location.city}`,
+    meta: `Temporary rental vehicles for drivers waiting on repairs, insurance claims, or replacement transportation.`,
+  },
+  {
+    page: 'Reviews',
+    url: brand.reviewLink || brand.siteUrl,
+    keyword: `${brand.name} reviews`,
+    title: `${brand.name} Reviews and Customer Experience`,
+    meta: `See renter feedback and book directly with a local car rental team focused on clean handoffs and responsive support.`,
+  },
+];
+
+const SEO_TASKS = [
+  'Add city + service keywords to each landing page title and H1.',
+  'Create dedicated weekly rental and insurance replacement pages.',
+  'Add FAQ schema for deposits, pickup, insurance, weekly rentals, and mileage.',
+  'Point every print/social QR to a matching campaign URL with UTM tracking.',
+  'Build Google Business review velocity after every clean return.',
+];
 
 const initialCampaign = {
   name: 'Rideshare driver push',
@@ -135,6 +193,72 @@ function StatusSelect({ value, onChange }) {
     <select className="input text-xs py-2" value={value} onChange={(e) => onChange(e.target.value)}>
       {STATUS_OPTIONS.map(status => <option key={status} value={status}>{status}</option>)}
     </select>
+  );
+}
+
+function MarketingTabs({ activeTab, onChange }) {
+  return (
+    <div className="scroll-x-contained no-scrollbar">
+      <div className="flex min-w-max gap-1 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-1">
+        {MARKETING_TABS.map(tab => {
+          const Icon = tab.icon;
+          const active = activeTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => onChange(tab.key)}
+              className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition-colors sm:px-4"
+              style={{
+                backgroundColor: active ? 'var(--accent-glow)' : 'transparent',
+                color: active ? 'var(--accent-color)' : 'var(--text-secondary)',
+              }}
+              aria-pressed={active}
+            >
+              <Icon size={14} /> {tab.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ExamplePlayCard({ play }) {
+  return (
+    <div className="rounded-xl border border-dashed border-[var(--border-subtle)] bg-[var(--bg-card)] p-4">
+      <Sparkles size={16} className="text-[var(--accent-color)]" />
+      <h3 className="mt-3 text-sm font-bold text-[var(--text-primary)]">{play.title}</h3>
+      <p className="mt-1 text-xs font-semibold text-[var(--text-secondary)]">{play.channel}</p>
+      <p className="mt-2 text-xs leading-relaxed text-[var(--text-tertiary)]">{play.offer}</p>
+    </div>
+  );
+}
+
+function SeoPageCard({ item }) {
+  return (
+    <article className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">{item.page}</p>
+          <h3 className="mt-1 text-sm font-bold text-[var(--text-primary)]">{item.keyword}</h3>
+        </div>
+        <BarChart3 size={16} className="shrink-0 text-[var(--accent-color)]" />
+      </div>
+      <div className="mt-4 space-y-2">
+        <div className="rounded-lg bg-[var(--bg-primary)] p-3">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Title</p>
+          <p className="mt-1 text-xs font-semibold text-[var(--text-primary)]">{item.title}</p>
+        </div>
+        <div className="rounded-lg bg-[var(--bg-primary)] p-3">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Meta description</p>
+          <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">{item.meta}</p>
+        </div>
+      </div>
+      <a href={item.url} target="_blank" rel="noopener noreferrer" className="btn-ghost mt-3 text-xs py-1.5">
+        Open target <ExternalLink size={12} />
+      </a>
+    </article>
   );
 }
 
@@ -248,6 +372,7 @@ export default function MarketingPage() {
   const [referralForm, setReferralForm] = useState(initialReferral);
   const [submitting, setSubmitting] = useState('');
   const [selectedLinkId, setSelectedLinkId] = useState(null);
+  const [activeTab, setActiveTab] = useState('assets');
 
   const campaigns = workspace?.campaigns || [];
   const links = workspace?.links || [];
@@ -387,46 +512,141 @@ export default function MarketingPage() {
             <StatTile icon={Palette} label="Assets" value={DESIGN_PRINT_ASSETS.length} subtext="design/print pack" />
           </div>
 
-          <section className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_420px]">
-            <div className="space-y-5">
-              <div className="card p-5">
-                <div className="flex items-center gap-2">
-                  <ClipboardList size={16} className="text-[var(--accent-color)]" />
-                  <h2 className="text-base font-bold text-[var(--text-primary)]">Campaign Planner</h2>
+          <MarketingTabs activeTab={activeTab} onChange={setActiveTab} />
+
+          {activeTab === 'assets' && (
+            <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
+              <div className="space-y-3">
+                <div>
+                  <h2 className="text-base font-bold text-[var(--text-primary)]">Assets</h2>
+                  <p className="text-sm text-[var(--text-secondary)]">Brand files, print concepts, QR-ready cards, social prompts, and partner handouts.</p>
                 </div>
-                <p className="mt-1 text-sm text-[var(--text-secondary)]">Plan offers by audience and channel, then connect print/social assets to trackable links.</p>
-                <form onSubmit={createCampaign} className="mt-4 grid gap-3 lg:grid-cols-2">
-                  <div>
-                    <label className="label">Campaign name</label>
-                    <input className="input" required value={campaignForm.name} onChange={e => setCampaignForm({ ...campaignForm, name: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="label">Audience</label>
-                    <input className="input" value={campaignForm.audience} onChange={e => setCampaignForm({ ...campaignForm, audience: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="label">Channel</label>
-                    <input className="input" value={campaignForm.channel} onChange={e => setCampaignForm({ ...campaignForm, channel: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="label">Offer</label>
-                    <input className="input" value={campaignForm.offer} onChange={e => setCampaignForm({ ...campaignForm, offer: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="label">Goal</label>
-                    <input className="input" value={campaignForm.goal} onChange={e => setCampaignForm({ ...campaignForm, goal: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="label">Status</label>
-                    <StatusSelect value={campaignForm.status} onChange={status => setCampaignForm({ ...campaignForm, status })} />
-                  </div>
-                  <button type="submit" className="btn-primary justify-center lg:col-span-2" disabled={submitting === 'campaign'}>
-                    {submitting === 'campaign' ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-                    Save campaign
-                  </button>
-                </form>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {DESIGN_PRINT_ASSETS.map((asset) => <AssetCard key={asset.key} asset={asset} onUse={chooseAsset} />)}
+                </div>
               </div>
 
+              <div className="space-y-5">
+                <div className="card p-5">
+                  <div className="flex items-center gap-2">
+                    <Image size={16} className="text-[var(--accent-color)]" />
+                    <h2 className="text-base font-bold text-[var(--text-primary)]">Brand File Library</h2>
+                  </div>
+                  <p className="mt-1 text-sm text-[var(--text-secondary)]">Canonical dashboard-served files for print and digital use.</p>
+                  <div className="mt-4 grid gap-2">
+                    {BRAND_FILES.map((item) => <BrandFileRow key={item.path} item={item} />)}
+                  </div>
+                </div>
+
+                <div className="card p-5">
+                  <div className="flex items-center gap-2">
+                    <Printer size={16} className="text-[var(--accent-color)]" />
+                    <h2 className="text-base font-bold text-[var(--text-primary)]">Working Files</h2>
+                  </div>
+                  <p className="mt-1 text-sm text-[var(--text-secondary)]">Hosted pages and reusable media that can be paired with QR campaign links.</p>
+                  <div className="mt-4 space-y-2">
+                    {WORKING_PRINT_FILES.map((item) => (
+                      <a key={item.path} href={item.preview} target="_blank" rel="noopener noreferrer" className="block rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-primary)] px-3 py-2.5 transition-colors hover:bg-[var(--bg-card-hover)]">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm font-semibold text-[var(--text-primary)]">{item.name}</p>
+                          <span className="rounded-md bg-[var(--bg-card-hover)] px-2 py-1 text-[10px] font-bold text-[var(--text-secondary)]">{item.type}</span>
+                        </div>
+                        <p className="mt-0.5 text-[11px] text-[var(--text-tertiary)]">{item.path}</p>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {activeTab === 'campaigns' && (
+            <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
+              <div className="space-y-5">
+                <div className="card p-5">
+                  <div className="flex items-center gap-2">
+                    <ClipboardList size={16} className="text-[var(--accent-color)]" />
+                    <h2 className="text-base font-bold text-[var(--text-primary)]">Campaign Planner</h2>
+                  </div>
+                  <p className="mt-1 text-sm text-[var(--text-secondary)]">Plan offers by audience and channel, then connect print/social assets to trackable links.</p>
+                  <form onSubmit={createCampaign} className="mt-4 grid gap-3 lg:grid-cols-2">
+                    <div>
+                      <label className="label">Campaign name</label>
+                      <input className="input" required value={campaignForm.name} onChange={e => setCampaignForm({ ...campaignForm, name: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="label">Audience</label>
+                      <input className="input" value={campaignForm.audience} onChange={e => setCampaignForm({ ...campaignForm, audience: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="label">Channel</label>
+                      <input className="input" value={campaignForm.channel} onChange={e => setCampaignForm({ ...campaignForm, channel: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="label">Offer</label>
+                      <input className="input" value={campaignForm.offer} onChange={e => setCampaignForm({ ...campaignForm, offer: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="label">Goal</label>
+                      <input className="input" value={campaignForm.goal} onChange={e => setCampaignForm({ ...campaignForm, goal: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="label">Status</label>
+                      <StatusSelect value={campaignForm.status} onChange={status => setCampaignForm({ ...campaignForm, status })} />
+                    </div>
+                    <button type="submit" className="btn-primary justify-center lg:col-span-2" disabled={submitting === 'campaign'}>
+                      {submitting === 'campaign' ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                      Save campaign
+                    </button>
+                  </form>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <h2 className="text-base font-bold text-[var(--text-primary)]">Campaigns</h2>
+                    <p className="text-sm text-[var(--text-secondary)]">Active, planned, paused, and completed demand-generation plays.</p>
+                  </div>
+                  {campaigns.length === 0 ? (
+                    <EmptyState icon={Megaphone} title="No campaigns yet" description="Create the first campaign above, then attach QR links and assets." />
+                  ) : (
+                    <div className="grid gap-3 lg:grid-cols-2">
+                      {campaigns.map(campaign => (
+                        <article key={campaign.id} className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <h3 className="text-sm font-bold text-[var(--text-primary)]">{campaign.name}</h3>
+                              <p className="mt-1 text-xs text-[var(--text-secondary)]">{campaign.audience}</p>
+                              <p className="mt-2 text-xs font-semibold text-[var(--accent-color)]">{campaign.offer || campaign.goal}</p>
+                            </div>
+                            <span className="rounded-full border border-[var(--border-subtle)] px-2 py-1 text-[10px] font-bold uppercase text-[var(--text-secondary)]">{campaign.status}</span>
+                          </div>
+                          <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-[var(--text-secondary)]">
+                            <div className="rounded-lg bg-[var(--bg-primary)] p-2">Channel: <strong>{campaign.channel}</strong></div>
+                            <div className="rounded-lg bg-[var(--bg-primary)] p-2">Budget: <strong>{money(campaign.budget)}</strong></div>
+                          </div>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {STATUS_OPTIONS.map(status => (
+                              <button key={status} type="button" className="btn-ghost text-xs py-1.5" onClick={() => updateCampaignStatus(campaign, status)}>
+                                {status}
+                              </button>
+                            ))}
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <aside className="space-y-3">
+                <h2 className="text-base font-bold text-[var(--text-primary)]">Campaign examples</h2>
+                {CAMPAIGN_EXAMPLES.map(play => <ExamplePlayCard key={play.title} play={play} />)}
+              </aside>
+            </section>
+          )}
+
+          {activeTab === 'links' && (
+            <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
               <div className="card p-5" id="qr-builder">
                 <div className="flex items-center gap-2">
                   <QrCode size={16} className="text-[var(--accent-color)]" />
@@ -465,10 +685,34 @@ export default function MarketingPage() {
                   </button>
                 </form>
               </div>
-            </div>
 
-            <div className="space-y-5">
-              <QrPanel link={selectedLink} onCopied={flash} />
+              <div className="space-y-5">
+                <QrPanel link={selectedLink} onCopied={flash} />
+                <div className="card p-5">
+                  <div className="flex items-center gap-2">
+                    <QrCode size={16} className="text-[var(--accent-color)]" />
+                    <h2 className="text-base font-bold text-[var(--text-primary)]">Campaign Links</h2>
+                  </div>
+                  <div className="mt-4 space-y-2">
+                    {links.length === 0 ? (
+                      <p className="text-sm text-[var(--text-secondary)]">No links yet. Create one in the QR builder.</p>
+                    ) : links.map(link => (
+                      <button key={link.id} type="button" onClick={() => setSelectedLinkId(link.id)} className={`w-full rounded-lg border px-3 py-2.5 text-left transition-colors ${selectedLink?.id === link.id ? 'border-[var(--accent-color)] bg-[var(--bg-card-hover)]' : 'border-[var(--border-subtle)] bg-[var(--bg-primary)]'}`}>
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{link.name}</p>
+                          <span className="rounded-full bg-[var(--bg-card-hover)] px-2 py-1 text-[10px] font-bold text-[var(--text-secondary)]">{link.clicks || 0} scans</span>
+                        </div>
+                        <p className="mt-0.5 truncate text-[11px] text-[var(--text-tertiary)]">{link.utmUrl}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {activeTab === 'referrals' && (
+            <section className="grid gap-5 xl:grid-cols-[420px_minmax(0,1fr)]">
               <div className="card p-5">
                 <div className="flex items-center gap-2">
                   <Tags size={16} className="text-[var(--accent-color)]" />
@@ -503,158 +747,103 @@ export default function MarketingPage() {
                   </button>
                 </form>
               </div>
-            </div>
-          </section>
 
-          <section className="space-y-3">
-            <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <h2 className="text-base font-bold text-[var(--text-primary)]">Campaigns</h2>
-                <p className="text-sm text-[var(--text-secondary)]">Active, planned, paused, and completed demand-generation plays.</p>
-              </div>
-            </div>
-            {campaigns.length === 0 ? (
-              <EmptyState icon={Megaphone} title="No campaigns yet" description="Create the first campaign above, then attach QR links and assets." />
-            ) : (
-              <div className="grid gap-3 lg:grid-cols-2">
-                {campaigns.map(campaign => (
-                  <article key={campaign.id} className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h3 className="text-sm font-bold text-[var(--text-primary)]">{campaign.name}</h3>
-                        <p className="mt-1 text-xs text-[var(--text-secondary)]">{campaign.audience}</p>
-                        <p className="mt-2 text-xs font-semibold text-[var(--accent-color)]">{campaign.offer || campaign.goal}</p>
-                      </div>
-                      <span className="rounded-full border border-[var(--border-subtle)] px-2 py-1 text-[10px] font-bold uppercase text-[var(--text-secondary)]">{campaign.status}</span>
-                    </div>
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-[var(--text-secondary)]">
-                      <div className="rounded-lg bg-[var(--bg-primary)] p-2">Channel: <strong>{campaign.channel}</strong></div>
-                      <div className="rounded-lg bg-[var(--bg-primary)] p-2">Budget: <strong>{money(campaign.budget)}</strong></div>
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {STATUS_OPTIONS.map(status => (
-                        <button key={status} type="button" className="btn-ghost text-xs py-1.5" onClick={() => updateCampaignStatus(campaign, status)}>
-                          {status}
+              <div className="card p-5">
+                <div className="flex items-center gap-2">
+                  <Star size={16} className="text-[var(--accent-color)]" />
+                  <h2 className="text-base font-bold text-[var(--text-primary)]">Referral Codes</h2>
+                </div>
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  {referrals.length === 0 ? (
+                    <p className="text-sm text-[var(--text-secondary)]">No referral codes yet. Create one for a renter or local partner.</p>
+                  ) : referrals.map(referral => (
+                    <div key={referral.id} className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-[var(--text-primary)]">{referral.name}</p>
+                          <p className="mt-0.5 text-xs text-[var(--text-secondary)]">{referral.offer}</p>
+                        </div>
+                        <button type="button" className="rounded-md bg-[var(--bg-card-hover)] px-2 py-1 font-mono text-xs font-bold text-[var(--accent-color)]" onClick={() => copyText(referral.code).then(() => flash('Referral code copied'))}>
+                          {referral.code}
                         </button>
-                      ))}
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
-          </section>
-
-          <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
-            <div className="space-y-3">
-              <div>
-                <h2 className="text-base font-bold text-[var(--text-primary)]">Design & Print Assets</h2>
-                <p className="text-sm text-[var(--text-secondary)]">Build trackable QR links for every asset in the design/print pack.</p>
-              </div>
-              <div className="grid gap-3 md:grid-cols-2">
-                {DESIGN_PRINT_ASSETS.map((asset) => <AssetCard key={asset.key} asset={asset} onUse={chooseAsset} />)}
-              </div>
-            </div>
-
-            <div className="space-y-5">
-              <div className="card p-5">
-                <div className="flex items-center gap-2">
-                  <Image size={16} className="text-[var(--accent-color)]" />
-                  <h2 className="text-base font-bold text-[var(--text-primary)]">Brand File Library</h2>
-                </div>
-                <p className="mt-1 text-sm text-[var(--text-secondary)]">Canonical dashboard-served files for print and digital use.</p>
-                <div className="mt-4 grid gap-2">
-                  {BRAND_FILES.map((item) => <BrandFileRow key={item.path} item={item} />)}
-                </div>
-              </div>
-
-              <div className="card p-5">
-                <div className="flex items-center gap-2">
-                  <Printer size={16} className="text-[var(--accent-color)]" />
-                  <h2 className="text-base font-bold text-[var(--text-primary)]">Working Print Files</h2>
-                </div>
-                <p className="mt-1 text-sm text-[var(--text-secondary)]">Hosted pages and reusable media that can be paired with QR campaign links.</p>
-                <div className="mt-4 space-y-2">
-                  {WORKING_PRINT_FILES.map((item) => (
-                    <a key={item.path} href={item.preview} target="_blank" rel="noopener noreferrer" className="block rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-primary)] px-3 py-2.5 transition-colors hover:bg-[var(--bg-card-hover)]">
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-semibold text-[var(--text-primary)]">{item.name}</p>
-                        <span className="rounded-md bg-[var(--bg-card-hover)] px-2 py-1 text-[10px] font-bold text-[var(--text-secondary)]">{item.type}</span>
                       </div>
-                      <p className="mt-0.5 text-[11px] text-[var(--text-tertiary)]">{item.path}</p>
-                    </a>
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-[var(--text-secondary)]">
+                        <div className="rounded-lg bg-[var(--bg-card)] p-2">Bookings: <strong>{referral.bookings || 0}</strong></div>
+                        <div className="rounded-lg bg-[var(--bg-card)] p-2">Revenue: <strong>{money(referral.revenue)}</strong></div>
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
-            </div>
-          </section>
+            </section>
+          )}
 
-          <section className="grid gap-5 xl:grid-cols-2">
-            <div className="card p-5">
-              <div className="flex items-center gap-2">
-                <QrCode size={16} className="text-[var(--accent-color)]" />
-                <h2 className="text-base font-bold text-[var(--text-primary)]">Campaign Links</h2>
-              </div>
-              <div className="mt-4 space-y-2">
-                {links.length === 0 ? (
-                  <p className="text-sm text-[var(--text-secondary)]">No links yet. Create one in the QR builder.</p>
-                ) : links.map(link => (
-                  <button key={link.id} type="button" onClick={() => setSelectedLinkId(link.id)} className={`w-full rounded-lg border px-3 py-2.5 text-left transition-colors ${selectedLink?.id === link.id ? 'border-[var(--accent-color)] bg-[var(--bg-card-hover)]' : 'border-[var(--border-subtle)] bg-[var(--bg-primary)]'}`}>
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{link.name}</p>
-                      <span className="rounded-full bg-[var(--bg-card-hover)] px-2 py-1 text-[10px] font-bold text-[var(--text-secondary)]">{link.clicks || 0} scans</span>
-                    </div>
-                    <p className="mt-0.5 truncate text-[11px] text-[var(--text-tertiary)]">{link.utmUrl}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="card p-5">
-              <div className="flex items-center gap-2">
-                <Star size={16} className="text-[var(--accent-color)]" />
-                <h2 className="text-base font-bold text-[var(--text-primary)]">Referral Codes</h2>
-              </div>
-              <div className="mt-4 space-y-2">
-                {referrals.length === 0 ? (
-                  <p className="text-sm text-[var(--text-secondary)]">No referral codes yet. Create one above for a renter or local partner.</p>
-                ) : referrals.map(referral => (
-                  <div key={referral.id} className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold text-[var(--text-primary)]">{referral.name}</p>
-                        <p className="mt-0.5 text-xs text-[var(--text-secondary)]">{referral.offer}</p>
-                      </div>
-                      <button type="button" className="rounded-md bg-[var(--bg-card-hover)] px-2 py-1 font-mono text-xs font-bold text-[var(--accent-color)]" onClick={() => copyText(referral.code).then(() => flash('Referral code copied'))}>
-                        {referral.code}
-                      </button>
-                    </div>
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-[var(--text-secondary)]">
-                      <div className="rounded-lg bg-[var(--bg-card)] p-2">Bookings: <strong>{referral.bookings || 0}</strong></div>
-                      <div className="rounded-lg bg-[var(--bg-card)] p-2">Revenue: <strong>{money(referral.revenue)}</strong></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          <section className="grid gap-3 md:grid-cols-4">
-            {[
-              { title: 'Review Flywheel', icon: Star, text: 'Use completed-rental reviews as campaign proof and SMS follow-up fuel.' },
-              { title: 'Partner Kits', icon: Users, text: 'Bundle QR assets for body shops, hotels, dealers, and service centers.' },
-              { title: 'Landing Pages', icon: Sparkles, text: 'Next: dedicated rideshare, insurance replacement, and weekly rental pages.' },
-              { title: 'Performance', icon: BarChart3, text: 'Manual attribution now; booking-source automation can come next.' },
-            ].map(section => {
-              const Icon = section.icon;
-              return (
-                <div key={section.title} className="rounded-xl border border-dashed border-[var(--border-subtle)] bg-[var(--bg-card)] p-4">
-                  <Icon size={17} className="text-[var(--accent-color)]" />
-                  <h3 className="mt-3 text-sm font-bold text-[var(--text-primary)]">{section.title}</h3>
-                  <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">{section.text}</p>
+          {activeTab === 'seo' && (
+            <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
+              <div className="space-y-4">
+                <div>
+                  <h2 className="text-base font-bold text-[var(--text-primary)]">SEO Workspace</h2>
+                  <p className="text-sm text-[var(--text-secondary)]">High-intent local pages, metadata, and campaign destinations to turn search traffic into direct bookings.</p>
                 </div>
-              );
-            })}
-          </section>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {SEO_PAGES.map(item => <SeoPageCard key={item.page} item={item} />)}
+                </div>
+              </div>
+
+              <aside className="space-y-5">
+                <div className="card p-5">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 size={16} className="text-[var(--accent-color)]" />
+                    <h2 className="text-base font-bold text-[var(--text-primary)]">SEO Action List</h2>
+                  </div>
+                  <div className="mt-4 space-y-2">
+                    {SEO_TASKS.map(task => (
+                      <div key={task} className="rounded-lg bg-[var(--bg-primary)] p-3 text-xs font-semibold text-[var(--text-secondary)]">
+                        {task}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid gap-3">
+                  {[
+                    { title: 'Dedicated landing pages', icon: Sparkles, text: 'Build `/weekly-rentals`, `/insurance-replacement`, and `/partner-rentals` pages with focused copy and matching QR destinations.' },
+                    { title: 'Review flywheel', icon: Star, text: 'Tie post-return review cards to Google Business Profile and use review snippets on high-intent pages.' },
+                    { title: 'Partner citations', icon: Users, text: 'Keep body shop, hotel, repair, and local directory listings consistent with the same name, address, phone, and booking URL.' },
+                  ].map(section => {
+                    const Icon = section.icon;
+                    return (
+                      <div key={section.title} className="rounded-xl border border-dashed border-[var(--border-subtle)] bg-[var(--bg-card)] p-4">
+                        <Icon size={17} className="text-[var(--accent-color)]" />
+                        <h3 className="mt-3 text-sm font-bold text-[var(--text-primary)]">{section.title}</h3>
+                        <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">{section.text}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </aside>
+            </section>
+          )}
+
+          {activeTab !== 'seo' && (
+            <section className="grid gap-3 md:grid-cols-4">
+              {[
+                { title: 'Review Flywheel', icon: Star, text: 'Use completed-rental reviews as campaign proof and SMS follow-up fuel.' },
+                { title: 'Partner Kits', icon: Users, text: 'Bundle QR assets for body shops, hotels, dealers, and service centers.' },
+                { title: 'Landing Pages', icon: Sparkles, text: 'Next: dedicated rideshare, insurance replacement, and weekly rental pages.' },
+                { title: 'Performance', icon: BarChart3, text: 'Manual attribution now; booking-source automation can come next.' },
+              ].map(section => {
+                const Icon = section.icon;
+                return (
+                  <div key={section.title} className="rounded-xl border border-dashed border-[var(--border-subtle)] bg-[var(--bg-card)] p-4">
+                    <Icon size={17} className="text-[var(--accent-color)]" />
+                    <h3 className="mt-3 text-sm font-bold text-[var(--text-primary)]">{section.title}</h3>
+                    <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">{section.text}</p>
+                  </div>
+                );
+              })}
+            </section>
+          )}
         </>
       )}
     </div>

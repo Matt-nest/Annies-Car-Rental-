@@ -540,6 +540,13 @@ test('fleet route renders vehicle inventory page', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Fleet' })).toBeVisible();
   await expect(page.getByText('Manage your vehicle inventory')).toBeVisible();
   await expect(page.getByText('Toyota Camry').first()).toBeVisible();
+  await expect(page.getByText(/by type/i)).toBeVisible();
+  await expect(page.getByText(/by model/i)).toBeVisible();
+
+  await page.getByRole('button', { name: /sheet/i }).click();
+  await expect(page.getByRole('columnheader', { name: /vehicle/i })).toBeVisible();
+  await expect(page.getByRole('columnheader', { name: /status/i })).toBeVisible();
+  await expect(page.getByText('CAM-001')).toBeVisible();
 });
 
 test('booking detail route exposes operator approval controls', async ({ page }) => {
@@ -586,15 +593,31 @@ test('customers route shows operational profile data and portal preview action',
   await previewRequest;
 });
 
-test('marketing workspace renders QR, referral, and print asset tools', async ({ page }) => {
+test('marketing workspace renders assets, tabs, and SEO tools', async ({ page }) => {
   await page.goto('/marketing');
 
   await expect(page.getByRole('heading', { name: 'Marketing Workspace' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'QR & UTM Link Builder' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Referral Engine' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Design & Print Assets' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /assets/i })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('heading', { name: /^Assets$/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Brand File Library' })).toBeVisible();
   await expect(page.locator('h3', { hasText: 'Vehicle Window QR' })).toBeVisible();
+
+  await page.getByRole('button', { name: /campaigns/i }).click();
+  await expect(page.getByRole('heading', { name: 'Campaign Planner' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Campaign examples' })).toBeVisible();
+
+  await page.getByRole('button', { name: /qr links/i }).click();
+  await expect(page.getByRole('heading', { name: 'QR & UTM Link Builder' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Campaign Links' })).toBeVisible();
+
+  await page.getByRole('button', { name: /referrals/i }).click();
+  await expect(page.getByRole('heading', { name: 'Referral Engine' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Referral Codes' })).toBeVisible();
   await expect(page.getByText('ANNIE-HOTEL')).toBeVisible();
+
+  await page.getByRole('button', { name: /seo/i }).click();
+  await expect(page.getByRole('heading', { name: 'SEO Workspace' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'SEO Action List' })).toBeVisible();
 });
 
 test('booking detail approve action calls mocked approval endpoint', async ({ page }) => {
