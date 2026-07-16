@@ -95,6 +95,14 @@ const vehicle = {
 };
 
 async function mockDashboardApi(page: Page) {
+  await page.route('**/designs.html**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: '<!doctype html><html><body><h1>Print Asset Pack</h1><img alt="Booking QR code" src="/brand/marketing-qr.png"></body></html>',
+    });
+  });
+
   await page.route('**/api/v1/**', async (route) => {
     const url = new URL(route.request().url());
     const path = url.pathname.replace('/api/v1', '');
@@ -651,6 +659,10 @@ test('marketing workspace renders assets, tabs, and SEO tools', async ({ page })
   await expect(page.getByRole('heading', { name: 'Marketing Workspace' })).toBeVisible();
   await expect(page.getByRole('button', { name: /assets/i })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('heading', { name: /^Assets$/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Design & Print Studio Preview' })).toBeVisible();
+  await expect(page.locator('iframe[title="Design and print asset preview"]')).toBeVisible();
+
+  await page.locator('summary').filter({ hasText: 'Asset index and file links' }).click();
   await expect(page.getByRole('heading', { name: 'Brand File Library' })).toBeVisible();
   await expect(page.locator('h3', { hasText: 'Vehicle Window QR' })).toBeVisible();
 

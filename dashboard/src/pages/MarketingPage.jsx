@@ -35,6 +35,8 @@ const EASE = [0.25, 1, 0.5, 1];
 const DIRECT_RENTAL_PAGE = `${brand.siteUrl}/`;
 const RIDESHARE_PAGE = `${brand.siteUrl}/drive.html`;
 const APPLICATIONS_PAGE = `${brand.siteUrl}/applications.html`;
+const ASSET_PACK_URL = `${brand.siteUrl}/designs.html`;
+const ASSET_STUDIO_PREVIEW_URL = `${ASSET_PACK_URL}?embed=dashboard`;
 
 const DESIGN_PRINT_ASSETS = [
   { key: 'logo_marks', number: '01', title: 'Logo Marks', spec: 'SVG + PNG lockups', use: 'Use across social, print, decals, app icons, and local partner materials.', icon: Palette, href: '/brand/annies-wordmark-charcoal.svg', defaultMedium: 'brand' },
@@ -309,6 +311,33 @@ function BrandFileRow({ item }) {
   );
 }
 
+function AssetStudioPreview({ previewUrl, fullUrl }) {
+  return (
+    <div className="card overflow-hidden p-0">
+      <div className="flex flex-col gap-3 border-b border-[var(--border-subtle)] p-5 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--accent-color)]">Live asset preview</p>
+          <h2 className="mt-1 text-base font-bold text-[var(--text-primary)]">Design & Print Studio Preview</h2>
+          <p className="mt-1 max-w-2xl text-sm text-[var(--text-secondary)]">
+            The dashboard preview opens the studio without the public password gate and uses the uploaded QR artwork across every print asset.
+          </p>
+        </div>
+        <a href={fullUrl} target="_blank" rel="noopener noreferrer" className="btn-primary w-full justify-center sm:w-auto">
+          <ExternalLink size={14} /> Open full studio
+        </a>
+      </div>
+      <div className="bg-[#0e1f33]">
+        <iframe
+          title="Design and print asset preview"
+          src={previewUrl}
+          className="h-[680px] w-full border-0 bg-[#0e1f33] lg:h-[780px]"
+          loading="lazy"
+        />
+      </div>
+    </div>
+  );
+}
+
 function QrPanel({ link, onCopied }) {
   if (!link) {
     return (
@@ -488,8 +517,8 @@ export default function MarketingPage() {
           <button type="button" className="btn-secondary" onClick={load}>
             <RefreshCw size={14} /> Refresh
           </button>
-          <a href={RIDESHARE_PAGE} target="_blank" rel="noopener noreferrer" className="btn-primary">
-            <ExternalLink size={14} /> Open rideshare page
+          <a href={ASSET_PACK_URL} target="_blank" rel="noopener noreferrer" className="btn-primary">
+            <ExternalLink size={14} /> Open print studio
           </a>
         </div>
       </motion.div>
@@ -515,48 +544,63 @@ export default function MarketingPage() {
           <MarketingTabs activeTab={activeTab} onChange={setActiveTab} />
 
           {activeTab === 'assets' && (
-            <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
-              <div className="space-y-3">
-                <div>
-                  <h2 className="text-base font-bold text-[var(--text-primary)]">Assets</h2>
-                  <p className="text-sm text-[var(--text-secondary)]">Brand files, print concepts, QR-ready cards, social prompts, and partner handouts.</p>
-                </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {DESIGN_PRINT_ASSETS.map((asset) => <AssetCard key={asset.key} asset={asset} onUse={chooseAsset} />)}
-                </div>
+            <section className="space-y-5">
+              <div>
+                <h2 className="text-base font-bold text-[var(--text-primary)]">Assets</h2>
+                <p className="text-sm text-[var(--text-secondary)]">Automatic print-studio preview, brand files, QR-ready cards, social prompts, and partner handouts.</p>
               </div>
 
-              <div className="space-y-5">
-                <div className="card p-5">
-                  <div className="flex items-center gap-2">
-                    <Image size={16} className="text-[var(--accent-color)]" />
-                    <h2 className="text-base font-bold text-[var(--text-primary)]">Brand File Library</h2>
-                  </div>
-                  <p className="mt-1 text-sm text-[var(--text-secondary)]">Canonical dashboard-served files for print and digital use.</p>
-                  <div className="mt-4 grid gap-2">
-                    {BRAND_FILES.map((item) => <BrandFileRow key={item.path} item={item} />)}
-                  </div>
-                </div>
+              <AssetStudioPreview previewUrl={ASSET_STUDIO_PREVIEW_URL} fullUrl={ASSET_PACK_URL} />
 
-                <div className="card p-5">
-                  <div className="flex items-center gap-2">
-                    <Printer size={16} className="text-[var(--accent-color)]" />
-                    <h2 className="text-base font-bold text-[var(--text-primary)]">Working Files</h2>
+              <details className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-card)]">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 marker:hidden">
+                  <div>
+                    <h2 className="text-base font-bold text-[var(--text-primary)]">Asset index and file links</h2>
+                    <p className="mt-1 text-sm text-[var(--text-secondary)]">Open this when you need to jump to a specific asset, download a brand file, or load a QR builder preset.</p>
                   </div>
-                  <p className="mt-1 text-sm text-[var(--text-secondary)]">Hosted pages and reusable media that can be paired with QR campaign links.</p>
-                  <div className="mt-4 space-y-2">
-                    {WORKING_PRINT_FILES.map((item) => (
-                      <a key={item.path} href={item.preview} target="_blank" rel="noopener noreferrer" className="block rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-primary)] px-3 py-2.5 transition-colors hover:bg-[var(--bg-card-hover)]">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="text-sm font-semibold text-[var(--text-primary)]">{item.name}</p>
-                          <span className="rounded-md bg-[var(--bg-card-hover)] px-2 py-1 text-[10px] font-bold text-[var(--text-secondary)]">{item.type}</span>
-                        </div>
-                        <p className="mt-0.5 text-[11px] text-[var(--text-tertiary)]">{item.path}</p>
-                      </a>
-                    ))}
+                  <span className="shrink-0 rounded-full border border-[var(--border-subtle)] px-3 py-1 text-xs font-bold text-[var(--text-secondary)]">Open</span>
+                </summary>
+
+                <div className="grid gap-5 border-t border-[var(--border-subtle)] p-5 xl:grid-cols-[minmax(0,1fr)_420px]">
+                  <div className="space-y-3">
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {DESIGN_PRINT_ASSETS.map((asset) => <AssetCard key={asset.key} asset={asset} onUse={chooseAsset} />)}
+                    </div>
+                  </div>
+
+                  <div className="space-y-5">
+                    <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-5">
+                      <div className="flex items-center gap-2">
+                        <Image size={16} className="text-[var(--accent-color)]" />
+                        <h2 className="text-base font-bold text-[var(--text-primary)]">Brand File Library</h2>
+                      </div>
+                      <p className="mt-1 text-sm text-[var(--text-secondary)]">Canonical dashboard-served files for print and digital use.</p>
+                      <div className="mt-4 grid gap-2">
+                        {BRAND_FILES.map((item) => <BrandFileRow key={item.path} item={item} />)}
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-5">
+                      <div className="flex items-center gap-2">
+                        <Printer size={16} className="text-[var(--accent-color)]" />
+                        <h2 className="text-base font-bold text-[var(--text-primary)]">Working Files</h2>
+                      </div>
+                      <p className="mt-1 text-sm text-[var(--text-secondary)]">Hosted pages and reusable media that can be paired with QR campaign links.</p>
+                      <div className="mt-4 space-y-2">
+                        {WORKING_PRINT_FILES.map((item) => (
+                          <a key={item.path} href={item.preview} target="_blank" rel="noopener noreferrer" className="block rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3 py-2.5 transition-colors hover:bg-[var(--bg-card-hover)]">
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="text-sm font-semibold text-[var(--text-primary)]">{item.name}</p>
+                              <span className="rounded-md bg-[var(--bg-card-hover)] px-2 py-1 text-[10px] font-bold text-[var(--text-secondary)]">{item.type}</span>
+                            </div>
+                            <p className="mt-0.5 text-[11px] text-[var(--text-tertiary)]">{item.path}</p>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </details>
             </section>
           )}
 
