@@ -4,6 +4,7 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requireProvider } from '../config/paymentProvider.js';
 import { createSquarePayment, confirmSquarePayment, handleSquareWebhookEvent, getSquareBookingSummary } from '../services/squareService.js';
+import { squareRequest } from '../utils/square.js';
 
 const router = Router();
 
@@ -75,11 +76,46 @@ router.post('/webhook', async (req, res) => {
 
 router.get('/status', requireAuth, asyncHandler(async (_req, res) => {
   requireProvider('square');
+  const locationId = process.env.SQUARE_LOCATION_ID || null;
+  let validation = {
+    ok: false,
+    location_authorized: false,
+    locations: [],
+  };
+
+  if (process.env.SQUARE_ACCESS_TOKEN && locationId) {
+    try {
+      const response = await squareRequest('/v2/locations');
+      const locations = Array.isArray(response.locations) ? response.locations : [];
+      validation = {
+        ok: true,
+        location_authorized: locations.some((location) => location.id === locationId),
+        locations: locations.map((location) => ({
+          id: location.id,
+          name: location.name || null,
+          status: location.status || null,
+          type: location.type || null,
+          country: location.country || null,
+          currency: location.currency || null,
+          capabilities: Array.isArray(location.capabilities) ? location.capabilities : [],
+        })),
+      };
+    } catch (err) {
+      validation = {
+        ok: false,
+        location_authorized: false,
+        error: err.message || 'Square location validation failed',
+        locations: [],
+      };
+    }
+  }
+
   res.json({
     provider: 'square',
-    configured: Boolean(process.env.SQUARE_ACCESS_TOKEN && process.env.SQUARE_LOCATION_ID),
+    configured: Boolean(process.env.SQUARE_ACCESS_TOKEN && locationId),
     environment: process.env.SQUARE_ENVIRONMENT || 'production',
-    location_id: process.env.SQUARE_LOCATION_ID || null,
+    location_id: locationId,
+    validation,
   });
 }));
 
