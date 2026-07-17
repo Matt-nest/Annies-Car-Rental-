@@ -57,10 +57,11 @@ app.use(helmet());
 const allowedOrigins = (process.env.CORS_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
 app.use(cors({
   origin: (origin, callback) => {
+    // Allow requests with no origin (server-to-server, curl, mobile apps).
     if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-    // In production, be lenient — allow all origins but log
-    console.warn(`CORS: unexpected origin ${origin}`);
-    callback(null, true);
+    // Enforce the allowlist. CORS_ORIGINS must list every live frontend.
+    console.warn(`CORS: rejected origin ${origin}`);
+    callback(new Error(`CORS: ${origin} not allowed`));
   },
   credentials: true,
 }));
