@@ -40,6 +40,11 @@ async function assertNoRuntimeCrash(page: Page) {
   await expect(page.locator('body')).not.toContainText(RUNTIME_ERROR_TEXT);
 }
 
+async function waitForRouteToSettle(page: Page) {
+  await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});
+  await page.waitForTimeout(500);
+}
+
 async function signIn(page: Page) {
   const email = process.env.DASHBOARD_SMOKE_EMAIL;
   const password = process.env.DASHBOARD_SMOKE_PASSWORD;
@@ -81,10 +86,15 @@ test.describe('authenticated production dashboard smoke', () => {
     });
 
     await signIn(page);
+    await waitForRouteToSettle(page);
 
     for (const routePath of smokeRoutes()) {
       const errorCountBeforeRoute = runtimeErrors.length;
-      const response = await page.goto(routePath, { waitUntil: 'domcontentloaded' });
+      const currentPath = new URL(page.url()).pathname;
+      const response = currentPath === routePath
+        ? null
+        : await page.goto(routePath, { waitUntil: 'domcontentloaded' });
+      await waitForRouteToSettle(page);
 
       if (response && response.status() >= 500) {
         throw new Error(`${routePath} returned HTTP ${response.status()}`);

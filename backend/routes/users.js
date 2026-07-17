@@ -24,7 +24,17 @@ router.get('/me', requireAuth, asyncHandler(async (req, res) => {
     .single();
 
   if (error || !profile) {
-    return res.status(404).json({ error: 'Profile not found' });
+    return res.json({
+      id: req.user.id,
+      auth_id: req.user.id,
+      email: req.user.email,
+      first_name: req.user.user_metadata?.first_name || req.user.user_metadata?.full_name || 'Admin',
+      last_name: req.user.user_metadata?.last_name || '',
+      phone: null,
+      role: req.user.role || 'viewer',
+      is_active: true,
+      needs_profile_provisioning: true,
+    });
   }
 
   res.json(profile);

@@ -5,6 +5,11 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 
 const router = Router();
 
+function isMissingOptionalTable(error) {
+  const text = `${error?.code || ''} ${error?.message || ''} ${error?.details || ''}`;
+  return /PGRST205|42P01|schema cache|webhook_failures/i.test(text);
+}
+
 /** GET /stats/overview — dashboard KPIs */
 router.get('/overview', requireAuth, asyncHandler(async (req, res) => {
   const now = new Date();
@@ -299,7 +304,10 @@ router.get('/webhook-failures', requireAuth, asyncHandler(async (req, res) => {
     .order('created_at', { ascending: false })
     .limit(limit);
 
-  if (error) throw error;
+  if (error) {
+    if (isMissingOptionalTable(error)) return res.json([]);
+    throw error;
+  }
   res.json(data || []);
 }));
 
