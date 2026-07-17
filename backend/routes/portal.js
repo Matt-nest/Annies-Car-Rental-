@@ -5,6 +5,8 @@ import { requireAuth, requireRole } from '../middleware/auth.js';
 import brand from '../config/brand.js';
 import { verifyPortalAccess, requirePortalAuth, refreshPortalToken, createAdminPortalPreview } from '../services/portalAuthService.js';
 import { transitionBooking, getBookingDetail } from '../services/bookingService.js';
+import { getFinalRentalPacket, isFinalRentalPacketAvailable } from '../services/finalRentalPacketService.js';
+import { generateFinalRentalPacketPdf } from '../utils/finalRentalPacketPdfGenerator.js';
 
 const router = Router();
 
@@ -165,6 +167,11 @@ router.get('/booking', requirePortalAuth, async (req, res) => {
     // Alias 'vehicles' → 'vehicle' for frontend consistency
     const vehicle = safe.vehicles || null;
 
+    let finalPacket = null;
+    if (['returned', 'completed'].includes(String(safe.status || '').toLowerCase())) {
+      finalPacket = await getFinalRentalPacket(req.portal.bookingId);
+    }
+
     res.json({
       ...safe,
       total_price,
@@ -173,7 +180,35 @@ router.get('/booking', requirePortalAuth, async (req, res) => {
       addons: addons || [],
       checkinRecords: checkinRecords || [],
       invoice: invoice || null,
+      finalPacket,
     });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+router.get('/final-packet', requirePortalAuth, async (req, res) => {
+  try {
+    const packet = await getFinalRentalPacket(req.portal.bookingId);
+    if (!isFinalRentalPacketAvailable(packet.booking)) {
+      return res.status(409).json({ error: 'Final rental packet is available after return.' });
+    }
+    res.json(packet);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+router.get('/final-packet/pdf', requirePortalAuth, async (req, res) => {
+  try {
+    const packet = await getFinalRentalPacket(req.portal.bookingId);
+    if (!isFinalRentalPacketAvailable(packet.booking)) {
+      return res.status(409).json({ error: 'Final rental packet is available after return.' });
+    }
+    const code = packet.booking?.booking_code || packet.booking?.id || 'booking';
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="Final_Rental_Packet_${code}.pdf"`);
+    await generateFinalRentalPacketPdf({ packet, stream: res });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }

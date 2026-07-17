@@ -5,7 +5,7 @@ import {
   Loader2, Shield, DollarSign, MessageSquare, ArrowRight,
   Fuel, Gauge, ChevronRight, ChevronDown, ExternalLink, X, Star, Phone, Receipt, CreditCard, Clock,
   ClipboardCheck,
-  ArrowLeft, Navigation, Sparkles,
+  ArrowLeft, Navigation, Sparkles, Download,
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { EASE, DURATION } from '../../utils/motion';
@@ -65,6 +65,110 @@ const card = (theme: string) => ({
   borderRadius: '16px',
   overflow: 'hidden' as const,
 });
+
+function FinalPacketSummary({ packet, token, bookingCode }: { packet: any; token: string | null; bookingCode?: string }) {
+  const [downloading, setDownloading] = useState(false);
+  if (!packet) return null;
+
+  const totals = packet.settlement?.totals || {};
+  const pickupPhotos = packet.pickup?.photos || [];
+  const returnPhotos = packet.return?.photos || [];
+
+  async function downloadPacket() {
+    if (!token) return;
+    setDownloading(true);
+    try {
+      const res = await fetch(`${API_URL}/portal/final-packet/pdf`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Final packet PDF is not ready yet');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Final_Rental_Packet_${bookingCode || 'booking'}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  const PhotoStrip = ({ title, photos, odometer, fuel }: { title: string; photos: any[]; odometer?: number; fuel?: string }) => (
+    <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)' }}>
+      <div className="flex items-center justify-between gap-3 mb-2">
+        <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</p>
+        <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{photos.length} photos</span>
+      </div>
+      <div className="grid grid-cols-2 gap-2 mb-2 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+        <span className="flex items-center gap-1"><Gauge size={11} /> {odometer ? `${Number(odometer).toLocaleString()} mi` : '—'}</span>
+        <span className="flex items-center gap-1"><Fuel size={11} /> {String(fuel || '—').replace(/_/g, ' ')}</span>
+      </div>
+      <div className="grid grid-cols-3 gap-1.5">
+        {photos.slice(0, 3).map((photo, index) => (
+          <img
+            key={`${photo.url}-${index}`}
+            src={photo.url}
+            alt={`${title} ${index + 1}`}
+            className="aspect-square w-full rounded-lg object-cover"
+            style={{ border: '1px solid var(--border-subtle)' }}
+          />
+        ))}
+        {!photos.length && (
+          <div className="col-span-3 rounded-lg py-4 text-center text-xs" style={{ color: 'var(--text-tertiary)', border: '1px dashed var(--border-subtle)' }}>
+            No photos recorded
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>Final Rental Packet</p>
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Pickup evidence, return evidence, and final settlement.</p>
+        </div>
+        <button
+          type="button"
+          onClick={downloadPacket}
+          disabled={downloading || !token}
+          className="px-3 py-2 rounded-xl text-xs font-semibold inline-flex items-center gap-2"
+          style={{ backgroundColor: 'var(--accent-color)', color: '#fff', opacity: downloading ? 0.75 : 1 }}
+        >
+          {downloading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+          PDF
+        </button>
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-3">
+        <PhotoStrip title="Pickup" photos={pickupPhotos} odometer={packet.pickup?.odometer} fuel={packet.pickup?.fuel_level} />
+        <PhotoStrip title="Return" photos={returnPhotos} odometer={packet.return?.odometer} fuel={packet.return?.fuel_level} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        {[
+          ['Deposit', money(packet.settlement?.deposit?.amount_cents || 0)],
+          ['Tolls', money(totals.toll_total_cents || 0)],
+          ['Mileage', packet.settlement?.mileage?.miles_driven != null ? `${Number(packet.settlement.mileage.miles_driven).toLocaleString()} mi` : '—'],
+          ['Cleaning', money((packet.settlement?.cleaning || []).reduce((sum: number, row: any) => sum + Number(row.amount_cents || 0), 0))],
+          ['Payments', money(totals.completed_payment_total_cents || 0)],
+          ['Declines', String(totals.failed_payment_count || 0)],
+          ['Refunds', money(totals.refund_total_cents || totals.refund_due_cents || 0)],
+          ['Balance', money(totals.balance_due_cents || 0)],
+        ].map(([labelText, value]) => (
+          <div key={labelText} className="p-2 rounded-xl" style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-subtle)' }}>
+            <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>{labelText}</p>
+            <p className="text-sm font-bold tabular-nums mt-0.5" style={{ color: 'var(--text-primary)' }}>{value}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 type PortalTabKey = 'overview' | 'money' | 'pickup' | 'help';
 
@@ -2250,6 +2354,14 @@ export default function CustomerPortal() {
                 <h3 className="text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
                   <DollarSign size={20} style={{ color: 'var(--accent-color)' }} /> Settlement
                 </h3>
+
+                {booking.finalPacket && (
+                  <FinalPacketSummary
+                    packet={booking.finalPacket}
+                    token={token}
+                    bookingCode={booking.booking_code}
+                  />
+                )}
 
                 {/* Pending-inspection banner - shown only while we're still
                     inspecting. Mirrors the same visual rhythm as the welcome

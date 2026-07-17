@@ -230,6 +230,17 @@ export const api = {
     return res.blob();
   },
 
+  // Final rental packet
+  getFinalRentalPacket: (bookingId) => request(`/bookings/${bookingId}/final-packet`),
+  downloadFinalRentalPacketPdf: async (bookingId) => {
+    const authHeader = await getAuthHeader();
+    const res = await fetch(`${BASE}/bookings/${bookingId}/final-packet/pdf`, {
+      headers: { ...authHeader },
+    });
+    if (!res.ok) throw new Error('Final rental packet is available after return/completion');
+    return res.blob();
+  },
+
   // Tolls
   getVehicleTolls: (vehicleId) => request(`/vehicles/${vehicleId}/tolls`),
   addTollCharge: (vehicleId, body) => request(`/vehicles/${vehicleId}/tolls`, { method: 'POST', body: JSON.stringify(body) }),

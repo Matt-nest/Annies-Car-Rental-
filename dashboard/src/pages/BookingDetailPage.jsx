@@ -17,6 +17,7 @@ import Field from '../components/shared/Field';
 import CheckInPrepTab from '../components/booking-tabs/CheckInPrepTab';
 import CheckOutTab from '../components/booking-tabs/CheckOutTab';
 import InvoiceTab from '../components/booking-tabs/InvoiceTab';
+import FinalPacketTab from '../components/booking-tabs/FinalPacketTab';
 import BookingActionBar from '../components/booking-tabs/BookingActionBar';
 import BookingLifecycleStrip from '../components/shared/BookingLifecycleStrip';
 import { useAlerts } from '../lib/alertsContext';
@@ -33,6 +34,7 @@ const TABS = [
   { id: 'checkin',    label: 'Check-In',   icon: Package     },
   { id: 'checkout',   label: 'Check-Out',  icon: ClipboardCheck },
   { id: 'invoice',    label: 'Invoice',    icon: Receipt     },
+  { id: 'packet',     label: 'Final Packet', icon: FileText   },
 ];
 
 const DELIVERY_LABELS = {
@@ -841,6 +843,10 @@ export default function BookingDetailPage() {
 
         {activeTab === 'invoice' && (
           <InvoiceTab booking={booking} onReload={load} />
+        )}
+
+        {activeTab === 'packet' && (
+          <FinalPacketTab booking={booking} onView={setLightboxUrl} />
         )}
       </div>
 
