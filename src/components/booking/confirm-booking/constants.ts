@@ -18,17 +18,21 @@ export const STAGES = [
 // Legacy alias for backward compatibility
 export const STEPS = STAGES;
 
-export const PAYMENT_PROVIDER = (import.meta.env.VITE_PAYMENT_PROVIDER || brand.paymentProvider || 'square').toLowerCase();
+function envString(value: unknown) {
+  return String(value || '').trim();
+}
+
+export const PAYMENT_PROVIDER = envString(import.meta.env.VITE_PAYMENT_PROVIDER || brand.paymentProvider || 'square').toLowerCase();
 export const STRIPE_CONFIGURED = PAYMENT_PROVIDER === 'stripe';
 /** Must match backend FEATURE_AUTO_OVERAGE_CHARGES — drives Stripe Elements setupFutureUsage. */
 export const CARD_ON_FILE_ENABLED =
-  String(import.meta.env.VITE_FEATURE_AUTO_OVERAGE_CHARGES || '').toLowerCase() === 'true';
+  envString(import.meta.env.VITE_FEATURE_AUTO_OVERAGE_CHARGES).toLowerCase() === 'true';
 export const SQUARE_CONFIGURED = PAYMENT_PROVIDER === 'square' &&
-  Boolean(import.meta.env.VITE_SQUARE_APPLICATION_ID) &&
-  Boolean(import.meta.env.VITE_SQUARE_LOCATION_ID);
-export const SQUARE_APPLICATION_ID = import.meta.env.VITE_SQUARE_APPLICATION_ID || '';
-export const SQUARE_LOCATION_ID = import.meta.env.VITE_SQUARE_LOCATION_ID || '';
-export const SQUARE_ENVIRONMENT = (import.meta.env.VITE_SQUARE_ENVIRONMENT || 'production').toLowerCase();
+  Boolean(envString(import.meta.env.VITE_SQUARE_APPLICATION_ID)) &&
+  Boolean(envString(import.meta.env.VITE_SQUARE_LOCATION_ID));
+export const SQUARE_APPLICATION_ID = envString(import.meta.env.VITE_SQUARE_APPLICATION_ID);
+export const SQUARE_LOCATION_ID = envString(import.meta.env.VITE_SQUARE_LOCATION_ID);
+export const SQUARE_ENVIRONMENT = envString(import.meta.env.VITE_SQUARE_ENVIRONMENT || 'production').toLowerCase();
 
 /*
  * Stripe SDK is no longer eagerly initialized here.

@@ -1,9 +1,9 @@
 const SQUARE_VERSION = process.env.SQUARE_VERSION || '2026-06-18';
 
 export function getSquareConfig() {
-  const accessToken = process.env.SQUARE_ACCESS_TOKEN;
-  const locationId = process.env.SQUARE_LOCATION_ID;
-  const environment = (process.env.SQUARE_ENVIRONMENT || 'production').toLowerCase();
+  const accessToken = String(process.env.SQUARE_ACCESS_TOKEN || '').trim();
+  const locationId = String(process.env.SQUARE_LOCATION_ID || '').trim();
+  const environment = String(process.env.SQUARE_ENVIRONMENT || 'production').trim().toLowerCase();
   if (!accessToken) {
     throw Object.assign(new Error('SQUARE_ACCESS_TOKEN is not configured'), { status: 500 });
   }
