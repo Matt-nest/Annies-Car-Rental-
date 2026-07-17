@@ -151,8 +151,11 @@ export function isFinalRentalPacketAvailable(booking) {
   return FINAL_PACKET_STATUSES.has(normalizeStatus(booking?.status));
 }
 
-export async function getFinalRentalPacket(bookingId) {
+export async function getFinalRentalPacket(bookingId, { includeAgreementSource = false } = {}) {
   const booking = await getBookingDetail(bookingId);
+  const agreementRecord = Array.isArray(booking.rental_agreements)
+    ? booking.rental_agreements[0]
+    : booking.rental_agreements || null;
 
   const [
     { data: rawRecords = [], error: recordsError },
@@ -229,8 +232,12 @@ export async function getFinalRentalPacket(bookingId) {
       vin: booking.vehicles?.vin || null,
     },
     agreement: {
-      customer_signed_at: booking.rental_agreements?.[0]?.customer_signed_at || booking.rental_agreements?.customer_signed_at || null,
-      owner_signed_at: booking.rental_agreements?.[0]?.owner_signed_at || booking.rental_agreements?.owner_signed_at || null,
+      customer_signed_at: agreementRecord?.customer_signed_at || null,
+      owner_signed_at: agreementRecord?.owner_signed_at || null,
+      appendix_included: Boolean(includeAgreementSource && agreementRecord),
+      source: includeAgreementSource && agreementRecord
+        ? { agreement: agreementRecord, booking }
+        : undefined,
     },
     pickup: {
       odometer: pickupOdometer,

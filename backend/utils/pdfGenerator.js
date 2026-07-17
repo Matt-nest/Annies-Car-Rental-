@@ -456,20 +456,27 @@ function signatureRow(doc, label, x, y, sigW, dateX, dateW, sigData, signedAt, {
  * Generates the 3-page rental agreement PDF and pipes it to the given writable
  * stream (HTTP response or file stream). Signature unchanged for the route.
  */
+export function addRentalAgreementPdfPages(doc, agreement, booking) {
+  const customer = booking.customers || {};
+  const vehicle = booking.vehicles || {};
+
+  doc.font('Helvetica');
+  try { doc.initForm(); } catch { /* already initialized or not needed */ }
+
+  pageOne(doc, agreement, booking, customer, vehicle);
+  doc.addPage();
+  pageTwo(doc, agreement, booking, customer, vehicle);
+  doc.addPage();
+  pageThree(doc, agreement, booking, customer, vehicle);
+}
+
 export async function generateRentalAgreementPdf(agreement, booking, res) {
   return new Promise((resolve, reject) => {
     try {
       const doc = new PDFDocument({ size: 'LETTER', margins: { top: 0, bottom: 0, left: 0, right: 0 } });
-      const customer = booking.customers || {};
-      const vehicle = booking.vehicles || {};
 
       doc.pipe(res);
-
-      pageOne(doc, agreement, booking, customer, vehicle);
-      doc.addPage();
-      pageTwo(doc, agreement, booking, customer, vehicle);
-      doc.addPage();
-      pageThree(doc, agreement, booking, customer, vehicle);
+      addRentalAgreementPdfPages(doc, agreement, booking);
 
       doc.end();
 

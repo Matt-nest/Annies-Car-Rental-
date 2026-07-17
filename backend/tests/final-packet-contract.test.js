@@ -19,9 +19,11 @@ test('final rental packet has admin and portal endpoints', () => {
 
   assert.match(route, /\/bookings\/:id\/final-packet/);
   assert.match(route, /\/bookings\/:id\/final-packet\/pdf/);
+  assert.match(route, /includeAgreementSource: true/);
   assert.match(route, /requireAuth/);
   assert.match(route, /isFinalRentalPacketAvailable/);
   assert.match(portal, /\/final-packet\/pdf/);
+  assert.match(portal, /getFinalRentalPacket\(req\.portal\.bookingId, \{ includeAgreementSource: true \}\)/);
   assert.match(portal, /requirePortalAuth/);
   assert.match(portal, /finalPacket/);
   assert.match(api, /finalPacketRoutes/);
@@ -42,6 +44,7 @@ test('final packet service includes settlement evidence and decline detail', () 
   assert.match(service, /pickup/);
   assert.match(service, /return/);
   assert.match(service, /refund_due_cents/);
+  assert.match(service, /appendix_included/);
 });
 
 test('dashboard and customer portal expose final packet views', () => {
@@ -59,4 +62,13 @@ test('dashboard and customer portal expose final packet views', () => {
   assert.match(tab, /Payments, Declines, Refunds/);
   assert.match(portal, /FinalPacketSummary/);
   assert.match(portal, /portal\/final-packet\/pdf/);
+});
+
+test('final packet PDF appends the signed rental agreement renderer', () => {
+  const packetPdf = source('backend/utils/finalRentalPacketPdfGenerator.js');
+  const agreementPdf = source('backend/utils/pdfGenerator.js');
+
+  assert.match(agreementPdf, /export function addRentalAgreementPdfPages/);
+  assert.match(packetPdf, /addRentalAgreementPdfPages/);
+  assert.match(packetPdf, /Signed Rental Agreement Appendix/);
 });

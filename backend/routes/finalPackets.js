@@ -20,7 +20,7 @@ router.get('/bookings/:id/final-packet', requireAuth, asyncHandler(async (req, r
 }));
 
 router.get('/bookings/:id/final-packet/pdf', requireAuth, asyncHandler(async (req, res) => {
-  const packet = await getFinalRentalPacket(req.params.id);
+  const packet = await getFinalRentalPacket(req.params.id, { includeAgreementSource: true });
   assertPacketReady(packet);
 
   const code = packet.booking?.booking_code || packet.booking?.id || req.params.id;

@@ -1,5 +1,6 @@
 import PDFDocument from 'pdfkit';
 import brand from '../config/brand.js';
+import { addRentalAgreementPdfPages } from './pdfGenerator.js';
 
 const COLORS = {
   ink: '#1C1917',
@@ -104,7 +105,18 @@ export async function generateFinalRentalPacketPdf({ packet, stream }) {
   const doc = new PDFDocument({
     size: 'LETTER',
     margins: { top: 40, bottom: 40, left: 50, right: 50 },
-    bufferPages: true,
+  });
+
+  const finished = new Promise((resolve, reject) => {
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+    doc.on('end', done);
+    stream.on('finish', done);
+    stream.on('error', reject);
   });
 
   doc.pipe(stream);
@@ -214,16 +226,20 @@ export async function generateFinalRentalPacketPdf({ packet, stream }) {
     });
   }
 
-  const pageCount = doc.bufferedPageRange().count;
-  for (let i = 0; i < pageCount; i += 1) {
-    doc.switchToPage(i);
-    doc.font('Helvetica').fontSize(7).fillColor(COLORS.muted)
-      .text(`${brand.name} Final Rental Packet | ${bookingCode} | Page ${i + 1} of ${pageCount}`, 50, 760, { width: 512, align: 'center' });
+  const agreementSource = packet.agreement?.source;
+  if (agreementSource?.agreement && agreementSource?.booking) {
+    doc.addPage({ size: 'LETTER', margins: { top: 40, bottom: 40, left: 50, right: 50 } });
+    doc.rect(0, 0, 612, 6).fill(COLORS.accent);
+    doc.font('Helvetica-Bold').fontSize(20).fillColor(COLORS.ink).text('Signed Rental Agreement Appendix', 50, 80);
+    doc.font('Helvetica').fontSize(10).fillColor(COLORS.muted)
+      .text('The following pages are the signed rental agreement attached to this final rental packet.', 50, 112, { width: 460 });
+    doc.font('Helvetica').fontSize(9).fillColor(COLORS.muted)
+      .text(`Customer signed: ${date(packet.agreement?.customer_signed_at)}`, 50, 152)
+      .text(`Owner signed: ${date(packet.agreement?.owner_signed_at)}`, 50, 170);
+    doc.addPage({ size: 'LETTER', margins: { top: 0, bottom: 0, left: 0, right: 0 } });
+    addRentalAgreementPdfPages(doc, agreementSource.agreement, agreementSource.booking);
   }
 
   doc.end();
-  return new Promise((resolve, reject) => {
-    stream.on('finish', resolve);
-    stream.on('error', reject);
-  });
+  return finished;
 }

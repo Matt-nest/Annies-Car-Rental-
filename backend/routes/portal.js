@@ -201,7 +201,7 @@ router.get('/final-packet', requirePortalAuth, async (req, res) => {
 
 router.get('/final-packet/pdf', requirePortalAuth, async (req, res) => {
   try {
-    const packet = await getFinalRentalPacket(req.portal.bookingId);
+    const packet = await getFinalRentalPacket(req.portal.bookingId, { includeAgreementSource: true });
     if (!isFinalRentalPacketAvailable(packet.booking)) {
       return res.status(409).json({ error: 'Final rental packet is available after return.' });
     }
