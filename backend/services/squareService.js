@@ -19,6 +19,28 @@ function squarePaymentIsComplete(payment) {
   return ['COMPLETED', 'APPROVED'].includes(payment?.status);
 }
 
+function summarizeSquareError(err) {
+  const first = Array.isArray(err?.squareErrors) ? err.squareErrors[0] : null;
+  return {
+    category: first?.category || null,
+    code: first?.code || null,
+    detail: first?.detail || err?.message || 'Square payment failed',
+  };
+}
+
+function squareDeclineNotes(summary) {
+  const parts = [
+    'Square payment declined',
+    summary.category ? `category: ${summary.category}` : null,
+    summary.code ? `code: ${summary.code}` : null,
+    summary.detail ? `detail: ${summary.detail}` : null,
+  ].filter(Boolean);
+  if (summary.code === 'GENERIC_DECLINE') {
+    parts.push('issuer_detail: not provided by Square; check Square Dashboard for any additional issuer detail');
+  }
+  return parts.join(' — ');
+}
+
 async function getDepositCentsForVehicle(vehicleId) {
   let depositCents = 15000;
   if (vehicleId) {
@@ -71,6 +93,47 @@ async function insertPaymentIfMissing(payment) {
     .single();
   if (error) throw error;
   return { inserted: true, id: data.id };
+}
+
+async function recordFailedSquarePaymentAttempt(booking, totals, errOrSummary) {
+  const summary = errOrSummary?.detail ? errOrSummary : summarizeSquareError(errOrSummary);
+  const referenceId = `decline_${booking.booking_code}_${Date.now()}`;
+  const notes = squareDeclineNotes(summary);
+
+  const { data, error } = await supabase
+    .from('payments')
+    .insert({
+      booking_id: booking.id,
+      amount: centsToDollars(totals.totalCents),
+      payment_type: 'rental',
+      method: 'square',
+      reference_id: referenceId,
+      status: 'failed',
+      notes,
+    })
+    .select('id')
+    .single();
+
+  if (error) {
+    console.error(`[Square] Failed to record declined payment for ${booking.booking_code}:`, error.message);
+  }
+
+  createNotification(
+    'payment_declined',
+    `Square payment declined — ${booking.booking_code}`,
+    `${summary.detail || 'Square declined the payment.'}${summary.code ? ` Code: ${summary.code}.` : ''}`,
+    `/bookings/${booking.id}`,
+    {
+      booking_id: booking.id,
+      booking_code: booking.booking_code,
+      payment_id: data?.id || null,
+      amount_cents: totals.totalCents,
+      provider: 'square',
+      category: summary.category,
+      code: summary.code,
+      detail: summary.detail,
+    }
+  ).catch(() => {});
 }
 
 async function finalizeBookingAfterPayment(bookingId) {
@@ -312,6 +375,7 @@ export async function createSquarePayment(bookingCode, { source_id, expected_tot
     .eq('booking_id', booking.id)
     .eq('payment_type', 'rental')
     .eq('method', 'square')
+    .eq('status', 'completed')
     .limit(1);
   if (existing.data?.[0]?.reference_id) {
     return { success: true, alreadyPaid: true, payment_id: existing.data[0].reference_id };
@@ -326,21 +390,32 @@ export async function createSquarePayment(bookingCode, { source_id, expected_tot
   }
 
   const { locationId } = getSquareConfig();
-  const response = await squareRequest('/v2/payments', {
-    method: 'POST',
-    body: {
-      source_id,
-      idempotency_key: idempotency_key || `${booking.booking_code}-${Date.now()}`,
-      location_id: locationId,
-      amount_money: { amount: totals.totalCents, currency: 'USD' },
-      reference_id: booking.booking_code,
-      buyer_email_address: booking.customers?.email || undefined,
-      note: `${brand.name} ${booking.booking_code} rental + deposit`,
-      autocomplete: true,
-    },
-  });
+  let response;
+  try {
+    response = await squareRequest('/v2/payments', {
+      method: 'POST',
+      body: {
+        source_id,
+        idempotency_key: idempotency_key || `${booking.booking_code}-${Date.now()}`,
+        location_id: locationId,
+        amount_money: { amount: totals.totalCents, currency: 'USD' },
+        reference_id: booking.booking_code,
+        buyer_email_address: booking.customers?.email || undefined,
+        note: `${brand.name} ${booking.booking_code} rental + deposit`,
+        autocomplete: true,
+      },
+    });
+  } catch (err) {
+    await recordFailedSquarePaymentAttempt(booking, totals, err);
+    throw err;
+  }
 
   if (!squarePaymentIsComplete(response.payment)) {
+    await recordFailedSquarePaymentAttempt(booking, totals, {
+      category: 'PAYMENT_STATUS',
+      code: response.payment?.status || 'UNKNOWN_STATUS',
+      detail: `Square payment did not complete (status: ${response.payment?.status || 'unknown'})`,
+    });
     throw Object.assign(new Error(`Square payment did not complete (status: ${response.payment?.status || 'unknown'})`), { status: 402 });
   }
 

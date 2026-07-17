@@ -39,6 +39,7 @@ router.get('/overview', requireAuth, asyncHandler(async (req, res) => {
     // Revenue from CONFIRMED payments only (not booking estimates)
     supabase.from('payments').select('amount, payment_type')
       .gte('created_at', `${startOfMonth}T00:00:00`)
+      .eq('status', 'completed')
       .in('payment_type', ['rental', 'refund']),
     supabase.from('reviews').select('rating').eq('approved', true),
     supabase.from('reviews').select('id', { count: 'exact', head: true }).eq('approved', false),
@@ -95,6 +96,7 @@ router.get('/revenue', requireAuth, asyncHandler(async (req, res) => {
   let query = supabase
     .from('payments')
     .select('amount, payment_type, method, reference_id, created_at, paid_at, booking_id, bookings(booking_code, pickup_date, total_cost, tax_amount, source, vehicle_id, rate_type, rental_days, daily_rate, subtotal, weekly_discount_applied, vehicles(year, make, model, category))')
+    .eq('status', 'completed')
     .in('payment_type', ['rental', 'refund']);
 
   if (from) query = query.gte('created_at', `${from}T00:00:00`);
@@ -257,6 +259,7 @@ router.get('/vehicles', requireAuth, asyncHandler(async (req, res) => {
       .from('payments')
       .select('amount, booking_id, bookings!inner(vehicle_id)')
       .eq('bookings.vehicle_id', v.id)
+      .eq('status', 'completed')
       .in('payment_type', ['rental', 'refund'])
       .gte('created_at', `${since}T00:00:00`);
 

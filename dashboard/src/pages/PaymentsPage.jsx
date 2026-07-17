@@ -20,6 +20,7 @@ import brand from '../config/brand';
 const EASE = [0.25, 1, 0.5, 1];
 
 function canRefundPayment(payment) {
+  if (payment.status !== 'completed') return false;
   if (payment.payment_type === 'refund' || payment.amount <= 0) return false;
   if (payment.method === 'stripe' && payment.reference_id?.startsWith('pi_')) return true;
   if (payment.method === 'square' && payment.reference_id) return true;
@@ -35,6 +36,33 @@ function providerLabel(method) {
 function money(value, maximumFractionDigits = 0) {
   const n = Number(value || 0);
   return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits });
+}
+
+function paymentStatusStyle(status) {
+  const normalized = String(status || 'pending').toLowerCase();
+  if (normalized === 'completed' || normalized === 'paid' || normalized === 'succeeded') {
+    return { bg: 'rgba(34,197,94,0.10)', border: 'rgba(34,197,94,0.18)', color: '#16a34a', label: 'Completed' };
+  }
+  if (normalized === 'failed') {
+    return { bg: 'rgba(239,68,68,0.10)', border: 'rgba(239,68,68,0.22)', color: 'var(--danger-color)', label: 'Failed' };
+  }
+  if (normalized === 'refunded') {
+    return { bg: 'rgba(244,63,94,0.08)', border: 'rgba(244,63,94,0.15)', color: '#f43f5e', label: 'Refunded' };
+  }
+  return { bg: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.20)', color: '#d97706', label: normalized || 'Pending' };
+}
+
+function paymentTypeStyle(payment) {
+  if (payment.status === 'failed') {
+    return { bg: 'rgba(239,68,68,0.10)', border: 'rgba(239,68,68,0.22)', color: 'var(--danger-color)' };
+  }
+  if (payment.payment_type === 'refund') {
+    return { bg: 'rgba(244,63,94,0.08)', border: 'rgba(244,63,94,0.15)', color: '#f43f5e' };
+  }
+  if (payment.payment_type === 'deposit') {
+    return { bg: 'rgba(139,92,246,0.08)', border: 'rgba(139,92,246,0.15)', color: '#8b5cf6' };
+  }
+  return { bg: 'rgba(59,130,246,0.08)', border: 'rgba(59,130,246,0.15)', color: '#3b82f6' };
 }
 
 function depositCents(row) {
@@ -584,7 +612,7 @@ export default function PaymentsPage() {
       <ActionHistoryPanel entries={[...ledgerHistory, ...moneyActions]} title="Ledger action history" />
 
       {loading ? (
-        <SkeletonTable rows={8} cols={7} />
+        <SkeletonTable rows={8} cols={8} />
       ) : payments.length === 0 ? (
         <EmptyState icon={CreditCard} title="No payments found" description="Payments will appear here as bookings are completed." />
       ) : (
@@ -594,7 +622,7 @@ export default function PaymentsPage() {
             <table className="w-full text-sm whitespace-nowrap">
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                  {['Date', 'Booking', 'Customer', 'Type', 'Method', 'Amount', 'Actions'].map(h => (
+                  {['Date', 'Booking', 'Customer', 'Type', 'Status', 'Method', 'Amount', 'Actions'].map(h => (
                     <th key={h} className={`px-5 py-4 font-bold uppercase ${h === 'Amount' || h === 'Actions' ? 'text-right' : 'text-left'}`}
                       style={{ color: 'var(--text-tertiary)', fontSize: '10px', letterSpacing: '0.08em' }}>{h}</th>
                   ))}
@@ -604,6 +632,9 @@ export default function PaymentsPage() {
                 {payments.map(payment => {
                   const refundable = canRefundPayment(payment);
                   const isRefund = payment.payment_type === 'refund';
+                  const isFailed = payment.status === 'failed';
+                  const statusStyle = paymentStatusStyle(payment.status);
+                  const typeStyle = paymentTypeStyle(payment);
                   const displayAmount = isRefund
                     ? `-$${Math.abs(payment.amount).toFixed(2)}`
                     : `$${parseFloat(payment.amount).toFixed(2)}`;
@@ -636,11 +667,26 @@ export default function PaymentsPage() {
                       </td>
                       <td className="px-5 py-4">
                         <span className="status-pill capitalize" style={{
-                          backgroundColor: isRefund ? 'rgba(244,63,94,0.08)' : payment.payment_type === 'deposit' ? 'rgba(139,92,246,0.08)' : 'rgba(59,130,246,0.08)',
-                          borderColor: isRefund ? 'rgba(244,63,94,0.15)' : payment.payment_type === 'deposit' ? 'rgba(139,92,246,0.15)' : 'rgba(59,130,246,0.15)',
-                          color: isRefund ? '#f43f5e' : payment.payment_type === 'deposit' ? '#8b5cf6' : '#3b82f6',
+                          backgroundColor: typeStyle.bg,
+                          borderColor: typeStyle.border,
+                          color: typeStyle.color,
                         }}>
                           {payment.payment_type}
+                        </span>
+                        {payment.notes && (
+                          <p className="mt-1 max-w-[260px] truncate text-[11px]" title={payment.notes} style={{ color: 'var(--text-tertiary)' }}>
+                            {payment.notes}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className="status-pill capitalize" style={{
+                          backgroundColor: statusStyle.bg,
+                          borderColor: statusStyle.border,
+                          color: statusStyle.color,
+                        }}>
+                          {isFailed && <AlertCircle size={12} />}
+                          {statusStyle.label}
                         </span>
                       </td>
                       <td className="px-5 py-4">
@@ -649,7 +695,7 @@ export default function PaymentsPage() {
                           <span className="text-xs">{payment.method}</span>
                         </div>
                       </td>
-                      <td className={`px-5 py-4 text-right font-bold tabular-nums`} style={{ color: isRefund ? 'var(--danger-color)' : '#22c55e' }}>
+                      <td className={`px-5 py-4 text-right font-bold tabular-nums`} style={{ color: isRefund || isFailed ? 'var(--danger-color)' : '#22c55e' }}>
                         {displayAmount}
                       </td>
                       <td className="px-5 py-4 text-right">
@@ -686,7 +732,10 @@ export default function PaymentsPage() {
           <div className="md:hidden divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
             {payments.map(payment => {
               const isRefund = payment.payment_type === 'refund';
+              const isFailed = payment.status === 'failed';
               const refundable = canRefundPayment(payment);
+              const statusStyle = paymentStatusStyle(payment.status);
+              const typeStyle = paymentTypeStyle(payment);
               const displayAmount = isRefund
                 ? `-$${Math.abs(payment.amount).toFixed(2)}`
                 : `$${parseFloat(payment.amount).toFixed(2)}`;
@@ -697,7 +746,7 @@ export default function PaymentsPage() {
                 <div key={payment.id} className="px-4 py-3.5" style={{ borderColor: 'var(--border-subtle)' }}>
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{customerName}</span>
-                    <span className="text-sm font-bold tabular-nums" style={{ color: isRefund ? 'var(--danger-color)' : '#22c55e' }}>
+                    <span className="text-sm font-bold tabular-nums" style={{ color: isRefund || isFailed ? 'var(--danger-color)' : '#22c55e' }}>
                       {displayAmount}
                     </span>
                   </div>
@@ -711,17 +760,30 @@ export default function PaymentsPage() {
                         {payment.bookings?.booking_code || payment.booking_id.substring(0, 8)}
                       </Link>
                       <span className="status-pill capitalize" style={{
-                        backgroundColor: isRefund ? 'rgba(244,63,94,0.08)' : payment.payment_type === 'deposit' ? 'rgba(139,92,246,0.08)' : 'rgba(59,130,246,0.08)',
-                        borderColor: isRefund ? 'rgba(244,63,94,0.15)' : payment.payment_type === 'deposit' ? 'rgba(139,92,246,0.15)' : 'rgba(59,130,246,0.15)',
-                        color: isRefund ? '#f43f5e' : payment.payment_type === 'deposit' ? '#8b5cf6' : '#3b82f6',
+                        backgroundColor: typeStyle.bg,
+                        borderColor: typeStyle.border,
+                        color: typeStyle.color,
                       }}>
                         {payment.payment_type}
+                      </span>
+                      <span className="status-pill capitalize" style={{
+                        backgroundColor: statusStyle.bg,
+                        borderColor: statusStyle.border,
+                        color: statusStyle.color,
+                      }}>
+                        {isFailed && <AlertCircle size={12} />}
+                        {statusStyle.label}
                       </span>
                     </div>
                     <span className="mono-code text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
                       {format(new Date(payment.created_at), 'MM/dd HH:mm')}
                     </span>
                   </div>
+                  {payment.notes && (
+                    <p className="mt-2 line-clamp-2 text-xs" style={{ color: isFailed ? 'var(--danger-color)' : 'var(--text-tertiary)' }}>
+                      {payment.notes}
+                    </p>
+                  )}
                   {!isRefund && refundable && (
                     <button
                       onClick={() => openRefundModal(payment)}

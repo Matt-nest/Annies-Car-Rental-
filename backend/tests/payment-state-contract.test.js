@@ -47,6 +47,23 @@ test('dashboard rental-payment state is based on rental payment ledger rows only
   assert.doesNotMatch(fn, /deposit_status/);
 });
 
+test('Square checkout records failed attempts without blocking retry or revenue', () => {
+  const squareService = source('backend/services/squareService.js');
+  assert.match(squareService, /async function recordFailedSquarePaymentAttempt/);
+  assert.match(squareService, /status: 'failed'/);
+  assert.match(squareService, /payment_declined/);
+  assert.match(squareService, /squareErrors/);
+  assert.match(squareService, /\.eq\('status', 'completed'\)[\s\S]*\.limit\(1\)/);
+
+  const statsRoute = source('backend/routes/stats.js');
+  assert.match(statsRoute, /\.eq\('status', 'completed'\)[\s\S]*\.in\('payment_type', \['rental', 'refund'\]\)/);
+
+  const paymentsPage = source('dashboard/src/pages/PaymentsPage.jsx');
+  assert.match(paymentsPage, /payment\.status !== 'completed'/);
+  assert.match(paymentsPage, /paymentStatusStyle/);
+  assert.match(paymentsPage, /Failed/);
+});
+
 test('agreement confirmation requires a completed rental payment', () => {
   const agreements = source('backend/routes/agreements.js');
   assert.match(agreements, /async function hasCompletedRentalPayment/);
