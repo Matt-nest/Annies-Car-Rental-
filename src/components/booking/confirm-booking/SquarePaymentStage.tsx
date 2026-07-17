@@ -58,6 +58,14 @@ function loadSquareSdk() {
   });
 }
 
+function formatSquarePaymentError(message: string) {
+  const normalized = String(message || '').trim();
+  if (/GENERIC_DECLINE|Authorization error/i.test(normalized)) {
+    return 'Square declined this card. Please try a different card or contact the card issuer. Code: GENERIC_DECLINE.';
+  }
+  return normalized || 'Something went wrong';
+}
+
 export default function SquarePaymentStage({
   bookingSummary,
   draft,
@@ -153,7 +161,7 @@ export default function SquarePaymentStage({
       clearDraft(bookingCode);
       onSuccess();
     } catch (err: any) {
-      setSubmitError(err.message || 'Something went wrong');
+      setSubmitError(formatSquarePaymentError(err.message));
       setSubmitting(false);
     }
   };
