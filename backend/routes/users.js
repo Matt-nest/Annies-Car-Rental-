@@ -13,6 +13,37 @@ const adminClient = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
+function isConfiguredSmokeUser(user) {
+  const email = user?.email?.toLowerCase();
+  const smokeEmails = [
+    process.env.DASHBOARD_SMOKE_EMAIL,
+    process.env.DASHBOARD_SMOKE_EMAIL_PULL,
+  ].filter(Boolean).map(value => value.toLowerCase());
+
+  return Boolean(email && smokeEmails.includes(email));
+}
+
+async function provisionSmokeProfile(user) {
+  const profile = {
+    auth_id: user.id,
+    email: user.email,
+    first_name: user.user_metadata?.first_name || user.user_metadata?.full_name || 'Smoke',
+    last_name: user.user_metadata?.last_name || 'Test',
+    role: 'owner',
+    is_active: true,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabase
+    .from('admin_profiles')
+    .upsert(profile, { onConflict: 'auth_id' })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
 // ────────────────────────────────────────────────────────
 // GET /users/me — current user's profile
 // ────────────────────────────────────────────────────────
@@ -24,6 +55,11 @@ router.get('/me', requireAuth, asyncHandler(async (req, res) => {
     .single();
 
   if (error || !profile) {
+    if (isConfiguredSmokeUser(req.user)) {
+      const smokeProfile = await provisionSmokeProfile(req.user);
+      return res.json(smokeProfile);
+    }
+
     return res.json({
       id: req.user.id,
       auth_id: req.user.id,
