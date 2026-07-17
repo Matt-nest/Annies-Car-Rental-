@@ -10,7 +10,54 @@ function portalToken(bookingCode: string, email = 'driver@example.com') {
   return `test.${Buffer.from(JSON.stringify(payload)).toString('base64')}.sig`;
 }
 
-function booking(status: 'ready_for_pickup' | 'active') {
+type PortalStatus = 'ready_for_pickup' | 'active' | 'returned' | 'completed';
+
+const photoDataUrl = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='60'%3E%3Crect width='80' height='60' fill='%2322c55e'/%3E%3C/svg%3E";
+
+function finalPacket() {
+  return {
+    generated_at: '2026-08-08T14:00:00.000Z',
+    available: true,
+    booking: { id: 'booking-returned', booking_code: 'PORTAL-returned', status: 'returned' },
+    customer: { first_name: 'Taylor', last_name: 'Driver', email: 'driver@example.com', phone: '555-0100' },
+    vehicle: { label: '2024 Toyota Camry' },
+    agreement: { customer_signed_at: '2026-08-01T13:00:00.000Z', owner_signed_at: '2026-08-01T13:05:00.000Z' },
+    pickup: {
+      odometer: 42350,
+      fuel_level: 'full',
+      photos: [{ slot: 'front', url: photoDataUrl, record_type: 'customer_checkin' }],
+    },
+    return: {
+      odometer: 42410,
+      fuel_level: 'three_quarter',
+      photos: [{ slot: 'rear', url: photoDataUrl, record_type: 'customer_checkout' }],
+    },
+    settlement: {
+      deposit: { amount_cents: 50000, status: 'partial_refund', applied_amount_cents: 12500, refund_amount_cents: 37500 },
+      mileage: { pickup_odometer: 42350, return_odometer: 42410, miles_driven: 60 },
+      fuel: { pickup_fuel_level: 'full', return_fuel_level: 'three_quarter' },
+      cleaning: [{ id: 'cleaning-1', type: 'cleaning', description: 'Interior cleaning', amount_cents: 2500 }],
+      incidentals: [{ id: 'cleaning-1', type: 'cleaning', description: 'Interior cleaning', amount_cents: 2500 }],
+      payments: {
+        completed: [{ id: 'payment-1', method: 'card', status: 'completed', amount_cents: 56000 }],
+        declines: [{ id: 'decline-1', method: 'card', status: 'failed', amount_cents: 12500, failure_code: 'generic_decline' }],
+        refunds: [{ id: 'refund-1', method: 'card', status: 'completed', amount_cents: -37500 }],
+      },
+      totals: {
+        incidental_total_cents: 12500,
+        toll_total_cents: 4500,
+        completed_payment_total_cents: 56000,
+        failed_payment_count: 1,
+        refund_total_cents: 37500,
+        balance_due_cents: 0,
+        refund_due_cents: 37500,
+      },
+    },
+  };
+}
+
+function booking(status: PortalStatus) {
+  const packet = status === 'returned' || status === 'completed' ? finalPacket() : null;
   return {
     id: `booking-${status}`,
     booking_code: `PORTAL-${status}`,
@@ -29,6 +76,9 @@ function booking(status: 'ready_for_pickup' | 'active') {
     addons: [],
     payments: [],
     checkinRecords: [],
+    deposit: packet ? { amount: 50000, status: 'partial_refund', refund_amount: 37500 } : null,
+    invoice: packet ? { items: [{ description: 'Cleaning and tolls', amount: 12500 }], amount_due: -37500 } : null,
+    finalPacket: packet,
     customers: {
       first_name: 'Taylor',
       last_name: 'Driver',
@@ -47,7 +97,7 @@ function booking(status: 'ready_for_pickup' | 'active') {
   };
 }
 
-async function mockPortalApis(page: Page, status: 'ready_for_pickup' | 'active') {
+async function mockPortalApis(page: Page, status: PortalStatus) {
   let uploadCount = 0;
   await page.route('**/portal/booking', async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(booking(status)) });
@@ -74,6 +124,13 @@ async function mockPortalApis(page: Page, status: 'ready_for_pickup' | 'active')
   });
   await page.route('**/portal/checkout', async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
+  });
+  await page.route('**/portal/final-packet/pdf', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/pdf',
+      body: Buffer.from('%PDF-1.4\n%final-packet-test\n%%EOF'),
+    });
   });
   await page.route('**/portal/balance', async (route) => {
     await route.fulfill({
@@ -158,4 +215,25 @@ test('portal does not eager-load payment config when no balance is due', async (
   await page.waitForTimeout(500);
 
   expect(paymentConfigRequests).toEqual([]);
+});
+
+test('returned booking shows final packet settlement and downloads packet PDF', async ({ page }) => {
+  const code = 'PORTAL-returned';
+  await mockPortalApis(page, 'returned');
+  await page.goto(`/portal?code=${code}&preview_token=${encodeURIComponent(portalToken(code))}`);
+
+  await page.getByRole('button', { name: /money/i }).click();
+  await expect(page.getByText('Final Rental Packet')).toBeVisible();
+  await expect(page.getByText('Pickup evidence, return evidence, and final settlement.')).toBeVisible();
+  await expect(page.getByText('Pickup', { exact: true })).toBeVisible();
+  await expect(page.getByText('Return', { exact: true })).toBeVisible();
+  await expect(page.getByText('60 mi')).toBeVisible();
+  await expect(page.getByText('$45.00')).toBeVisible();
+  await expect(page.getByText('Declines')).toBeVisible();
+
+  const packetRequest = page.waitForRequest((request) =>
+    request.method() === 'GET' && request.url().includes('/portal/final-packet/pdf')
+  );
+  await page.getByRole('button', { name: /^PDF$/i }).click();
+  await packetRequest;
 });

@@ -94,6 +94,58 @@ const vehicle = {
   license_plate: 'E2E123',
 };
 
+const packetPhoto = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='60'%3E%3Crect width='80' height='60' fill='%2322c55e'/%3E%3C/svg%3E";
+
+const packetBooking = {
+  ...booking,
+  id: 'booking-packet-complete',
+  booking_code: 'E2E-PACKET-001',
+  status: 'completed',
+  payment_status: 'paid',
+  deposit_status: 'partial_refund',
+  booking_status_log: [],
+};
+
+const finalPacket = {
+  generated_at: '2026-08-08T14:00:00.000Z',
+  available: true,
+  booking: { id: 'booking-packet-complete', booking_code: 'E2E-PACKET-001', status: 'completed' },
+  customer: { first_name: 'Taylor', last_name: 'Driver', email: 'taylor@example.com', phone: '555-0100' },
+  vehicle: { label: '2024 Toyota Camry' },
+  agreement: { customer_signed_at: '2026-08-01T13:00:00.000Z', owner_signed_at: '2026-08-01T13:05:00.000Z' },
+  pickup: {
+    odometer: 42350,
+    fuel_level: 'full',
+    photos: [{ slot: 'front', url: packetPhoto, record_type: 'customer_checkin' }],
+  },
+  return: {
+    odometer: 42410,
+    fuel_level: 'three_quarter',
+    photos: [{ slot: 'rear', url: packetPhoto, record_type: 'customer_checkout' }],
+  },
+  settlement: {
+    deposit: { amount_cents: 50000, status: 'partial_refund', applied_amount_cents: 12500, refund_amount_cents: 37500 },
+    mileage: { pickup_odometer: 42350, return_odometer: 42410, miles_driven: 60 },
+    fuel: { pickup_fuel_level: 'full', return_fuel_level: 'three_quarter' },
+    incidentals: [{ id: 'charge-1', type: 'cleaning', description: 'Interior cleaning', amount_cents: 2500 }],
+    tolls: [{ id: 'toll-1', description: 'Turnpike toll', amount_cents: 4500 }],
+    payments: {
+      completed: [{ id: 'payment-1', method: 'card', status: 'completed', amount_cents: 56000, reference_id: 'sq_e2e' }],
+      declines: [{ id: 'decline-1', method: 'card', status: 'failed', amount_cents: 12500, failure_code: 'generic_decline' }],
+      refunds: [{ id: 'refund-1', method: 'card', status: 'completed', amount_cents: -37500, reference_id: 'rf_e2e' }],
+    },
+    totals: {
+      incidental_total_cents: 12500,
+      toll_total_cents: 4500,
+      completed_payment_total_cents: 56000,
+      failed_payment_count: 1,
+      refund_total_cents: 37500,
+      balance_due_cents: 0,
+      refund_due_cents: 37500,
+    },
+  },
+};
+
 async function mockDashboardApi(page: Page) {
   await page.route('**/designs.html**', async (route) => {
     await route.fulfill({
@@ -199,6 +251,27 @@ async function mockDashboardApi(page: Page) {
           revenue: 560,
         }],
       };
+    } else if (path === '/bookings/booking-packet-complete/final-packet/pdf') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/pdf',
+        body: Buffer.from('%PDF-1.4\n%final-packet-test\n%%EOF'),
+      });
+      return;
+    } else if (path === '/bookings/booking-packet-complete/final-packet') {
+      body = finalPacket;
+    } else if (path === '/bookings/booking-packet-complete/deposit') {
+      body = { amount: 50000, status: 'partial_refund', refund_amount: 37500 };
+    } else if (path === '/bookings/booking-packet-complete/invoice') {
+      body = { id: 'invoice-packet', amount_due: -37500, deposit_applied: 12500, items: [{ description: 'Cleaning and tolls', amount: 12500 }] };
+    } else if (path === '/bookings/booking-packet-complete/incidentals') {
+      body = finalPacket.settlement.incidentals;
+    } else if (path === '/bookings/booking-packet-complete/checkin-records') {
+      body = [];
+    } else if (path === '/bookings/booking-packet-complete/extensions') {
+      body = [];
+    } else if (path === '/bookings/booking-packet-complete') {
+      body = packetBooking;
     } else if (path.endsWith('/approve')) {
       body = { payment_link: 'https://example.test/pay/E2E-BOOKING-001', deposit_amount: 500, is_high_risk: false };
     } else if (path.endsWith('/decline')) {
@@ -212,7 +285,7 @@ async function mockDashboardApi(page: Page) {
     } else if (path.endsWith('/extensions')) {
       body = [];
     } else if (path.startsWith('/bookings')) {
-      body = path === '/bookings' || path.startsWith('/bookings?') ? [booking] : booking;
+      body = path === '/bookings' || path.startsWith('/bookings?') ? [booking, packetBooking] : booking;
     } else if (path.startsWith('/vehicles')) {
       body = path === '/vehicles' || path.startsWith('/vehicles?') ? [vehicle] : vehicle;
     } else if (path === '/stats/overview') {
@@ -631,6 +704,24 @@ test('booking detail portal preview calls the admin preview endpoint', async ({ 
   );
   await page.getByRole('button', { name: /view customer portal/i }).click();
   await previewRequest;
+});
+
+test('booking detail final packet tab renders evidence and downloads PDF', async ({ page }) => {
+  await page.goto('/bookings/booking-packet-complete');
+
+  await page.getByRole('button', { name: /final packet/i }).click();
+  await expect(page.getByRole('heading', { name: 'Final Rental Packet' })).toBeVisible();
+  await expect(page.getByText('Pickup Photos')).toBeVisible();
+  await expect(page.getByText('Return Photos')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Payments, Declines, Refunds' })).toBeVisible();
+  await expect(page.getByText('Interior cleaning')).toBeVisible();
+  await expect(page.getByText('generic_decline')).toBeVisible();
+
+  const packetRequest = page.waitForRequest((request) =>
+    request.method() === 'GET' && request.url().includes('/api/v1/bookings/booking-packet-complete/final-packet/pdf')
+  );
+  await page.getByRole('button', { name: /download pdf/i }).click();
+  await packetRequest;
 });
 
 test('customers route shows operational profile data and portal preview action', async ({ page }, testInfo) => {
