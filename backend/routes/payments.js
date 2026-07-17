@@ -80,7 +80,7 @@ router.get('/bookings/:bookingId/payments', requireAuth, asyncHandler(async (req
 }));
 
 /** POST /bookings/:bookingId/payments */
-router.post('/bookings/:bookingId/payments', requireAuth, asyncHandler(async (req, res) => {
+router.post('/bookings/:bookingId/payments', requireAuth, requireRole('owner', 'admin'), asyncHandler(async (req, res) => {
   const errors = validatePaymentPayload(req.body);
   if (errors.length) return res.status(400).json({ error: 'Validation failed', details: errors });
 

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
 import { supabase } from '../db/supabase.js';
 import { getVehicleDepositAmount, releaseDeposit, settleDeposit, listDeposits, recordManualDeposit } from '../services/depositService.js';
 import { safeRecordMoneyAction } from '../services/moneyActionAuditService.js';
@@ -85,7 +85,7 @@ router.get('/bookings/:id/deposit', requireAuth, async (req, res) => {
 /**
  * POST /bookings/:id/deposit/release — Refund full deposit
  */
-router.post('/bookings/:id/deposit/release', requireAuth, async (req, res) => {
+router.post('/bookings/:id/deposit/release', requireAuth, requireRole('owner', 'admin'), async (req, res) => {
   try {
     const result = await releaseDeposit(req.params.id, { refundedBy: req.user?.email || 'admin' });
     await safeRecordMoneyAction({
@@ -107,7 +107,7 @@ router.post('/bookings/:id/deposit/release', requireAuth, async (req, res) => {
 /**
  * POST /bookings/:id/deposit/settle — Settle deposit against incidentals
  */
-router.post('/bookings/:id/deposit/settle', requireAuth, async (req, res) => {
+router.post('/bookings/:id/deposit/settle', requireAuth, requireRole('owner', 'admin'), async (req, res) => {
   try {
     const { incidentalTotal } = req.body;
     const result = await settleDeposit(req.params.id, {
@@ -134,7 +134,7 @@ router.post('/bookings/:id/deposit/settle', requireAuth, async (req, res) => {
  * POST /bookings/:id/deposit/record — Record a manually-collected deposit
  * Body: { amountCents?, method?, referenceId?, notes? }
  */
-router.post('/bookings/:id/deposit/record', requireAuth, async (req, res) => {
+router.post('/bookings/:id/deposit/record', requireAuth, requireRole('owner', 'admin'), async (req, res) => {
   try {
     const { amountCents, method, referenceId, notes } = req.body || {};
     const result = await recordManualDeposit(req.params.id, {
