@@ -40,6 +40,9 @@ function booking(status: 'ready_for_pickup' | 'active') {
       make: 'Toyota',
       model: 'Camry',
       vehicle_code: 'CAMRY-1',
+      vin: '4T1C11AK0RU123456',
+      thumbnail_url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='90'%3E%3Crect width='160' height='90' fill='%232563eb'/%3E%3C/svg%3E",
+      photo_urls: [],
     },
   };
 }
@@ -151,6 +154,7 @@ test('portal does not eager-load payment config when no balance is due', async (
   await mockPortalApis(page, 'active');
   await page.goto(`/portal?code=${code}&preview_token=${encodeURIComponent(portalToken(code))}`);
   await expect(page.getByText('Toyota Camry')).toBeVisible();
+  await expect(page.getByRole('img', { name: /2024 Toyota Camry/i })).toHaveAttribute('src', /^data:image\/svg\+xml/);
   await page.waitForTimeout(500);
 
   expect(paymentConfigRequests).toEqual([]);

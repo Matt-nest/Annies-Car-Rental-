@@ -72,6 +72,53 @@ function isLongTermRental(booking: any): boolean {
   return booking?.rental_type === 'long_term' || booking?.rate_preference === 'monthly';
 }
 
+function getVehicleImageCandidates(vehicle: any): string[] {
+  if (!vehicle) return [];
+  const photos = Array.isArray(vehicle.photo_urls) ? vehicle.photo_urls : [];
+  return [
+    vehicle.thumbnail_url,
+    ...photos,
+    vehicle.vin ? `/fleet/${vehicle.vin}/hero.png` : null,
+  ].filter((url, index, urls): url is string =>
+    typeof url === 'string' && url.trim().length > 0 && urls.indexOf(url) === index
+  );
+}
+
+function VehicleHeroPhoto({ vehicle }: { vehicle: any }) {
+  const candidates = getVehicleImageCandidates(vehicle);
+  const imageKey = candidates.join('|');
+  const [imageIndex, setImageIndex] = useState(0);
+
+  useEffect(() => {
+    setImageIndex(0);
+  }, [imageKey]);
+
+  const src = candidates[imageIndex];
+  const alt = [vehicle?.year, vehicle?.make, vehicle?.model].filter(Boolean).join(' ') || 'Rental vehicle';
+
+  return (
+    <div
+      className="aspect-[16/9] flex items-center justify-center p-4"
+      style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-subtle)' }}
+    >
+      {src ? (
+        <img
+          src={src}
+          alt={alt}
+          className="max-w-full max-h-full object-contain"
+          style={{ filter: 'drop-shadow(0 10px 30px rgba(0,0,0,0.3))' }}
+          onError={() => setImageIndex((index) => index + 1)}
+        />
+      ) : (
+        <div className="flex flex-col items-center gap-2" style={{ color: 'var(--text-tertiary)' }}>
+          <Car size={34} />
+          <span className="text-xs font-medium">Vehicle photo unavailable</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PortalTabs({
   active,
   onChange,
@@ -1304,20 +1351,7 @@ export default function CustomerPortal() {
             style={card(theme)}
           >
             {/* Vehicle hero photo */}
-            {v?.vehicle_code && (
-              <div
-                className="aspect-[16/9] flex items-center justify-center p-4"
-                style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-subtle)' }}
-              >
-                <img
-                  src={`/fleet/${v.vehicle_code}/hero.png`}
-                  alt={`${v.year} ${v.make} ${v.model}`}
-                  className="max-w-full max-h-full object-contain"
-                  style={{ filter: 'drop-shadow(0 10px 30px rgba(0,0,0,0.3))' }}
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                />
-              </div>
-            )}
+            <VehicleHeroPhoto vehicle={v} />
 
             <div className="p-5 space-y-4">
               {/* Vehicle name */}
