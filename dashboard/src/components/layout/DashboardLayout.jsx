@@ -34,28 +34,6 @@ function DashboardLayoutInner() {
   const mainScrollRef = useRef(null);
   useScrollRestoration(mainScrollRef);
 
-  const [navCompact, setNavCompact] = useState(false);
-  useEffect(() => {
-    const el = mainScrollRef.current;
-    if (!el) return;
-    let lastY = el.scrollTop;
-    let ticking = false;
-    const onScroll = () => {
-      if (ticking) return;
-      ticking = true;
-      requestAnimationFrame(() => {
-        const y = el.scrollTop;
-        if (y < 24) setNavCompact(false);
-        else if (y - lastY > 6) setNavCompact(true);
-        else if (lastY - y > 6) setNavCompact(false);
-        lastY = y;
-        ticking = false;
-      });
-    };
-    el.addEventListener('scroll', onScroll, { passive: true });
-    return () => el.removeEventListener('scroll', onScroll);
-  }, []);
-
   const pageVariants = {
     initial: (direction) => ({ opacity: 0, x: direction === 'POP' ? -24 : 24 }),
     animate: { opacity: 1, x: 0 },
@@ -323,7 +301,7 @@ function DashboardLayoutInner() {
           </main>
         </div>
 
-        {!sidebarOpen && <BottomNav onOpenMore={() => setSidebarOpen(true)} compact={navCompact} />}
+        {!sidebarOpen && <BottomNav onOpenMore={() => setSidebarOpen(true)} />}
 
         {/* Active-rental acknowledgement modal — fires when a booking flips to
             active. Pure awareness signal — no required action. Dismiss → cash rain. */}

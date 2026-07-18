@@ -164,7 +164,7 @@ function AdminPhotoUploader({ bookingId, photos, setPhotos }) {
 }
 
 /* ── Main Component ──────────────────────────────────────────────────── */
-export default function CheckInPrepTab({ booking, onReload }) {
+export default function CheckInPrepTab({ booking, onReload, sheetMode = false }) {
   const [odometer, setOdometer] = useState('');
   const [fuelLevel, setFuelLevel] = useState('full');
   const [notes, setNotes] = useState('');
@@ -274,7 +274,7 @@ export default function CheckInPrepTab({ booking, onReload }) {
   /* ─── Already Prepped State ──────────────────────────────────────── */
   if (isReady || success) {
     return (
-      <div className="max-w-lg mx-auto space-y-5 py-2 pb-[calc(var(--bottom-nav-offset)+96px)] md:pb-2">
+      <div className={`max-w-lg mx-auto space-y-5 py-2 ${sheetMode ? 'pb-2' : 'pb-[calc(var(--bottom-nav-offset)+96px)] md:pb-2'}`}>
         {/* Success banner */}
         <div className="p-5 rounded-2xl text-center" style={{
           backgroundColor: 'rgba(34,197,94,0.08)',
@@ -404,7 +404,7 @@ export default function CheckInPrepTab({ booking, onReload }) {
 
   /* ─── Check-In Form ─────────────────────────────────────────────── */
   return (
-    <div className="max-w-lg mx-auto space-y-4 py-2 pb-[calc(var(--bottom-nav-offset)+112px)] md:pb-2">
+    <div className={`max-w-lg mx-auto space-y-4 py-2 ${sheetMode ? 'pb-2' : 'pb-[calc(var(--bottom-nav-offset)+112px)] md:pb-2'}`}>
       <StepperHeader step={step} steps={steps} />
 
       {error && (

@@ -66,7 +66,7 @@
   --app-bottomnav-h: calc(var(--app-bottomnav-content-h) + var(--app-bottomnav-safe-bottom));
   --app-bottomnav-gap: 0px;
   --bottom-nav-offset: var(--app-bottomnav-h);
-  --mobile-actionbar-offset: calc(var(--bottom-nav-offset) + 10px);
+  --mobile-actionbar-offset: var(--bottom-nav-offset);
 }
 
 @media (min-width: 1024px) {

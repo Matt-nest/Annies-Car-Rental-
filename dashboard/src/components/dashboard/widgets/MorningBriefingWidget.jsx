@@ -20,7 +20,7 @@ function getTimeContext() {
 function StatChip({ icon: Icon, value, label, color, onClick }) {
   const content = (
     <div
-      className="flex items-center gap-2 px-3 py-2 rounded-xl transition-colors"
+      className="flex min-w-[88px] flex-col items-center justify-center gap-1 rounded-xl px-3 py-2 text-center transition-colors sm:min-w-0 sm:flex-row sm:text-left"
       style={{ backgroundColor: `${color}14`, cursor: onClick ? 'pointer' : 'default' }}
       onClick={onClick}
       onMouseEnter={onClick ? (e) => (e.currentTarget.style.backgroundColor = `${color}22`) : undefined}
@@ -28,7 +28,7 @@ function StatChip({ icon: Icon, value, label, color, onClick }) {
     >
       <Icon size={13} style={{ color, flexShrink: 0 }} />
       <span className="text-base font-bold display-num" style={{ color }}>{value}</span>
-      <span className="text-xs hidden sm:inline" style={{ color: 'var(--text-tertiary)' }}>{label}</span>
+      <span className="text-[10px] leading-none sm:text-xs" style={{ color: 'var(--text-tertiary)' }}>{label}</span>
     </div>
   );
   return content;

@@ -14,6 +14,7 @@ import BookingTimeline from '../components/shared/BookingTimeline';
 import Section from '../components/shared/Section';
 import InlineBanner from '../components/shared/InlineBanner';
 import Field from '../components/shared/Field';
+import Modal from '../components/shared/Modal';
 import CheckInPrepTab from '../components/booking-tabs/CheckInPrepTab';
 import CheckOutTab from '../components/booking-tabs/CheckOutTab';
 import InvoiceTab from '../components/booking-tabs/InvoiceTab';
@@ -407,6 +408,7 @@ export default function BookingDetailPage() {
   const [damageForm, setDamageForm] = useState({ description: '', severity: 'minor', estimated_cost: '', photo_url: '' });
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'overview');
+  const [mobileOpsSheet, setMobileOpsSheet] = useState(null);
   const [checkinRecords, setCheckinRecords] = useState([]);
   const [showExtend, setShowExtend] = useState(false);
   const [portalPreviewing, setPortalPreviewing] = useState(false);
@@ -490,10 +492,18 @@ export default function BookingDetailPage() {
       return;
     }
     if (action === 'checkin') {
+      if (window.matchMedia('(max-width: 767px)').matches) {
+        setMobileOpsSheet('checkin');
+        return;
+      }
       setActiveTab('checkin');
       return;
     }
     if (action === 'checkout') {
+      if (window.matchMedia('(max-width: 767px)').matches) {
+        setMobileOpsSheet('checkout');
+        return;
+      }
       setActiveTab('checkout');
       return;
     }
@@ -924,6 +934,29 @@ export default function BookingDetailPage() {
           onDone={async () => { setShowExtend(false); await Promise.all([load(), refreshAlerts()]); }}
         />
       )}
+
+      <Modal
+        open={mobileOpsSheet === 'checkin'}
+        onClose={() => setMobileOpsSheet(null)}
+        title="Prep Pickup"
+        maxWidth="max-w-lg"
+      >
+        <CheckInPrepTab booking={booking} onReload={load} sheetMode />
+      </Modal>
+
+      <Modal
+        open={mobileOpsSheet === 'checkout'}
+        onClose={() => setMobileOpsSheet(null)}
+        title={status === 'returned' ? 'Settle Checkout' : 'Check Out'}
+        maxWidth="max-w-lg"
+      >
+        <CheckOutTab
+          booking={booking}
+          onReload={load}
+          onSelectTab={setActiveTab}
+          sheetMode
+        />
+      </Modal>
 
       {/* Sprint 8b: phone-only sticky bottom CTA — single primary action per
           booking state. Triggers the existing setModal flow so all existing

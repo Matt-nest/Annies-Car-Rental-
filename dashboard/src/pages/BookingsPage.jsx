@@ -8,6 +8,7 @@ import { useAlerts } from '../lib/alertsContext';
 import StatusBadge from '../components/shared/StatusBadge';
 import DataTable from '../components/shared/DataTable';
 import Modal from '../components/shared/Modal';
+import MobileTaskBar from '../components/shared/MobileTaskBar';
 import DataError from '../components/shared/DataError';
 import NewBookingModal from '../components/bookings/NewBookingModal';
 import ApproveBookingModal from '../components/shared/ApproveBookingModal';
@@ -255,7 +256,7 @@ export default function BookingsPage() {
   ];
 
   return (
-    <div className="page-shell lg:p-8 space-y-6">
+    <div className="page-shell lg:p-8 space-y-6 pb-[calc(var(--bottom-nav-offset)+92px)] lg:pb-8">
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -280,6 +281,15 @@ export default function BookingsPage() {
         open={newBookingOpen}
         onClose={() => setNewBookingOpen(false)}
         onCreated={fetchBookings}
+      />
+
+      <MobileTaskBar
+        eyebrow="Bookings"
+        title="Create booking"
+        subtitle={`${visibleBookings.length} booking${visibleBookings.length === 1 ? '' : 's'} showing`}
+        primaryLabel="New"
+        primaryIcon={Plus}
+        onPrimary={() => setNewBookingOpen(true)}
       />
 
       <DataError error={error} />

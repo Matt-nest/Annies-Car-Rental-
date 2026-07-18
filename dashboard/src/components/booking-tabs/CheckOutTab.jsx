@@ -215,7 +215,7 @@ const OVERRIDE_REASONS = [
   { value: 'other',                                 label: 'Other (note required)' },
 ];
 
-function CheckoutTripGate({ booking, vehicleName, onUnlocked }) {
+function CheckoutTripGate({ booking, vehicleName, onUnlocked, sheetMode = false }) {
   const c = booking.customers || {};
   const renterName = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'The renter';
   const [showOverride, setShowOverride] = useState(false);
@@ -243,7 +243,7 @@ function CheckoutTripGate({ booking, vehicleName, onUnlocked }) {
   }
 
   return (
-    <div className="max-w-lg mx-auto py-8 space-y-5 pb-[calc(var(--bottom-nav-offset)+96px)] md:pb-8">
+    <div className={`max-w-lg mx-auto py-8 space-y-5 ${sheetMode ? 'pb-4' : 'pb-[calc(var(--bottom-nav-offset)+96px)] md:pb-8'}`}>
       <div className="text-center space-y-3">
         <div
           className="mx-auto w-16 h-16 rounded-full flex items-center justify-center"
@@ -360,7 +360,7 @@ function CheckoutTripGate({ booking, vehicleName, onUnlocked }) {
 /* ══════════════════════════════════════════════════════════════════════
    MAIN COMPONENT — 3-Step Check-Out Flow
    ══════════════════════════════════════════════════════════════════════ */
-export default function CheckOutTab({ booking, onReload, onSelectTab }) {
+export default function CheckOutTab({ booking, onReload, onSelectTab, sheetMode = false }) {
   const [step, setStep] = useState(0);
   const STEPS = ['Vehicle Condition', 'Review Charges', 'Finalize'];
   const { refresh: refreshAlerts } = useAlerts();
@@ -758,6 +758,7 @@ export default function CheckOutTab({ booking, onReload, onSelectTab }) {
         booking={booking}
         vehicleName={vehicleName}
         onUnlocked={onReload}
+        sheetMode={sheetMode}
       />
     );
   }
@@ -769,7 +770,7 @@ export default function CheckOutTab({ booking, onReload, onSelectTab }) {
     const finalPacketReady = completionArtifacts?.finalPacketAvailable !== false;
 
     return (
-      <div className="max-w-lg mx-auto py-8 space-y-5 pb-[calc(var(--bottom-nav-offset)+96px)] md:pb-8">
+      <div className={`max-w-lg mx-auto py-8 space-y-5 ${sheetMode ? 'pb-4' : 'pb-[calc(var(--bottom-nav-offset)+96px)] md:pb-8'}`}>
         <div className="text-center">
           <CheckCircle size={48} className="mx-auto mb-4 text-emerald-500" />
           <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2">Rental Complete</h2>
@@ -831,7 +832,7 @@ export default function CheckOutTab({ booking, onReload, onSelectTab }) {
   }
 
   return (
-    <div className="max-w-lg mx-auto space-y-4 py-2 pb-[calc(var(--bottom-nav-offset)+96px)] md:pb-2">
+    <div className={`max-w-lg mx-auto space-y-4 py-2 ${sheetMode ? 'pb-2' : 'pb-[calc(var(--bottom-nav-offset)+96px)] md:pb-2'}`}>
       {/* Stepper */}
       <StepperHeader step={step} steps={STEPS} />
 

@@ -100,7 +100,7 @@ function BottomNavItem({
   );
 }
 
-export default function BottomNav({ onOpenMore, compact = false }) {
+export default function BottomNav({ onOpenMore }) {
   const { alerts } = useAlerts();
 
   return (
@@ -117,7 +117,7 @@ export default function BottomNav({ onOpenMore, compact = false }) {
           'origin-bottom transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]',
           'bg-[rgba(238,243,248,0.94)] dark:bg-[rgba(17,25,40,0.92)]',
           'border-t border-black/[0.06] dark:border-white/10',
-          compact ? 'scale-[0.9]' : 'scale-100',
+          'scale-100',
         ].join(' ')}
         style={{
           backdropFilter: 'blur(28px) saturate(180%)',

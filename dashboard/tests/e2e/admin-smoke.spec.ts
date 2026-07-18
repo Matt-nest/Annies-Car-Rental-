@@ -472,6 +472,40 @@ test('bookings route renders booking operations page', async ({ page }, testInfo
   const bookingCode = page.locator('.mono-code', { hasText: 'E2E-BOOKING-001' });
   await expect(isMobileProject(testInfo.project.name) ? bookingCode.last() : bookingCode.first()).toBeVisible();
 
+  if (isMobileProject(testInfo.project.name)) {
+    const taskbar = page.locator('[data-mobile-taskbar]');
+    const primaryNav = page.getByRole('navigation', { name: /primary navigation/i });
+    await expect(taskbar).toBeVisible();
+    await expect(taskbar.getByRole('button', { name: /^New$/ })).toBeVisible();
+    const taskbarBox = await taskbar.boundingBox();
+    const navBox = await primaryNav.boundingBox();
+    expect(taskbarBox, 'mobile task bar should be measurable').not.toBeNull();
+    expect(navBox, 'mobile tab bar should be measurable').not.toBeNull();
+    expect(
+      Math.abs((taskbarBox!.y + taskbarBox!.height) - navBox!.y),
+      `task bar should dock flush above tab bar, got ${JSON.stringify({ taskbarBox, navBox })}`
+    ).toBeLessThanOrEqual(2);
+
+    await page.locator('main').evaluate((node) => {
+      node.scrollTop = node.scrollHeight;
+      node.dispatchEvent(new Event('scroll'));
+    });
+    await page.waitForTimeout(350);
+    const scrolledTaskbarBox = await taskbar.boundingBox();
+    const scrolledNavBox = await primaryNav.boundingBox();
+    expect(scrolledTaskbarBox, 'scrolled mobile task bar should be measurable').not.toBeNull();
+    expect(scrolledNavBox, 'scrolled mobile tab bar should be measurable').not.toBeNull();
+    expect(
+      Math.abs((scrolledTaskbarBox!.y + scrolledTaskbarBox!.height) - scrolledNavBox!.y),
+      `task bar should stay docked after scroll, got ${JSON.stringify({ scrolledTaskbarBox, scrolledNavBox })}`
+    ).toBeLessThanOrEqual(2);
+
+    await taskbar.getByRole('button', { name: /^New$/ }).click();
+    await expect(page.getByRole('heading', { name: 'New Booking' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('heading', { name: 'New Booking' })).toBeHidden();
+  }
+
   const previewRequest = page.waitForRequest((request) =>
     request.method() === 'POST' && request.url().includes('/api/v1/portal/admin-preview')
   );
@@ -534,7 +568,7 @@ test('check-ins board handles mixed date formats without runtime errors', async 
   expect(pageErrors).toEqual([]);
 });
 
-test('active checkout records return before completing without sending invoice', async ({ page }) => {
+test('active checkout records return before completing without sending invoice', async ({ page }, testInfo) => {
   const calls: string[] = [];
   let overrideApplied = false;
   let completedApplied = false;
@@ -616,7 +650,12 @@ test('active checkout records return before completing without sending invoice',
   });
 
   await page.goto('/bookings/booking-active-complete');
-  await page.getByRole('tab', { name: /check-out/i }).click();
+  if (isMobileProject(testInfo.project.name)) {
+    await page.locator('[data-mobile-taskbar]').getByRole('button', { name: /open check-out/i }).click();
+    await expect(page.getByRole('dialog', { name: /check out/i })).toBeVisible();
+  } else {
+    await page.getByRole('tab', { name: /check-out/i }).click();
+  }
   await expect(page.getByText(/hasn't ended their trip yet/i)).toBeVisible();
 
   await page.getByRole('button', { name: /override/i }).click();

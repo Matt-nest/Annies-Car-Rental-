@@ -230,7 +230,7 @@ export default function Sidebar({ open, onClose, alerts = {}, pinned }) {
         <div style={{ display: 'none' }} />
 
         {/* ── Logo area ──────────────────────────────────────────────── */}
-        <div className={`flex items-center ${isWide ? (isMobile ? 'justify-between pt-6 pb-7 px-1' : 'justify-between py-7 px-1') : 'justify-center py-4'}`}
+        <div className={`flex items-center ${isWide ? (isMobile ? 'justify-between pt-5 pb-6 px-1' : 'justify-between py-7 px-1') : 'justify-center py-4'}`}
           style={{ transition: 'padding 0.4s cubic-bezier(0.22, 1, 0.36, 1)' }}
         >
           {/* Full logo — visible when wide */}
@@ -249,13 +249,13 @@ export default function Sidebar({ open, onClose, alerts = {}, pinned }) {
               src="/logo-dark.png"
               alt={brand.name}
               className="w-full h-auto object-contain object-left dark:hidden"
-              style={{ maxHeight: isMobile ? 118 : 140, maxWidth: isMobile ? 300 : undefined }}
+              style={{ maxHeight: isMobile ? 132 : 140, maxWidth: isMobile ? 330 : undefined }}
             />
             <img
               src="/logo-light.png"
               alt={brand.name}
               className="w-full h-auto object-contain object-left hidden dark:block"
-              style={{ maxHeight: isMobile ? 118 : 140, maxWidth: isMobile ? 300 : undefined }}
+              style={{ maxHeight: isMobile ? 132 : 140, maxWidth: isMobile ? 330 : undefined }}
             />
           </NavLink>
 

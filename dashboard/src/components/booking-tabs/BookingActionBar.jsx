@@ -1,4 +1,5 @@
 import { Check, Key, Package, Flag, X } from 'lucide-react';
+import MobileTaskBar from '../shared/MobileTaskBar';
 import { haptic } from '../../lib/haptic';
 import { hasCompletedRentalPayment, isReadyForHandoff, needsOwnerCounterSignature } from '../../lib/bookingOps';
 
@@ -42,10 +43,13 @@ const STATUS_ACTIONS = {
   // completed / cancelled / declined → no action bar shown
 };
 
-const TONE_STYLE = {
-  success: { backgroundColor: '#22c55e', color: '#fff' },
-  accent:  { backgroundColor: 'var(--accent-color)', color: 'var(--accent-fg, #fff)' },
-  danger:  { backgroundColor: 'transparent', color: '#ef4444', border: '1px solid rgba(239,68,68,0.35)' },
+const STATUS_EYEBROWS = {
+  pending_approval: 'Approval',
+  approved: 'Payment',
+  confirmed: 'Pickup',
+  ready_for_pickup: 'Pickup',
+  active: 'Return',
+  returned: 'Settlement',
 };
 
 function getConfig(status, booking) {
@@ -78,36 +82,19 @@ export default function BookingActionBar({ booking, status, onAction, disabled =
   const SecondaryIcon = cfg.secondary?.icon;
 
   return (
-    <div
-      className="md:hidden fixed inset-x-0 z-[110] pointer-events-none safe-x"
-      style={{
-        bottom: 'var(--mobile-actionbar-offset)',
-      }}
-    >
-      <div className="pointer-events-auto mx-auto max-w-xl px-4 flex items-center gap-2">
-        {cfg.secondary && SecondaryIcon && (
-          <button
-            type="button"
-            onClick={handleSecondary}
-            disabled={disabled}
-            className="tap-target flex items-center justify-center gap-2 px-4 py-3 rounded-full font-semibold text-sm active:scale-95 transition-transform disabled:opacity-50 shadow-lg backdrop-blur-xl"
-            style={TONE_STYLE[cfg.secondary.tone]}
-          >
-            <SecondaryIcon size={16} />
-            {cfg.secondary.label}
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={handlePrimary}
-          disabled={disabled}
-          className="tap-target flex-1 flex items-center justify-center gap-2 py-3 rounded-full font-semibold text-sm active:scale-95 transition-transform shadow-xl disabled:opacity-50"
-          style={TONE_STYLE[cfg.primary.tone]}
-        >
-          <PrimaryIcon size={18} />
-          {cfg.primary.label}
-        </button>
-      </div>
-    </div>
+    <MobileTaskBar
+      eyebrow={STATUS_EYEBROWS[status] || 'Next'}
+      title={booking.booking_code || 'Booking'}
+      subtitle="Swipe down to return here"
+      primaryLabel={cfg.primary.label}
+      primaryIcon={PrimaryIcon}
+      primaryTone={cfg.primary.tone}
+      secondaryLabel={cfg.secondary?.label}
+      secondaryIcon={SecondaryIcon}
+      secondaryTone={cfg.secondary?.tone}
+      onPrimary={handlePrimary}
+      onSecondary={handleSecondary}
+      disabled={disabled}
+    />
   );
 }

@@ -72,6 +72,15 @@ function actionFor(status: BookingStatus): ActionConfig | null {
   }
 }
 
+const statusEyebrow: Partial<Record<BookingStatus, string>> = {
+  approved: 'Booking',
+  confirmed: 'Booking',
+  ready_for_pickup: 'Pickup',
+  active: 'Return',
+  returned: 'Inspection',
+  completed: 'Complete',
+};
+
 export default function PortalActionBar({
   status,
   disabled = false,
@@ -79,6 +88,11 @@ export default function PortalActionBar({
   onCheckOut,
 }: PortalActionBarProps) {
   const action = actionFor(status);
+  const toneStyle = action?.tone === 'success'
+    ? { backgroundColor: '#22c55e', color: '#fff' }
+    : action?.tone === 'neutral'
+      ? { backgroundColor: 'var(--bg-card-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }
+      : { backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' };
 
   function handleTap() {
     haptic('tap');
@@ -107,18 +121,22 @@ export default function PortalActionBar({
           }}
         >
           <div className="px-4 pt-3">
+            <div className="mb-2 flex items-end justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>
+                  {statusEyebrow[status] || 'Next'}
+                </p>
+                <p className="truncate text-sm font-semibold leading-tight" style={{ color: 'var(--text-primary)' }}>
+                  Swipe up to continue
+                </p>
+              </div>
+            </div>
             <button
               type="button"
               disabled={disabled}
               onClick={handleTap}
               className="tap-target w-full flex items-center justify-center gap-2 py-4 rounded-full font-semibold text-sm shadow-lg active:scale-95 transition-transform disabled:opacity-50"
-              style={
-                action.tone === 'success'
-                  ? { backgroundColor: '#22c55e', color: '#fff' }
-                  : action.tone === 'neutral'
-                    ? { backgroundColor: 'var(--bg-card-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }
-                    : { backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' }
-              }
+              style={toneStyle}
             >
               <action.icon size={18} />
               {action.label}

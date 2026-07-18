@@ -2805,7 +2805,7 @@ export default function CustomerPortal() {
       {/* Sticky bottom CTA - phone-only, per-state primary action.
           Sprint 7c: ready_for_pickup + active states now open a Vaul
           bottom-sheet form instead of scrolling to a long inline section. */}
-      {!checkInSheetOpen && !checkOutSheetOpen && activePortalTab !== 'overview' && ['ready_for_pickup', 'active'].includes(status) && (
+      {!checkInSheetOpen && !checkOutSheetOpen && activePortalTab !== 'overview' && ['approved', 'confirmed', 'ready_for_pickup', 'active', 'returned', 'completed'].includes(status) && (
         <PortalActionBar
           status={status as any}
           disabled={actionLoading}
