@@ -40,11 +40,11 @@ export default function LoginPage() {
           href={brand.siteUrl}
           className="absolute left-6 sm:left-16 lg:left-20 flex items-center gap-1 text-sm font-medium transition-colors"
           style={{
-            color: '#13294B',
+            color: '#AFC6EA',
             top: 'max(2rem, calc(env(safe-area-inset-top) + 1rem))',
           }}
-          onMouseEnter={e => e.currentTarget.style.color = '#6B7FFF'}
-          onMouseLeave={e => e.currentTarget.style.color = '#13294B'}
+          onMouseEnter={e => e.currentTarget.style.color = '#FFFFFF'}
+          onMouseLeave={e => e.currentTarget.style.color = '#AFC6EA'}
         >
           <ChevronLeft size={16} />
           Back to site
@@ -68,7 +68,7 @@ export default function LoginPage() {
           <div className="flex items-center gap-4 mb-6">
             <div className="flex-1 h-px" style={{ backgroundColor: '#313D4F' }} />
             <div className="flex items-center gap-1.5">
-              <Shield size={11} style={{ color: '#13294B' }} />
+              <Shield size={11} style={{ color: '#8FB3E6' }} />
               <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#6B7280' }}>
                 Admin Access
               </span>
@@ -166,9 +166,9 @@ export default function LoginPage() {
               <button
                 type="button"
                 className="text-sm font-medium transition-colors"
-                style={{ color: '#13294B' }}
-                onMouseEnter={e => e.currentTarget.style.color = '#6B7FFF'}
-                onMouseLeave={e => e.currentTarget.style.color = '#13294B'}
+                style={{ color: '#AFC6EA' }}
+                onMouseEnter={e => e.currentTarget.style.color = '#FFFFFF'}
+                onMouseLeave={e => e.currentTarget.style.color = '#AFC6EA'}
               >
                 Forgot password?
               </button>

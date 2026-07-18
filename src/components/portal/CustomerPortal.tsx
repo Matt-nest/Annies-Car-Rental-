@@ -1249,7 +1249,7 @@ export default function CustomerPortal() {
                         type="text"
                         required
                         autoCapitalize="characters"
-                        className="w-full px-4 py-3 rounded-xl text-sm font-mono tracking-wider transition-all duration-200"
+                        className="w-full px-4 py-3 rounded-xl text-base sm:text-sm font-mono tracking-normal sm:tracking-wider placeholder:text-[13px] sm:placeholder:text-sm transition-all duration-200"
                         style={{
                           backgroundColor: 'var(--bg-card-hover)',
                           border: '1px solid var(--border-subtle)',
@@ -1274,7 +1274,7 @@ export default function CustomerPortal() {
                     <input
                       type="email"
                       required
-                      className="w-full px-4 py-3 rounded-xl text-sm transition-all duration-200"
+                      className="w-full px-4 py-3 rounded-xl text-base sm:text-sm placeholder:text-[13px] sm:placeholder:text-sm transition-all duration-200"
                       style={{
                         backgroundColor: 'var(--bg-card-hover)',
                         border: '1px solid var(--border-subtle)',
