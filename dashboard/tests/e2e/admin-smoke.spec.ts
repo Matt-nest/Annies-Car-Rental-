@@ -416,6 +416,14 @@ test('protected dashboard shell renders with local auth bypass', async ({ page }
     await expect(primaryNav.getByRole('link', { name: /bookings/i })).toBeVisible();
     await expect(primaryNav.getByRole('link', { name: /check-ins/i })).toBeVisible();
     await expect(primaryNav.getByRole('link', { name: /money/i })).toBeVisible();
+    const navBox = await primaryNav.boundingBox();
+    const viewport = page.viewportSize();
+    expect(navBox, 'mobile tab bar should be measurable').not.toBeNull();
+    expect(viewport, 'mobile viewport should be available').not.toBeNull();
+    expect(
+      Math.abs((navBox!.y + navBox!.height) - viewport!.height),
+      `tab bar should dock to the bottom edge, got ${JSON.stringify({ navBox, viewport })}`
+    ).toBeLessThanOrEqual(2);
     await primaryNav.getByRole('button', { name: /open full navigation menu/i }).click();
     await expect(page.getByRole('link', { name: /^Payments$/i })).toBeVisible();
     await expect(page.getByRole('link', { name: /^Customers$/i })).toBeVisible();

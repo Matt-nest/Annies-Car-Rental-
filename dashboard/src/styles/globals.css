@@ -61,15 +61,19 @@
   --app-safe-top:      env(safe-area-inset-top, 0px);
   --app-safe-bottom:   env(safe-area-inset-bottom, 0px);
   --app-header-h:      64px;
-  --app-bottomnav-h:   72px;
-  --app-bottomnav-gap: 10px;
-  --bottom-nav-offset: calc(var(--app-bottomnav-h) + var(--app-bottomnav-gap) + max(env(safe-area-inset-bottom), 8px));
+  --app-bottomnav-content-h: 64px;
+  --app-bottomnav-safe-bottom: max(env(safe-area-inset-bottom), 0px);
+  --app-bottomnav-h: calc(var(--app-bottomnav-content-h) + var(--app-bottomnav-safe-bottom));
+  --app-bottomnav-gap: 0px;
+  --bottom-nav-offset: var(--app-bottomnav-h);
   --mobile-actionbar-offset: calc(var(--bottom-nav-offset) + 10px);
 }
 
 @media (min-width: 1024px) {
   :root {
     --app-bottomnav-h: 0px;
+    --app-bottomnav-content-h: 0px;
+    --app-bottomnav-safe-bottom: 0px;
     --app-bottomnav-gap: 0px;
     --bottom-nav-offset: 0px;
     --mobile-actionbar-offset: 0px;

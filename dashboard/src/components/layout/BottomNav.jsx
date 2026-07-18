@@ -20,8 +20,9 @@ import { SPRING_NATURAL } from '../../lib/animation';
  *   admins still reach Calendar / Telematics / Revenue / Settings / etc.
  * - Reuses Sidebar's icons so visual recognition transfers when admins
  *   switch between phone and desktop.
- * - Safe-area-bottom padding via `.safe-bottom` utility from globals.css
- *   so the bar lands above the iOS home indicator.
+ * - The tab bar consumes the iOS home-indicator safe area instead of floating
+ *   above it. In Safari/Home Screen PWAs, floating fixed bars can leave a
+ *   solid slab underneath and jump while the browser chrome settles.
  * - Tap targets are 56×64 px (well above the 44 px WCAG AAA minimum) —
  *   the spec for native mobile nav per Material Design 3 + iOS HIG.
  * - Active state pulls from react-router's NavLink rather than tracking
@@ -51,7 +52,7 @@ function BottomNavItem({
       end={end}
       onClick={() => haptic('tap')}
       className={({ isActive }) =>
-        `tap-target relative flex-1 flex flex-col items-center justify-center gap-1 py-2 transition-[color,transform] duration-150 active:scale-[0.92] ${
+        `tap-target relative flex-1 flex flex-col items-center justify-center gap-1 py-2 h-[var(--app-bottomnav-content-h)] transition-[color,transform] duration-150 active:scale-[0.92] ${
           isActive
             ? 'text-[var(--sidebar-active-text)]'
             : 'text-[var(--text-tertiary)]'
@@ -103,40 +104,27 @@ export default function BottomNav({ onOpenMore, compact = false }) {
   const { alerts } = useAlerts();
 
   return (
-    // Outer rail: full-width, fixed to the bottom, with side gutters + a float
-    // gap above the home indicator. pointer-events-none so taps pass through the
-    // gutters to content; the pill re-enables them.
+    // Docked rail: it owns the bottom safe area so iOS Home Screen/Safari
+    // doesn't render a separate slab under the navigation.
     <div
       aria-hidden={false}
-      className="lg:hidden fixed inset-x-0 bottom-0 z-[100] flex justify-center pointer-events-none"
-      style={{
-        paddingLeft: 12,
-        paddingRight: 12,
-        paddingBottom: 'max(env(safe-area-inset-bottom), var(--app-bottomnav-gap))',
-      }}
+      className="lg:hidden fixed inset-x-0 bottom-0 z-[100] flex justify-center pointer-events-none mobile-tabbar-root"
     >
       <nav
         aria-label="Primary navigation"
         className={[
-          // w-full (no max cap) → the pill fills the page width minus the 12px
-          // gutters on every phone/tablet size.
-          'pointer-events-auto w-full flex items-stretch rounded-[28px] overflow-hidden',
+          'pointer-events-auto w-full flex items-start overflow-hidden',
           'origin-bottom transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]',
-          // Glass tint: LIGHT mode is more opaque / darker so it reads clearly
-          // over bright content; DARK mode is more transparent so content
-          // glows through (VisionOS frosted look).
-          'bg-[rgba(232,236,244,0.86)] dark:bg-[rgba(18,26,44,0.46)]',
-          'border border-black/[0.06] dark:border-white/10',
+          'bg-[rgba(238,243,248,0.94)] dark:bg-[rgba(17,25,40,0.92)]',
+          'border-t border-black/[0.06] dark:border-white/10',
           compact ? 'scale-[0.9]' : 'scale-100',
         ].join(' ')}
         style={{
-          // Stronger blur + saturation = premium frosted glass. The persistent
-          // `scale` transform + will-change pins it to its own GPU compositor
-          // layer (fixes the iOS URL-bar float-up jitter) without translateZ.
           backdropFilter: 'blur(28px) saturate(180%)',
           WebkitBackdropFilter: 'blur(28px) saturate(180%)',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.12)',
+          boxShadow: '0 -8px 32px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.14)',
           height: 'var(--app-bottomnav-h)',
+          paddingBottom: 'var(--app-bottomnav-safe-bottom)',
           willChange: 'transform',
         }}
       >
@@ -147,7 +135,7 @@ export default function BottomNav({ onOpenMore, compact = false }) {
           type="button"
           onClick={() => { haptic('tap'); onOpenMore(); }}
           aria-label="Open full navigation menu"
-          className="tap-target flex-1 flex flex-col items-center justify-center gap-1 py-2 transition-[color,transform] duration-150 active:scale-[0.88]"
+          className="tap-target flex-1 flex flex-col items-center justify-center gap-1 py-2 h-[var(--app-bottomnav-content-h)] transition-[color,transform] duration-150 active:scale-[0.88]"
           style={{ color: 'var(--text-secondary)' }}
         >
           <Menu size={23} strokeWidth={2} style={{ color: 'var(--text-secondary)' }} />
