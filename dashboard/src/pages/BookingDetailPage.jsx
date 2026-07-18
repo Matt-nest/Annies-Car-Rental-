@@ -826,7 +826,7 @@ export default function BookingDetailPage() {
       <div
         role="tablist"
         aria-label="Booking sections"
-        className="sticky top-[calc(var(--app-safe-top)+56px)] z-30 -mx-3 flex gap-1 overflow-x-auto no-scrollbar rounded-3xl border border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--bg-card)_92%,transparent)] p-1 shadow-sm backdrop-blur-xl md:static md:mx-0 md:flex-wrap md:rounded-none md:border-0 md:border-b md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-0"
+        className="relative z-20 -mx-3 grid grid-cols-5 gap-1 rounded-3xl border border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--bg-card)_92%,transparent)] p-1 shadow-sm backdrop-blur-xl md:static md:mx-0 md:flex md:flex-wrap md:rounded-none md:border-0 md:border-b md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-0"
       >
         {TABS.map(tab => {
           const Icon = tab.icon;
@@ -838,7 +838,7 @@ export default function BookingDetailPage() {
               role="tab"
               aria-selected={isActive}
               onClick={() => setActiveTab(tab.id)}
-              className={`tap-target relative flex min-w-[78px] flex-col items-center justify-center gap-1 rounded-2xl px-3 py-2.5 text-[11px] font-semibold transition-all active:scale-95 md:min-w-0 md:flex-row md:gap-1.5 md:rounded-t-lg md:px-4 md:py-2.5 md:text-sm md:font-medium ${
+              className={`tap-target relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-1.5 py-2.5 text-[10px] font-semibold leading-tight transition-all active:scale-95 md:min-w-0 md:flex-row md:gap-1.5 md:rounded-t-lg md:px-4 md:py-2.5 md:text-sm md:font-medium ${
                 isActive
                   ? 'bg-[var(--accent-color)] text-[var(--accent-fg)] shadow-sm md:bg-[var(--bg-elevated)] md:text-[var(--accent-color)] md:border md:border-[var(--border-subtle)] md:border-b-transparent md:-mb-px md:shadow-none'
                   : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-card)]'

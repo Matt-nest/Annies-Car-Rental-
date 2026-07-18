@@ -112,7 +112,7 @@ export default function BottomNav({ onOpenMore, compact = false }) {
       style={{
         paddingLeft: 12,
         paddingRight: 12,
-        paddingBottom: 'max(env(safe-area-inset-bottom), 10px)',
+        paddingBottom: 'max(env(safe-area-inset-bottom), var(--app-bottomnav-gap))',
       }}
     >
       <nav
@@ -136,6 +136,7 @@ export default function BottomNav({ onOpenMore, compact = false }) {
           backdropFilter: 'blur(28px) saturate(180%)',
           WebkitBackdropFilter: 'blur(28px) saturate(180%)',
           boxShadow: '0 8px 32px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.12)',
+          height: 'var(--app-bottomnav-h)',
           willChange: 'transform',
         }}
       >

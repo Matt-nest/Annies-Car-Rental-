@@ -78,9 +78,9 @@ export default function MorningBriefingWidget() {
       transition={{ duration: 0.5, ease: [0.25, 1, 0.5, 1] }}
       className="liquid-glass relative overflow-hidden"
     >
-      <div className="relative z-10 px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-4">
+      <div className="relative z-10 px-5 py-5 sm:py-4 flex flex-col sm:flex-row sm:items-center gap-5 sm:gap-4 text-center sm:text-left">
         {/* Left — greeting + date */}
-        <div className="flex items-center gap-3 sm:w-52 shrink-0">
+        <div className="flex items-center justify-center sm:justify-start gap-3 sm:w-52 shrink-0">
           <div className="p-2 rounded-xl" style={{ backgroundColor: 'var(--accent-glow)' }}>
             <TimeIcon size={18} style={{ color: 'var(--accent-color)' }} />
           </div>
@@ -95,7 +95,7 @@ export default function MorningBriefingWidget() {
         </div>
 
         {/* Center — stat chips */}
-        <div className="flex flex-wrap items-center gap-2 flex-1">
+        <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 flex-1 w-full">
           {phase !== 'evening' ? (
             <>
               <StatChip icon={ArrowUpFromLine} value={pickupsToday} label="check-ins" color="#63b3ed" onClick={() => navigate('/calendar')} />
@@ -115,10 +115,10 @@ export default function MorningBriefingWidget() {
 
         {/* Right — revenue hero */}
         <div
-          className="flex items-center gap-2 shrink-0 cursor-pointer group"
+          className="flex items-center justify-center sm:justify-end gap-2 shrink-0 cursor-pointer group w-full sm:w-auto"
           onClick={() => navigate('/revenue')}
         >
-          <div className="text-right">
+          <div className="text-center sm:text-right">
             <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>This month</p>
             <p className="text-xl font-bold display-num" style={{ color: 'var(--accent-color)' }}>
               ${Math.round(revenueMonth).toLocaleString()}

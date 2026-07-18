@@ -13,8 +13,8 @@ import { hasCompletedRentalPayment, isReadyForHandoff, needsOwnerCounterSignatur
  * all the existing BookingModals.jsx flows (decline reason, pickup
  * mileage/fuel/photos, etc.) remain the source of truth.
  *
- * Positioning: sits ABOVE the dashboard BottomNav (Sprint 3a) which is
- * 64 px + safe-area-bottom. Calculated via the same env() math.
+ * Positioning: sits ABOVE the dashboard BottomNav using shared mobile chrome
+ * variables so iOS Safari's dynamic toolbar does not leave a floating slab.
  *
  * Sprint 8b. NEVER-TOUCH respected: doesn't change api/client.js, modal
  * shapes, status state machine, or the BookingModals component itself.
@@ -79,22 +79,18 @@ export default function BookingActionBar({ booking, status, onAction, disabled =
 
   return (
     <div
-      className="md:hidden fixed inset-x-0 z-[80]"
+      className="md:hidden fixed inset-x-0 z-[110] pointer-events-none safe-x"
       style={{
-        // Sit above the BottomNav (Sprint 3a is ~64 px tall + its own safe-area).
-        bottom: 'var(--bottom-nav-offset)',
-        backgroundColor: 'var(--bg-elevated)',
-        borderTop: '1px solid var(--border-subtle)',
-        boxShadow: '0 -8px 32px rgba(0,0,0,0.18)',
+        bottom: 'var(--mobile-actionbar-offset)',
       }}
     >
-      <div className="px-4 py-3 flex items-center gap-2 safe-x">
+      <div className="pointer-events-auto mx-auto max-w-xl px-4 flex items-center gap-2">
         {cfg.secondary && SecondaryIcon && (
           <button
             type="button"
             onClick={handleSecondary}
             disabled={disabled}
-            className="tap-target flex items-center justify-center gap-2 px-4 py-3 rounded-full font-semibold text-sm active:scale-95 transition-transform disabled:opacity-50"
+            className="tap-target flex items-center justify-center gap-2 px-4 py-3 rounded-full font-semibold text-sm active:scale-95 transition-transform disabled:opacity-50 shadow-lg backdrop-blur-xl"
             style={TONE_STYLE[cfg.secondary.tone]}
           >
             <SecondaryIcon size={16} />
@@ -105,7 +101,7 @@ export default function BookingActionBar({ booking, status, onAction, disabled =
           type="button"
           onClick={handlePrimary}
           disabled={disabled}
-          className="tap-target flex-1 flex items-center justify-center gap-2 py-3 rounded-full font-semibold text-sm active:scale-95 transition-transform shadow-lg disabled:opacity-50"
+          className="tap-target flex-1 flex items-center justify-center gap-2 py-3 rounded-full font-semibold text-sm active:scale-95 transition-transform shadow-xl disabled:opacity-50"
           style={TONE_STYLE[cfg.primary.tone]}
         >
           <PrimaryIcon size={18} />

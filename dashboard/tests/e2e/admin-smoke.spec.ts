@@ -608,7 +608,7 @@ test('active checkout records return before completing without sending invoice',
   });
 
   await page.goto('/bookings/booking-active-complete');
-  await page.getByRole('button', { name: /go to check-out/i }).click();
+  await page.getByRole('tab', { name: /check-out/i }).click();
   await expect(page.getByText(/hasn't ended their trip yet/i)).toBeVisible();
 
   await page.getByRole('button', { name: /override/i }).click();
@@ -720,7 +720,7 @@ test('checkout finalize recovers when return was already recorded by a prior att
   });
 
   await page.goto('/bookings/booking-stale-return-complete');
-  await page.getByRole('button', { name: /go to check-out/i }).click();
+  await page.getByRole('tab', { name: /check-out/i }).click();
   await expect(page.getByText(/hasn't ended their trip yet/i)).toBeVisible();
 
   await page.getByRole('button', { name: /override/i }).click();
@@ -778,7 +778,7 @@ test('booking detail portal preview calls the admin preview endpoint', async ({ 
 test('booking detail final packet tab renders evidence and downloads PDF', async ({ page }) => {
   await page.goto('/bookings/booking-packet-complete');
 
-  await page.getByRole('button', { name: /final packet/i }).click();
+  await page.getByRole('tab', { name: /final packet/i }).click();
   await expect(page.getByRole('heading', { name: 'Final Rental Packet' })).toBeVisible();
   await expect(page.getByText('Pickup Photos')).toBeVisible();
   await expect(page.getByText('Return Photos')).toBeVisible();
