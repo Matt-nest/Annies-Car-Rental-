@@ -252,7 +252,7 @@ function PaymentForm({
           </div>
         )}
 
-        <div className="flex gap-3">
+        <div className="-mx-4 sticky bottom-0 z-20 flex gap-3 border-t border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-0">
           <button type="button" onClick={onBack}
             className="px-6 py-4 rounded-full font-medium transition-all duration-300 cursor-pointer border"
             style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)', backgroundColor: 'transparent' }}>

@@ -434,11 +434,11 @@ export default function PaymentsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const rawTab = searchParams.get('tab');
   const paymentTabs = [
-    { key: 'risk', label: 'Money at Risk', icon: AlertCircle },
-    { key: 'ledger', label: 'Ledger', icon: CreditCard },
-    { key: 'deposits', label: 'Deposits', icon: Shield },
-    ...(isStripeProvider() ? [{ key: 'stripe', label: 'Stripe', icon: ExternalLink }] : []),
-    { key: 'audit', label: 'Audit', icon: History },
+    { key: 'risk', label: 'Money at Risk', mobileLabel: 'Risk', icon: AlertCircle },
+    { key: 'ledger', label: 'Ledger', mobileLabel: 'Ledger', icon: CreditCard },
+    { key: 'deposits', label: 'Deposits', mobileLabel: 'Deposits', icon: Shield },
+    ...(isStripeProvider() ? [{ key: 'stripe', label: 'Stripe', mobileLabel: 'Stripe', icon: ExternalLink }] : []),
+    { key: 'audit', label: 'Audit', mobileLabel: 'Audit', icon: History },
   ];
   const tab = paymentTabs.some(item => item.key === rawTab) ? rawTab : 'risk';
   const [payments, setPayments] = useState([]);
@@ -571,20 +571,23 @@ export default function PaymentsPage() {
         )}
       </motion.div>
 
-      <div className="flex gap-2 border-b border-[var(--border-subtle)] pb-1">
-        {paymentTabs.map(({ key, label, icon: Icon }) => (
+      <div className="-mx-2 flex gap-1 overflow-x-auto no-scrollbar rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-1 shadow-sm md:mx-0 md:gap-2 md:rounded-none md:border-0 md:border-b md:bg-transparent md:p-0 md:shadow-none">
+        {paymentTabs.map(({ key, label, mobileLabel, icon: Icon }) => (
           <button
             key={key}
             type="button"
             onClick={() => setSearchParams(key === 'risk' ? {} : { tab: key })}
-            className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-t-lg transition-colors"
+            className={`tap-target min-w-[78px] flex-1 flex-col gap-1 rounded-2xl px-3 py-2.5 text-[11px] font-semibold transition-all active:scale-95 md:min-w-0 md:flex-none md:flex-row md:gap-2 md:rounded-t-lg md:px-4 md:text-sm md:font-medium ${
+              tab === key ? 'bg-[var(--accent-glow)] md:bg-transparent' : ''
+            }`}
             style={{
               color: tab === key ? 'var(--accent-color)' : 'var(--text-tertiary)',
               borderBottom: tab === key ? '2px solid var(--accent-color)' : '2px solid transparent',
             }}
           >
             <Icon size={15} />
-            {label}
+            <span className="md:hidden">{mobileLabel}</span>
+            <span className="hidden md:inline">{label}</span>
           </button>
         ))}
       </div>

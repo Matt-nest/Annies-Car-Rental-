@@ -18,18 +18,19 @@ import { SLOT_ICONS } from './VehicleSlotIcons';
 interface SlotConfig {
   key: string;
   label: string;
+  shortLabel: string;
   required: boolean;
   hint: string;
   multi?: boolean; // damage can have multiple photos
 }
 
 const SLOTS: SlotConfig[] = [
-  { key: 'front', label: 'Front', required: true, hint: 'Full front view of vehicle' },
-  { key: 'driver_side', label: 'Driver Side', required: true, hint: 'Full left profile' },
-  { key: 'passenger_side', label: 'Passenger Side', required: true, hint: 'Full right profile' },
-  { key: 'rear', label: 'Rear', required: true, hint: 'Full rear view' },
-  { key: 'dashboard', label: 'Dashboard', required: false, hint: 'Odometer / dashboard (optional)' },
-  { key: 'damage', label: 'Existing Damage', required: false, hint: 'Photo any damage you see (optional)', multi: true },
+  { key: 'front', label: 'Front', shortLabel: 'Front', required: true, hint: 'Full front view of vehicle' },
+  { key: 'driver_side', label: 'Driver Side', shortLabel: 'Driver', required: true, hint: 'Full left profile' },
+  { key: 'passenger_side', label: 'Passenger Side', shortLabel: 'Passenger', required: true, hint: 'Full right profile' },
+  { key: 'rear', label: 'Rear', shortLabel: 'Rear', required: true, hint: 'Full rear view' },
+  { key: 'dashboard', label: 'Dashboard', shortLabel: 'Dash', required: false, hint: 'Odometer / dashboard (optional)' },
+  { key: 'damage', label: 'Existing Damage', shortLabel: 'Damage', required: false, hint: 'Photo any damage you see (optional)', multi: true },
 ];
 
 const REQUIRED_SLOTS = SLOTS.filter(s => s.required).map(s => s.key);
@@ -172,7 +173,7 @@ export default function SlotPhotoUploader({ token, onSlotsChange }: SlotPhotoUpl
       </AnimatePresence>
 
       {/* Slot Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 min-[390px]:grid-cols-2 sm:grid-cols-3 gap-3">
         {SLOTS.map(slot => {
           const SlotIcon = SLOT_ICONS[slot.key];
           const isUploading = uploading === slot.key;
@@ -202,7 +203,7 @@ export default function SlotPhotoUploader({ token, onSlotsChange }: SlotPhotoUpl
               <button
                 onClick={() => inputRefs.current[slot.key]?.click()}
                 disabled={isUploading}
-                className="w-full aspect-[4/3] rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all duration-200 cursor-pointer"
+                className="w-full min-h-[132px] rounded-2xl sm:aspect-[4/3] sm:min-h-0 sm:rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all duration-200 cursor-pointer"
                 style={{
                   backgroundColor: hasPhoto ? 'transparent' : 'var(--bg-card-hover)',
                   border: hasPhoto
@@ -265,10 +266,16 @@ export default function SlotPhotoUploader({ token, onSlotsChange }: SlotPhotoUpl
                 ) : (
                   <>
                     {SlotIcon && <SlotIcon size={36} filled={false} />}
-                    <span className="text-[10px] font-medium" style={{ color: 'var(--text-tertiary)' }}>
-                      {slot.hint}
+                    <span className="px-2 text-center text-[11px] font-semibold leading-tight sm:text-[10px] sm:font-medium" style={{ color: 'var(--text-tertiary)' }}>
+                      <span className="sm:hidden">{slot.shortLabel}</span>
+                      <span className="hidden sm:inline">{slot.hint}</span>
                     </span>
                   </>
+                )}
+                {slot.required && !hasPhoto && (
+                  <span className="absolute left-2 top-2 rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-red-500 sm:hidden">
+                    Required
+                  </span>
                 )}
               </button>
 

@@ -591,8 +591,37 @@ export default function BookingDetailPage() {
           </div>
         </div>
 
+        <div className="md:hidden grid grid-cols-3 gap-2">
+          <button onClick={openPortalPreview} disabled={portalPreviewing} aria-label="View Customer Portal" className="tap-target rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3 py-3 text-xs font-semibold text-[var(--text-primary)] shadow-sm active:scale-95 transition-transform">
+            {portalPreviewing ? <Loader2 size={15} className="animate-spin mx-auto" /> : <Eye size={15} className="mx-auto mb-1" />}
+            Portal
+          </button>
+          {c?.phone ? (
+            <a href={`tel:${c.phone}`} className="tap-target rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3 py-3 text-xs font-semibold text-[var(--text-primary)] shadow-sm active:scale-95 transition-transform">
+              <Phone size={15} className="mx-auto mb-1" />
+              Call
+            </a>
+          ) : (
+            <span className="tap-target rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3 py-3 text-xs font-semibold text-[var(--text-tertiary)] shadow-sm">
+              <Phone size={15} className="mx-auto mb-1" />
+              Call
+            </span>
+          )}
+          {c?.email ? (
+            <a href={`mailto:${c.email}`} className="tap-target rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3 py-3 text-xs font-semibold text-[var(--text-primary)] shadow-sm active:scale-95 transition-transform">
+              <Mail size={15} className="mx-auto mb-1" />
+              Email
+            </a>
+          ) : (
+            <span className="tap-target rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3 py-3 text-xs font-semibold text-[var(--text-tertiary)] shadow-sm">
+              <Mail size={15} className="mx-auto mb-1" />
+              Email
+            </span>
+          )}
+        </div>
+
         {/* Contextual action buttons */}
-        <div className="flex flex-wrap gap-2 shrink-0 w-full sm:w-auto">
+        <div className="hidden md:flex flex-wrap gap-2 shrink-0 w-full sm:w-auto">
           <button onClick={openPortalPreview} disabled={portalPreviewing} className="btn-secondary">
             {portalPreviewing ? <Loader2 size={15} className="animate-spin" /> : <Eye size={15} />}
             View Customer Portal
@@ -794,17 +823,24 @@ export default function BookingDetailPage() {
           (Material Design tab pattern). Desktop = original horizontal scroll
           with icon-left-of-label. .tap-target ensures every tab is 44+ px
           tall on touch. */}
-      <div className="flex gap-1 scroll-x-contained no-scrollbar pb-1 border-b border-[var(--border-subtle)] max-w-full md:flex-wrap">
+      <div
+        role="tablist"
+        aria-label="Booking sections"
+        className="sticky top-[calc(var(--app-safe-top)+56px)] z-30 -mx-3 flex gap-1 overflow-x-auto no-scrollbar rounded-3xl border border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--bg-card)_92%,transparent)] p-1 shadow-sm backdrop-blur-xl md:static md:mx-0 md:flex-wrap md:rounded-none md:border-0 md:border-b md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-0"
+      >
         {TABS.map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
               onClick={() => setActiveTab(tab.id)}
-              className={`tap-target flex flex-col md:flex-row items-center justify-center gap-1 md:gap-1.5 px-2 md:px-4 py-3 md:py-2.5 text-[11px] md:text-sm font-medium md:rounded-t-lg transition-all whitespace-nowrap relative ${
+              className={`tap-target relative flex min-w-[78px] flex-col items-center justify-center gap-1 rounded-2xl px-3 py-2.5 text-[11px] font-semibold transition-all active:scale-95 md:min-w-0 md:flex-row md:gap-1.5 md:rounded-t-lg md:px-4 md:py-2.5 md:text-sm md:font-medium ${
                 isActive
-                  ? 'text-[var(--accent-color)] md:bg-[var(--bg-elevated)] md:border md:border-[var(--border-subtle)] md:border-b-transparent md:-mb-px'
+                  ? 'bg-[var(--accent-color)] text-[var(--accent-fg)] shadow-sm md:bg-[var(--bg-elevated)] md:text-[var(--accent-color)] md:border md:border-[var(--border-subtle)] md:border-b-transparent md:-mb-px md:shadow-none'
                   : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-card)]'
               }`}
             >
@@ -813,8 +849,8 @@ export default function BookingDetailPage() {
               {/* Mobile-only active indicator bar (md+ uses the bordered tab look) */}
               {isActive && (
                 <span
-                  className="md:hidden absolute bottom-0 inset-x-2 h-[2px] rounded-t"
-                  style={{ backgroundColor: 'var(--accent-color)' }}
+                  className="md:hidden absolute bottom-1 h-1 w-1 rounded-full"
+                  style={{ backgroundColor: 'var(--accent-fg)' }}
                 />
               )}
             </button>

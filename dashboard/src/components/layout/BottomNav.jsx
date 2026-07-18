@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import {
   LayoutDashboard,
   BookOpen,
-  Car,
+  CreditCard,
   ClipboardCheck,
   Menu,
 } from 'lucide-react';
@@ -37,7 +37,7 @@ const PRIMARY_ITEMS = [
   { to: '/', label: 'Home', icon: LayoutDashboard, end: true },
   { to: '/bookings', label: 'Bookings', icon: BookOpen, alertKey: 'pending_approvals' },
   { to: '/check-ins', label: 'Check-Ins', icon: ClipboardCheck, alertKey: 'pickups_today_count' },
-  { to: '/fleet', label: 'Fleet', icon: Car },
+  { to: '/payments', label: 'Money', icon: CreditCard, alertKey: 'pending_deposit_reviews' },
 ];
 
 function BottomNavItem({

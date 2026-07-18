@@ -155,8 +155,8 @@ export default function LicenseStep({ draft, onUpdate, onContinue, onBack, theme
         </div>
 
         <div className="space-y-3">
-          <div className="grid grid-cols-6 gap-2">
-            <div className="col-span-3">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-6">
+            <div className="col-span-2 sm:col-span-3">
               <label className="text-[10px] uppercase tracking-[0.15em] mb-1 block ml-0.5" style={{ color: 'var(--text-tertiary)' }}>License # *</label>
               <input className={inputClass('number')} style={{ ...inputStyle, ...borderStyle('number') }}
                 value={draft.license.number} onChange={e => updateLicense('number', e.target.value)} placeholder="S530-123-45-678-0" />
@@ -170,7 +170,7 @@ export default function LicenseStep({ draft, onUpdate, onContinue, onBack, theme
                 {US_STATES.map(s => <option key={s.value} value={s.value}>{s.value}</option>)}
               </select>
             </div>
-            <div className="col-span-2">
+            <div className="col-span-1 sm:col-span-2">
               <label className="text-[10px] uppercase tracking-[0.15em] mb-1 block ml-0.5" style={{ color: 'var(--text-tertiary)' }}>Expires *</label>
               <input type="date" className={inputClass('expiry')} style={{ ...inputStyle, ...borderStyle('expiry') }}
                 value={draft.license.expiry} onChange={e => updateLicense('expiry', e.target.value)} />
@@ -183,7 +183,7 @@ export default function LicenseStep({ draft, onUpdate, onContinue, onBack, theme
             <p className="text-[10px] uppercase tracking-[0.15em] mb-2 ml-0.5" style={{ color: 'var(--text-tertiary)' }}>
               License Photos <span className="normal-case opacity-60">(optional, speeds up check-in)</span>
             </p>
-            <div className="flex gap-3">
+            <div className="grid grid-cols-2 gap-3">
               {renderSlot('front', 'Front')}
               {renderSlot('back', 'Back')}
             </div>

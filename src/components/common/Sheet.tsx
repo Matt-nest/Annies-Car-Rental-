@@ -1,5 +1,32 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { Drawer } from 'vaul';
+
+function useKeyboardInset() {
+  const [inset, setInset] = useState(0);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) return;
+
+    const viewport = window.visualViewport;
+    const update = () => {
+      const keyboard = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+      setInset(Math.round(keyboard));
+    };
+
+    update();
+    viewport.addEventListener('resize', update);
+    viewport.addEventListener('scroll', update);
+    window.addEventListener('orientationchange', update);
+
+    return () => {
+      viewport.removeEventListener('resize', update);
+      viewport.removeEventListener('scroll', update);
+      window.removeEventListener('orientationchange', update);
+    };
+  }, []);
+
+  return inset;
+}
 
 /**
  * Sheet - a Vaul-powered bottom sheet that doubles as a modal on desktop.
@@ -39,6 +66,8 @@ export default function Sheet({
   children,
   maxWidth = '28rem',
 }: SheetProps) {
+  const keyboardInset = useKeyboardInset();
+
   return (
     <Drawer.Root open={open} onOpenChange={onOpenChange} shouldScaleBackground={false}>
       <Drawer.Portal>
@@ -75,7 +104,8 @@ export default function Sheet({
             className="overflow-y-auto overscroll-contain px-4 sm:px-6"
             style={{
               backgroundColor: 'var(--bg-elevated, #fff)',
-              paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))',
+              paddingBottom: `calc(max(1.25rem, env(safe-area-inset-bottom)) + ${keyboardInset}px)`,
+              transition: 'padding-bottom 180ms ease-out',
             }}
           >
             {children}

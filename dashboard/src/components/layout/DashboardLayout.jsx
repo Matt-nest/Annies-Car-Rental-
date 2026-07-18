@@ -163,7 +163,7 @@ function DashboardLayoutInner() {
                     togglePinned();
                   }
                 }}
-                className="flex items-center justify-center w-10 h-10 rounded-lg border-2 shrink-0 transition-all duration-200"
+                className="hidden lg:flex items-center justify-center w-10 h-10 rounded-lg border-2 shrink-0 transition-all duration-200"
                 style={{
                   borderColor: pinned ? 'var(--accent-color)' : 'var(--border-subtle)',
                   color: pinned ? 'var(--accent-color)' : 'var(--text-primary)',
@@ -191,7 +191,7 @@ function DashboardLayoutInner() {
                 {/* Theme toggle */}
                 <button
                   onClick={() => setDark(d => !d)}
-                  className="relative flex items-center justify-center w-10 h-10 rounded-full transition-colors"
+                  className="relative hidden sm:flex items-center justify-center w-10 h-10 rounded-full transition-colors"
                   style={{ color: 'var(--text-secondary)' }}
                   onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--sidebar-hover)'}
                   onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}

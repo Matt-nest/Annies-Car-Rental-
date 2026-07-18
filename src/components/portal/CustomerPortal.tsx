@@ -1045,20 +1045,22 @@ export default function CustomerPortal() {
   const [checkOutSheetOpen, setCheckOutSheetOpen] = useState(false);
   const [checkInStep, setCheckInStep] = useState(0);
   const [checkOutStep, setCheckOutStep] = useState(0);
+  const hasCheckInProgress = checkInStep > 0 || Object.keys(photoSlots).length > 0 || !!odometer || conditionConfirmed;
+  const hasCheckOutProgress = checkOutStep > 0 || Object.keys(returnPhotoSlots).length > 0 || !!returnOdometer || keyReturned;
 
   const openCheckInWizard = useCallback(() => {
     setError('');
     setActionSuccess('');
-    setCheckInStep(0);
+    if (!hasCheckInProgress) setCheckInStep(0);
     setCheckInSheetOpen(true);
-  }, []);
+  }, [hasCheckInProgress]);
 
   const openCheckOutWizard = useCallback(() => {
     setError('');
     setActionSuccess('');
-    setCheckOutStep(0);
+    if (!hasCheckOutProgress) setCheckOutStep(0);
     setCheckOutSheetOpen(true);
-  }, []);
+  }, [hasCheckOutProgress]);
 
   // Auto-close the active sheet when a check-in/out completes successfully -
   // user should see the resulting lockbox reveal / completion state in the
@@ -1930,7 +1932,6 @@ export default function CustomerPortal() {
                   open={checkInSheetOpen}
                   onOpenChange={(o) => {
                     setCheckInSheetOpen(o);
-                    if (o) setCheckInStep(0);
                   }}
                   title="Check in to your rental"
                   maxWidth="34rem"
@@ -2204,7 +2205,6 @@ export default function CustomerPortal() {
                   open={checkOutSheetOpen}
                   onOpenChange={(o) => {
                     setCheckOutSheetOpen(o);
-                    if (o) setCheckOutStep(0);
                   }}
                   title="Return your vehicle"
                   maxWidth="34rem"

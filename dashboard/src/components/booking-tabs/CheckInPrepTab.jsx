@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { api } from '../../api/client';
 import { useAlerts } from '../../lib/alertsContext';
 import { compressImage } from '../../lib/compressImage';
-import { Camera, X, Loader2, ImagePlus, CheckCircle, Key, AlertCircle, Fuel, Gauge, ChevronLeft, ChevronRight, ClipboardCheck } from 'lucide-react';
+import { Camera, X, Loader2, ImagePlus, CheckCircle, Key, AlertCircle, Fuel, Gauge, ChevronLeft, ChevronRight, ClipboardCheck, ShieldAlert } from 'lucide-react';
 
 /* ── Fuel Level Tap Selector ────────────────────────────────────────── */
 const FUEL_LEVELS = [
@@ -170,6 +170,7 @@ export default function CheckInPrepTab({ booking, onReload }) {
   const [notes, setNotes] = useState('');
   const [photos, setPhotos] = useState([]);
   const [showNotes, setShowNotes] = useState(false);
+  const [skipPhotosReason, setSkipPhotosReason] = useState('');
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -183,6 +184,10 @@ export default function CheckInPrepTab({ booking, onReload }) {
   const vehicleName = v ? `${v.year} ${v.make} ${v.model}` : 'Vehicle';
   const isReady = ['ready_for_pickup', 'active', 'returned', 'completed'].includes(booking.status);
   const displayStatus = success && !isReady ? 'ready_for_pickup' : booking.status;
+  const requiredPrepPhotos = 4;
+  const needsPhotoOverride = photos.length < requiredPrepPhotos;
+  const hasPhotoOverride = skipPhotosReason.trim().length >= 8;
+  const canMarkReady = !submitting && (!needsPhotoOverride || hasPhotoOverride);
   const statusCopy = {
     ready_for_pickup: {
       title: 'Vehicle Ready for Pickup',
@@ -232,13 +237,22 @@ export default function CheckInPrepTab({ booking, onReload }) {
   }
 
   async function handleSubmit() {
+    if (!canMarkReady) {
+      setError(`Add ${requiredPrepPhotos} prep photos or enter a skip reason before marking the vehicle ready.`);
+      setStep(1);
+      return;
+    }
     setSubmitting(true);
     setError('');
     try {
+      const conditionNotes = [
+        notes || '',
+        needsPhotoOverride ? `Prep photo override: ${skipPhotosReason.trim()}` : '',
+      ].filter(Boolean).join('\n\n');
       const result = await api.recordCheckIn(booking.id, {
         odometer: odometer ? Number(odometer) : undefined,
         fuelLevel,
-        conditionNotes: notes || undefined,
+        conditionNotes: conditionNotes || undefined,
         photoUrls: photos.length > 0 ? photos : undefined,
         markReady: true,
       });
@@ -457,6 +471,45 @@ export default function CheckInPrepTab({ booking, onReload }) {
         <div className="space-y-4">
           <AdminPhotoUploader bookingId={booking.id} photos={photos} setPhotos={setPhotos} />
 
+          <div className={`rounded-2xl border p-3 ${
+            needsPhotoOverride
+              ? 'border-amber-500/30 bg-amber-500/10'
+              : 'border-emerald-500/20 bg-emerald-500/10'
+          }`}>
+            <div className="flex items-start gap-2">
+              {needsPhotoOverride ? (
+                <ShieldAlert size={16} className="mt-0.5 shrink-0 text-amber-600" />
+              ) : (
+                <CheckCircle size={16} className="mt-0.5 shrink-0 text-emerald-500" />
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-[var(--text-primary)]">
+                  Prep evidence {Math.min(photos.length, requiredPrepPhotos)}/{requiredPrepPhotos}
+                </p>
+                <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
+                  {needsPhotoOverride
+                    ? 'Capture all four sides before pickup, or record why photos are being skipped.'
+                    : 'Minimum handoff photo evidence is ready.'}
+                </p>
+              </div>
+            </div>
+            {needsPhotoOverride && (
+              <textarea
+                className="mt-3 w-full rounded-xl px-3 py-2 text-sm"
+                rows={2}
+                style={{
+                  backgroundColor: 'var(--bg-card)',
+                  border: '1px solid var(--border-subtle)',
+                  color: 'var(--text-primary)',
+                  outline: 'none',
+                }}
+                placeholder="Skip reason, e.g. customer waiting and photos will be added at pickup"
+                value={skipPhotosReason}
+                onChange={e => setSkipPhotosReason(e.target.value)}
+              />
+            )}
+          </div>
+
           {!showNotes ? (
             <button
               type="button"
@@ -527,6 +580,9 @@ export default function CheckInPrepTab({ booking, onReload }) {
               <div>
                 <p className="text-xs text-[var(--text-tertiary)]">Photos</p>
                 <p className="font-semibold text-[var(--text-primary)]">{photos.length} uploaded</p>
+                {needsPhotoOverride && (
+                  <p className="mt-1 text-[11px] text-amber-600">Override: {skipPhotosReason.trim() || 'reason required'}</p>
+                )}
               </div>
               <div>
                 <p className="text-xs text-[var(--text-tertiary)]">Status</p>
@@ -552,7 +608,7 @@ export default function CheckInPrepTab({ booking, onReload }) {
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={submitting}
+              disabled={!canMarkReady}
               className="flex items-center justify-center gap-2 px-5 py-4 rounded-2xl font-semibold text-sm transition-all active:scale-[0.98] disabled:opacity-50"
               style={{ backgroundColor: '#22c55e', color: '#fff', boxShadow: '0 4px 14px rgba(34,197,94,0.3)' }}
             >

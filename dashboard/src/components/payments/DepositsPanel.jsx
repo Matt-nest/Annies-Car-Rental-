@@ -259,7 +259,97 @@ export default function DepositsPanel() {
             : 'Try a different filter.'}
         />
       ) : (
-        <div className="rounded-xl overflow-hidden scroll-x-contained" style={{ border: '1px solid var(--border-subtle)' }}>
+        <>
+        <div className="space-y-3 md:hidden">
+          {rows.map(row => {
+            const b = row.bookings;
+            const cust = b?.customers;
+            const veh = b?.vehicles;
+            const st = settlementTone(row);
+            const refundable = depositRefundable(row);
+            const settlement = settlementLabel(row);
+            const reviewRequired = requiresDepositReview(row);
+            const canMoneyMove = ['held', 'partial_refund'].includes(row.status) && refundable > 0 && reviewRequired;
+            const disabledReason = ['held', 'partial_refund'].includes(row.status) && refundable > 0 && !reviewRequired
+              ? 'Return/check-out completion required before deposit review.'
+              : '';
+            return (
+              <article
+                key={row.id}
+                className="rounded-3xl p-4 shadow-sm"
+                style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <Link to={`/bookings/${b?.id}`} className="font-mono text-sm font-bold text-[var(--accent-color)]">
+                      {b?.booking_code}
+                    </Link>
+                    <p className="mt-1 text-sm font-semibold text-[var(--text-primary)] truncate">
+                      {cust ? `${cust.first_name} ${cust.last_name}` : 'Customer not linked'}
+                    </p>
+                    <p className="text-xs text-[var(--text-secondary)] truncate">
+                      {veh ? `${veh.year} ${veh.make} ${veh.model}` : 'Vehicle not linked'}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ color: st.color, backgroundColor: st.bg }}>
+                    {settlement}
+                  </span>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <div className="rounded-2xl p-3" style={{ backgroundColor: 'var(--bg-card-hover)' }}>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Held</p>
+                    <p className="mt-1 text-lg font-bold tabular-nums text-[var(--text-primary)]">${(row.amount / 100).toFixed(2)}</p>
+                  </div>
+                  <div className="rounded-2xl p-3" style={{ backgroundColor: 'var(--bg-card-hover)' }}>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Refundable</p>
+                    <p className="mt-1 text-lg font-bold tabular-nums text-indigo-500">${(refundable / 100).toFixed(2)}</p>
+                  </div>
+                </div>
+
+                {reviewRequired && (
+                  <p className="mt-3 flex items-center gap-1.5 rounded-2xl px-3 py-2 text-xs font-semibold text-amber-600" style={{ backgroundColor: 'rgba(245,158,11,0.10)' }}>
+                    <ClipboardCheck size={13} /> Inspect, apply charges, or refund.
+                  </p>
+                )}
+                {row.status === 'held' && b?.status === 'active' && (
+                  <p className="mt-3 flex items-center gap-1.5 rounded-2xl px-3 py-2 text-xs text-[var(--text-secondary)]" style={{ backgroundColor: 'var(--bg-card-hover)' }}>
+                    <Clock size={13} /> Keep held until check-out.
+                  </p>
+                )}
+
+                <div className="mt-4 grid grid-cols-3 gap-2">
+                  <Link to={`/bookings/${b?.id}`} className="tap-target rounded-2xl border border-[var(--border-subtle)] px-3 py-2 text-xs font-semibold text-[var(--text-primary)]">
+                    <ExternalLink size={14} /> Open
+                  </Link>
+                  {['held', 'partial_refund'].includes(row.status) && refundable > 0 && (
+                    <>
+                      <button
+                        type="button"
+                        className="tap-target rounded-2xl border border-[var(--border-subtle)] px-3 py-2 text-xs font-semibold text-[var(--text-primary)] disabled:opacity-50"
+                        disabled={acting === b?.id || !canMoneyMove}
+                        onClick={() => openSettle(row)}
+                      >
+                        <Calculator size={14} /> Apply
+                      </button>
+                      <button
+                        type="button"
+                        className="tap-target rounded-2xl border border-[var(--border-subtle)] px-3 py-2 text-xs font-semibold text-[var(--text-primary)] disabled:opacity-50"
+                        disabled={acting === b?.id || !canMoneyMove}
+                        onClick={() => requestRelease(row)}
+                      >
+                        <DollarSign size={14} /> Release
+                      </button>
+                    </>
+                  )}
+                </div>
+                <DisabledReason reason={disabledReason} />
+              </article>
+            );
+          })}
+        </div>
+
+        <div className="hidden md:block rounded-xl overflow-hidden scroll-x-contained" style={{ border: '1px solid var(--border-subtle)' }}>
           <table className="w-full text-sm min-w-[720px]">
             <thead>
               <tr style={{ backgroundColor: 'var(--bg-card-hover)' }}>
@@ -346,6 +436,7 @@ export default function DepositsPanel() {
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       <Modal open={!!settleRow} onClose={() => setSettleRow(null)} title="Apply or Settle Deposit">

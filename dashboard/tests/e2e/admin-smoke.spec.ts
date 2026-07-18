@@ -106,6 +106,10 @@ const packetBooking = {
   booking_status_log: [],
 };
 
+function isMobileProject(projectName: string) {
+  return projectName.includes('mobile') || projectName.includes('iphone');
+}
+
 const finalPacket = {
   generated_at: '2026-08-08T14:00:00.000Z',
   available: true,
@@ -398,14 +402,28 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(metrics.bodyScroll, `body overflow metrics: ${JSON.stringify(metrics)}`).toBeLessThanOrEqual(maxWidth);
 }
 
-test('protected dashboard shell renders with local auth bypass', async ({ page }) => {
+test('protected dashboard shell renders with local auth bypass', async ({ page }, testInfo) => {
   await page.goto('/');
 
   await expect(page).not.toHaveURL(/\/login/);
   await expect(page.getByText('Good', { exact: false }).first()).toBeVisible();
   await expect(page.getByRole('link', { name: /dashboard/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /bookings/i }).first()).toBeVisible();
-  await expect(page.getByRole('link', { name: /fleet/i }).first()).toBeVisible();
+  if (isMobileProject(testInfo.project.name)) {
+    const primaryNav = page.getByRole('navigation', { name: /primary navigation/i });
+    await expect(primaryNav).toBeVisible();
+    await expect(primaryNav.getByRole('link', { name: /home/i })).toBeVisible();
+    await expect(primaryNav.getByRole('link', { name: /bookings/i })).toBeVisible();
+    await expect(primaryNav.getByRole('link', { name: /check-ins/i })).toBeVisible();
+    await expect(primaryNav.getByRole('link', { name: /money/i })).toBeVisible();
+    await primaryNav.getByRole('button', { name: /open full navigation menu/i }).click();
+    await expect(page.getByRole('link', { name: /^Payments$/i })).toBeVisible();
+    await expect(page.getByRole('link', { name: /^Customers$/i })).toBeVisible();
+    await expect(page.getByRole('link', { name: /^Calendar$/i })).toBeVisible();
+  } else {
+    await expect(page.getByRole('navigation', { name: /primary navigation/i })).toBeHidden();
+    await expect(page.getByRole('link', { name: /fleet/i }).first()).toBeVisible();
+  }
 });
 
 test('core dashboard routes stay within the viewport shell', async ({ page }) => {
@@ -444,12 +462,12 @@ test('bookings route renders booking operations page', async ({ page }, testInfo
   await expect(page.getByRole('heading', { name: 'Bookings' })).toBeVisible();
   await expect(page.getByText('Manage rentals and reservations')).toBeVisible();
   const bookingCode = page.locator('.mono-code', { hasText: 'E2E-BOOKING-001' });
-  await expect(testInfo.project.name.includes('mobile') ? bookingCode.last() : bookingCode.first()).toBeVisible();
+  await expect(isMobileProject(testInfo.project.name) ? bookingCode.last() : bookingCode.first()).toBeVisible();
 
   const previewRequest = page.waitForRequest((request) =>
     request.method() === 'POST' && request.url().includes('/api/v1/portal/admin-preview')
   );
-  await (testInfo.project.name.includes('mobile')
+  await (isMobileProject(testInfo.project.name)
     ? page.getByRole('button', { name: /view customer portal/i }).first()
     : page.getByTitle('Open customer portal preview').first()
   ).click();
@@ -737,7 +755,7 @@ test('booking detail route exposes operator approval controls', async ({ page })
   await page.goto('/bookings/booking-e2e-1');
 
   await expect(page.getByRole('heading', { name: 'E2E-BOOKING-001' })).toBeVisible();
-  await expect(page.getByText('Taylor Driver')).toBeVisible();
+  await expect(page.getByText('Taylor Driver').first()).toBeVisible();
   await expect(page.getByText('Toyota Camry').first()).toBeVisible();
   await expect(page.getByRole('button', { name: /approve/i }).first()).toBeVisible();
   await expect(page.getByRole('button', { name: /decline/i }).first()).toBeVisible();
@@ -775,26 +793,30 @@ test('booking detail final packet tab renders evidence and downloads PDF', async
   await packetRequest;
 });
 
-test('payments deposits tab defaults to the deposit review queue', async ({ page }) => {
+test('payments deposits tab defaults to the deposit review queue', async ({ page }, testInfo) => {
   await page.goto('/payments?tab=deposits');
 
   await expect(page.getByRole('heading', { name: 'Payments' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Review Required' })).toBeVisible();
   await expect(page.getByText('Refundable Exposure')).toBeVisible();
-  await expect(page.getByText('$325.00', { exact: true }).first()).toBeVisible();
-  await expect(page.getByText('E2E-PACKET-001')).toBeVisible();
-  await expect(page.getByText('Taylor Driver')).toBeVisible();
-  await expect(page.getByText('Review required').first()).toBeVisible();
-  await expect(page.getByText(/Inspect, apply charges, or refund/i)).toBeVisible();
-  await expect(page.getByRole('button', { name: /apply/i })).toBeEnabled();
-  await expect(page.getByRole('button', { name: /release/i })).toBeEnabled();
+  const reviewItem = isMobileProject(testInfo.project.name)
+    ? page.getByRole('article').filter({ hasText: 'E2E-PACKET-001' }).first()
+    : page.locator('tbody tr').filter({ hasText: 'E2E-PACKET-001' }).first();
+  await expect(reviewItem).toBeVisible();
+  await expect(reviewItem.getByText(/\$325\.00/)).toBeVisible();
+  await expect(reviewItem.getByRole('link', { name: 'E2E-PACKET-001' })).toBeVisible();
+  await expect(reviewItem.getByText('Taylor Driver')).toBeVisible();
+  await expect(reviewItem.getByText('Review required')).toBeVisible();
+  await expect(reviewItem.getByText(/Inspect, apply charges, or refund/i)).toBeVisible();
+  await expect(reviewItem.getByRole('button', { name: /apply/i })).toBeEnabled();
+  await expect(reviewItem.getByRole('button', { name: /release/i })).toBeEnabled();
 });
 
 test('customers route shows operational profile data and portal preview action', async ({ page }, testInfo) => {
   await page.goto('/customers');
 
   await expect(page.getByRole('heading', { name: 'Customers' })).toBeVisible();
-  await expect(testInfo.project.name.includes('mobile')
+  await expect(isMobileProject(testInfo.project.name)
     ? page.getByText('Taylor Driver').last()
     : page.getByText('Taylor Driver').first()
   ).toBeVisible();
@@ -803,7 +825,7 @@ test('customers route shows operational profile data and portal preview action',
   const previewRequest = page.waitForRequest((request) =>
     request.method() === 'POST' && request.url().includes('/api/v1/portal/admin-preview')
   );
-  await (testInfo.project.name.includes('mobile')
+  await (isMobileProject(testInfo.project.name)
     ? page.getByTitle('Open customer portal preview').last()
     : page.getByTitle('Open customer portal preview').first()
   ).click();

@@ -3,6 +3,7 @@ import { api } from '../../api/client';
 import { useAlerts } from '../../lib/alertsContext';
 import { compressImage } from '../../lib/compressImage';
 import Section from '../shared/Section';
+import { MoneyActionConfirm } from '../shared/MoneyActionGuardrails';
 import {
   CheckCircle, AlertCircle, Loader2, Camera, X, ImagePlus,
   Fuel, ChevronRight, ChevronLeft, DollarSign, Plus, Trash2,
@@ -387,6 +388,7 @@ export default function CheckOutTab({ booking, onReload, onSelectTab }) {
   const [error, setError] = useState('');
   const [completed, setCompleted] = useState(false);
   const [completionArtifacts, setCompletionArtifacts] = useState(null);
+  const [moneyAction, setMoneyAction] = useState(null);
 
   const v = booking.vehicles;
   const vehicleName = v ? `${v.year} ${v.make} ${v.model}` : 'Vehicle';
@@ -565,8 +567,27 @@ export default function CheckOutTab({ booking, onReload, onSelectTab }) {
     setLoading(false);
   }
 
-  async function handleReleaseDeposit() {
-    if (!confirm('Refund the full deposit back to the customer?')) return;
+  function handleReleaseDeposit() {
+    setMoneyAction({
+      type: 'release',
+      title: 'Refund Full Deposit',
+      subject: `${booking.booking_code || 'Rental'} deposit`,
+      amount: depositAmount / 100,
+      impact: 'Refund the held deposit back to the customer and refresh the settlement invoice.',
+      warning: incidentalTotal > 0
+        ? 'There are active charges on this return. Refunding anyway will leave those charges outside the held deposit.'
+        : 'This is a real money action. Confirm the return condition and settlement before continuing.',
+      checklist: [
+        'Return photos, odometer, and fuel are reviewed.',
+        incidentalTotal > 0 ? 'Charges are intentionally not being collected from the deposit.' : 'No active incidentals remain.',
+        'The refund amount matches the final settlement.',
+      ],
+      confirmLabel: 'Refund Deposit',
+      auditDetail: 'Operator confirmed full deposit refund from checkout.',
+    });
+  }
+
+  async function releaseDeposit() {
     setLoading(true);
     try {
       await api.releaseDeposit(booking.id);
@@ -575,8 +596,25 @@ export default function CheckOutTab({ booking, onReload, onSelectTab }) {
     setLoading(false);
   }
 
-  async function handleSettleDeposit() {
-    if (!confirm('Settle the deposit against incidentals?')) return;
+  function handleSettleDeposit() {
+    setMoneyAction({
+      type: 'settle',
+      title: 'Settle Deposit Against Charges',
+      subject: `${booking.booking_code || 'Rental'} deposit`,
+      amount: Math.min(depositAmount, incidentalTotal) / 100,
+      impact: 'Apply the held deposit against active return charges and refresh the settlement invoice.',
+      warning: 'This is a real money action. Confirm every charge before applying customer funds.',
+      checklist: [
+        'Return photos, odometer, and fuel are reviewed.',
+        'Cleaning, fuel, mileage, tolls, and damage charges are accurate.',
+        'The customer balance or refund due is correct.',
+      ],
+      confirmLabel: 'Settle Deposit',
+      auditDetail: 'Operator confirmed deposit settlement from checkout.',
+    });
+  }
+
+  async function settleDeposit() {
     setLoading(true);
     try {
       const activeTotal = incidentals.filter(i => !i.waived).reduce((sum, i) => sum + i.amount, 0);
@@ -584,6 +622,13 @@ export default function CheckOutTab({ booking, onReload, onSelectTab }) {
       await loadDepositAndInvoice();
     } catch (e) { setError(e.message); }
     setLoading(false);
+  }
+
+  async function confirmMoneyAction() {
+    if (!moneyAction) return;
+    if (moneyAction.type === 'release') await releaseDeposit();
+    if (moneyAction.type === 'settle') await settleDeposit();
+    setMoneyAction(null);
   }
 
   function buildReturnPayload() {
@@ -1165,6 +1210,12 @@ export default function CheckOutTab({ booking, onReload, onSelectTab }) {
 
       {/* Customer-recorded check-out — reference for admin below the steps */}
       <CustomerRecordCard title="Customer Check-Out" record={customerCheckout} />
+      <MoneyActionConfirm
+        action={moneyAction}
+        busy={loading}
+        onCancel={() => setMoneyAction(null)}
+        onConfirm={confirmMoneyAction}
+      />
     </div>
   );
 }
