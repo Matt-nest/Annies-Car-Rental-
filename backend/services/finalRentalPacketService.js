@@ -1,5 +1,6 @@
 import { supabase } from '../db/supabase.js';
 import { getBookingDetail } from './bookingService.js';
+import { generateInvoice } from './invoiceService.js';
 
 const FINAL_PACKET_STATUSES = new Set(['returned', 'completed']);
 const PICKUP_RECORD_TYPES = new Set(['admin_prep', 'admin_handoff', 'admin_checkin', 'customer_checkin']);
@@ -17,6 +18,16 @@ function dollarsToCents(value) {
 
 function normalizeStatus(status) {
   return String(status || '').toLowerCase();
+}
+
+function resolveRefundReviewStatus({ deposit, balanceDueCents, refundDueCents, expectedDepositAmountCents }) {
+  const status = normalizeStatus(deposit?.status);
+  if (balanceDueCents > 0) return 'balance_due_review';
+  if (refundDueCents > 0) return 'refund_due';
+  if (['held', 'partial_refund'].includes(status)) return 'deposit_review_pending';
+  if (['refunded', 'applied', 'forfeited'].includes(status)) return 'settled';
+  if (!deposit && expectedDepositAmountCents > 0) return 'no_collected_deposit';
+  return 'clear';
 }
 
 function paymentCents(payment) {
@@ -176,6 +187,11 @@ export async function getFinalRentalPacket(bookingId, { includeAgreementSource =
   const firstError = recordsError || depositError || incidentalsError || tollsError || paymentsError || invoiceError;
   if (firstError) throw firstError;
 
+  let settlementInvoice = invoice || null;
+  if (!settlementInvoice && isFinalRentalPacketAvailable(booking)) {
+    settlementInvoice = await generateInvoice(bookingId);
+  }
+
   const signedRecords = await Promise.all((rawRecords || []).map(signRecordPhotos));
   const pickupRecords = signedRecords.filter((record) => PICKUP_RECORD_TYPES.has(record.record_type));
   const returnRecords = signedRecords.filter((record) => RETURN_RECORD_TYPES.has(record.record_type));
@@ -190,16 +206,25 @@ export async function getFinalRentalPacket(bookingId, { includeAgreementSource =
   const milesDriven = pickupOdometer != null && returnOdometer != null && returnOdometer >= pickupOdometer
     ? returnOdometer - pickupOdometer
     : null;
-  const depositAmountCents = cents(deposit?.amount ?? dollarsToCents(booking.deposit_amount));
+  const expectedDepositAmountCents = dollarsToCents(booking.deposit_amount);
+  const depositAmountCents = deposit ? cents(deposit.amount) : 0;
   const depositRefundAmountCents = cents(deposit?.refund_amount);
-  const depositAppliedAmountCents = cents(deposit?.applied_amount ?? invoice?.deposit_applied);
+  const depositAppliedAmountCents = cents(deposit?.applied_amount ?? settlementInvoice?.deposit_applied);
   const incidentalTotalCents = activeIncidentals.reduce((sum, row) => sum + cents(row.amount), 0);
   const tollTotalCents = (tolls || []).reduce((sum, row) => sum + cents(row.amount), 0);
   const completedPaymentTotalCents = completedPayments.reduce((sum, row) => sum + Math.max(0, row.amount_cents), 0);
   const refundTotalCents = refunds.reduce((sum, row) => sum + Math.abs(row.amount_cents), 0);
-  const invoiceAmountDueCents = invoice ? cents(invoice.amount_due) : null;
+  const invoiceAmountDueCents = settlementInvoice ? cents(settlementInvoice.amount_due) : null;
   const computedBalanceCents = Math.max(0, incidentalTotalCents - depositAmountCents + depositRefundAmountCents);
   const computedRefundDueCents = Math.max(0, depositAmountCents - depositRefundAmountCents - incidentalTotalCents);
+  const balanceDueCents = invoiceAmountDueCents != null ? Math.max(0, invoiceAmountDueCents) : computedBalanceCents;
+  const refundDueCents = invoiceAmountDueCents != null ? Math.max(0, -invoiceAmountDueCents) : computedRefundDueCents;
+  const refundReviewStatus = resolveRefundReviewStatus({
+    deposit,
+    balanceDueCents,
+    refundDueCents,
+    expectedDepositAmountCents,
+  });
 
   return {
     generated_at: new Date().toISOString(),
@@ -254,9 +279,15 @@ export async function getFinalRentalPacket(bookingId, { includeAgreementSource =
     settlement: {
       deposit: {
         amount_cents: depositAmountCents,
-        status: deposit?.status || booking.deposit_status || 'none',
+        expected_amount_cents: expectedDepositAmountCents,
+        status: deposit?.status || (expectedDepositAmountCents > 0 ? 'not_collected' : (booking.deposit_status || 'none')),
         refund_amount_cents: depositRefundAmountCents,
         applied_amount_cents: depositAppliedAmountCents,
+      },
+      review: {
+        refund_status: refundReviewStatus,
+        review_request_status: booking.status === 'completed' ? 'scheduled' : 'pending_completion',
+        review_request_stage: 'rental_completed',
       },
       mileage: {
         pickup_odometer: pickupOdometer,
@@ -275,15 +306,15 @@ export async function getFinalRentalPacket(bookingId, { includeAgreementSource =
         declines,
         refunds,
       },
-      invoice: invoice || null,
+      invoice: settlementInvoice || null,
       totals: {
         incidental_total_cents: incidentalTotalCents,
         toll_total_cents: tollTotalCents,
         completed_payment_total_cents: completedPaymentTotalCents,
         failed_payment_count: declines.length,
         refund_total_cents: refundTotalCents,
-        balance_due_cents: invoiceAmountDueCents != null ? Math.max(0, invoiceAmountDueCents) : computedBalanceCents,
-        refund_due_cents: invoiceAmountDueCents != null ? Math.max(0, -invoiceAmountDueCents) : computedRefundDueCents,
+        balance_due_cents: balanceDueCents,
+        refund_due_cents: refundDueCents,
       },
     },
   };

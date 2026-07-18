@@ -86,6 +86,8 @@ test('checkout completion is idempotent and guarded by checkout evidence', () =>
   assert.match(bookingService, /export async function completeBookingCheckout/);
   assert.match(bookingService, /'customer_checkout', 'admin_inspection'/);
   assert.match(bookingService, /Checkout must be recorded before completing this rental/);
+  assert.match(bookingService, /generateInvoice\(bookingId\)/);
+  assert.match(bookingService, /final_packet_available: true/);
   assert.match(bookingsRoute, /returnBooking\(req\.params\.id/);
   assert.match(bookingsRoute, /completeBookingCheckout\(req\.params\.id/);
 });

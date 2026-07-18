@@ -9,6 +9,7 @@ import { createNotification } from './notificationService.js';
 import { sendTeamAlertAsync, TEAM_ALERT_EVENTS } from './teamAlertService.js';
 import { cancelPolicy as cancelBonzahPolicy } from './bonzahService.js';
 import { getVehicleDepositAmount } from './depositService.js';
+import { generateInvoice } from './invoiceService.js';
 import { updateBookingWithSchemaFallback } from '../utils/schemaFallback.js';
 
 // Valid one-way status transitions
@@ -621,7 +622,19 @@ export async function completeBookingCheckout(bookingId, { changedBy = 'owner', 
   let booking = await getBookingDetail(bookingId);
 
   if (booking.status === 'completed') {
-    return { success: true, booking_code: booking.booking_code, new_status: 'completed', idempotent: true };
+    const invoice = await generateInvoice(bookingId);
+    return {
+      success: true,
+      booking_code: booking.booking_code,
+      new_status: 'completed',
+      idempotent: true,
+      settlement: {
+        invoice_id: invoice?.id || null,
+        invoice_status: invoice?.status || null,
+        amount_due: invoice?.amount_due ?? null,
+        final_packet_available: true,
+      },
+    };
   }
 
   if (booking.status === 'active') {
@@ -667,10 +680,20 @@ export async function completeBookingCheckout(bookingId, { changedBy = 'owner', 
     throw err;
   }
 
-  return transitionBooking(bookingId, 'completed', {
+  const invoice = await generateInvoice(bookingId);
+  const result = await transitionBooking(bookingId, 'completed', {
     changedBy,
     reason: reason || 'Rental completed',
   });
+  return {
+    ...result,
+    settlement: {
+      invoice_id: invoice?.id || null,
+      invoice_status: invoice?.status || null,
+      amount_due: invoice?.amount_due ?? null,
+      final_packet_available: true,
+    },
+  };
 }
 
 /**

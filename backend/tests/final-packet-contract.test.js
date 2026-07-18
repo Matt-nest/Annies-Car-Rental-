@@ -45,6 +45,11 @@ test('final packet service includes settlement evidence and decline detail', () 
   assert.match(service, /return/);
   assert.match(service, /refund_due_cents/);
   assert.match(service, /appendix_included/);
+  assert.match(service, /generateInvoice\(bookingId\)/);
+  assert.match(service, /expected_amount_cents/);
+  assert.match(service, /refund_status/);
+  assert.match(service, /review_request_status/);
+  assert.match(service, /no_collected_deposit/);
 });
 
 test('dashboard and customer portal expose final packet views', () => {
