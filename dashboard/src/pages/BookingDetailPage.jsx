@@ -838,7 +838,7 @@ export default function BookingDetailPage() {
         )}
 
         {activeTab === 'checkout' && (
-          <CheckOutTab booking={booking} onReload={load} />
+          <CheckOutTab booking={booking} onReload={load} onSelectTab={setActiveTab} />
         )}
 
         {activeTab === 'invoice' && (

@@ -359,7 +359,7 @@ function CheckoutTripGate({ booking, vehicleName, onUnlocked }) {
 /* ══════════════════════════════════════════════════════════════════════
    MAIN COMPONENT — 3-Step Check-Out Flow
    ══════════════════════════════════════════════════════════════════════ */
-export default function CheckOutTab({ booking, onReload }) {
+export default function CheckOutTab({ booking, onReload, onSelectTab }) {
   const [step, setStep] = useState(0);
   const STEPS = ['Vehicle Condition', 'Review Charges', 'Finalize'];
   const { refresh: refreshAlerts } = useAlerts();
@@ -386,6 +386,7 @@ export default function CheckOutTab({ booking, onReload }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [completed, setCompleted] = useState(false);
+  const [completionArtifacts, setCompletionArtifacts] = useState(null);
 
   const v = booking.vehicles;
   const vehicleName = v ? `${v.year} ${v.make} ${v.model}` : 'Vehicle';
@@ -644,6 +645,7 @@ export default function CheckOutTab({ booking, onReload }) {
       // Backend lifecycle requires active -> returned -> completed.
       const status = await ensureReturnedBeforeComplete();
       if (status === 'completed') {
+        setCompletionArtifacts(prev => prev || { invoice, finalPacketAvailable: true });
         setCompleted(true);
         refreshAlerts();
         onReload?.();
@@ -660,7 +662,12 @@ export default function CheckOutTab({ booking, onReload }) {
         await api.sendInvoice(inv.id);
       }
 
-      await completeBookingOrRecover();
+      const completion = await completeBookingOrRecover();
+      setCompletionArtifacts({
+        invoice: inv,
+        completion,
+        finalPacketAvailable: completion?.final_packet_available !== false,
+      });
       setCompleted(true);
       refreshAlerts();
       onReload?.();
@@ -684,6 +691,8 @@ export default function CheckOutTab({ booking, onReload }) {
   const incidentalTotal = activeIncidentals.reduce((sum, i) => sum + (i.amount || 0), 0);
   const depositAmount = deposit?.amount || 0;
   const depositHeld = deposit?.status === 'held';
+  const depositStatusForReview = String(deposit?.status || booking.deposit_status || '').toLowerCase();
+  const depositReviewRequired = ['held', 'paid', 'partial_refund'].includes(depositStatusForReview);
   const refundAmount = Math.max(0, depositAmount - incidentalTotal);
   const customerOwes = Math.max(0, incidentalTotal - depositAmount);
 
@@ -710,6 +719,10 @@ export default function CheckOutTab({ booking, onReload }) {
 
   /* ── Completed State ─────────────────────────────────────────────── */
   if (completed || isAlreadyDone) {
+    const completionInvoice = completionArtifacts?.invoice || invoice;
+    const completionAmountDue = completionArtifacts?.completion?.invoice?.amount_due ?? completionInvoice?.amount_due;
+    const finalPacketReady = completionArtifacts?.finalPacketAvailable !== false;
+
     return (
       <div className="max-w-lg mx-auto py-8 space-y-5 pb-[calc(var(--bottom-nav-offset)+96px)] md:pb-8">
         <div className="text-center">
@@ -718,6 +731,54 @@ export default function CheckOutTab({ booking, onReload }) {
           <p className="text-sm text-[var(--text-secondary)]">
             {vehicleName} has been checked out, inspected, and the booking is finalized.
           </p>
+        </div>
+        <div className="grid gap-3">
+          <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4">
+            <div className="flex items-start gap-3">
+              <FileText size={18} className="text-[var(--accent-color)] mt-0.5" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-[var(--text-primary)]">Final packet {finalPacketReady ? 'ready' : 'pending'}</p>
+                <p className="text-xs text-[var(--text-tertiary)] mt-0.5">Agreement, pickup, return, settlement, payments, declines, refunds, and photos are bundled for this rental.</p>
+              </div>
+              {onSelectTab && (
+                <button type="button" className="btn-ghost text-xs py-1.5 px-2" onClick={() => onSelectTab('packet')}>
+                  Open
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4">
+            <div className="flex items-start gap-3">
+              <DollarSign size={18} className="text-emerald-500 mt-0.5" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-[var(--text-primary)]">Settlement invoice refreshed</p>
+                <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
+                  {completionAmountDue == null
+                    ? 'Invoice artifacts were generated for final packet review.'
+                    : `${completionAmountDue > 0 ? 'Balance due' : completionAmountDue < 0 ? 'Refund due' : 'No balance due'}: $${(Math.abs(Number(completionAmountDue || 0)) / 100).toFixed(2)}`}
+                </p>
+              </div>
+              {onSelectTab && (
+                <button type="button" className="btn-ghost text-xs py-1.5 px-2" onClick={() => onSelectTab('invoice')}>
+                  Open
+                </button>
+              )}
+            </div>
+          </div>
+          {depositReviewRequired && (
+            <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 p-4">
+              <div className="flex items-start gap-3">
+                <ShieldAlert size={18} className="text-amber-500 mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-[var(--text-primary)]">Deposit review required</p>
+                  <p className="text-xs text-[var(--text-tertiary)] mt-0.5">Review the return evidence before releasing, applying charges, or settling the security deposit.</p>
+                </div>
+                <a href="/payments?tab=deposits" className="btn-secondary text-xs py-1.5 px-2">
+                  Review
+                </a>
+              </div>
+            </div>
+          )}
         </div>
         <CustomerRecordCard title="Customer Check-Out" record={customerCheckout} />
       </div>

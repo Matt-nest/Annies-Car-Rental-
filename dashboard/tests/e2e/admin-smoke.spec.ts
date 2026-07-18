@@ -603,6 +603,10 @@ test('active checkout records return before completing without sending invoice',
   await page.getByRole('button', { name: /complete without sending invoice/i }).click();
 
   await expect(page.getByRole('heading', { name: 'Rental Complete' })).toBeVisible();
+  await expect(page.getByText('Final packet ready')).toBeVisible();
+  await expect(page.getByText('Settlement invoice refreshed')).toBeVisible();
+  await expect(page.getByText('Invoice artifacts were generated for final packet review.')).toBeVisible();
+  await expect(page.getByText('Deposit review required')).toBeVisible();
   expect(calls).toEqual(['override', 'checkout', 'inspection', 'invoice', 'return', 'complete']);
 });
 
