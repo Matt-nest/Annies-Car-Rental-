@@ -8,7 +8,7 @@ const router = Router();
 
 /**
  * GET /deposits — List deposits for dashboard reporting
- * Query: ?status=held|all|refunded|applied
+ * Query: ?status=review_required|held|all|refunded|applied
  */
 router.get('/deposits', requireAuth, async (req, res) => {
   try {

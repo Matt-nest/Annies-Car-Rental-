@@ -51,7 +51,7 @@ router.get('/overview', requireAuth, asyncHandler(async (req, res) => {
     // admin_inspection record. Two-step query (no LEFT JOIN in PostgREST).
     supabase.from('bookings').select('id').eq('status', 'returned'),
     supabase.from('checkin_records').select('booking_id').eq('record_type', 'admin_inspection'),
-    supabase.from('booking_deposits').select('amount, refund_amount, applied_amount, status')
+    supabase.from('booking_deposits').select('amount, refund_amount, applied_amount, status, bookings!inner(status)')
       .in('status', ['held', 'partial_refund']),
   ]);
 
@@ -71,6 +71,13 @@ router.get('/overview', requireAuth, asyncHandler(async (req, res) => {
     const refundable = Math.max(0, Number(d.amount || 0) - Number(d.refund_amount || 0) - Number(d.applied_amount || 0));
     return sum + refundable;
   }, 0);
+  const depositReviewRows = (heldDeposits || []).filter(d => (
+    ['returned', 'completed'].includes(String(d.bookings?.status || '').toLowerCase())
+  ));
+  const depositReviewTotal = depositReviewRows.reduce((sum, d) => {
+    const refundable = Math.max(0, Number(d.amount || 0) - Number(d.refund_amount || 0) - Number(d.applied_amount || 0));
+    return sum + refundable;
+  }, 0);
 
   res.json({
     pending_approvals: pendingCount || 0,
@@ -83,6 +90,8 @@ router.get('/overview', requireAuth, asyncHandler(async (req, res) => {
     pending_agreements: pendingAgreements || 0,
     pending_reviews: pendingReviewsCount || 0,
     pending_inspections: pendingInspections,
+    pending_deposit_reviews: depositReviewRows.length,
+    pending_deposit_review_total: (depositReviewTotal / 100).toFixed(2),
     deposits_held: depositsHeldCount,
     deposits_held_total: (depositsHeldTotal / 100).toFixed(2),
   });

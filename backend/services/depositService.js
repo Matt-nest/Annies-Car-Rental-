@@ -96,6 +96,26 @@ function resolveDepositRefundTarget(deposit, depositPayment) {
   };
 }
 
+function remainingDepositCents(deposit) {
+  return Math.max(
+    0,
+    Number(deposit?.amount || 0)
+      - Number(deposit?.refund_amount || 0)
+      - Number(deposit?.applied_amount || 0)
+  );
+}
+
+function resolveDepositStatus({ amount, refunded, applied }) {
+  const total = Number(amount || 0);
+  const refundedTotal = Number(refunded || 0);
+  const appliedTotal = Number(applied || 0);
+
+  if (refundedTotal >= total && appliedTotal <= 0) return 'refunded';
+  if (appliedTotal >= total && refundedTotal <= 0) return 'applied';
+  if (refundedTotal > 0 || appliedTotal > 0) return 'partial_refund';
+  return 'held';
+}
+
 async function recordDepositRefundLedger({ bookingId, amountCents, referenceId, paymentIntentId, note, method }) {
   if (amountCents <= 0) return;
 
@@ -318,7 +338,8 @@ export async function releaseDeposit(bookingId, { refundedBy = 'system' } = {}) 
   }
 
   const alreadyRefunded = Number(deposit.refund_amount || 0);
-  const amountToRefund = Math.max(0, Number(deposit.amount || 0) - alreadyRefunded);
+  const alreadyApplied = Number(deposit.applied_amount || 0);
+  const amountToRefund = remainingDepositCents(deposit);
   if (amountToRefund <= 0) {
     return { alreadyRefunded: true };
   }
@@ -340,12 +361,19 @@ export async function releaseDeposit(bookingId, { refundedBy = 'system' } = {}) 
     note: 'Security deposit released',
   });
 
+  const refundedTotal = alreadyRefunded + amountToRefund;
+  const finalStatus = resolveDepositStatus({
+    amount: deposit.amount,
+    refunded: refundedTotal,
+    applied: alreadyApplied,
+  });
+
   await supabase
     .from('booking_deposits')
     .update({
-      status: 'refunded',
-      refund_amount: alreadyRefunded + amountToRefund,
-      applied_amount: 0,
+      status: finalStatus,
+      refund_amount: refundedTotal,
+      applied_amount: alreadyApplied,
       refunded_at: new Date().toISOString(),
       refunded_by: refundedBy,
     })
@@ -354,7 +382,7 @@ export async function releaseDeposit(bookingId, { refundedBy = 'system' } = {}) 
   // Update legacy column
   await supabase
     .from('bookings')
-    .update({ deposit_status: 'refunded' })
+    .update({ deposit_status: finalStatus })
     .eq('id', bookingId);
 
   // Notify customer (fire-and-forget)
@@ -396,7 +424,8 @@ export async function settleDeposit(bookingId, { incidentalTotal = 0, refundedBy
   }
 
   const alreadyRefunded = Number(deposit.refund_amount || 0);
-  const refundableDeposit = Math.max(0, Number(deposit.amount || 0) - alreadyRefunded);
+  const alreadyApplied = Number(deposit.applied_amount || 0);
+  const refundableDeposit = remainingDepositCents(deposit);
   const appliedAmount = Math.min(refundableDeposit, incidentalTotal);
   const refundAmount = Math.max(0, refundableDeposit - incidentalTotal);
   const amountOwed = Math.max(0, incidentalTotal - refundableDeposit);
@@ -418,16 +447,20 @@ export async function settleDeposit(bookingId, { incidentalTotal = 0, refundedBy
     note: 'Security deposit settled',
   });
 
-  const newStatus = refundAmount === deposit.amount ? 'refunded'
-    : appliedAmount > 0 ? 'applied'
-    : 'refunded';
+  const appliedTotal = alreadyApplied + appliedAmount;
+  const refundedTotal = alreadyRefunded + refundAmount;
+  const newStatus = resolveDepositStatus({
+    amount: deposit.amount,
+    refunded: refundedTotal,
+    applied: appliedTotal,
+  });
 
   await supabase
     .from('booking_deposits')
     .update({
       status: newStatus,
-      applied_amount: appliedAmount,
-      refund_amount: alreadyRefunded + refundAmount,
+      applied_amount: appliedTotal,
+      refund_amount: refundedTotal,
       refunded_at: new Date().toISOString(),
       refunded_by: refundedBy,
     })
@@ -436,7 +469,7 @@ export async function settleDeposit(bookingId, { incidentalTotal = 0, refundedBy
   // Update legacy column
   await supabase
     .from('bookings')
-    .update({ deposit_status: refundAmount > 0 ? 'refunded' : (appliedAmount > 0 ? 'applied' : 'forfeited') })
+    .update({ deposit_status: newStatus })
     .eq('id', bookingId);
 
   // Notify customer (fire-and-forget)
@@ -506,9 +539,10 @@ export async function settleDeposit(bookingId, { incidentalTotal = 0, refundedBy
 
 /**
  * List deposits across all bookings for dashboard reporting.
- * @param {{ status?: string }} opts — 'held' (default), 'all', or a specific status
+ * @param {{ status?: string }} opts — 'held' (default), 'review_required', 'all', or a specific status
  */
 export async function listDeposits({ status = 'held' } = {}) {
+  const reviewRequired = status === 'review_required';
   let query = supabase
     .from('booking_deposits')
     .select(`
@@ -523,7 +557,7 @@ export async function listDeposits({ status = 'held' } = {}) {
     .order('created_at', { ascending: false });
 
   if (status && status !== 'all') {
-    if (status === 'held') {
+    if (status === 'held' || reviewRequired) {
       query = query.in('status', ['held', 'partial_refund']);
     } else {
       query = query.eq('status', status);
@@ -532,7 +566,12 @@ export async function listDeposits({ status = 'held' } = {}) {
 
   const { data, error } = await query;
   if (error) throw error;
-  return data || [];
+  const rows = data || [];
+  if (!reviewRequired) return rows;
+
+  return rows
+    .filter(row => ['returned', 'completed'].includes(String(row.bookings?.status || '').toLowerCase()))
+    .map(row => ({ ...row, review_required: true }));
 }
 
 /**

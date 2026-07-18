@@ -146,6 +146,35 @@ const finalPacket = {
   },
 };
 
+const depositReviewRow = {
+  id: 'deposit-review-e2e',
+  booking_id: 'booking-packet-complete',
+  amount: 50000,
+  status: 'held',
+  refund_amount: 12500,
+  applied_amount: 5000,
+  created_at: '2026-08-08T14:00:00.000Z',
+  review_required: true,
+  bookings: {
+    id: 'booking-packet-complete',
+    booking_code: 'E2E-PACKET-001',
+    status: 'completed',
+    pickup_date: '2026-08-01',
+    return_date: '2026-08-08',
+    customers: {
+      first_name: 'Taylor',
+      last_name: 'Driver',
+      email: 'taylor@example.com',
+    },
+    vehicles: {
+      year: 2024,
+      make: 'Toyota',
+      model: 'Camry',
+      vehicle_code: 'CAM-001',
+    },
+  },
+};
+
 async function mockDashboardApi(page: Page) {
   await page.route('**/designs.html**', async (route) => {
     await route.fulfill({
@@ -272,6 +301,22 @@ async function mockDashboardApi(page: Page) {
       body = [];
     } else if (path === '/bookings/booking-packet-complete') {
       body = packetBooking;
+    } else if (path.startsWith('/deposits')) {
+      const status = url.searchParams.get('status');
+      const rows = status === 'review_required' || status === 'held' || status === 'all'
+        ? [depositReviewRow]
+        : [];
+      const total = rows.reduce((sum, row) => (
+        sum + Math.max(0, Number(row.amount || 0) - Number(row.refund_amount || 0) - Number(row.applied_amount || 0))
+      ), 0);
+      body = {
+        data: rows,
+        summary: {
+          count: rows.length,
+          total_held_cents: total,
+          total_held_dollars: (total / 100).toFixed(2),
+        },
+      };
     } else if (path.endsWith('/approve')) {
       body = { payment_link: 'https://example.test/pay/E2E-BOOKING-001', deposit_amount: 500, is_high_risk: false };
     } else if (path.endsWith('/decline')) {
@@ -295,6 +340,8 @@ async function mockDashboardApi(page: Page) {
         pending_agreements: 0,
         pending_inspections: 0,
         pending_reviews: 0,
+        pending_deposit_reviews: 1,
+        pending_deposit_review_total: '325.00',
         deposits_held: 1,
         deposits_held_total: '500.00',
         pickups_today: [],
@@ -722,6 +769,21 @@ test('booking detail final packet tab renders evidence and downloads PDF', async
   );
   await page.getByRole('button', { name: /download pdf/i }).click();
   await packetRequest;
+});
+
+test('payments deposits tab defaults to the deposit review queue', async ({ page }) => {
+  await page.goto('/payments?tab=deposits');
+
+  await expect(page.getByRole('heading', { name: 'Payments' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Review Required' })).toBeVisible();
+  await expect(page.getByText('Refundable Exposure')).toBeVisible();
+  await expect(page.getByText('$325.00', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('E2E-PACKET-001')).toBeVisible();
+  await expect(page.getByText('Taylor Driver')).toBeVisible();
+  await expect(page.getByText('Review required').first()).toBeVisible();
+  await expect(page.getByText(/Inspect, apply charges, or refund/i)).toBeVisible();
+  await expect(page.getByRole('button', { name: /apply/i })).toBeEnabled();
+  await expect(page.getByRole('button', { name: /release/i })).toBeEnabled();
 });
 
 test('customers route shows operational profile data and portal preview action', async ({ page }, testInfo) => {

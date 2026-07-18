@@ -77,6 +77,27 @@ test('missing booking_deposits row returns expected deposit display data only', 
   assert.doesNotMatch(depositsRoute, /source: 'booking_legacy'/);
 });
 
+test('deposit review queue is explicit and refund math excludes applied amounts', () => {
+  const depositService = source('backend/services/depositService.js');
+  const depositsRoute = source('backend/routes/deposits.js');
+  const statsRoute = source('backend/routes/stats.js');
+  const depositsPanel = source('dashboard/src/components/payments/DepositsPanel.jsx');
+
+  assert.match(depositsRoute, /status = req\.query\.status \|\| 'held'/);
+  assert.match(depositService, /status === 'review_required'/);
+  assert.match(depositService, /\.filter\(row => \['returned', 'completed'\]\.includes/);
+  assert.match(depositService, /review_required: true/);
+  assert.match(depositService, /function remainingDepositCents/);
+  assert.match(depositService, /Number\(deposit\?\.refund_amount \|\| 0\)/);
+  assert.match(depositService, /Number\(deposit\?\.applied_amount \|\| 0\)/);
+  assert.match(depositService, /function resolveDepositStatus/);
+  assert.match(statsRoute, /pending_deposit_reviews/);
+  assert.match(statsRoute, /pending_deposit_review_total/);
+  assert.match(depositsPanel, /useState\('review_required'\)/);
+  assert.match(depositsPanel, /Review Required/);
+  assert.match(depositsPanel, /Return\/check-out completion/);
+});
+
 test('checkout completion is idempotent and guarded by checkout evidence', () => {
   const bookingService = source('backend/services/bookingService.js');
   const bookingsRoute = source('backend/routes/bookings.js');
