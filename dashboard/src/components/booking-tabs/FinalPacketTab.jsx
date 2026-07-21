@@ -28,8 +28,8 @@ function PhotoPanel({ title, photos, odometer, fuel, onView }) {
         <Stat label="Odometer" value={odometer ? `${odometer.toLocaleString()} mi` : '—'} />
         <Stat label="Fuel" value={label(fuel)} />
       </div>
-      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {photos.slice(0, 6).map((photo, index) => (
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {photos.slice(0, 8).map((photo, index) => (
           <button
             key={`${photo.url}-${index}`}
             type="button"

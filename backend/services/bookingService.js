@@ -30,6 +30,27 @@ export function canTransition(from, to) {
   return (TRANSITIONS[from] || []).includes(to);
 }
 
+async function signCheckinPhoto(pathOrUrl) {
+  if (!pathOrUrl || typeof pathOrUrl !== 'string') return pathOrUrl;
+  if (/^(https?:|data:)/i.test(pathOrUrl)) return pathOrUrl;
+  try {
+    const { data } = await supabase.storage
+      .from('checkin-photos')
+      .createSignedUrl(pathOrUrl, 60 * 60 * 24 * 7);
+    return data?.signedUrl || pathOrUrl;
+  } catch {
+    return pathOrUrl;
+  }
+}
+
+async function signCheckinRecordPhotos(record) {
+  if (!record || !Array.isArray(record.photo_urls)) return record;
+  return {
+    ...record,
+    photo_urls: await Promise.all(record.photo_urls.map(signCheckinPhoto)),
+  };
+}
+
 /** Full booking detail joined with customer, vehicle, payments, status log */
 export async function getBookingDetail(bookingId) {
   const { data, error } = await supabase
@@ -496,7 +517,7 @@ export async function transitionBooking(bookingId, newStatus, { changedBy = 'own
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
-      handoffRecord = prepRecord;
+      handoffRecord = await signCheckinRecordPhotos(prepRecord);
     }
 
     // Awaited so the approval/decline push lands within this request instead of

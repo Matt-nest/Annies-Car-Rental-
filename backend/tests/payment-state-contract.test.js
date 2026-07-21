@@ -135,12 +135,25 @@ test('manual payment methods are limited to the operator-approved list', () => {
 
 test('admin check-in does not report ready when lifecycle transition is invalid', () => {
   const checkinRoute = source('backend/routes/checkin.js');
+  const uploadRoute = source('backend/routes/uploads.js');
+  const checkinTab = source('dashboard/src/components/booking-tabs/CheckInPrepTab.jsx');
+  const checkinPhotoApi = source('dashboard/src/api/checkinPhotoApi.js');
+
   assert.match(checkinRoute, /CHECKIN_MARK_READY_STATUSES/);
   assert.match(checkinRoute, /Cannot mark ready while booking is/);
+  assert.match(checkinRoute, /canPromoteApprovedToReady/);
+  assert.match(checkinRoute, /Cannot mark ready until rental payment is completed and the rental agreement is fully signed/);
+  assert.match(checkinRoute, /transitionBooking\(req\.params\.id, 'confirmed'/);
   assert.match(checkinRoute, /ensureCheckRecord/);
   assert.doesNotMatch(checkinRoute, /already past confirmed/);
   assert.match(checkinRoute, /CHECKOUT_RECORDABLE_STATUSES/);
   assert.match(checkinRoute, /Cannot record checkout while booking is/);
+  assert.match(uploadRoute, /MAX_CHECKIN_PHOTOS = 8/);
+  assert.match(uploadRoute, /\/checkin-photos\/admin/);
+  assert.match(uploadRoute, /uploadToStorage\('checkin-photos'/);
+  assert.match(checkinTab, /MAX_CONDITION_PHOTOS = 8/);
+  assert.match(checkinTab, /uploadAdminCheckinPhotos/);
+  assert.match(checkinPhotoApi, /\/uploads\/checkin-photos\/admin/);
 });
 
 test('booking updates tolerate optional schema-cache misses only', async () => {

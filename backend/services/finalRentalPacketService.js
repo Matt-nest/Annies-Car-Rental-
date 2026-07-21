@@ -5,6 +5,8 @@ import { generateInvoice } from './invoiceService.js';
 const FINAL_PACKET_STATUSES = new Set(['returned', 'completed']);
 const PICKUP_RECORD_TYPES = new Set(['admin_prep', 'admin_handoff', 'admin_checkin', 'customer_checkin']);
 const RETURN_RECORD_TYPES = new Set(['customer_checkout', 'admin_inspection', 'admin_checkout']);
+const CONDITION_PHOTO_SLOT_ORDER = ['front', 'driver_side', 'passenger_side', 'rear', 'dashboard', 'interior_front', 'interior_rear', 'damage'];
+const MAX_CONDITION_PHOTOS = 8;
 
 function cents(value) {
   const n = Number(value || 0);
@@ -100,23 +102,30 @@ async function signCheckinPhoto(pathOrUrl) {
 
 function extractPhotoEntries(record) {
   const entries = [];
-  if (Array.isArray(record.photo_urls)) {
-    record.photo_urls.forEach((url, index) => {
-      if (url) entries.push({ slot: `Photo ${index + 1}`, url });
-    });
-  }
   if (record.photo_slots && typeof record.photo_slots === 'object') {
-    Object.entries(record.photo_slots).forEach(([slot, value]) => {
+    const orderedSlots = [
+      ...CONDITION_PHOTO_SLOT_ORDER,
+      ...Object.keys(record.photo_slots).filter(slot => !CONDITION_PHOTO_SLOT_ORDER.includes(slot)),
+    ];
+    orderedSlots.forEach((slot) => {
+      const value = record.photo_slots[slot];
       if (Array.isArray(value)) {
         value.forEach((url, index) => {
-          if (url) entries.push({ slot: `${slot} ${index + 1}`, url });
+          if (url) entries.push({ slot: value.length > 1 ? `${slot} ${index + 1}` : slot, url });
         });
       } else if (value) {
         entries.push({ slot, url: value });
       }
     });
+    return entries.slice(0, MAX_CONDITION_PHOTOS);
   }
-  return entries;
+
+  if (Array.isArray(record.photo_urls)) {
+    record.photo_urls.forEach((url, index) => {
+      if (url) entries.push({ slot: `Photo ${index + 1}`, url });
+    });
+  }
+  return entries.slice(0, MAX_CONDITION_PHOTOS);
 }
 
 async function signRecordPhotos(record) {

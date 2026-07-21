@@ -2047,4 +2047,38 @@ All decisions listed below were verified present in source:
 
 ---
 
+## 2026-07-21 — Ready-for-pickup photo evidence contract
+
+### Goal
+Keep Annie's rental operations aligned with JD: admin ready-for-pickup prep and customer condition evidence support 8 photos that are stored durably and shown consistently in reports.
+
+### Changes Made
+- Added a private admin check-in photo upload path under `checkin-photos`, keyed by booking ID, instead of saving prep evidence as public vehicle thumbnails.
+- Fixed the ready-for-pickup transition for paid, fully signed bookings that are still in `approved` status by promoting them through `confirmed` before marking ready.
+- Capped admin prep and customer check-in/check-out condition evidence at 8 photos.
+- Added customer portal slots for front interior and rear interior, while keeping the 4 required exterior slots.
+- Normalized backend slot flattening so `photo_urls` stores all evidence paths in a stable order.
+- Updated ready-for-pickup notification handoff photos to sign private storage paths before rendering.
+- Updated dashboard condition galleries, final packet UI, and final packet PDF to show up to 8 evidence photos without malformed array image URLs or double-counting slot photos.
+- Added backend contract tests for the 8-photo evidence flow.
+
+### API/Data Impact
+- New admin endpoint: `POST /api/v1/uploads/checkin-photos/admin`.
+- No schema change. New records store private Supabase storage paths in existing `checkin_records.photo_urls` / `photo_slots`.
+
+### Build Status
+- [x] Backend `npm run test:local` — 97 passed
+- [x] Backend `node --check` on changed route/service/PDF files
+- [x] Customer site `npm run build`
+- [x] Dashboard `VITE_API_URL=http://localhost:3001/api/v1 npm run build`
+- [x] Root `npm run lint`
+
+### Committed
+- [ ] Pending
+
+### Known Issues / Follow-up
+- Desktop/iCloud repo mirrors still report filesystem `Resource deadlock avoided`; work was done in a fresh clean clone under `.openclaw/workspace/worktrees`.
+
+---
+
 <!-- Add new sessions above this line, newest first -->

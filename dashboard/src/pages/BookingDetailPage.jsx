@@ -202,6 +202,8 @@ function IdPhotoGallery({ paths, legacyUrl, onView }) {
 function ConditionPhotosSection({ records, onView }) {
   if (!Array.isArray(records) || records.length === 0) return null;
 
+  const flattenSlotPhotos = (slots) => Object.values(slots || {}).flat().filter(Boolean);
+
   // Group records by source × phase. Multiple records of the same type are
   // merged photo-wise so we always show every photo across the booking.
   const groups = [
@@ -216,7 +218,7 @@ function ConditionPhotosSection({ records, onView }) {
     const photos = matched.flatMap(r => Array.isArray(r.photo_urls) ? r.photo_urls : []);
     const slotPhotos = matched.flatMap(r => {
       const slots = r.photo_slots && typeof r.photo_slots === 'object' ? r.photo_slots : {};
-      return Object.values(slots).filter(Boolean);
+      return flattenSlotPhotos(slots);
     });
     const allPhotos = [...new Set([...photos, ...slotPhotos])];
     return { ...g, photos: allPhotos };

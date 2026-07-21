@@ -61,7 +61,7 @@ async function loadImage(url) {
 async function addPhotoGrid(doc, title, photos, x, y) {
   doc.font('Helvetica-Bold').fontSize(9).fillColor(COLORS.ink).text(title, x, y);
   y += 14;
-  const shown = (photos || []).slice(0, 4);
+  const shown = (photos || []).slice(0, 8);
   if (!shown.length) {
     doc.roundedRect(x, y, 240, 58, 6).strokeColor(COLORS.border).stroke();
     doc.font('Helvetica').fontSize(8).fillColor(COLORS.muted).text('No photos recorded', x + 10, y + 22, { width: 220, align: 'center' });
@@ -84,7 +84,7 @@ async function addPhotoGrid(doc, title, photos, x, y) {
     }
     doc.font('Helvetica').fontSize(6.5).fillColor(COLORS.muted).text(label(shown[i].slot || shown[i].record_type), px + 5, py + 58, { width: 102, align: 'center' });
   }
-  return y + 188;
+  return y + (Math.ceil(shown.length / 2) * 92) + 4;
 }
 
 function tableHeader(doc, columns, y) {
@@ -155,7 +155,7 @@ export async function generateFinalRentalPacketPdf({ packet, stream }) {
   fuelY = addRow(doc, 'Return photos', String(packet.return?.photos?.length || 0), 314, fuelY, 220);
 
   y = Math.max(y + 10, fuelY + 10);
-  const photoY = ensureSpace(doc, y, 220);
+  const photoY = ensureSpace(doc, y, 420);
   await addPhotoGrid(doc, 'Pickup Photos', packet.pickup?.photos, 50, photoY);
   y = await addPhotoGrid(doc, 'Return Photos', packet.return?.photos, 322, photoY);
 

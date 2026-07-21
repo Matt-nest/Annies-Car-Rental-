@@ -9,6 +9,9 @@ import { getFinalRentalPacket, isFinalRentalPacketAvailable } from '../services/
 import { generateFinalRentalPacketPdf } from '../utils/finalRentalPacketPdfGenerator.js';
 
 const router = Router();
+const REQUIRED_CONDITION_SLOTS = ['front', 'driver_side', 'passenger_side', 'rear'];
+const CONDITION_PHOTO_SLOT_ORDER = [...REQUIRED_CONDITION_SLOTS, 'dashboard', 'interior_front', 'interior_rear', 'damage'];
+const MAX_CONDITION_PHOTOS = 8;
 
 // Rate limit portal verification: 5 attempts per 15 minutes per IP
 const portalRateLimit = rateLimit({
@@ -271,11 +274,10 @@ router.post('/checkin', requirePortalAuth, async (req, res) => {
     }
 
     // Require 4 named photo slots
-    const REQUIRED_SLOTS = ['front', 'driver_side', 'passenger_side', 'rear'];
     if (!photoSlots || typeof photoSlots !== 'object') {
       return res.status(400).json({ error: 'Photo slots are required (front, driver_side, passenger_side, rear)' });
     }
-    const missingSlots = REQUIRED_SLOTS.filter(s => !photoSlots[s]);
+    const missingSlots = REQUIRED_CONDITION_SLOTS.filter(s => !photoSlots[s]);
     if (missingSlots.length > 0) {
       return res.status(400).json({ error: `Missing required photos: ${missingSlots.join(', ')}` });
     }
@@ -286,6 +288,9 @@ router.post('/checkin', requirePortalAuth, async (req, res) => {
     // @security-auditor — booking-ID-matches-JWT check
     const expectedFolder = `booking-${bookingId}`;
     const allSlotValues = Object.values(photoSlots).flat().filter(Boolean);
+    if (allSlotValues.length > MAX_CONDITION_PHOTOS) {
+      return res.status(400).json({ error: `Maximum ${MAX_CONDITION_PHOTOS} vehicle photos allowed` });
+    }
     for (const pathOrUrl of allSlotValues) {
       if (typeof pathOrUrl === 'string' && !pathOrUrl.includes(expectedFolder)) {
         return res.status(403).json({
@@ -294,17 +299,10 @@ router.post('/checkin', requirePortalAuth, async (req, res) => {
       }
     }
 
-    // Flatten all slot paths into a flat array for photo_urls column
-    const flatPhotoUrls = [];
-    for (const slot of [...REQUIRED_SLOTS, 'dashboard']) {
-      if (photoSlots[slot]) flatPhotoUrls.push(photoSlots[slot]);
-    }
-    // Damage slot can be an array
-    if (Array.isArray(photoSlots.damage)) {
-      flatPhotoUrls.push(...photoSlots.damage);
-    } else if (photoSlots.damage) {
-      flatPhotoUrls.push(photoSlots.damage);
-    }
+    const flatPhotoUrls = CONDITION_PHOTO_SLOT_ORDER.flatMap((slot) => {
+      const value = photoSlots[slot];
+      return Array.isArray(value) ? value : (value ? [value] : []);
+    }).slice(0, MAX_CONDITION_PHOTOS);
 
     // ── Save customer check-in record ──────────────────────────────
     await supabase.from('checkin_records').insert({
@@ -399,11 +397,10 @@ router.post('/checkout', requirePortalAuth, async (req, res) => {
       return res.status(400).json({ error: 'Odometer reading is required and must be a positive number' });
     }
 
-    const REQUIRED_SLOTS = ['front', 'driver_side', 'passenger_side', 'rear'];
     if (!photoSlots || typeof photoSlots !== 'object') {
       return res.status(400).json({ error: 'Photo slots are required (front, driver_side, passenger_side, rear)' });
     }
-    const missingSlots = REQUIRED_SLOTS.filter(s => !photoSlots[s]);
+    const missingSlots = REQUIRED_CONDITION_SLOTS.filter(s => !photoSlots[s]);
     if (missingSlots.length > 0) {
       return res.status(400).json({ error: `Missing required return photos: ${missingSlots.join(', ')}` });
     }
@@ -411,6 +408,9 @@ router.post('/checkout', requirePortalAuth, async (req, res) => {
     // ── Security: Verify uploaded photo paths belong to this booking's folder ──
     const expectedFolder = `booking-${bookingId}`;
     const allSlotValues = Object.values(photoSlots).flat().filter(Boolean);
+    if (allSlotValues.length > MAX_CONDITION_PHOTOS) {
+      return res.status(400).json({ error: `Maximum ${MAX_CONDITION_PHOTOS} return photos allowed` });
+    }
     for (const pathOrUrl of allSlotValues) {
       if (typeof pathOrUrl === 'string' && !pathOrUrl.includes(expectedFolder)) {
         return res.status(403).json({
@@ -419,16 +419,10 @@ router.post('/checkout', requirePortalAuth, async (req, res) => {
       }
     }
 
-    // Flatten slot URLs into a flat array for backward-compat photo_urls column
-    const flatPhotoUrls = [];
-    for (const slot of [...REQUIRED_SLOTS, 'dashboard']) {
-      if (photoSlots[slot]) flatPhotoUrls.push(photoSlots[slot]);
-    }
-    if (Array.isArray(photoSlots.damage)) {
-      flatPhotoUrls.push(...photoSlots.damage);
-    } else if (photoSlots.damage) {
-      flatPhotoUrls.push(photoSlots.damage);
-    }
+    const flatPhotoUrls = CONDITION_PHOTO_SLOT_ORDER.flatMap((slot) => {
+      const value = photoSlots[slot];
+      return Array.isArray(value) ? value : (value ? [value] : []);
+    }).slice(0, MAX_CONDITION_PHOTOS);
 
     await supabase.from('checkin_records').insert({
       booking_id: bookingId,

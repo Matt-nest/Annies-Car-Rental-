@@ -12,6 +12,7 @@ const router = Router();
 // ── Multer config ────────────────────────────────────────────────────────────
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
 const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
+const MAX_CHECKIN_PHOTOS = 8;
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -151,6 +152,36 @@ router.post('/vehicle-image', requireAuth, upload.single('file'), asyncHandler(a
 }));
 
 // ══════════════════════════════════════════════════════════════════════════════
+// POST /uploads/checkin-photos/admin
+// Admin only (JWT auth) — rental condition evidence for admin prep/check-out
+// Stores in private 'checkin-photos' bucket, organized by booking ID.
+// ══════════════════════════════════════════════════════════════════════════════
+router.post(
+  '/checkin-photos/admin',
+  requireAuth,
+  upload.array('photos', MAX_CHECKIN_PHOTOS),
+  asyncHandler(async (req, res) => {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'No files uploaded. Field name must be "photos".' });
+    }
+
+    const bookingId = req.body?.bookingId;
+    if (!bookingId || typeof bookingId !== 'string') {
+      return res.status(400).json({ error: 'bookingId is required.' });
+    }
+
+    const folder = `booking-${bookingId}`;
+    const results = [];
+    for (const file of req.files.slice(0, MAX_CHECKIN_PHOTOS)) {
+      const result = await uploadToStorage('checkin-photos', file, folder);
+      results.push(result);
+    }
+
+    res.json({ photos: results });
+  })
+);
+
+// ══════════════════════════════════════════════════════════════════════════════
 // GET /uploads/signed-url?bucket=id-photos&path=ids/abc.jpg
 // Admin only — generates a fresh signed URL for a private storage path
 // ══════════════════════════════════════════════════════════════════════════════
@@ -178,7 +209,7 @@ router.get('/signed-url', requireAuth, asyncHandler(async (req, res) => {
 router.post(
   '/checkin-photos',
   requirePortalAuth,
-  upload.array('photos', 10), // up to 10 photos
+  upload.array('photos', MAX_CHECKIN_PHOTOS),
   asyncHandler(async (req, res) => {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ error: 'No files uploaded. Field name must be "photos".' });

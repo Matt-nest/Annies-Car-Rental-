@@ -1,7 +1,7 @@
 /**
  * SlotPhotoUploader - Structured photo upload for vehicle check-in.
  * Each slot (front, driver_side, passenger_side, rear) is required.
- * Dashboard and damage are optional.
+ * Customers can upload up to 8 total condition photos across all slots.
  *
  * Uses VehicleSlotIcons for illustrated placeholders with gold accent.
  * Separate from PhotoUploader.tsx - different UX pattern (slot-based vs list).
@@ -29,11 +29,14 @@ const SLOTS: SlotConfig[] = [
   { key: 'driver_side', label: 'Driver Side', shortLabel: 'Driver', required: true, hint: 'Full left profile' },
   { key: 'passenger_side', label: 'Passenger Side', shortLabel: 'Passenger', required: true, hint: 'Full right profile' },
   { key: 'rear', label: 'Rear', shortLabel: 'Rear', required: true, hint: 'Full rear view' },
-  { key: 'dashboard', label: 'Dashboard', shortLabel: 'Dash', required: false, hint: 'Odometer / dashboard (optional)' },
-  { key: 'damage', label: 'Existing Damage', shortLabel: 'Damage', required: false, hint: 'Photo any damage you see (optional)', multi: true },
+  { key: 'dashboard', label: 'Dashboard', shortLabel: 'Dash', required: false, hint: 'Odometer / dashboard' },
+  { key: 'interior_front', label: 'Front Interior', shortLabel: 'Front Int.', required: false, hint: 'Front seats and controls' },
+  { key: 'interior_rear', label: 'Rear Interior', shortLabel: 'Rear Int.', required: false, hint: 'Rear seats and floor' },
+  { key: 'damage', label: 'Existing Damage', shortLabel: 'Damage', required: false, hint: 'Photo any damage you see', multi: true },
 ];
 
 const REQUIRED_SLOTS = SLOTS.filter(s => s.required).map(s => s.key);
+const MAX_CONDITION_PHOTOS = 8;
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -58,6 +61,14 @@ export default function SlotPhotoUploader({ token, onSlotsChange }: SlotPhotoUpl
 
   const filledCount = REQUIRED_SLOTS.filter(k => slots[k]).length;
   const allFilled = filledCount === REQUIRED_SLOTS.length;
+  const photoCount = countSlotPhotos(slots);
+
+  function countSlotPhotos(source: Record<string, string | string[]>) {
+    return Object.values(source).reduce((total, value) => {
+      if (Array.isArray(value)) return total + value.filter(Boolean).length;
+      return total + (value ? 1 : 0);
+    }, 0);
+  }
 
   const handleUpload = async (slotKey: string, files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -65,10 +76,19 @@ export default function SlotPhotoUploader({ token, onSlotsChange }: SlotPhotoUpl
     setUploadError('');
 
     try {
+      const slotDef = SLOTS.find(s => s.key === slotKey);
+      const existingSlotCount = Array.isArray(slots[slotKey])
+        ? (slots[slotKey] as string[]).filter(Boolean).length
+        : (slots[slotKey] ? 1 : 0);
+      const remaining = MAX_CONDITION_PHOTOS - photoCount + (slotDef?.multi ? 0 : existingSlotCount);
+      if (remaining <= 0) {
+        throw new Error(`Maximum ${MAX_CONDITION_PHOTOS} photos allowed`);
+      }
+
       const formData = new FormData();
       // Compress each file to stay under Vercel's 4.5MB body-size limit
       const compressedFiles = await Promise.all(
-        Array.from(files).map(f => compressImage(f))
+        Array.from(files).slice(0, slotDef?.multi ? remaining : 1).map(f => compressImage(f))
       );
       compressedFiles.forEach(f => formData.append('photos', f));
 
@@ -91,7 +111,6 @@ export default function SlotPhotoUploader({ token, onSlotsChange }: SlotPhotoUpl
 
       if (photosData.length === 0) throw new Error('No files uploaded');
 
-      const slotDef = SLOTS.find(s => s.key === slotKey);
       const updated = { ...slots };
 
       if (slotDef?.multi) {
@@ -151,7 +170,7 @@ export default function SlotPhotoUploader({ token, onSlotsChange }: SlotPhotoUpl
             border: `1px solid ${allFilled ? 'rgba(34,197,94,0.3)' : 'var(--border-subtle)'}`,
           }}
         >
-          {filledCount}/{REQUIRED_SLOTS.length} required
+          {filledCount}/{REQUIRED_SLOTS.length} required · {photoCount}/{MAX_CONDITION_PHOTOS}
         </div>
       </div>
 

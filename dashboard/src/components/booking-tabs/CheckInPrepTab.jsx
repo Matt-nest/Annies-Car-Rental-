@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { api } from '../../api/client';
+import { uploadAdminCheckinPhotos } from '../../api/checkinPhotoApi';
 import { useAlerts } from '../../lib/alertsContext';
 import { compressImage } from '../../lib/compressImage';
 import { Camera, X, Loader2, ImagePlus, CheckCircle, Key, AlertCircle, Fuel, Gauge, ChevronLeft, ChevronRight, ClipboardCheck, ShieldAlert } from 'lucide-react';
@@ -86,22 +87,37 @@ function StepperHeader({ step, steps }) {
 }
 
 /* ── Inline Photo Uploader (Admin — uses admin auth) ─────────────── */
-function AdminPhotoUploader({ bookingId, photos, setPhotos }) {
+const MAX_CONDITION_PHOTOS = 8;
+
+function AdminPhotoUploader({ bookingId, photos, setPhotos, photoPreviews, setPhotoPreviews }) {
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
   const fileRef = useRef(null);
 
   const handleFiles = async (files) => {
     if (!files?.length) return;
+    const remaining = MAX_CONDITION_PHOTOS - photos.length;
+    if (remaining <= 0) {
+      setUploadError(`Maximum ${MAX_CONDITION_PHOTOS} photos allowed`);
+      return;
+    }
     setUploading(true);
+    setUploadError('');
     try {
-      for (const file of Array.from(files).slice(0, 10 - photos.length)) {
-        // Compress to stay under Vercel's 4.5MB body-size limit
-        const compressed = await compressImage(file);
-        const result = await api.uploadVehicleImage(compressed);
-        setPhotos(prev => [...prev, result.url]);
-      }
+      const compressed = await Promise.all(
+        Array.from(files).slice(0, remaining).map(file => compressImage(file))
+      );
+      const uploaded = await uploadAdminCheckinPhotos(bookingId, compressed);
+      const paths = uploaded.map(photo => photo.path).filter(Boolean);
+      const previews = uploaded.reduce((acc, photo) => {
+        if (photo.path && photo.url) acc[photo.path] = photo.url;
+        return acc;
+      }, {});
+      setPhotoPreviews(prev => ({ ...prev, ...previews }));
+      setPhotos(prev => [...prev, ...paths].slice(0, MAX_CONDITION_PHOTOS));
     } catch (e) {
       console.error('Photo upload failed:', e);
+      setUploadError(e.message || 'Photo upload failed');
     }
     setUploading(false);
     if (fileRef.current) fileRef.current.value = '';
@@ -111,27 +127,42 @@ function AdminPhotoUploader({ bookingId, photos, setPhotos }) {
     <div className="space-y-2">
       <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] flex items-center gap-1.5">
         <Camera size={13} /> Vehicle Photos
-        <span className="ml-auto tabular-nums">{photos.length}/10</span>
+        <span className="ml-auto tabular-nums">{photos.length}/{MAX_CONDITION_PHOTOS}</span>
       </label>
 
       {photos.length > 0 && (
         <div className="grid grid-cols-4 gap-2">
-          {photos.map((url, i) => (
-            <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-[var(--border-subtle)] group">
-              <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
-              <button
-                type="button"
-                onClick={() => setPhotos(prev => prev.filter((_, j) => j !== i))}
-                className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <X size={10} />
-              </button>
-            </div>
-          ))}
+          {photos.map((url, i) => {
+            const displayUrl = photoPreviews[url] || (/^(https?:|data:)/i.test(url) ? url : '');
+            return (
+              <div key={`${url}-${i}`} className="relative aspect-square rounded-lg overflow-hidden border border-[var(--border-subtle)] group">
+                {displayUrl ? (
+                  <img src={displayUrl} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-[var(--bg-card-hover)] px-2 text-center text-[10px] text-[var(--text-tertiary)]">
+                    Stored
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setPhotos(prev => prev.filter((_, j) => j !== i))}
+                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X size={10} />
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {photos.length < 10 && (
+      {uploadError && (
+        <p className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-500">
+          {uploadError}
+        </p>
+      )}
+
+      {photos.length < MAX_CONDITION_PHOTOS && (
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
@@ -169,6 +200,7 @@ export default function CheckInPrepTab({ booking, onReload, sheetMode = false })
   const [fuelLevel, setFuelLevel] = useState('full');
   const [notes, setNotes] = useState('');
   const [photos, setPhotos] = useState([]);
+  const [photoPreviews, setPhotoPreviews] = useState({});
   const [showNotes, setShowNotes] = useState(false);
   const [skipPhotosReason, setSkipPhotosReason] = useState('');
   const [step, setStep] = useState(0);
@@ -209,6 +241,7 @@ export default function CheckInPrepTab({ booking, onReload, sheetMode = false })
     title: 'Vehicle Ready for Pickup',
     body: `${vehicleName} has been checked in and the customer has been notified.`,
   };
+  const resolvePhotoUrl = (url) => photoPreviews[url] || (/^(https?:|data:)/i.test(url) ? url : '');
 
   // Load existing check-in data if already prepped
   useEffect(() => {
@@ -328,9 +361,12 @@ export default function CheckInPrepTab({ booking, onReload, sheetMode = false })
             <div>
               <p className="text-xs text-[var(--text-tertiary)] mb-2">Photos ({photos.length})</p>
               <div className="grid grid-cols-4 gap-2">
-                {photos.map((url, i) => (
-                  <img key={i} src={url} alt={`Photo ${i + 1}`} className="aspect-square rounded-lg object-cover border border-[var(--border-subtle)]" />
-                ))}
+                {photos.map((url, i) => {
+                  const displayUrl = resolvePhotoUrl(url);
+                  return displayUrl ? (
+                    <img key={`${url}-${i}`} src={displayUrl} alt={`Photo ${i + 1}`} className="aspect-square rounded-lg object-cover border border-[var(--border-subtle)]" />
+                  ) : null;
+                })}
               </div>
             </div>
           )}
@@ -469,7 +505,13 @@ export default function CheckInPrepTab({ booking, onReload, sheetMode = false })
 
       {step === 1 && (
         <div className="space-y-4">
-          <AdminPhotoUploader bookingId={booking.id} photos={photos} setPhotos={setPhotos} />
+          <AdminPhotoUploader
+            bookingId={booking.id}
+            photos={photos}
+            setPhotos={setPhotos}
+            photoPreviews={photoPreviews}
+            setPhotoPreviews={setPhotoPreviews}
+          />
 
           <div className={`rounded-2xl border p-3 ${
             needsPhotoOverride

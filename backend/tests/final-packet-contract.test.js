@@ -50,6 +50,9 @@ test('final packet service includes settlement evidence and decline detail', () 
   assert.match(service, /refund_status/);
   assert.match(service, /review_request_status/);
   assert.match(service, /no_collected_deposit/);
+  assert.match(service, /CONDITION_PHOTO_SLOT_ORDER/);
+  assert.match(service, /MAX_CONDITION_PHOTOS = 8/);
+  assert.match(service, /return entries\.slice\(0, MAX_CONDITION_PHOTOS\)/);
 });
 
 test('dashboard and customer portal expose final packet views', () => {
@@ -64,9 +67,26 @@ test('dashboard and customer portal expose final packet views', () => {
   assert.match(bookingDetail, /Final Packet/);
   assert.match(tab, /Pickup Photos/);
   assert.match(tab, /Return Photos/);
+  assert.match(tab, /photos\.slice\(0, 8\)/);
   assert.match(tab, /Payments, Declines, Refunds/);
   assert.match(portal, /FinalPacketSummary/);
   assert.match(portal, /portal\/final-packet\/pdf/);
+});
+
+test('condition photo upload contract supports exactly eight evidence photos', () => {
+  const portalRoute = source('backend/routes/portal.js');
+  const uploader = source('src/components/portal/SlotPhotoUploader.tsx');
+  const bookingDetail = source('dashboard/src/pages/BookingDetailPage.jsx');
+
+  assert.match(portalRoute, /MAX_CONDITION_PHOTOS = 8/);
+  assert.match(portalRoute, /CONDITION_PHOTO_SLOT_ORDER/);
+  assert.match(portalRoute, /interior_front/);
+  assert.match(portalRoute, /interior_rear/);
+  assert.match(portalRoute, /Maximum \$\{MAX_CONDITION_PHOTOS\}/);
+  assert.match(uploader, /MAX_CONDITION_PHOTOS = 8/);
+  assert.match(uploader, /interior_front/);
+  assert.match(uploader, /interior_rear/);
+  assert.match(bookingDetail, /flattenSlotPhotos/);
 });
 
 test('final packet PDF appends the signed rental agreement renderer', () => {
@@ -76,4 +96,5 @@ test('final packet PDF appends the signed rental agreement renderer', () => {
   assert.match(agreementPdf, /export function addRentalAgreementPdfPages/);
   assert.match(packetPdf, /addRentalAgreementPdfPages/);
   assert.match(packetPdf, /Signed Rental Agreement Appendix/);
+  assert.match(packetPdf, /photos \|\| \[\]\)\.slice\(0, 8\)/);
 });

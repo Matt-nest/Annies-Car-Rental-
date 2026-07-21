@@ -8,7 +8,7 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 const router = Router();
 
 const READY_OR_LATER_STATUSES = new Set(['ready_for_pickup', 'active', 'returned', 'completed']);
-const CHECKIN_MARK_READY_STATUSES = new Set(['confirmed', ...READY_OR_LATER_STATUSES]);
+const CHECKIN_MARK_READY_STATUSES = new Set(['approved', 'confirmed', ...READY_OR_LATER_STATUSES]);
 const CHECKOUT_RECORDABLE_STATUSES = new Set(['active', 'returned', 'completed']);
 
 function requestError(message, status = 400) {
@@ -65,6 +65,25 @@ async function updateBookingConditionFields(bookingId, updates) {
   if (error) throw error;
 }
 
+function hasCompletedRentalPayment(booking) {
+  const payments = Array.isArray(booking?.payments) ? booking.payments : [];
+  return payments.some((payment) =>
+    payment.payment_type === 'rental' &&
+    ['completed', 'paid', 'succeeded'].includes(payment.status)
+  );
+}
+
+function hasFullySignedAgreement(booking) {
+  const agreement = Array.isArray(booking?.rental_agreements)
+    ? booking.rental_agreements[0]
+    : booking?.rental_agreements;
+  return Boolean(agreement?.customer_signed_at && agreement?.owner_signed_at);
+}
+
+function canPromoteApprovedToReady(booking) {
+  return booking?.status === 'approved' && hasCompletedRentalPayment(booking) && hasFullySignedAgreement(booking);
+}
+
 /**
  * POST /bookings/:id/checkin — Admin records vehicle check-in AND marks ready (ATOMIC)
  * Body: { odometer, fuelLevel, conditionNotes, photoUrls, markReady? }
@@ -79,6 +98,9 @@ router.post('/bookings/:id/checkin', requireAuth, asyncHandler(async (req, res) 
 
   if (markReady && !CHECKIN_MARK_READY_STATUSES.has(booking.status)) {
     throw requestError(`Cannot mark ready while booking is '${booking.status}'. Confirm the agreement and payment first.`);
+  }
+  if (markReady && booking.status === 'approved' && !canPromoteApprovedToReady(booking)) {
+    throw requestError('Cannot mark ready until rental payment is completed and the rental agreement is fully signed.');
   }
 
   // 1. Save or refresh the admin prep record. Re-clicks should update the
@@ -110,6 +132,12 @@ router.post('/bookings/:id/checkin', requireAuth, asyncHandler(async (req, res) 
       idempotent = true;
       transitionResult = await getBookingDetail(req.params.id);
     } else {
+      if (booking.status === 'approved') {
+        await transitionBooking(req.params.id, 'confirmed', {
+          changedBy: req.user?.email || 'admin',
+          reason: 'Payment and agreement complete — booking confirmed before pickup prep',
+        });
+      }
       transitionResult = await transitionBooking(req.params.id, 'ready_for_pickup', {
         changedBy: req.user?.email || 'admin',
         reason: 'Vehicle prepared and marked ready for pickup',
