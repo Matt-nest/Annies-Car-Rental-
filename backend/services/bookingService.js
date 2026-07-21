@@ -11,6 +11,7 @@ import { cancelPolicy as cancelBonzahPolicy } from './bonzahService.js';
 import { getVehicleDepositAmount } from './depositService.js';
 import { generateInvoice } from './invoiceService.js';
 import { updateBookingWithSchemaFallback } from '../utils/schemaFallback.js';
+import { withDedupedBookingPayments } from './paymentLedgerService.js';
 
 // Valid one-way status transitions
 const TRANSITIONS = {
@@ -68,7 +69,7 @@ export async function getBookingDetail(bookingId) {
     .single();
 
   if (error) throw error;
-  return data;
+  return withDedupedBookingPayments(data);
 }
 
 /** Create a new booking from a public submission */

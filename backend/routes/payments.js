@@ -8,6 +8,7 @@ import { refundSquarePayment, getSquareRemainingRefundableDollars } from '../ser
 import { safeRecordMoneyAction } from '../services/moneyActionAuditService.js';
 import { transitionBooking } from '../services/bookingService.js';
 import { getPaymentMethodLabel, normalizeDashboardPaymentMethod } from '../utils/paymentMethods.js';
+import { dedupePaymentLedgerRows } from '../services/paymentLedgerService.js';
 
 const router = Router();
 
@@ -64,7 +65,8 @@ router.get('/payments', requireAuth, asyncHandler(async (req, res) => {
 
   const { data, error, count } = await query;
   if (error) throw error;
-  res.json({ data, total: count, limit, offset });
+  const deduped = dedupePaymentLedgerRows(data || []);
+  res.json({ data: deduped, total: count ?? deduped.length, limit, offset });
 }));
 
 /** GET /bookings/:bookingId/payments */
@@ -76,7 +78,7 @@ router.get('/bookings/:bookingId/payments', requireAuth, asyncHandler(async (req
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  res.json(data);
+  res.json(dedupePaymentLedgerRows(data || []));
 }));
 
 /** POST /bookings/:bookingId/payments */

@@ -1,6 +1,7 @@
 import { supabase } from '../db/supabase.js';
 import { getBookingDetail } from './bookingService.js';
 import { generateInvoice } from './invoiceService.js';
+import { dedupePaymentLedgerRows } from './paymentLedgerService.js';
 
 const FINAL_PACKET_STATUSES = new Set(['returned', 'completed']);
 const PICKUP_RECORD_TYPES = new Set(['admin_prep', 'admin_handoff', 'admin_checkin', 'customer_checkin']);
@@ -207,9 +208,10 @@ export async function getFinalRentalPacket(bookingId, { includeAgreementSource =
   const pickupPublic = pickupRecords.map(publicRecord);
   const returnPublic = returnRecords.map(publicRecord);
   const activeIncidentals = (incidentals || []).filter((row) => !row.waived);
-  const completedPayments = (payments || []).filter(isCompletedPayment).map(publicPayment);
-  const declines = (payments || []).filter(isDeclinedPayment).map(publicPayment);
-  const refunds = (payments || []).filter(isRefund).map(publicPayment);
+  const dedupedPayments = dedupePaymentLedgerRows(payments || []);
+  const completedPayments = dedupedPayments.filter(isCompletedPayment).map(publicPayment);
+  const declines = dedupedPayments.filter(isDeclinedPayment).map(publicPayment);
+  const refunds = dedupedPayments.filter(isRefund).map(publicPayment);
   const pickupOdometer = Number(latestValue(pickupRecords, 'odometer') || booking.pickup_mileage || booking.checkin_odometer || 0) || null;
   const returnOdometer = Number(latestValue(returnRecords, 'odometer') || booking.return_mileage || booking.checkout_odometer || 0) || null;
   const milesDriven = pickupOdometer != null && returnOdometer != null && returnOdometer >= pickupOdometer

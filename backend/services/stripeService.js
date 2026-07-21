@@ -99,13 +99,23 @@ async function resolveStripeCustomerForBooking(booking) {
 }
 
 async function insertPaymentIfMissing(row) {
-  const { data: existing } = await supabase
+  let existingQuery = supabase
     .from('payments')
     .select('id')
     .eq('reference_id', row.reference_id)
     .eq('payment_type', row.payment_type)
-    .maybeSingle();
-  if (existing) return { inserted: false };
+    .eq('status', row.status)
+    .eq('amount', row.amount)
+    .order('created_at', { ascending: true })
+    .limit(1);
+
+  if (row.booking_id) existingQuery = existingQuery.eq('booking_id', row.booking_id);
+  if (row.method) existingQuery = existingQuery.eq('method', row.method);
+
+  const { data: existing, error: existingError } = await existingQuery;
+  if (existingError) throw existingError;
+  if (Array.isArray(existing) && existing.length > 0) return { inserted: false, id: existing[0].id };
+
   const { error } = await supabase.from('payments').insert(row);
   if (error) throw error;
   return { inserted: true };

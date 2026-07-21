@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { supabase } from '../db/supabase.js';
 import { requireAuth } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
+import { dedupePaymentLedgerRows } from '../services/paymentLedgerService.js';
 
 const router = Router();
 
@@ -37,7 +38,7 @@ router.get('/overview', requireAuth, asyncHandler(async (req, res) => {
     supabase.from('bookings').select('id, booking_code, return_time, customers(first_name, last_name), vehicles(year, make, model)')
       .eq('return_date', todayStr).eq('status', 'active'),
     // Revenue from CONFIRMED payments only (not booking estimates)
-    supabase.from('payments').select('amount, payment_type')
+    supabase.from('payments').select('id, amount, payment_type, method, reference_id, status, booking_id, created_at')
       .gte('created_at', `${startOfMonth}T00:00:00`)
       .eq('status', 'completed')
       .in('payment_type', ['rental', 'refund']),
@@ -56,7 +57,8 @@ router.get('/overview', requireAuth, asyncHandler(async (req, res) => {
   ]);
 
   // Net revenue = rental payments minus refunds (deposits excluded)
-  const revenueThisMonth = (confirmedPayments || []).reduce((s, p) => s + parseFloat(p.amount), 0);
+  const dedupedConfirmedPayments = dedupePaymentLedgerRows(confirmedPayments || []);
+  const revenueThisMonth = dedupedConfirmedPayments.reduce((s, p) => s + parseFloat(p.amount), 0);
   const avgRatingVal = avgRating?.length
     ? (avgRating.reduce((s, r) => s + r.rating, 0) / avgRating.length).toFixed(1)
     : null;
@@ -104,15 +106,16 @@ router.get('/revenue', requireAuth, asyncHandler(async (req, res) => {
   // Fetch confirmed payments joined with their booking + vehicle data
   let query = supabase
     .from('payments')
-    .select('amount, payment_type, method, reference_id, created_at, paid_at, booking_id, bookings(booking_code, pickup_date, total_cost, tax_amount, source, vehicle_id, rate_type, rental_days, daily_rate, subtotal, weekly_discount_applied, vehicles(year, make, model, category))')
+    .select('id, amount, payment_type, method, reference_id, status, created_at, paid_at, booking_id, bookings(booking_code, pickup_date, total_cost, tax_amount, source, vehicle_id, rate_type, rental_days, daily_rate, subtotal, weekly_discount_applied, vehicles(year, make, model, category))')
     .eq('status', 'completed')
     .in('payment_type', ['rental', 'refund']);
 
   if (from) query = query.gte('created_at', `${from}T00:00:00`);
   if (to)   query = query.lte('created_at', `${to}T23:59:59`);
 
-  const { data: payments, error } = await query.order('created_at', { ascending: false });
+  const { data: rawPayments, error } = await query.order('created_at', { ascending: false });
   if (error) throw error;
+  const payments = dedupePaymentLedgerRows(rawPayments || []);
 
   // Group by month (using the booking's pickup_date for consistency)
   const byMonth = {};
@@ -266,7 +269,7 @@ router.get('/vehicles', requireAuth, asyncHandler(async (req, res) => {
     // Get confirmed payments for this vehicle's bookings (actual revenue)
     const { data: vehiclePayments } = await supabase
       .from('payments')
-      .select('amount, booking_id, bookings!inner(vehicle_id)')
+      .select('id, amount, payment_type, method, reference_id, status, booking_id, created_at, bookings!inner(vehicle_id)')
       .eq('bookings.vehicle_id', v.id)
       .eq('status', 'completed')
       .in('payment_type', ['rental', 'refund'])
@@ -278,7 +281,7 @@ router.get('/vehicles', requireAuth, asyncHandler(async (req, res) => {
       totalDays += days;
     }
 
-    const totalRevenue = (vehiclePayments || []).reduce((s, p) => s + parseFloat(p.amount), 0);
+    const totalRevenue = dedupePaymentLedgerRows(vehiclePayments || []).reduce((s, p) => s + parseFloat(p.amount), 0);
     const utilizationRate = ((totalDays / 90) * 100).toFixed(1);
     return { ...v, rentals_last_90d: (bookings || []).length, days_rented_90d: totalDays, revenue_90d: totalRevenue.toFixed(2), utilization_rate: utilizationRate };
   }));

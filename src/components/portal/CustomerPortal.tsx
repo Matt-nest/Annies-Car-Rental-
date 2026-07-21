@@ -47,6 +47,30 @@ const fmtTime = (t: string) => {
 };
 const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
+function paymentDedupeKey(payment: any) {
+  const referenceId = String(payment?.reference_id || '').trim().toLowerCase();
+  if (!referenceId) return null;
+  return [
+    String(payment?.booking_id || '').trim().toLowerCase(),
+    String(payment?.payment_type || '').trim().toLowerCase(),
+    String(payment?.method || '').trim().toLowerCase(),
+    referenceId,
+    String(payment?.status || '').trim().toLowerCase(),
+    Number(payment?.amount || 0).toFixed(2),
+  ].join('|');
+}
+
+function dedupePaymentLedgerRows(payments: any[] = []) {
+  const seen = new Set<string>();
+  return payments.filter((payment) => {
+    const key = paymentDedupeKey(payment);
+    if (!key) return true;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function formatBrandFullLocation() {
   const loc = brand.location;
   const street = loc.address && loc.address !== loc.city ? loc.address : null;
@@ -2662,9 +2686,10 @@ export default function CustomerPortal() {
           {/* ── Itemized Receipt (collapsed) ──────────────────── */}
           {(() => {
             const fmtMoney = (n: any) => `$${Number(n || 0).toFixed(2)}`;
-            const rentalPayment = (booking.payments || []).find((p: any) => p.payment_type === 'rental' && p.status === 'completed');
-            const depositPayment = (booking.payments || []).find((p: any) => p.payment_type === 'deposit' && p.status === 'completed');
-            const totalPaid = (booking.payments || [])
+            const paymentRows = dedupePaymentLedgerRows(booking.payments || []);
+            const rentalPayment = paymentRows.find((p: any) => p.payment_type === 'rental' && p.status === 'completed');
+            const depositPayment = paymentRows.find((p: any) => p.payment_type === 'deposit' && p.status === 'completed');
+            const totalPaid = paymentRows
               .filter((p: any) => p.status === 'completed')
               .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
             const paidAt = rentalPayment?.paid_at || depositPayment?.paid_at;
@@ -2767,11 +2792,11 @@ export default function CustomerPortal() {
                   )}
 
                   {/* Payment ledger */}
-                  {(booking.payments || []).length > 0 && (
+                  {paymentRows.length > 0 && (
                     <div>
                       <p className="text-[10px] uppercase tracking-wider font-bold mb-2" style={{ color: 'var(--text-tertiary)' }}>Payment History</p>
                       <div className="space-y-1.5">
-                        {booking.payments.map((p: any) => (
+                        {paymentRows.map((p: any) => (
                           <div key={p.id} className="flex items-center justify-between text-xs" style={{ color: 'var(--text-secondary)' }}>
                             <span className="capitalize">{p.payment_type} · {p.status}{p.paid_at ? ` · ${fmt(p.paid_at)}` : ''}</span>
                             <span className="font-mono">{fmtMoney(p.amount)}</span>

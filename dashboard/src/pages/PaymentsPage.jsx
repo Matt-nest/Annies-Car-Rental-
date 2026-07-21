@@ -27,6 +27,30 @@ function canRefundPayment(payment) {
   return false;
 }
 
+function paymentDedupeKey(payment) {
+  const referenceId = String(payment?.reference_id || '').trim().toLowerCase();
+  if (!referenceId) return null;
+  return [
+    String(payment?.booking_id || '').trim().toLowerCase(),
+    String(payment?.payment_type || '').trim().toLowerCase(),
+    String(payment?.method || '').trim().toLowerCase(),
+    referenceId,
+    String(payment?.status || '').trim().toLowerCase(),
+    Number(payment?.amount || 0).toFixed(2),
+  ].join('|');
+}
+
+function dedupePaymentLedgerRows(payments = []) {
+  const seen = new Set();
+  return payments.filter((payment) => {
+    const key = paymentDedupeKey(payment);
+    if (!key) return true;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function providerLabel(method) {
   if (method === 'stripe') return 'Stripe';
   if (method === 'square') return 'Square';
@@ -471,7 +495,7 @@ export default function PaymentsPage() {
     setLoading(true);
     try {
       const res = await api.getAllPayments({ limit: 100 });
-      setPayments(res.data || []);
+      setPayments(dedupePaymentLedgerRows(res.data || []));
       await loadMoneyActions();
       setError(null);
     } catch (err) { setError(err.message); }

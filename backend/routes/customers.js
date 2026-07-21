@@ -3,6 +3,7 @@ import { supabase } from '../db/supabase.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { deleteCustomerCompletely, getCustomerDeletionPreview } from '../services/customerService.js';
+import { withDedupedBookingPayments } from '../services/paymentLedgerService.js';
 
 const router = Router();
 
@@ -244,7 +245,7 @@ router.get('/', requireAuth, asyncHandler(async (req, res) => {
 
     for (const b of (allBookings || [])) {
       if (!bookingsByCustomer[b.customer_id]) bookingsByCustomer[b.customer_id] = [];
-      bookingsByCustomer[b.customer_id].push(b);
+      bookingsByCustomer[b.customer_id].push(withDedupedBookingPayments(b));
     }
   }
 
@@ -282,7 +283,7 @@ router.get('/:id', requireAuth, asyncHandler(async (req, res) => {
     .eq('customer_id', req.params.id)
     .order('created_at', { ascending: false });
 
-  res.json({ ...customer, bookings: bookings || [], reviews: reviews || [] });
+  res.json({ ...customer, bookings: (bookings || []).map(withDedupedBookingPayments), reviews: reviews || [] });
 }));
 
 /** GET /customers/:id/bookings */
@@ -294,7 +295,7 @@ router.get('/:id/bookings', requireAuth, asyncHandler(async (req, res) => {
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  res.json(data);
+  res.json((data || []).map(withDedupedBookingPayments));
 }));
 
 /** PUT /customers/:id */
