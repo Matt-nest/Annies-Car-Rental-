@@ -47,6 +47,41 @@ const fmtTime = (t: string) => {
 };
 const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
+function formatBrandFullLocation() {
+  const loc = brand.location;
+  const street = loc.address && loc.address !== loc.city ? loc.address : null;
+  return [street, loc.city, [loc.state, loc.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+}
+
+function normalizeLocation(value: string) {
+  return value.toLowerCase().replace(/\s+/g, ' ').replace(/[.,]/g, '').trim();
+}
+
+function isBrandPartialLocation(value: string) {
+  const loc = brand.location;
+  const normalized = normalizeLocation(value);
+  const city = normalizeLocation(loc.city || '');
+  const cityState = normalizeLocation([loc.city, loc.state].filter(Boolean).join(' '));
+  const street = normalizeLocation(loc.address || '');
+  return normalized === city || normalized === cityState || (!!street && normalized === street);
+}
+
+function getPortalLocation(booking: any, mode: 'pickup' | 'return' = 'pickup') {
+  const raw = mode === 'return'
+    ? booking?.return_location || booking?.pickup_location
+    : booking?.pickup_location || booking?.delivery_address;
+  const value = String(raw || '').trim();
+  return !value || isBrandPartialLocation(value) ? formatBrandFullLocation() : value;
+}
+
+function splitLocationDisplay(value: string) {
+  const parts = value.split(',').map(part => part.trim()).filter(Boolean);
+  return {
+    primary: parts[0] || value,
+    secondary: parts.slice(1).join(', '),
+  };
+}
+
 function isTokenExpired(token: string): boolean {
   try {
     const payload = decodePortalPayload(token);
@@ -319,7 +354,7 @@ function PortalSectionHeader({
       body: status === 'active'
         ? 'Follow the return steps, upload photos, and confirm the key is back in the lockbox.'
         : status === 'ready_for_pickup'
-          ? `Go to ${brand.location.address}, complete check-in, then unlock your code.`
+          ? `Go to ${getPortalLocation(booking)}, complete check-in, then unlock your code.`
           : 'Review pickup, return, and saved trip records.',
       icon: Key,
     },
@@ -1340,6 +1375,11 @@ export default function CustomerPortal() {
   }
 
   const { status, customers: c, vehicles: v } = booking;
+  const pickupLocationText = getPortalLocation(booking, 'pickup');
+  const pickupLocationDisplay = splitLocationDisplay(pickupLocationText);
+  const pickupMapsHref = `https://maps.google.com/?q=${encodeURIComponent(pickupLocationText)}`;
+  const returnLocationText = getPortalLocation(booking, 'return');
+  const returnLocationDisplay = splitLocationDisplay(returnLocationText);
   // Status badge styling moved into StatusHero (Sprint 7b). No longer rendered
   // inline here - the old `statusConfig` map and `sc` local lookup were removed.
 
@@ -1492,7 +1532,7 @@ export default function CustomerPortal() {
               </div>
               <div className="flex items-start gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
                 <MapPin size={14} className="mt-0.5 shrink-0" style={{ color: 'var(--text-tertiary)' }} />
-                <span>{booking.pickup_location}</span>
+                <span>{pickupLocationText}</span>
               </div>
 
               {/* Trimmed 4-step progress bar - only the milestones the customer experiences */}
@@ -1585,13 +1625,15 @@ export default function CustomerPortal() {
                     </h3>
                   </div>
                   <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
-                    {brand.location.address}
+                    {pickupLocationDisplay.primary}
                   </p>
-                  <p className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>
-                    {brand.location.city}, {brand.location.state} {brand.location.zip}
-                  </p>
+                  {pickupLocationDisplay.secondary && (
+                    <p className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>
+                      {pickupLocationDisplay.secondary}
+                    </p>
+                  )}
                   <a
-                    href={`https://maps.google.com/?q=${encodeURIComponent(`${brand.location.address}, ${brand.location.city}, ${brand.location.state} ${brand.location.zip}`)}`}
+                    href={pickupMapsHref}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all hover:scale-105 active:scale-95"
@@ -1609,7 +1651,7 @@ export default function CustomerPortal() {
                   </h4>
                   <div className="space-y-3">
                     {[
-                      { num: '1', text: `Head to ${brand.location.address}, ${brand.location.city}` },
+                      { num: '1', text: `Head to ${pickupLocationText}` },
                       { num: '2', text: `Find your ${v?.year || ''} ${v?.make || ''} ${v?.model || ''} — the lockbox is on the driver-side window` },
                       { num: '3', text: 'Tap Start check-in and follow the guided photo, odometer, and fuel steps' },
                       { num: '4', text: 'Once submitted, your lockbox code will be revealed' },
@@ -1771,12 +1813,14 @@ export default function CustomerPortal() {
                         <Navigation size={19} style={{ color: '#06b6d4' }} />
                         <div>
                           <p className="text-xs font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--text-tertiary)' }}>Pickup location</p>
-                          <p className="mt-1 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{brand.location.address}</p>
-                          <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{brand.location.city}, {brand.location.state} {brand.location.zip}</p>
+                          <p className="mt-1 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{pickupLocationDisplay.primary}</p>
+                          {pickupLocationDisplay.secondary && (
+                            <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{pickupLocationDisplay.secondary}</p>
+                          )}
                         </div>
                       </div>
                       <a
-                        href={`https://maps.google.com/?q=${encodeURIComponent(`${brand.location.address}, ${brand.location.city}, ${brand.location.state} ${brand.location.zip}`)}`}
+                        href={pickupMapsHref}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="mt-4 inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold"
@@ -2044,11 +2088,13 @@ export default function CustomerPortal() {
                             Return location
                           </p>
                           <p className="text-sm font-semibold mt-1" style={{ color: 'var(--text-primary)' }}>
-                            {brand.location.address}
+                            {returnLocationDisplay.primary}
                           </p>
-                          <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                            {brand.location.city}, {brand.location.state} {brand.location.zip}
-                          </p>
+                          {returnLocationDisplay.secondary && (
+                            <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                              {returnLocationDisplay.secondary}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </div>

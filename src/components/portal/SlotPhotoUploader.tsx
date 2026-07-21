@@ -7,7 +7,7 @@
  * Separate from PhotoUploader.tsx - different UX pattern (slot-based vs list).
  */
 import React, { useState, useRef } from 'react';
-import { Camera, X, Loader2, Check, AlertTriangle } from 'lucide-react';
+import { Camera, X, Loader2, Check, AlertTriangle, ChevronLeft, ChevronRight, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { API_URL } from '../../config';
 import { compressImage } from '../../utils/compressImage';
@@ -55,6 +55,7 @@ export default function SlotPhotoUploader({ token, onSlotsChange }: SlotPhotoUpl
   const [slots, setSlots] = useState<Record<string, string | string[]>>({});
   const [uploading, setUploading] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState('');
+  const [currentIndex, setCurrentIndex] = useState(0);
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   // Maps storage paths → signed URLs for immediate preview in this session
   const previewMap = useRef<Record<string, string>>({});
@@ -62,12 +63,33 @@ export default function SlotPhotoUploader({ token, onSlotsChange }: SlotPhotoUpl
   const filledCount = REQUIRED_SLOTS.filter(k => slots[k]).length;
   const allFilled = filledCount === REQUIRED_SLOTS.length;
   const photoCount = countSlotPhotos(slots);
+  const currentSlot = SLOTS[currentIndex] || SLOTS[0];
+  const currentSlotValues = getSlotValues(currentSlot.key);
+  const currentPhotoUrl = currentSlotValues[0]
+    ? (previewMap.current[currentSlotValues[0]] || (currentSlotValues[0].startsWith('http') ? currentSlotValues[0] : undefined))
+    : undefined;
+  const isUploadingCurrent = uploading === currentSlot.key;
+  const currentSlotFilled = currentSlotValues.length > 0;
 
   function countSlotPhotos(source: Record<string, string | string[]>) {
     return Object.values(source).reduce((total, value) => {
       if (Array.isArray(value)) return total + value.filter(Boolean).length;
       return total + (value ? 1 : 0);
     }, 0);
+  }
+
+  function getSlotValues(slotKey: string) {
+    const value = slots[slotKey];
+    if (Array.isArray(value)) return value.filter(Boolean);
+    return value ? [value] : [];
+  }
+
+  function slotIsFilled(slotKey: string) {
+    return getSlotValues(slotKey).length > 0;
+  }
+
+  function moveSlide(delta: number) {
+    setCurrentIndex(index => Math.min(SLOTS.length - 1, Math.max(0, index + delta)));
   }
 
   const handleUpload = async (slotKey: string, files: FileList | null) => {
@@ -131,6 +153,9 @@ export default function SlotPhotoUploader({ token, onSlotsChange }: SlotPhotoUpl
       setSlots(updated);
       const requiredFilled = REQUIRED_SLOTS.every(k => updated[k]);
       onSlotsChange(updated, requiredFilled);
+      const nextRequiredIndex = SLOTS.findIndex((slot, index) => index > currentIndex && slot.required && !updated[slot.key]);
+      if (nextRequiredIndex >= 0) setCurrentIndex(nextRequiredIndex);
+      else if (currentIndex < SLOTS.length - 1) setCurrentIndex(currentIndex + 1);
     } catch (err: any) {
       setUploadError(err.message);
     }
@@ -154,23 +179,27 @@ export default function SlotPhotoUploader({ token, onSlotsChange }: SlotPhotoUpl
 
   return (
     <div className="space-y-4">
-      {/* Progress Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Camera size={18} style={{ color: 'var(--accent-color)' }} />
-          <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-            Vehicle Photos
-          </span>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <Camera size={18} style={{ color: 'var(--accent-color)' }} />
+            <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+              Vehicle photos
+            </span>
+          </div>
+          <p className="mt-0.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+            One photo at a time.
+          </p>
         </div>
         <div
-          className="text-xs font-mono font-semibold px-3 py-1 rounded-full"
+          className="shrink-0 rounded-full px-3 py-1 text-xs font-semibold tabular-nums"
           style={{
             backgroundColor: allFilled ? 'rgba(34,197,94,0.1)' : 'var(--bg-card-hover)',
             color: allFilled ? '#22c55e' : 'var(--text-tertiary)',
             border: `1px solid ${allFilled ? 'rgba(34,197,94,0.3)' : 'var(--border-subtle)'}`,
           }}
         >
-          {filledCount}/{REQUIRED_SLOTS.length} required · {photoCount}/{MAX_CONDITION_PHOTOS}
+          {photoCount}/{MAX_CONDITION_PHOTOS}
         </div>
       </div>
 
@@ -191,139 +220,163 @@ export default function SlotPhotoUploader({ token, onSlotsChange }: SlotPhotoUpl
         )}
       </AnimatePresence>
 
-      {/* Slot Grid */}
-      <div className="grid grid-cols-1 min-[390px]:grid-cols-2 sm:grid-cols-3 gap-3">
-        {SLOTS.map(slot => {
-          const SlotIcon = SLOT_ICONS[slot.key];
-          const isUploading = uploading === slot.key;
-          const hasPhoto = slot.multi
-            ? Array.isArray(slots[slot.key]) && (slots[slot.key] as string[]).length > 0
-            : !!slots[slot.key];
-          // Resolve storage path to a displayable URL via the preview map
-          const rawPath = slot.multi
-            ? (Array.isArray(slots[slot.key]) ? (slots[slot.key] as string[])[0] : undefined)
-            : (slots[slot.key] as string | undefined);
-          const photoUrl = rawPath
-            ? (previewMap.current[rawPath] || (rawPath.startsWith('http') ? rawPath : undefined))
-            : undefined;
+      <div
+        className="overflow-hidden rounded-3xl"
+        style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}
+      >
+        <div className="flex items-center justify-between gap-3 p-4">
+          <button
+            type="button"
+            onClick={() => moveSlide(-1)}
+            disabled={currentIndex === 0}
+            aria-label="Previous photo example"
+            className="tap-target rounded-full transition-opacity disabled:opacity-30"
+            style={{ backgroundColor: 'var(--bg-card-hover)', color: 'var(--text-secondary)' }}
+          >
+            <ChevronLeft size={18} />
+          </button>
+          <div className="min-w-0 text-center">
+            <div className="flex items-center justify-center gap-2">
+              <p className="truncate text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                {currentSlot.label}
+              </p>
+              {currentSlot.required && !currentSlotFilled && (
+                <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em]" style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
+                  Required
+                </span>
+              )}
+            </div>
+            <p className="mt-0.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+              {currentIndex + 1} of {SLOTS.length}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => moveSlide(1)}
+            disabled={currentIndex === SLOTS.length - 1}
+            aria-label="Next photo example"
+            className="tap-target rounded-full transition-opacity disabled:opacity-30"
+            style={{ backgroundColor: 'var(--bg-card-hover)', color: 'var(--text-secondary)' }}
+          >
+            <ChevronRight size={18} />
+          </button>
+        </div>
 
-          return (
-            <div key={slot.key} className="relative group">
-              <input
-                ref={el => { inputRefs.current[slot.key] = el; }}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                multiple={slot.multi}
-                className="hidden"
-                onChange={e => handleUpload(slot.key, e.target.files)}
-              />
+        <input
+          ref={el => { inputRefs.current[currentSlot.key] = el; }}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          multiple={currentSlot.multi}
+          className="hidden"
+          onChange={e => {
+            handleUpload(currentSlot.key, e.target.files);
+            e.currentTarget.value = '';
+          }}
+        />
 
-              <button
-                onClick={() => inputRefs.current[slot.key]?.click()}
-                disabled={isUploading}
-                className="w-full min-h-[132px] rounded-2xl sm:aspect-[4/3] sm:min-h-0 sm:rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all duration-200 cursor-pointer"
-                style={{
-                  backgroundColor: hasPhoto ? 'transparent' : 'var(--bg-card-hover)',
-                  border: hasPhoto
-                    ? '2px solid rgba(34,197,94,0.4)'
-                    : slot.required
-                      ? '2px dashed var(--accent-color)'
-                      : '2px dashed var(--border-subtle)',
-                  overflow: 'hidden',
-                  position: 'relative',
-                }}
-              >
-                {/* Uploaded photo preview */}
-                {hasPhoto && photoUrl ? (
-                  <>
-                    <img
-                      src={photoUrl}
-                      alt={slot.label}
-                      style={{
-                        position: 'absolute',
-                        inset: 0,
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        borderRadius: '10px',
-                      }}
-                    />
-                    {/* Success overlay */}
-                    <div style={{
-                      position: 'absolute',
-                      top: 6, right: 6,
-                      width: 22, height: 22,
-                      borderRadius: '50%',
-                      backgroundColor: '#22c55e',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}>
-                      <Check size={12} color="#fff" strokeWidth={3} />
-                    </div>
-                    {slot.multi && Array.isArray(slots[slot.key]) && (slots[slot.key] as string[]).length > 1 && (
-                      <div style={{
-                        position: 'absolute',
-                        bottom: 6, right: 6,
-                        padding: '2px 8px',
-                        borderRadius: '12px',
-                        backgroundColor: 'rgba(0,0,0,0.6)',
-                        color: '#fff',
-                        fontSize: '11px',
-                        fontWeight: 600,
-                      }}>
-                        +{(slots[slot.key] as string[]).length - 1}
-                      </div>
-                    )}
-                  </>
-                ) : isUploading ? (
-                  <>
-                    <Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent-color)' }} />
-                    <span className="text-[10px] font-medium" style={{ color: 'var(--text-tertiary)' }}>Uploading…</span>
-                  </>
-                ) : (
-                  <>
-                    {SlotIcon && <SlotIcon size={36} filled={false} />}
-                    <span className="px-2 text-center text-[11px] font-semibold leading-tight sm:text-[10px] sm:font-medium" style={{ color: 'var(--text-tertiary)' }}>
-                      <span className="sm:hidden">{slot.shortLabel}</span>
-                      <span className="hidden sm:inline">{slot.hint}</span>
-                    </span>
-                  </>
-                )}
-                {slot.required && !hasPhoto && (
-                  <span className="absolute left-2 top-2 rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-red-500 sm:hidden">
-                    Required
+        <div className="px-4 pb-4">
+          <button
+            type="button"
+            onClick={() => inputRefs.current[currentSlot.key]?.click()}
+            disabled={isUploadingCurrent}
+            className="relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-2xl transition-transform active:scale-[0.99]"
+            style={{
+              backgroundColor: currentSlotFilled && currentPhotoUrl ? 'transparent' : 'var(--bg-card-hover)',
+              border: currentSlotFilled ? '2px solid rgba(34,197,94,0.42)' : '2px dashed var(--border-medium)',
+            }}
+          >
+            {currentSlotFilled && currentPhotoUrl ? (
+              <>
+                <img src={currentPhotoUrl} alt={currentSlot.label} className="absolute inset-0 h-full w-full object-cover" />
+                <span className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full" style={{ backgroundColor: '#22c55e', color: '#fff' }}>
+                  <Check size={16} strokeWidth={3} />
+                </span>
+                {currentSlot.multi && currentSlotValues.length > 1 && (
+                  <span className="absolute bottom-3 right-3 rounded-full bg-black/65 px-3 py-1 text-xs font-semibold text-white">
+                    {currentSlotValues.length} photos
                   </span>
                 )}
-              </button>
-
-              {/* Label + remove */}
-              <div className="flex items-center justify-between mt-1.5 px-1">
-                <span className="text-xs font-medium" style={{
-                  color: hasPhoto ? '#22c55e' : slot.required ? 'var(--accent-color)' : 'var(--text-tertiary)',
-                }}>
-                  {slot.label}
-                  {slot.required && !hasPhoto && <span style={{ color: '#ef4444' }}> *</span>}
-                </span>
-                {hasPhoto && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); removeSlot(slot.key); }}
-                    className="text-[10px] font-medium transition-opacity hover:opacity-100 opacity-60"
-                    style={{ color: '#ef4444' }}
-                  >
-                    Remove
-                  </button>
-                )}
+              </>
+            ) : isUploadingCurrent ? (
+              <div className="flex flex-col items-center gap-2">
+                <Loader2 size={24} className="animate-spin" style={{ color: 'var(--accent-color)' }} />
+                <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>Uploading...</span>
               </div>
-            </div>
-          );
-        })}
+            ) : (
+              <div className="flex flex-col items-center gap-3 px-6 text-center">
+                {(() => {
+                  const SlotIcon = SLOT_ICONS[currentSlot.key];
+                  return SlotIcon ? <SlotIcon size={72} filled={false} /> : <Camera size={46} style={{ color: 'var(--accent-color)' }} />;
+                })()}
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--text-tertiary)' }}>Example</p>
+                  <p className="mt-1 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{currentSlot.hint}</p>
+                </div>
+              </div>
+            )}
+          </button>
+
+          <div className="mt-4 grid grid-cols-[1fr_auto] gap-3">
+            <button
+              type="button"
+              onClick={() => inputRefs.current[currentSlot.key]?.click()}
+              disabled={isUploadingCurrent}
+              className="tap-target rounded-full px-4 text-sm font-semibold transition-transform active:scale-[0.98]"
+              style={{ backgroundColor: 'var(--accent-color)', color: 'var(--accent-fg)' }}
+            >
+              <Camera size={16} />
+              <span>{currentSlotFilled ? 'Retake' : 'Camera / Upload'}</span>
+            </button>
+            {currentSlotFilled && (
+              <button
+                type="button"
+                onClick={() => removeSlot(currentSlot.key)}
+                className="tap-target rounded-full px-3 text-sm font-semibold"
+                style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#ef4444' }}
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+
+          {currentSlot.multi && currentSlotFilled && (
+            <button
+              type="button"
+              onClick={() => inputRefs.current[currentSlot.key]?.click()}
+              disabled={photoCount >= MAX_CONDITION_PHOTOS || isUploadingCurrent}
+              className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full px-4 text-xs font-semibold disabled:opacity-40"
+              style={{ backgroundColor: 'var(--bg-card-hover)', color: 'var(--text-secondary)' }}
+            >
+              <Upload size={14} />
+              Add another damage photo
+            </button>
+          )}
+
+          <div className="mt-4 flex items-center justify-center gap-1.5">
+            {SLOTS.map((slot, index) => {
+              const done = slotIsFilled(slot.key);
+              const active = index === currentIndex;
+              return (
+                <button
+                  key={slot.key}
+                  type="button"
+                  onClick={() => setCurrentIndex(index)}
+                  aria-label={`Show ${slot.label}`}
+                  className="h-2.5 rounded-full transition-all"
+                  style={{
+                    width: active ? 22 : 10,
+                    backgroundColor: done ? '#22c55e' : active ? 'var(--accent-color)' : 'var(--border-medium)',
+                  }}
+                />
+              );
+            })}
+          </div>
+        </div>
       </div>
 
-      {/* Help text */}
-      <p className="text-[11px] text-center" style={{ color: 'var(--text-tertiary)' }}>
-        Photos document the vehicle's condition at pickup. Take clear, well-lit photos from each angle.
+      <p className="text-center text-[11px]" style={{ color: allFilled ? '#22c55e' : 'var(--text-tertiary)' }}>
+        {allFilled ? 'Required photos saved.' : `${filledCount}/${REQUIRED_SLOTS.length} required photos saved.`}
       </p>
     </div>
   );
