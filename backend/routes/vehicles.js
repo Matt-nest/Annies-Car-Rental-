@@ -18,7 +18,6 @@ router.get('/', requireAuth, asyncHandler(async (req, res) => {
   const { data, error } = await query;
   if (error) throw error;
 
-  const { settings: weekendPricing } = await loadWeekendDynamicPricing(supabase);
   res.json(data);
 }));
 
@@ -33,6 +32,8 @@ router.get('/catalog', asyncHandler(async (req, res) => {
     .order('daily_rate', { ascending: false });
 
   if (error) throw error;
+
+  const { settings: weekendPricing } = await loadWeekendDynamicPricing(supabase);
 
   // Premium is a tier, not a type. These VINs get the 'Premium' tag in addition to their physical category.
   const PREMIUM_VINS = new Set([
