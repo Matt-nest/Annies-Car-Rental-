@@ -5,6 +5,7 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 import { dedupePaymentLedgerRows } from '../services/paymentLedgerService.js';
 
 const router = Router();
+const ACTIONABLE_COUNTER_SIGN_STATUSES = ['approved', 'confirmed'];
 
 function isMissingOptionalTable(error) {
   const text = `${error?.code || ''} ${error?.message || ''} ${error?.details || ''}`;
@@ -45,9 +46,10 @@ router.get('/overview', requireAuth, asyncHandler(async (req, res) => {
     supabase.from('reviews').select('rating').eq('approved', true),
     supabase.from('reviews').select('id', { count: 'exact', head: true }).eq('approved', false),
     supabase.from('bookings').select('*', { count: 'exact', head: true }).gte('created_at', `${startOfMonth}T00:00:00`),
-    supabase.from('rental_agreements').select('*', { count: 'exact', head: true })
+    supabase.from('rental_agreements').select('id, bookings!inner(status)', { count: 'exact', head: true })
       .not('customer_signed_at', 'is', null)
-      .is('owner_signed_at', null),
+      .is('owner_signed_at', null)
+      .in('bookings.status', ACTIONABLE_COUNTER_SIGN_STATUSES),
     // For pending_inspections: returned bookings that don't yet have an
     // admin_inspection record. Two-step query (no LEFT JOIN in PostgREST).
     supabase.from('bookings').select('id').eq('status', 'returned'),
@@ -315,7 +317,8 @@ router.get('/webhook-failures', requireAuth, asyncHandler(async (req, res) => {
   const limit = parseInt(req.query.limit) || 50;
   const { data, error } = await supabase
     .from('webhook_failures')
-    .select('*')
+    .select('id, webhook_type, event, endpoint, error_text, status_code, booking_id, resolved, created_at, bookings(booking_code)')
+    .eq('resolved', false)
     .order('created_at', { ascending: false })
     .limit(limit);
 
@@ -323,7 +326,36 @@ router.get('/webhook-failures', requireAuth, asyncHandler(async (req, res) => {
     if (isMissingOptionalTable(error)) return res.json([]);
     throw error;
   }
-  res.json(data || []);
+  res.json((data || []).map(row => ({
+    id: row.id,
+    webhook_type: row.webhook_type,
+    event: row.event,
+    event_type: row.event || row.webhook_type || 'automation_failure',
+    endpoint: row.endpoint,
+    error_text: row.error_text,
+    error_message: row.error_text,
+    status_code: row.status_code,
+    booking_id: row.booking_id,
+    booking_code: row.bookings?.booking_code || null,
+    resolved: !!row.resolved,
+    created_at: row.created_at,
+  })));
+}));
+
+/** PATCH /stats/webhook-failures/:id/resolve — dismiss a resolved automation failure */
+router.patch('/webhook-failures/:id/resolve', requireAuth, asyncHandler(async (req, res) => {
+  const { data, error } = await supabase
+    .from('webhook_failures')
+    .update({ resolved: true })
+    .eq('id', req.params.id)
+    .select('id, resolved')
+    .single();
+
+  if (error) {
+    if (isMissingOptionalTable(error)) return res.status(404).json({ error: 'Automation failure log is not available' });
+    throw error;
+  }
+  res.json({ success: true, failure: data });
 }));
 
 /** GET /stats/activity — recent status changes */

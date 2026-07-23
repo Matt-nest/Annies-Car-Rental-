@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { AlertTriangle, CheckCheck, RefreshCw } from 'lucide-react';
 import { api } from '../api/client';
 import { SkeletonDashboard } from '../components/shared/Skeleton';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -7,6 +7,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 export default function WebhookFailuresPage() {
   const [failures, setFailures] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [resolving, setResolving] = useState(null);
 
   async function load() {
     setLoading(true);
@@ -18,6 +19,15 @@ export default function WebhookFailuresPage() {
   }
 
   useEffect(() => { load(); }, []);
+
+  async function resolveFailure(id) {
+    setResolving(id);
+    try {
+      await api.resolveWebhookFailure(id);
+      setFailures(prev => prev.filter(f => f.id !== id));
+    } catch (e) { console.error(e); }
+    setResolving(null);
+  }
 
   if (loading) return <SkeletonDashboard />;
 
@@ -42,8 +52,8 @@ export default function WebhookFailuresPage() {
         <div className="card overflow-hidden">
           <div className="px-5 py-3 bg-[var(--danger-glow)] border-b border-[rgba(244,63,94,0.2)] flex items-center gap-2">
             <AlertTriangle size={15} className="text-[var(--danger-color)]" />
-            <p className="text-sm font-medium text-[var(--danger-color)]">{failures.length} failed event{failures.length !== 1 ? 's' : ''}</p>
-            <p className="text-xs text-[var(--danger-color)] ml-1">— review delivery and retry from the source workflow if needed</p>
+            <p className="text-sm font-medium text-[var(--danger-color)]">{failures.length} unresolved failed event{failures.length !== 1 ? 's' : ''}</p>
+            <p className="text-xs text-[var(--danger-color)] ml-1">— review delivery, retry from the source workflow if needed, then dismiss</p>
           </div>
           {/* Mobile cards — a 5-column table sideways-scrolls on a phone, so
               stack each failure into a readable card below md. */}
@@ -63,6 +73,15 @@ export default function WebhookFailuresPage() {
                 {f.error_message && (
                   <p className="text-xs break-words" style={{ color: 'var(--text-secondary)' }}>{f.error_message}</p>
                 )}
+                <button
+                  type="button"
+                  onClick={() => resolveFailure(f.id)}
+                  disabled={resolving === f.id}
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold bg-[var(--bg-card-hover)] text-[var(--text-secondary)] disabled:opacity-60"
+                >
+                  <CheckCheck size={12} />
+                  {resolving === f.id ? 'Dismissing...' : 'Dismiss'}
+                </button>
               </div>
             ))}
           </div>
@@ -72,7 +91,7 @@ export default function WebhookFailuresPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border-subtle)]">
-                  {['Time', 'Event', 'Booking', 'Status', 'Error'].map(h => (
+                  {['Time', 'Event', 'Booking', 'Status', 'Error', 'Action'].map(h => (
                     <th key={h} className="text-left text-xs font-medium text-[var(--text-tertiary)] px-4 py-3">{h}</th>
                   ))}
                 </tr>
@@ -92,6 +111,17 @@ export default function WebhookFailuresPage() {
                     </td>
                     <td className="px-4 py-3 text-xs text-[var(--text-secondary)] max-w-xs truncate" title={f.error_message}>
                       {f.error_message || '—'}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => resolveFailure(f.id)}
+                        disabled={resolving === f.id}
+                        className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold bg-[var(--bg-card-hover)] text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] disabled:opacity-60"
+                      >
+                        <CheckCheck size={12} />
+                        {resolving === f.id ? 'Dismissing...' : 'Dismiss'}
+                      </button>
                     </td>
                   </tr>
                 ))}

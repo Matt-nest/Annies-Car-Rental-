@@ -88,6 +88,7 @@ export default function AgreementSection({ bookingId }) {
   const [showModal, setShowModal] = useState(false);
   const [hasDrawn, setHasDrawn] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [signError, setSignError] = useState(null);
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState('');
   const canvasRef = useRef(null);
@@ -114,6 +115,7 @@ export default function AgreementSection({ bookingId }) {
 
   function closeModal() {
     setShowModal(false);
+    setSignError(null);
     clearCanvas();
   }
 
@@ -121,12 +123,14 @@ export default function AgreementSection({ bookingId }) {
     const canvas = canvasRef.current;
     if (!canvas || !hasDrawn) return;
     setSubmitting(true);
+    setSignError(null);
     try {
       await api.counterSignAgreement(bookingId, canvas.toDataURL('image/png'));
       closeModal();
       await Promise.all([load(), refreshAlerts()]);
     } catch (e) {
       console.error('Counter-sign failed:', e);
+      setSignError(e?.data?.error || 'Could not save your signature. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -310,6 +314,12 @@ export default function AgreementSection({ bookingId }) {
               <RotateCcw size={14} />
             </button>
           </div>
+
+          {signError && (
+            <p className="text-xs text-center" style={{ color: 'var(--danger-color)' }} role="alert">
+              {signError}
+            </p>
+          )}
 
           {!hasDrawn && (
             <p className="text-xs text-[var(--text-tertiary)] text-center">Draw your signature in the box above</p>

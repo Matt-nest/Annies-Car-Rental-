@@ -10,6 +10,7 @@ import { createNotification } from '../services/notificationService.js';
 import { sendTeamAlertAsync, TEAM_ALERT_EVENTS } from '../services/teamAlertService.js';
 
 const router = Router();
+const ACTIONABLE_COUNTER_SIGN_STATUSES = ['approved', 'confirmed'];
 
 async function hasCompletedRentalPayment(bookingId) {
   const { data } = await supabase
@@ -40,6 +41,7 @@ router.get('/pending-counter-sign', requireAuth, asyncHandler(async (req, res) =
     `)
     .not('customer_signed_at', 'is', null)
     .is('owner_signed_at', null)
+    .in('bookings.status', ACTIONABLE_COUNTER_SIGN_STATUSES)
     .order('customer_signed_at', { ascending: false });
 
   if (error) throw error;
@@ -344,6 +346,19 @@ router.post('/:bookingId/counter-sign', requireAuth, asyncHandler(async (req, re
     return res.status(400).json({ error: 'Signature is required' });
   }
 
+  const { data: booking, error: bookingError } = await supabase
+    .from('bookings')
+    .select('id, booking_code, status, vehicle_id, customers(first_name, last_name)')
+    .eq('id', req.params.bookingId)
+    .single();
+
+  if (bookingError || !booking) return res.status(404).json({ error: 'Booking not found' });
+  if (!ACTIONABLE_COUNTER_SIGN_STATUSES.includes(booking.status)) {
+    return res.status(409).json({
+      error: `This booking is ${String(booking.status || 'not actionable').replace(/_/g, ' ')} and no longer needs a counter-signature.`,
+    });
+  }
+
   const { data, error } = await supabase
     .from('rental_agreements')
     .update({
@@ -353,31 +368,32 @@ router.post('/:bookingId/counter-sign', requireAuth, asyncHandler(async (req, re
       owner_signed_by: req.user?.email || 'admin',
     })
     .eq('booking_id', req.params.bookingId)
+    .not('customer_signed_at', 'is', null)
+    .is('owner_signed_at', null)
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) throw error;
-  if (!data) return res.status(404).json({ error: 'Agreement not found' });
-
-  // Create notification for counter-sign
-  const { createNotification } = await import('../services/notificationService.js');
-
-  // Get booking info for notification
-  const { data: booking } = await supabase
-    .from('bookings')
-    .select('id, booking_code, status, vehicle_id, customers(first_name, last_name)')
-    .eq('id', req.params.bookingId)
-    .single();
+  if (!data) return res.status(404).json({ error: 'No pending agreement found for this booking' });
 
   if (booking) {
     const cName = `${booking.customers?.first_name || ''} ${booking.customers?.last_name || ''}`.trim();
     createNotification(
-      'agreement_pending',
+      'status_change',
       `Agreement fully executed: ${booking.booking_code}`,
       cName ? `${cName}'s rental agreement has been counter-signed` : undefined,
       `/bookings/${booking.id}`,
       { booking_id: booking.id }
     ).catch(() => {});
+    supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .contains('metadata', { booking_id: booking.id })
+      .eq('type', 'agreement_pending')
+      .eq('is_read', false)
+      .then(({ error }) => {
+        if (error) console.warn('[Agreements] Failed to clear stale counter-sign notifications:', error.message);
+      });
 
     // Transition booking to confirmed only if payment is complete. Agreement
     // counter-signing alone must not advance an unpaid booking.

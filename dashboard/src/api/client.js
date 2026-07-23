@@ -98,6 +98,7 @@ export const api = {
   getUpcoming: () => request('/stats/upcoming'),
   getActivity: (limit = 20) => request(`/stats/activity?limit=${limit}`),
   getWebhookFailures: (limit = 50) => request(`/stats/webhook-failures?limit=${limit}`),
+  resolveWebhookFailure: (id) => request(`/stats/webhook-failures/${id}/resolve`, { method: 'PATCH' }),
 
   // Search
   searchAll: (q) => request(`/search?q=${encodeURIComponent(q)}`),

@@ -27,6 +27,9 @@ const TRANSITIONS = {
   no_show: [],
 };
 
+const TERMINAL_NOTIFICATION_STATUSES = new Set(['declined', 'cancelled', 'completed', 'no_show']);
+const STALE_ACTION_NOTIFICATION_TYPES = ['new_booking', 'agreement_pending'];
+
 export function canTransition(from, to) {
   return (TRANSITIONS[from] || []).includes(to);
 }
@@ -538,6 +541,18 @@ export async function transitionBooking(bookingId, newStatus, { changedBy = 'own
       `/bookings/${bookingId}`,
       { booking_id: bookingId, new_status: newStatus }
     ).catch(() => { });
+  }
+
+  if (TERMINAL_NOTIFICATION_STATUSES.has(newStatus)) {
+    supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .contains('metadata', { booking_id: bookingId })
+      .in('type', STALE_ACTION_NOTIFICATION_TYPES)
+      .eq('is_read', false)
+      .then(({ error }) => {
+        if (error) console.warn('[Notifications] Failed to clear stale booking actions:', error.message);
+      });
   }
 
   if (newStatus === 'returned') {
