@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Users, Fuel, Gauge, ArrowUpRight, Infinity } from 'lucide-react';
+import { Users, Fuel, Gauge, ArrowUpRight, Infinity, CalendarDays } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Vehicle, RateMode } from '../../types';
 import { getVehicleDisplayName } from '../../data/vehicles';
@@ -21,6 +21,7 @@ const VehicleCard = memo(function VehicleCard({ vehicle, onClick, index = 0, rat
 
   const weeklyRate = vehicle.weeklyRate ?? (vehicle.dailyRate * 7 * 0.85);
   const weeklySavings = parseFloat(((vehicle.dailyRate * 7) - weeklyRate).toFixed(2));
+  const weekendRate = vehicle.dynamicPricing?.enabled ? vehicle.dynamicPricing.weekendRate : null;
 
   return (
     <motion.div
@@ -30,6 +31,15 @@ const VehicleCard = memo(function VehicleCard({ vehicle, onClick, index = 0, rat
       transition={{ delay: index < 3 ? index * STAGGER.normal : 0, duration: 0.6, ease: EASE.standard }}
       whileHover={window.matchMedia('(hover: hover)').matches ? { y: -6, transition: { duration: 0.4, ease: EASE.smooth } } : undefined}
       onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      aria-label={`View ${getVehicleDisplayName(vehicle)} details`}
       data-testid="vehicle-card"
       className="vehicle-card group cursor-pointer rounded-3xl overflow-hidden border"
       style={{
@@ -113,6 +123,14 @@ const VehicleCard = memo(function VehicleCard({ vehicle, onClick, index = 0, rat
             {rateMode === 'daily' && vehicle.weeklyRate && (
               <span className="text-[10px] sm:text-[11px] font-medium uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>
                 Weekly available
+              </span>
+            )}
+            {rateMode === 'daily' && weekendRate != null && (
+              <span
+                className="mt-1 inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full border"
+                style={{ color: '#D4AF37', borderColor: 'rgba(212,175,55,0.35)', backgroundColor: 'rgba(212,175,55,0.07)' }}
+              >
+                <CalendarDays size={10} /> Fri/weekend ${Math.round(weekendRate)}
               </span>
             )}
             {rateMode === 'monthly' && (

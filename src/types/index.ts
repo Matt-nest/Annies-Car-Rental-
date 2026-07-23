@@ -17,6 +17,13 @@ export interface Vehicle {
   weeklyDiscountPercent?: number;
   weeklyUnlimitedMileage?: boolean;
   monthlyDisplayPrice?: number | null;
+  dynamicPricing?: {
+    enabled: boolean;
+    daysOfWeek: number[];
+    weekendRate: number | null;
+    weekendLabel?: string | null;
+    defaultWeekendIncrease?: number;
+  };
   seats: number;
   fuel: string;
   mpg: number;

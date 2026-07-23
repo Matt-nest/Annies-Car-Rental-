@@ -5,6 +5,23 @@
 
 ---
 
+## 2026-07-23 — Weekend dynamic pricing controls
+
+### Changes Made
+- **Backend dynamic pricing**: Added `weekend_dynamic_pricing` settings support, `GET/PUT /api/v1/pricing-rules/weekend`, public catalog `dynamicPricing` fields, and new booking pricing integration for daily bookings that include Friday/Saturday/Sunday.
+- **Dashboard pricing UI**: Added a Growth → Pricing “Friday / weekend pricing” panel with enable toggle, active-day chips, default all-other-vehicles bump, editable model-specific rates, fleet match counts, live preview, and “Save & publish” state.
+- **Customer site pricing display**: Vehicle cards, quick view, detail rate selector, and request-to-book estimate now surface Friday/weekend rates from the live catalog.
+- **Current defaults**: Altima/Passat `$115`, Jetta/Sentra `$105`, all other vehicles `+$20` on Friday/weekend days.
+
+### API/Data Impact
+- No schema change. Settings persist in the existing `settings` table under `weekend_dynamic_pricing`.
+- Existing bookings are unchanged; the weekend rule applies to public catalog display and new daily booking quotes after save.
+
+### Verification
+- [x] Backend pricing/date tests passed: 15/15
+- [x] Customer-site production build passed
+- [x] Dashboard production build passed with `VITE_API_URL=/api/v1`
+
 ## 2026-07-15 — JD parity repair for approval checkout and portal preview
 
 ### Changes Made

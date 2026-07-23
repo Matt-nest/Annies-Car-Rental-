@@ -2,9 +2,22 @@ import { Router } from 'express';
 import { supabase } from '../db/supabase.js';
 import { requireAuth } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
+import { loadWeekendDynamicPricing, saveWeekendDynamicPricing } from '../services/dynamicPricingService.js';
 
 const router = Router();
 router.use(requireAuth);
+
+// GET /pricing-rules/weekend — simple recurring Friday/weekend pricing controls
+router.get('/weekend', asyncHandler(async (_req, res) => {
+  const { settings, persistent } = await loadWeekendDynamicPricing(supabase);
+  res.json({ ...settings, persistent });
+}));
+
+// PUT /pricing-rules/weekend — save and publish recurring weekend pricing
+router.put('/weekend', asyncHandler(async (req, res) => {
+  const settings = await saveWeekendDynamicPricing(supabase, req.body, req.user?.id || null);
+  res.json({ ...settings, persistent: true });
+}));
 
 // GET /pricing-rules — list all, newest first
 router.get('/', asyncHandler(async (_req, res) => {

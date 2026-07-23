@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Users, Fuel, Gauge, Settings2, CheckCircle2, XCircle, ArrowLeft, Phone, Star, ArrowRight, X, DollarSign, Clock, Car } from 'lucide-react';
+import { Users, Fuel, Gauge, Settings2, CheckCircle2, XCircle, ArrowLeft, Phone, Star, ArrowRight, X, DollarSign, Clock, Car, CalendarDays } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Vehicle, RateMode } from '../../types';
 import { getVehicleDisplayName } from '../../data/vehicles';
 import { getReviewsForVehicle, addReview } from '../../data/reviews';
 import Gallery from './Gallery';
 import RequestToBookForm from './RequestToBookForm';
-import InsuranceExplainer from './InsuranceExplainer';
 import MobileBookingSheet from './MobileBookingSheet';
+import InsuranceExplainer from './InsuranceExplainer';
 import { useTheme } from '../../context/ThemeContext';
 import { EASE, STAGGER } from '../../utils/motion';
 import ThemeToggle from '../common/ThemeToggle';
@@ -66,6 +66,7 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
   };
 
   const isDark = theme === 'dark';
+  const weekendRate = vehicle.dynamicPricing?.enabled ? vehicle.dynamicPricing.weekendRate : null;
 
   // Compact, floating rate selector that docks directly above the booking card.
   // Dark mode keeps the subtle surface; light mode mirrors the card's frosted glass.
@@ -127,6 +128,14 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
               >
                 {price}<span className="text-[10px] font-normal opacity-70">{unit}</span>
               </span>
+              {mode === 'daily' && weekendRate != null && (
+                <span
+                  className="relative z-10 mt-1 inline-flex items-center justify-center gap-1 text-[9px] font-medium"
+                  style={{ color: active ? 'var(--accent-fg)' : 'var(--text-tertiary)' }}
+                >
+                  <CalendarDays size={9} /> ${Math.round(weekendRate)} Fri/weekend
+                </span>
+              )}
             </button>
           );
         })}
@@ -219,9 +228,8 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
               {vehicle.description}
             </motion.p>
 
-            {/* On mobile the booking wizard lives in the MobileBookingSheet,
-                opened from the sticky "Book Now" bar (rendered below). Desktop
-                keeps the inline sticky right-rail card. */}
+            {/* Pricing tiers now live in the compact floating rate selector
+                docked directly above the booking card (right rail / mobile). */}
 
             {/* Specs Row */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -276,6 +284,10 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
                 ))}
               </div>
             </section>
+
+            {/* On mobile the booking wizard lives in the MobileBookingSheet,
+                opened from the sticky "Book Now" bar (rendered below). Desktop
+                keeps the inline sticky right-rail card. */}
 
             {/* Reviews - unified star visualization */}
             <section className="space-y-8 pt-8" style={{ borderTop: '1px solid var(--border-subtle)' }}>
@@ -533,7 +545,8 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
       {/*
         Mobile sticky bottom CTA - one-thumb-reach Book Now with live price.
         Hidden at lg+ because the desktop layout already has the sticky right-rail
-        booking card. Safe-area-inset-bottom protects the iOS home indicator.
+        booking card. Reuses #booking-form smooth-scroll already wired in this file.
+        Safe-area-inset-bottom protects the iOS home indicator.
       */}
       <div
         className="lg:hidden fixed bottom-0 inset-x-0 z-[90]"
@@ -546,7 +559,11 @@ export default function VehicleDetailPage({ vehicle, onBack }: VehicleDetailPage
         <div className="px-4 pt-3 flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>
-              {selectedRate === 'monthly' ? 'Monthly' : selectedRate === 'weekly' ? 'Weekly' : 'Daily'}
+              {selectedRate === 'monthly'
+                ? 'Monthly'
+                : selectedRate === 'weekly'
+                  ? 'Weekly'
+                  : 'Daily'}
             </p>
             <p className="text-lg font-medium leading-tight truncate" style={{ color: 'var(--text-primary)' }}>
               {selectedRate === 'monthly' && vehicle.monthlyDisplayPrice

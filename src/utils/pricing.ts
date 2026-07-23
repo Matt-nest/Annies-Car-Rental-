@@ -37,6 +37,29 @@ export interface PriceBreakdown {
   total: number;
   savingsVsDaily: number;
   mileageIncluded: boolean;
+  dynamicPricingAdjustment: number;
+  dynamicPricingDays: number;
+  dynamicPricingRate: number | null;
+}
+
+interface DynamicPricingConfig {
+  enabled?: boolean;
+  daysOfWeek?: number[];
+  weekendRate?: number | null;
+}
+
+export function countDynamicPricingDays(startDate: string, endDate: string, config?: DynamicPricingConfig | null): number {
+  if (!config?.enabled || !config.daysOfWeek?.length || !startDate || !endDate) return 0;
+  const start = new Date(startDate + 'T12:00:00Z');
+  const end = new Date(endDate + 'T12:00:00Z');
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return 0;
+
+  const activeDays = new Set(config.daysOfWeek);
+  let count = 0;
+  for (const cursor = new Date(start); cursor <= end; cursor.setUTCDate(cursor.getUTCDate() + 1)) {
+    if (activeDays.has(cursor.getUTCDay())) count += 1;
+  }
+  return count;
 }
 
 export function calcPriceBreakdown({
@@ -49,6 +72,7 @@ export function calcPriceBreakdown({
   mileageFee = 0,
   tollFee = 0,
   taxRate = 0.07,
+  dynamicPricing = null,
 }: {
   dailyRate: number;
   discountPct?: number;
@@ -59,6 +83,7 @@ export function calcPriceBreakdown({
   mileageFee?: number;
   tollFee?: number;
   taxRate?: number;
+  dynamicPricing?: DynamicPricingConfig | null;
 }): PriceBreakdown | null {
   const rentalDays = calcRentalDays(startDate, endDate);
   if (rentalDays <= 0) return null;
@@ -69,6 +94,9 @@ export function calcPriceBreakdown({
   let remainderDays: number;
   let subtotal: number;
   let mileageIncluded = false;
+  let dynamicPricingAdjustment = 0;
+  let dynamicPricingDays = 0;
+  let dynamicPricingRate: number | null = null;
 
   if (rentalDays >= 7) {
     fullWeeks = Math.floor(rentalDays / 7);
@@ -82,6 +110,12 @@ export function calcPriceBreakdown({
     remainderDays = rentalDays;
     rateType = 'daily';
     subtotal = parseFloat((dailyRate * rentalDays).toFixed(2));
+    dynamicPricingDays = countDynamicPricingDays(startDate, endDate, dynamicPricing);
+    if (dynamicPricingDays > 0 && dynamicPricing?.weekendRate != null) {
+      dynamicPricingRate = Number(dynamicPricing.weekendRate);
+      dynamicPricingAdjustment = parseFloat(((dynamicPricingRate - dailyRate) * dynamicPricingDays).toFixed(2));
+      subtotal = parseFloat((subtotal + dynamicPricingAdjustment).toFixed(2));
+    }
     if (mileageFee > 0) mileageIncluded = true;
   }
 
@@ -98,5 +132,6 @@ export function calcPriceBreakdown({
     weeklyRate, subtotal, discountPct,
     deliveryFee, mileageFee, tollFee, tax, total,
     savingsVsDaily, mileageIncluded,
+    dynamicPricingAdjustment, dynamicPricingDays, dynamicPricingRate,
   };
 }

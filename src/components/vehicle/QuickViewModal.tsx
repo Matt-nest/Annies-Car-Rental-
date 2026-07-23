@@ -1,14 +1,14 @@
 import React from 'react';
-import { X, Users, Fuel, Gauge, Settings2, ArrowRight, Phone, ChevronLeft, ChevronRight, Star, MapPin } from 'lucide-react';
+import { X, Users, Fuel, Gauge, Settings2, ArrowRight, Phone, ChevronLeft, ChevronRight, Star, MapPin, Infinity, CalendarDays } from 'lucide-react';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Vehicle, RateMode } from '../../types';
 import { getVehicleDisplayName } from '../../data/vehicles';
 import { getReviewsForVehicle } from '../../data/reviews';
 import { useTheme } from '../../context/ThemeContext';
-import { EASE, DURATION } from '../../utils/motion';
-import { brand } from '../../config/brand';
+import { EASE } from '../../utils/motion';
 import RateToggle from '../home/RateToggle';
+import { brand } from '../../config/brand';
 
 interface QuickViewModalProps {
   vehicle: Vehicle;
@@ -22,6 +22,7 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
   const [quickRateMode, setQuickRateMode] = useState<RateMode>('daily');
   const reviews = getReviewsForVehicle(vehicle.id);
   const displayName = getVehicleDisplayName(vehicle);
+  const weekendRate = vehicle.dynamicPricing?.enabled ? vehicle.dynamicPricing.weekendRate : null;
 
   const specs = [
     { label: 'Seats', value: vehicle.seats.toString(), icon: Users },
@@ -67,16 +68,17 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
             : '0 25px 100px -20px rgba(0,0,0,0.15)',
         }}
       >
-        {/* Close button */}
+        {/* Close button - 44×44 tap target (WCAG 2.5.5 AAA + Apple HIG) */}
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-[transform] duration-300 hover:scale-110"
+          aria-label="Close vehicle preview"
+          className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 w-11 h-11 rounded-full flex items-center justify-center transition-[transform] duration-300 hover:scale-110"
           style={{
             backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.95)',
             border: '1px solid var(--border-subtle)',
           }}
         >
-          <X size={18} />
+          <X size={20} />
         </button>
 
         {/* Image - compact landscape hero. Renders only if vehicle has images. */}
@@ -92,7 +94,7 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
                 src={vehicle.images[imgIndex]}
                 alt={`${displayName}, angle ${imgIndex + 1}`}
                 className="w-full h-full object-contain"
-                style={{ backgroundColor: theme === 'dark' ? '#0a0a0a' : '#f0f0f0', filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.3))' }}
+                style={{ backgroundColor: 'var(--bg-secondary)', filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.3))' }}
               />
             </AnimatePresence>
           )}
@@ -186,6 +188,14 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
                   >
                     200 mi/day
                   </span>
+                  {weekendRate != null && (
+                    <span
+                      className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border"
+                      style={{ borderColor: 'color-mix(in srgb, var(--accent-color) 35%, transparent)', color: 'var(--accent-color)', backgroundColor: 'color-mix(in srgb, var(--accent-color) 8%, transparent)' }}
+                    >
+                      <CalendarDays size={11} /> Fri/weekend ${Math.round(weekendRate)}
+                    </span>
+                  )}
                 </>
               )}
 
@@ -198,16 +208,16 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
                   <div className="flex gap-1.5 flex-wrap">
                     <span
                       className="text-xs font-semibold px-2.5 py-1 rounded-full"
-                      style={{ backgroundColor: 'rgba(212,175,55,0.15)', color: 'var(--accent-color)' }}
+                      style={{ backgroundColor: 'color-mix(in srgb, var(--accent-color) 15%, transparent)', color: 'var(--accent-color)' }}
                     >
                       Save ${Math.round(vehicle.dailyRate * 7 - vehicle.weeklyRate)}
                     </span>
                     {vehicle.weeklyUnlimitedMileage && (
                       <span
-                        className="text-xs font-medium px-2.5 py-1 rounded-full border"
+                        className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border"
                         style={{ borderColor: 'var(--border-medium)', color: 'var(--text-secondary)' }}
                       >
-                        ∞ Unlimited miles
+                        <Infinity size={11} className="shrink-0" /> Unlimited miles
                       </span>
                     )}
                   </div>
@@ -233,15 +243,15 @@ export default function QuickViewModal({ vehicle, onClose, onViewDetails }: Quic
                   <div className="flex gap-1.5 flex-wrap">
                     <span
                       className="text-xs font-semibold px-2.5 py-1 rounded-full"
-                      style={{ backgroundColor: 'rgba(212,175,55,0.15)', color: 'var(--accent-color)' }}
+                      style={{ backgroundColor: 'color-mix(in srgb, var(--accent-color) 15%, transparent)', color: 'var(--accent-color)' }}
                     >
                       Best rate
                     </span>
                     <span
-                      className="text-xs font-medium px-2.5 py-1 rounded-full border"
+                      className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border"
                       style={{ borderColor: 'var(--border-medium)', color: 'var(--text-secondary)' }}
                     >
-                      ∞ Unlimited miles
+                      <Infinity size={11} className="shrink-0" /> Unlimited miles
                     </span>
                   </div>
                 </>

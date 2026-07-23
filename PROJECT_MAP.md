@@ -120,6 +120,7 @@
 | `pages/GrowthPage.jsx` | `growthApi.getSummary()` plus embedded leads/reviews/pricing/loyalty panels | tabbed Growth workspace | selected tab, summary |
 | `pages/MarketingPage.jsx` | `marketingApi.getWorkspace()`, `createCampaign()*`, `createLink()*`, `createReferral()*` | QR generator, print asset cards, referral/campaign panels | workspace, selected QR link, form state |
 | `pages/KnowledgeHubPage.jsx` | none | `GuidedDemoPlayer` | local guide search, selected guide, category filter |
+| `components/pricing/WeekendPricingPanel.jsx` | `GET/PUT /pricing-rules/weekend`, `GET /vehicles` via local authenticated fetch | `DataError`, lucide icons | recurring Friday/weekend dynamic pricing draft, save/live state |
 | `pages/SettingsPage.jsx` | none | `DashboardLayoutSettings` | env var display only |
 | `pages/WebhookFailuresPage.jsx` | `api.getWebhookFailures(100)` | `Skeleton` | automation failure records |
 
@@ -182,6 +183,7 @@ VEHICLES (→ vehicles table)
   api.updateVehicle(id, body)                PUT  /vehicles/:id
   api.updateVehicleStatus(id, status)        PATCH /vehicles/:id/status
   api.getVehicleAvailability(id, start, end) GET  /vehicles/:id/availability
+  recurring weekend dynamic pricing          GET/PUT /pricing-rules/weekend
   api.getBlockedDates(vehicleId)             GET  /vehicles/:id/blocked-dates
   api.addBlockedDates(vehicleId, body)       POST /vehicles/:id/blocked-dates
   api.deleteBlockedDate(id)                  DELETE /blocked-dates/:id

@@ -4,6 +4,7 @@ import { requireAuth, requireRole } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { checkAvailability, getAvailableVehicles } from '../services/availabilityService.js';
 import { enrichVehicle } from '../services/autoDevService.js';
+import { buildVehicleDynamicPricing, loadWeekendDynamicPricing } from '../services/dynamicPricingService.js';
 
 const router = Router();
 
@@ -16,6 +17,8 @@ router.get('/', requireAuth, asyncHandler(async (req, res) => {
 
   const { data, error } = await query;
   if (error) throw error;
+
+  const { settings: weekendPricing } = await loadWeekendDynamicPricing(supabase);
   res.json(data);
 }));
 
@@ -66,6 +69,7 @@ router.get('/catalog', asyncHandler(async (req, res) => {
       weeklyRate: parseFloat(((parseFloat(v.daily_rate) * 7) * (1 - ((v.weekly_discount_percent ?? 15) / 100))).toFixed(2)),
       weeklyUnlimitedMileage: v.weekly_unlimited_mileage_enabled !== false,
       monthlyDisplayPrice: v.monthly_display_price ?? null,
+      dynamicPricing: buildVehicleDynamicPricing(v, weekendPricing),
       seats: v.seats,
       fuel: v.fuel_type === 'gasoline' ? 'Gas' : v.fuel_type,
       mpg: 30,

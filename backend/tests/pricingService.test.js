@@ -177,7 +177,50 @@ test('5-day daily + mileage add-on ($100) — allowance becomes unlimited, addon
   assert.ok(labels.includes('Tax (7%)'));
 });
 
-// ─── Test 8: calcRentalDays — verify inclusive counting ───────────────────────
+// ─── Test 8: Weekend dynamic pricing on daily bookings ───────────────────────
+test('3-day Fri-Sun daily rental — weekend model rate is itemized', () => {
+  const p = computeRentalPricing({
+    vehicle: { make: 'Nissan', model: 'Altima', daily_rate: 98, weekly_discount_percent: 15, weekly_unlimited_mileage_enabled: true },
+    pickupDate: '2026-07-24',
+    returnDate: '2026-07-26',
+    dynamicPricing: {
+      enabled: true,
+      daysOfWeek: [5, 6, 0],
+      defaultWeekendIncrease: 20,
+      modelRates: [{ make: 'Nissan', model: 'Altima', label: 'Altima', weekendRate: 115 }],
+    },
+  });
+
+  assert.equal(p.rental_days, 3);
+  assert.equal(p.rate_type, 'daily');
+  assert.equal(p.dynamic_pricing_days, 3);
+  assert.equal(p.dynamic_pricing_rate, 115);
+  assert.equal(p.dynamic_pricing_adjustment, 51);
+  assert.equal(p.subtotal, 345);
+  assert.equal(p.line_items[0].amount, 294);
+  assert.equal(p.line_items[1].amount, 51);
+});
+
+test('7-day weekly rental — weekend dynamic pricing does not override weekly discount', () => {
+  const p = computeRentalPricing({
+    vehicle: altima,
+    pickupDate: '2026-07-24',
+    returnDate: '2026-07-30',
+    dynamicPricing: {
+      enabled: true,
+      daysOfWeek: [5, 6, 0],
+      defaultWeekendIncrease: 20,
+      modelRates: [{ make: 'Nissan', model: 'Altima', label: 'Altima', weekendRate: 115 }],
+    },
+  });
+
+  assert.equal(p.rate_type, 'weekly');
+  assert.equal(p.dynamic_pricing_days, 0);
+  assert.equal(p.dynamic_pricing_adjustment, 0);
+  assert.equal(p.subtotal, 583.10);
+});
+
+// ─── Test 10: calcRentalDays — verify inclusive counting ──────────────────────
 test('calcRentalDays — same-day = 1, next-day = 2, 7 days apart = 8', () => {
   assert.equal(calcRentalDays('2026-05-01', '2026-05-01'), 1);
   assert.equal(calcRentalDays('2026-05-01', '2026-05-02'), 2);

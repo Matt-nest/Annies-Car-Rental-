@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../auth/supabaseClient';
 import DataError from '../components/shared/DataError';
 import { SkeletonDashboard, SkeletonTable } from '../components/shared/Skeleton';
+import WeekendPricingPanel from '../components/pricing/WeekendPricingPanel';
 
 const BASE = import.meta.env.VITE_API_URL || '/api/v1';
 
@@ -351,6 +352,8 @@ export function PricingRulesPanel({ embedded = false }) {
 
   return (
     <div className={containerClass}>
+      <WeekendPricingPanel />
+
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h1 className="text-xl font-semibold text-[var(--text-primary)]">Pricing Rules</h1>

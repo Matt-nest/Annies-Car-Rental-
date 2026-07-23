@@ -1,4 +1,5 @@
 import { supabase } from '../db/supabase.js';
+import brand from '../config/brand.js';
 import { generateBookingCode } from '../utils/generateBookingCode.js';
 import { checkAvailability } from './availabilityService.js';
 import { computeRentalPricing, DELIVERY_FEES, resolveMultiplier, calcRentalDays } from './pricingService.js';
@@ -12,6 +13,7 @@ import { getVehicleDepositAmount } from './depositService.js';
 import { generateInvoice } from './invoiceService.js';
 import { updateBookingWithSchemaFallback } from '../utils/schemaFallback.js';
 import { withDedupedBookingPayments } from './paymentLedgerService.js';
+import { loadWeekendDynamicPricing } from './dynamicPricingService.js';
 
 // Valid one-way status transitions
 const TRANSITIONS = {
@@ -32,6 +34,12 @@ const STALE_ACTION_NOTIFICATION_TYPES = ['new_booking', 'agreement_pending'];
 
 export function canTransition(from, to) {
   return (TRANSITIONS[from] || []).includes(to);
+}
+
+function defaultPickupLocation() {
+  const loc = brand.location || {};
+  const street = loc.address && loc.address !== loc.city ? loc.address : null;
+  return [street, loc.city, loc.state].filter(Boolean).join(', ') || brand.name;
 }
 
 async function signCheckinPhoto(pathOrUrl) {
@@ -126,7 +134,7 @@ export async function createBooking(payload) {
   const deliveryRequested = deliveryFeeAmount > 0;
   const pickup_location = deliveryRequested
     ? (delivery_address || 'Delivery address TBD')
-    : 'Port St. Lucie';
+    : defaultPickupLocation();
 
   // 1. Look up vehicle — try vehicle_code first, then id, then slug match
   let vehicle = null;
@@ -223,9 +231,10 @@ export async function createBooking(payload) {
   // 4. Pricing
   const mileageAddonFee = unlimited_miles ? 100 : 0;   // $100 flat (zeroed by computeRentalPricing for weekly bookings)
   const tollAddonFee = unlimited_tolls ? 20 : 0;        // $20 flat
-  const [{ multiplier: priceMultiplier, name: seasonalRuleName }, { discountPct: loyaltyDiscountPct, tier: loyaltyTier }] = await Promise.all([
+  const [{ multiplier: priceMultiplier, name: seasonalRuleName }, { discountPct: loyaltyDiscountPct, tier: loyaltyTier }, { settings: dynamicPricing }] = await Promise.all([
     resolveMultiplier(supabase, pickup_date, return_date, vehicle.id),
     resolveCustomerLoyalty(supabase, customer.id),
+    loadWeekendDynamicPricing(supabase),
   ]);
   const loyaltyTierLabel = loyaltyTier ? (LOYALTY_TIERS.find(t => t.key === loyaltyTier)?.label || null) : null;
   const pricing = computeRentalPricing({
@@ -242,6 +251,7 @@ export async function createBooking(payload) {
     weeklyDiscountPercentOverride: adminWeeklyDiscountPct,
     totalCostOverride: adminTotalCostOverride,
     totalCostOverrideLabel: 'Admin exact price override',
+    dynamicPricing,
   });
 
   const expectedDays = calcRentalDays(pickup_date, return_date);
@@ -454,7 +464,7 @@ export async function transitionBooking(bookingId, newStatus, { changedBy = 'own
   // Cancellation: if a Bonzah policy is bound, file a cancel endorsement with
   // Bonzah BEFORE we flip the local row to 'cancelled'. This way if Bonzah
   // errors, we don't end up with an orphaned active policy and a cancelled
-  // booking. Customer gets no refund — Bonzah credits Annie's broker balance
+  // booking. Customer gets no refund — Bonzah credits business broker balance
   // (admin reconciles offline).
   if (newStatus === 'cancelled' && booking.bonzah_policy_id && booking.insurance_status === 'active') {
     try {

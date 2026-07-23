@@ -1,3 +1,5 @@
+import { countDynamicPricingDays, getWeekendRateForVehicle } from './dynamicPricingService.js';
+
 const TAX_RATE = parseFloat(process.env.TAX_RATE || '0.07');
 
 /**
@@ -121,6 +123,7 @@ export function computeRentalPricing({
   weeklyDiscountPercentOverride = null,
   totalCostOverride = null,
   totalCostOverrideLabel = 'Admin price override',
+  dynamicPricing = null,
 }) {
   const rentalDays = calcRentalDays(pickupDate, returnDate);
   const dailyRate = parseFloat(vehicle.daily_rate);
@@ -130,6 +133,10 @@ export function computeRentalPricing({
   const unlimitedMileageIncluded = vehicle.weekly_unlimited_mileage_enabled !== false;
 
   let rate_type, full_weeks, remainder_days, subtotal;
+  let dynamicPricingAdjustment = 0;
+  let dynamicPricingDays = 0;
+  let dynamicPricingRate = null;
+  let dynamicPricingLabel = null;
 
   if (rentalDays >= 7) {
     full_weeks = Math.floor(rentalDays / 7);
@@ -143,6 +150,16 @@ export function computeRentalPricing({
     remainder_days = rentalDays;
     rate_type = 'daily';
     subtotal = parseFloat((dailyRate * rentalDays).toFixed(2));
+    if (dynamicPricing?.enabled) {
+      const weekendRate = getWeekendRateForVehicle(vehicle, dynamicPricing);
+      dynamicPricingDays = countDynamicPricingDays(pickupDate, returnDate, dynamicPricing);
+      if (weekendRate && dynamicPricingDays > 0) {
+        dynamicPricingRate = weekendRate.rate;
+        dynamicPricingLabel = weekendRate.label;
+        dynamicPricingAdjustment = parseFloat(((dynamicPricingRate - dailyRate) * dynamicPricingDays).toFixed(2));
+        subtotal = parseFloat((subtotal + dynamicPricingAdjustment).toFixed(2));
+      }
+    }
   }
 
   // Apply seasonal pricing multiplier (e.g. 1.25 for spring break, 0.90 for off-season)
@@ -186,7 +203,14 @@ export function computeRentalPricing({
       line_items.push({ label: remainder_days === 1 ? '1 day' : `${remainder_days} days`, amount: parseFloat((remainder_days * dailyRate).toFixed(2)) });
     }
   } else {
-    line_items.push({ label: rentalDays === 1 ? '1 day' : `${rentalDays} days`, amount: subtotal });
+    const baseDailySubtotal = parseFloat((dailyRate * rentalDays).toFixed(2));
+    line_items.push({ label: rentalDays === 1 ? '1 day' : `${rentalDays} days`, amount: baseDailySubtotal });
+  }
+  if (dynamicPricingAdjustment !== 0) {
+    line_items.push({
+      label: `${dynamicPricingLabel || 'Weekend pricing'} (${dynamicPricingDays} day${dynamicPricingDays === 1 ? '' : 's'} @ $${dynamicPricingRate}/day)`,
+      amount: dynamicPricingAdjustment,
+    });
   }
   if (seasonalAdjustment !== 0 && seasonalRuleName) {
     const pct = Math.round((priceMultiplier - 1) * 100);
@@ -241,6 +265,9 @@ export function computeRentalPricing({
     weekly_discount_percent: discountPct,
     full_weeks,
     remainder_days,
+    dynamic_pricing_adjustment: dynamicPricingAdjustment,
+    dynamic_pricing_days: dynamicPricingDays,
+    dynamic_pricing_rate: dynamicPricingRate,
     savings_vs_daily:        rate_type !== 'daily'
       ? parseFloat(((dailyRate * rentalDays) - subtotal).toFixed(2))
       : 0,

@@ -297,9 +297,23 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
       deliveryFee,
       mileageFee,
       tollFee,
+      dynamicPricing: vehicle.dynamicPricing,
     });
     if (!bd) return null;
-    return { days: bd.rentalDays, subtotal: bd.subtotal, deliveryFee, mileageFee, tollFee, tax: bd.tax, total: bd.total, rateType: bd.rateType, savingsVsDaily: bd.savingsVsDaily };
+    return {
+      days: bd.rentalDays,
+      subtotal: bd.subtotal,
+      deliveryFee,
+      mileageFee,
+      tollFee,
+      tax: bd.tax,
+      total: bd.total,
+      rateType: bd.rateType,
+      savingsVsDaily: bd.savingsVsDaily,
+      dynamicPricingAdjustment: bd.dynamicPricingAdjustment,
+      dynamicPricingDays: bd.dynamicPricingDays,
+      dynamicPricingRate: bd.dynamicPricingRate,
+    };
   })();
 
   const formatTime = (t: string) => {
@@ -698,8 +712,14 @@ export default function RequestToBookForm({ vehicle, selectedRate = 'daily' }: R
                 </p>
                 <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>
                   <span>Rental ({priceEstimate.days} day{priceEstimate.days !== 1 ? 's' : ''})</span>
-                  <span>${displayPrice(priceEstimate.subtotal).toLocaleString()}</span>
+                  <span>${displayPrice(priceEstimate.dynamicPricingDays > 0 ? vehicle.dailyRate * priceEstimate.days : priceEstimate.subtotal).toLocaleString()}</span>
                 </div>
+                {priceEstimate.dynamicPricingDays > 0 && priceEstimate.dynamicPricingRate != null && (
+                  <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>
+                    <span>Fri/weekend rate ({priceEstimate.dynamicPricingDays} day{priceEstimate.dynamicPricingDays !== 1 ? 's' : ''} @ ${displayPrice(priceEstimate.dynamicPricingRate)})</span>
+                    <span>{priceEstimate.dynamicPricingAdjustment >= 0 ? '+' : '-'}${displayPrice(Math.abs(priceEstimate.dynamicPricingAdjustment))}</span>
+                  </div>
+                )}
                 {priceEstimate.deliveryFee > 0 && (
                   <div className="flex justify-between" style={{ color: 'var(--text-secondary)' }}>
                     <span>Delivery fee</span>
