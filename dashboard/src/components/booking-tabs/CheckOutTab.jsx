@@ -8,6 +8,7 @@ import {
   CheckCircle, AlertCircle, Loader2, Camera, X, ImagePlus,
   Fuel, ChevronRight, ChevronLeft, DollarSign, Plus, Trash2,
   FileText, Send, ArrowRight, Gauge, Lock, ShieldAlert,
+  RotateCcw,
 } from 'lucide-react';
 
 /* ── Fuel Level Tap Selector ────────────────────────────────────────── */
@@ -109,31 +110,59 @@ const INCIDENTAL_TYPES = [
 ];
 
 /* ── Stepper Header ──────────────────────────────────────────────────── */
-function StepperHeader({ step, steps }) {
+function StepperHeader({ step, steps, onReset, resetDisabled = false }) {
   return (
-    <div className="flex items-center gap-2 mb-6">
-      {steps.map((s, i) => (
-        <div key={i} className="flex items-center gap-2 flex-1">
-          <div className="flex items-center gap-2 flex-1">
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-all"
-              style={{
-                backgroundColor: i < step ? '#22c55e' : i === step ? 'var(--accent-color)' : 'var(--bg-card-hover)',
-                color: i < step ? '#fff' : i === step ? 'var(--accent-fg)' : 'var(--text-tertiary)',
-                border: i > step ? '2px solid var(--border-subtle)' : 'none',
-              }}
-            >
-              {i < step ? <CheckCircle size={14} /> : i + 1}
+    <div className="mb-6 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4 space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="min-w-0 truncate text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
+          Step {step + 1} of {steps.length}
+        </p>
+        {onReset && (
+          <button
+            type="button"
+            onClick={onReset}
+            disabled={resetDisabled}
+            title="Reset checkout flow"
+            className="inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card-hover)] px-3 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <RotateCcw size={14} />
+            Reset
+          </button>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        {steps.map((s, i) => (
+          <div key={i} className="flex items-center gap-2 flex-1">
+            <div className="flex items-center gap-2 flex-1">
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-all"
+                style={{
+                  backgroundColor: i < step ? '#22c55e' : i === step ? 'var(--accent-color)' : 'var(--bg-card-hover)',
+                  color: i < step ? '#fff' : i === step ? 'var(--accent-fg)' : 'var(--text-tertiary)',
+                  border: i > step ? '2px solid var(--border-subtle)' : 'none',
+                }}
+              >
+                {i < step ? <CheckCircle size={14} /> : i + 1}
+              </div>
+              <span className={`text-xs font-medium hidden sm:block ${i === step ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)]'}`}>
+                {s}
+              </span>
             </div>
-            <span className={`text-xs font-medium hidden sm:block ${i === step ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)]'}`}>
-              {s}
-            </span>
+            {i < steps.length - 1 && (
+              <div
+                className="h-px flex-1 mx-1"
+                style={{ backgroundColor: i < step ? '#22c55e' : 'var(--border-subtle)' }}
+              />
+            )}
           </div>
-          {i < steps.length - 1 && (
-            <div className="h-px flex-1 mx-1" style={{ backgroundColor: i < step ? '#22c55e' : 'var(--border-subtle)' }} />
-          )}
-        </div>
-      ))}
+        ))}
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-[var(--bg-card-hover)]">
+        <div
+          className="h-full rounded-full bg-[var(--accent-color)] transition-all duration-300"
+          style={{ width: `${((step + 1) / steps.length) * 100}%` }}
+        />
+      </div>
     </div>
   );
 }
@@ -631,6 +660,24 @@ export default function CheckOutTab({ booking, onReload, onSelectTab, sheetMode 
     setMoneyAction(null);
   }
 
+  function resetCheckoutFlow() {
+    setStep(0);
+    setOdometer(booking.return_mileage || '');
+    setFuelLevel(booking.return_fuel_level || 'full');
+    setNotes('');
+    setPhotos([]);
+    setShowNotes(false);
+    setIncidentals([]);
+    setIncidentalsLoaded(false);
+    setNewIncType('cleaning');
+    setNewIncAmount('');
+    setNewIncDesc('');
+    setDeposit(null);
+    setInvoice(null);
+    setError('');
+    setMoneyAction(null);
+  }
+
   function buildReturnPayload() {
     return {
       mileage: odometer ? Number(odometer) : undefined,
@@ -834,7 +881,12 @@ export default function CheckOutTab({ booking, onReload, onSelectTab, sheetMode 
   return (
     <div className={`max-w-lg mx-auto space-y-4 py-2 ${sheetMode ? 'pb-2' : 'pb-[calc(var(--bottom-nav-offset)+96px)] md:pb-2'}`}>
       {/* Stepper */}
-      <StepperHeader step={step} steps={STEPS} />
+      <StepperHeader
+        step={step}
+        steps={STEPS}
+        onReset={resetCheckoutFlow}
+        resetDisabled={loading}
+      />
 
       {/* Error */}
       {error && (

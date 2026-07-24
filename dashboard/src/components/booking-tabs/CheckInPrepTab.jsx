@@ -3,7 +3,7 @@ import { api } from '../../api/client';
 import { uploadAdminCheckinPhotos } from '../../api/checkinPhotoApi';
 import { useAlerts } from '../../lib/alertsContext';
 import { compressImage } from '../../lib/compressImage';
-import { Camera, X, Loader2, ImagePlus, CheckCircle, Key, AlertCircle, Fuel, Gauge, ChevronLeft, ChevronRight, ClipboardCheck, ShieldAlert } from 'lucide-react';
+import { Camera, X, Loader2, ImagePlus, CheckCircle, Key, AlertCircle, Fuel, Gauge, ChevronLeft, ChevronRight, ClipboardCheck, ShieldAlert, RotateCcw } from 'lucide-react';
 
 /* ── Fuel Level Tap Selector ────────────────────────────────────────── */
 const FUEL_LEVELS = [
@@ -41,9 +41,26 @@ function FuelSelector({ value, onChange }) {
   );
 }
 
-function StepperHeader({ step, steps }) {
+function StepperHeader({ step, steps, onReset, resetDisabled = false }) {
   return (
     <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4 space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="min-w-0 truncate text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
+          Step {step + 1} of {steps.length}
+        </p>
+        {onReset && (
+          <button
+            type="button"
+            onClick={onReset}
+            disabled={resetDisabled}
+            title="Reset check-in flow"
+            className="inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card-hover)] px-3 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <RotateCcw size={14} />
+            Reset
+          </button>
+        )}
+      </div>
       <div className="flex items-center justify-between gap-2">
         {steps.map((label, index) => {
           const active = index === step;
@@ -304,6 +321,18 @@ export default function CheckInPrepTab({ booking, onReload, sheetMode = false })
     setSubmitting(false);
   }
 
+  function resetCheckInFlow() {
+    setOdometer('');
+    setFuelLevel('full');
+    setNotes('');
+    setPhotos([]);
+    setPhotoPreviews({});
+    setShowNotes(false);
+    setSkipPhotosReason('');
+    setStep(0);
+    setError('');
+  }
+
   /* ─── Already Prepped State ──────────────────────────────────────── */
   if (isReady || success) {
     return (
@@ -441,7 +470,12 @@ export default function CheckInPrepTab({ booking, onReload, sheetMode = false })
   /* ─── Check-In Form ─────────────────────────────────────────────── */
   return (
     <div className={`max-w-lg mx-auto space-y-4 py-2 ${sheetMode ? 'pb-2' : 'pb-[calc(var(--bottom-nav-offset)+112px)] md:pb-2'}`}>
-      <StepperHeader step={step} steps={steps} />
+      <StepperHeader
+        step={step}
+        steps={steps}
+        onReset={resetCheckInFlow}
+        resetDisabled={submitting}
+      />
 
       {error && (
         <div className="flex items-center gap-2 p-3 rounded-xl text-sm" style={{
