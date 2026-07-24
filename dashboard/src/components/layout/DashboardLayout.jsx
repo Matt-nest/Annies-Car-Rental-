@@ -88,6 +88,12 @@ function DashboardLayoutInner() {
     return () => window.removeEventListener('dashboard:open-active-modal', handler);
   }, []);
 
+  useEffect(() => {
+    const handler = () => setSidebarOpen(true);
+    window.addEventListener('dashboard:open-mobile-menu', handler);
+    return () => window.removeEventListener('dashboard:open-mobile-menu', handler);
+  }, []);
+
   // ── Profile dropdown dismiss ────────────────────────────────────────────────
   useEffect(() => {
     function handleClickOutside(e) {

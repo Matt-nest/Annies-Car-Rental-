@@ -476,15 +476,17 @@ test('bookings route renders booking operations page', async ({ page }, testInfo
     const taskbar = page.locator('[data-mobile-taskbar]');
     const primaryNav = page.getByRole('navigation', { name: /primary navigation/i });
     await expect(taskbar).toBeVisible();
-    await expect(taskbar.getByRole('button', { name: /^New$/ })).toBeVisible();
+    await expect(taskbar.getByRole('button', { name: /^New Booking$/ })).toBeVisible();
     const taskbarBox = await taskbar.boundingBox();
     const navBox = await primaryNav.boundingBox();
     expect(taskbarBox, 'mobile task bar should be measurable').not.toBeNull();
     expect(navBox, 'mobile tab bar should be measurable').not.toBeNull();
+    const gap = navBox!.y - (taskbarBox!.y + taskbarBox!.height);
     expect(
-      Math.abs((taskbarBox!.y + taskbarBox!.height) - navBox!.y),
-      `task bar should dock flush above tab bar, got ${JSON.stringify({ taskbarBox, navBox })}`
-    ).toBeLessThanOrEqual(2);
+      gap,
+      `mobile task bubble should float above tab bar, got ${JSON.stringify({ taskbarBox, navBox })}`
+    ).toBeGreaterThanOrEqual(8);
+    expect(gap).toBeLessThanOrEqual(18);
 
     await page.locator('main').evaluate((node) => {
       node.scrollTop = node.scrollHeight;
@@ -495,12 +497,14 @@ test('bookings route renders booking operations page', async ({ page }, testInfo
     const scrolledNavBox = await primaryNav.boundingBox();
     expect(scrolledTaskbarBox, 'scrolled mobile task bar should be measurable').not.toBeNull();
     expect(scrolledNavBox, 'scrolled mobile tab bar should be measurable').not.toBeNull();
+    const scrolledGap = scrolledNavBox!.y - (scrolledTaskbarBox!.y + scrolledTaskbarBox!.height);
     expect(
-      Math.abs((scrolledTaskbarBox!.y + scrolledTaskbarBox!.height) - scrolledNavBox!.y),
-      `task bar should stay docked after scroll, got ${JSON.stringify({ scrolledTaskbarBox, scrolledNavBox })}`
-    ).toBeLessThanOrEqual(2);
+      scrolledGap,
+      `mobile task bubble should keep its tab bar gap after scroll, got ${JSON.stringify({ scrolledTaskbarBox, scrolledNavBox })}`
+    ).toBeGreaterThanOrEqual(8);
+    expect(scrolledGap).toBeLessThanOrEqual(18);
 
-    await taskbar.getByRole('button', { name: /^New$/ }).click();
+    await taskbar.getByRole('button', { name: /^New Booking$/ }).click();
     await expect(page.getByRole('heading', { name: 'New Booking' })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByRole('heading', { name: 'New Booking' })).toBeHidden();

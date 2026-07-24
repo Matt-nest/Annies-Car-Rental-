@@ -3,17 +3,14 @@ import { ArrowRight, MessageSquare, Star, Receipt, Key } from 'lucide-react';
 import { haptic } from '../../hooks/useHaptic';
 
 /**
- * PortalActionBar - sticky bottom-center primary CTA for the customer portal.
+ * PortalActionBar - floating mobile primary CTA for the customer portal.
  *
  * Always renders one clear next action per booking state, one-thumb-tap, above
  * the iOS home indicator (safe-area-inset-bottom). Phone-only (`md:hidden`) so
  * desktop users still scroll to the existing in-page form.
  *
- * Strategy: this bar is a navigation aid - taps scroll to the relevant section
- * of the existing portal page rather than triggering the API call directly.
- * That keeps the existing forms (with their photo validation, signature pads,
- * error handling) as the single source of truth. Sprint 7b will replace those
- * forms with bottom-sheet modals so the action bar becomes a direct trigger.
+ * Strategy: pickup and return actions open the guided Vaul sheets when wired by
+ * CustomerPortal; other states still scroll to the relevant in-page section.
  *
  * Haptics: `navigator.vibrate(10)` on Android - iOS Safari silently ignores it.
  */
@@ -91,7 +88,7 @@ export default function PortalActionBar({
   const toneStyle = action?.tone === 'success'
     ? { backgroundColor: '#22c55e', color: '#fff' }
     : action?.tone === 'neutral'
-      ? { backgroundColor: 'var(--bg-card-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }
+      ? { backgroundColor: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }
       : { backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' };
 
   function handleTap() {
@@ -113,33 +110,25 @@ export default function PortalActionBar({
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 80, opacity: 0 }}
           transition={{ type: 'spring', stiffness: 320, damping: 32 }}
-          className="md:hidden fixed bottom-0 inset-x-0 z-[90]"
+          className="md:hidden pointer-events-none fixed bottom-0 inset-x-0 z-[90] px-4"
           style={{
-            backgroundColor: 'var(--bg-elevated)',
-            borderTop: '1px solid var(--border-subtle)',
             paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
           }}
         >
-          <div className="px-4 pt-3">
-            <div className="mb-2 flex items-end justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>
-                  {statusEyebrow[status] || 'Next'}
-                </p>
-                <p className="truncate text-sm font-semibold leading-tight" style={{ color: 'var(--text-primary)' }}>
-                  Swipe up to continue
-                </p>
-              </div>
-            </div>
+          <div className="pointer-events-auto mx-auto max-w-lg">
             <button
               type="button"
               disabled={disabled}
               onClick={handleTap}
-              className="tap-target w-full flex items-center justify-center gap-2 py-4 rounded-full font-semibold text-sm shadow-lg active:scale-95 transition-transform disabled:opacity-50"
-              style={toneStyle}
+              aria-label={`${action.label}: ${statusEyebrow[status] || 'Next'} action`}
+              className="tap-target flex h-14 w-full items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold shadow-2xl active:scale-95 transition-transform disabled:opacity-50"
+              style={{
+                ...toneStyle,
+                boxShadow: '0 10px 30px rgba(11,26,48,0.32)',
+              }}
             >
-              <action.icon size={18} />
-              {action.label}
+              <span className="min-w-0 truncate">{action.label}</span>
+              <action.icon size={18} className="shrink-0" />
             </button>
           </div>
         </motion.div>

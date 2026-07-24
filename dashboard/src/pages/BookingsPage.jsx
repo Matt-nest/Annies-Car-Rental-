@@ -287,7 +287,7 @@ export default function BookingsPage() {
         eyebrow="Bookings"
         title="Create booking"
         subtitle={`${visibleBookings.length} booking${visibleBookings.length === 1 ? '' : 's'} showing`}
-        primaryLabel="New"
+        primaryLabel="New Booking"
         primaryIcon={Plus}
         onPrimary={() => setNewBookingOpen(true)}
       />
